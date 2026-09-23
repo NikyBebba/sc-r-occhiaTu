@@ -1,12 +1,12 @@
 // ============================================
-// UI — navigazione tab (Watchlist / Stasera / Visti)
+// UI — navigazione tab (Watchlist / Stasera / Visti / Calendario)
 // ============================================
 
 let currentTab = 'watchlist';
 
 function setTab(tab) {
   currentTab = tab;
-  ['Watchlist', 'Tonight', 'Watched'].forEach(t => {
+  ['Watchlist', 'Tonight', 'Watched', 'Calendar'].forEach(t => {
     const btn = document.getElementById('tab' + t);
     const key = t.toLowerCase();
     btn.className = key === tab

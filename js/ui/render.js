@@ -140,6 +140,18 @@ function renderStats() {
 
 // ---- Render principale ----
 function render() {
+  // Vista Calendario: il mese occupa la colonna destra, colonna sinistra invariata.
+  if (currentTab === 'calendar') {
+    renderCalendar();
+    renderScheduled();
+    renderVetoInfo();
+    renderSyncStatus();
+    renderNextMovieBox();
+    if (!countdownTimer) countdownTimer = setInterval(renderNextMovieBox, 30000);
+    drawWheel();
+    return;
+  }
+
   const grid = document.getElementById('movieGrid');
   grid.innerHTML = '';
 

@@ -99,7 +99,7 @@ async function okA(name, fn) {
     'js/config.js',
     'js/api/omdb.js', 'js/api/tmdb.js', 'js/api/index.js',
     'js/store.js', 'js/wheel.js',
-    'js/ui/modals.js', 'js/ui/navigation.js', 'js/ui/actions.js', 'js/ui/render.js',
+    'js/ui/modals.js', 'js/ui/navigation.js', 'js/ui/actions.js', 'js/ui/render.js', 'js/ui/calendar.js',
     'js/main.js'
   ].map(f => read(f) + '\n;');
 
@@ -259,6 +259,102 @@ async function okA(name, fn) {
   ok('openModal/closeModal gestiscono le classi', run(() => { openModal('x'); closeModal('x'); return true; }));
   ok('escapeHtml neutralizza tag', run(() => escapeHtml('<script>').indexOf('&lt;script&gt;') !== -1));
   ok('jsAttrEscape neutralizza apici', run(() => jsAttrEscape("O'Brien").indexOf("\\'") !== -1));
+
+  // --- 6) calendario: logica pura + render (step 3a, solo vista) ---
+  console.log('\n[calendario — logica pura + render]');
+  ok('dayKey con padding a 2 cifre', run(() => dayKey(2026, 9, 3) === '2026-09-03'));
+  ok('dayKey edge anno/mese (dicembre)', run(() => dayKey(2025, 12, 31) === '2025-12-31'));
+  ok('todayKey = componenti locali (senza off-by-one)', run(() => {
+    const now = new Date();
+    return todayKey() === dayKey(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  }));
+  ok('monthGrid settembre 2026: 5 settimane x 7, lunedì-primo, prima cella 31/08', run(() => {
+    const w = monthGrid(2026, 8);
+    return w.length === 5 && w.every(row => row.length === 7)
+      && w[0][0].key === '2026-08-31' && w[0][0].inMonth === false && w[0][0].day === 31;
+  }));
+  ok('monthGrid: tutti i 30 giorni di settembre presenti e inMonth', run(() => {
+    const days = monthGrid(2026, 8).flat().filter(c => c.inMonth);
+    return days.length === 30 && days[0].key === '2026-09-01' && days[29].key === '2026-09-30';
+  }));
+  ok('monthGrid: overflow al mese successivo (trailing out-of-month)', run(() => {
+    const last = monthGrid(2026, 8).flat().slice(-1)[0];
+    return last.inMonth === false && last.key === '2026-10-04';
+  }));
+  ok('shiftMonth attraversa il cambio anno', run(() => {
+    const a = shiftMonth(2026, 0, -1);
+    const b = shiftMonth(2026, 11, 1);
+    return a.year === 2025 && a.month === 11 && b.year === 2027 && b.month === 0;
+  }));
+  await okA('nightsByDayKey: mappa night->giorno, status conservato, date null escluse', runA(async () => {
+    movieNights = [
+      { id: 'cal1', movie_id: movies[0].id, date: '2026-09-03', time: '21:30', status: 'confirmed' },
+      { id: 'cal2', movie_id: movies[0].id, date: '2026-09-03', time: '22:00', status: 'proposed' },
+      { id: 'cal3', movie_id: movies[0].id, date: null, status: 'confirmed' },
+      { id: 'cal4', movie_id: movies[0].id, date: '2026-10-01', status: 'completed' }
+    ];
+    const { byDay, undated } = nightsByDayKey(movieNights, movies, 2026, 8);
+    return byDay['2026-09-03']?.length === 2
+      && byDay['2026-09-03'][0].night.status === 'confirmed'
+      && byDay['2026-09-03'][1].night.status === 'proposed'
+      && byDay['2026-10-01'] === undefined
+      && byDay[null] === undefined
+      && undated.some(e => e.night.id === 'cal3');
+  }));
+  ok('nightsByDayKey: film presente risolto, film mancante -> null (no crash)', run(() => {
+    const found = nightsByDayKey([{ id: 'x', movie_id: movies[0].id, date: '2026-09-05', status: 'cancelled' }], movies, 2026, 8);
+    const missing = nightsByDayKey([{ id: 'y', movie_id: 'ghost', date: '2026-09-06', status: 'cancelled' }], movies, 2026, 8);
+    return found.byDay['2026-09-05'][0].movie?.id === movies[0].id && missing.byDay['2026-09-06'][0].movie === null;
+  }));
+  ok('renderCalendar: primo open = mese corrente, senza crash', run(() => {
+    calendarYear = null; calendarMonth = null; calendarSelectedKey = null;
+    renderCalendar();
+    const now = new Date();
+    return calendarYear === now.getFullYear() && calendarMonth === now.getMonth();
+  }));
+  ok('calendarSelectDay: toggle apre, il giorno senza serate chiude il riepilogo', run(() => {
+    calendarYear = 2026; calendarMonth = 8; calendarSelectedKey = null;
+    calendarSelectDay('2026-09-03');
+    const opened = calendarSelectedKey === '2026-09-03';
+    calendarSelectDay('2026-09-10');
+    return opened && calendarSelectedKey === null;
+  }));
+  ok('calendarShift: naviga al mese dopo e resetta la selezione', run(() => {
+    calendarYear = 2026; calendarMonth = 8; calendarSelectedKey = '2026-09-03';
+    calendarShift(1);
+    return calendarYear === 2026 && calendarMonth === 9 && calendarSelectedKey === null;
+  }));
+  ok('calendarToday: torna al mese corrente e resetta la selezione', run(() => {
+    calendarYear = 2026; calendarMonth = 0; calendarSelectedKey = '2026-09-03';
+    calendarToday();
+    const now = new Date();
+    return calendarYear === now.getFullYear() && calendarMonth === now.getMonth() && calendarSelectedKey === null;
+  }));
+  ok('render() su tab calendar disegna la griglia e non crasha', run(() => {
+    currentTab = 'calendar';
+    render();
+    const drawn = document.getElementById('movieGrid').innerHTML.length > 0;
+    currentTab = 'watchlist';
+    return drawn;
+  }));
+  ok('renderCalendar: wrapper col-span-full come unico figlio di #movieGrid', run(() => {
+    calendarYear = 2026; calendarMonth = 8; calendarSelectedKey = null;
+    renderCalendar();
+    const html = document.getElementById('movieGrid').innerHTML.trim();
+    return html.startsWith('<div class="col-span-full">')
+      && html.endsWith('</div>')
+      && (html.match(/<div class="col-span-full">/g) || []).length === 1
+      && html.indexOf('<div class="space-y-1">') !== -1;
+  }));
+  ok('monthGrid ottobre 2026: 28/29/30/09 fuori mese + 01/10 inMonth, righe da 7', run(() => {
+    const w = monthGrid(2026, 9);
+    const first = w[0];
+    return w.length === 5 && w.every(row => row.length === 7)
+      && first[0].key === '2026-09-28' && first[0].inMonth === false
+      && first[1].key === '2026-09-29' && first[1].inMonth === false
+      && first[2].key === '2026-09-30' && first[2].inMonth === false
+      && first[3].key === '2026-10-01' && first[3].inMonth === true;
+  }));
 
   console.log(`\n=== RISULTATO: ${pass}/${pass + fail} PASS ===`);
   if (fails.length) { console.log('FAIL:', fails.join('\n  ')); process.exit(1); }
