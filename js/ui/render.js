@@ -212,7 +212,7 @@ function render() {
             </button>
           </div>
           <div class="flex items-center gap-2 mt-1 flex-wrap">
-            ${m.genre ? `<span class="text-[10px] text-slate-400">${MOOD_LABELS[m.genre] || m.genre}</span>` : ''}
+            ${m.genre ? `<span class="text-[10px] text-slate-400">${escapeHtml(MOOD_LABELS[m.genre] || m.genre)}</span>` : ''}
             ${matchHtml}
             ${(m.review_by && m.review_by !== 'both' && m.status !== 'watched') ? `<span class="text-[10px] text-amber-400"><i class="fa-solid fa-eye"></i> già visto da ${CONFIG.PEOPLE[m.review_by]?.label || m.review_by} — rewatch insieme?</span>` : ''}
           </div>
