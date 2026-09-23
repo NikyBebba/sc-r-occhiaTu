@@ -58,7 +58,7 @@
         <span id="syncBadge" class="hidden text-[10px] px-2 py-1 bg-amber-500/15 text-amber-300 rounded-md border border-amber-500/30" title="Supabase non raggiungibile: sto usando i dati salvati sul telefono"></span>
         <span id="currentUserBadge"></span>
         <button onclick="openModal('statsModal'); renderStats();" class="px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm transition flex items-center gap-2" title="Il Nostro Cinema">
-          <i class="fa-solid fa-chart-simple"></i>
+          <i class="fa-solid fa-chart-pie"></i>
         </button>
         <button onclick="openSurprisePicker()" class="px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm transition flex items-center gap-2" title="Scegli a sorpresa">
           <i class="fa-solid fa-gift"></i>
@@ -319,7 +319,7 @@
   <div id="statsModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass p-6 rounded-2xl max-w-lg w-full border border-slate-800 space-y-4 max-h-[85vh] overflow-y-auto">
       <div class="flex items-center justify-between gap-2">
-        <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa-solid fa-chart-simple text-indigo-400"></i> Il Nostro Cinema</h3>
+        <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-indigo-400"></i> Il Nostro Cinema</h3>
         <button onclick="closeModal('statsModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div id="statsGrid" class="grid grid-cols-2 gap-3"></div>
