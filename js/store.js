@@ -2,10 +2,10 @@
 // Livello dati — Supabase (con fallback localStorage e Realtime)
 // ============================================
 
-let supabase = null;
+let sb = null;
 if (CONFIG.SUPABASE_URL && CONFIG.SUPABASE_URL.startsWith('http') &&
     window.supabase && window.supabase.createClient) {
-  supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+  sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 }
 
 let movies = [];
@@ -17,7 +17,7 @@ let movieNights = []; // { id, movie_id, date, time, snack, proposed_by, status,
 // 'local' = database degradato/non raggiungibile: usiamo il mirror in
 // localStorage. Il fallback NON è silenzioso: viene loggato e segnalato in
 // UI (badge). Si ritenta di tornare a Supabase a ogni azione/load.
-let dbMode = supabase ? 'supabase' : 'local';
+let dbMode = sb ? 'supabase' : 'local';
 
 // Dopo un fallimento di Supabase non riproviamo subito: aspettiamo un po'
 // (rete up/down) per non martellare un DB che non risponde.
@@ -63,13 +63,13 @@ function loadLocal() {
 // Legge tutto da Supabase. Se fallisce (o se siamo in modalità locale e nel
 // periodo di "respiro") ritorna null: chi chiama usa loadLocal().
 async function fetchAll() {
-  if (!supabase) return null;
+  if (!sb) return null;
   if (dbMode === 'local' && Date.now() - lastSupabaseFailAt < SUPABASE_RETRY_MS) return null;
   const [moviesRes, votesRes, vetoesRes, nightsRes] = await Promise.all([
-    supabase.from('movies').select('*').order('created_at', { ascending: false }),
-    supabase.from('votes').select('*'),
-    supabase.from('vetoes').select('*'),
-    supabase.from('movie_nights').select('*').order('created_at', { ascending: false })
+    sb.from('movies').select('*').order('created_at', { ascending: false }),
+    sb.from('votes').select('*'),
+    sb.from('vetoes').select('*'),
+    sb.from('movie_nights').select('*').order('created_at', { ascending: false })
   ]);
   const coreFailed = moviesRes.error || votesRes.error || vetoesRes.error;
   if (coreFailed) {
@@ -149,8 +149,8 @@ function onDbChange() {
 
 // ---- Realtime: un solo canale per sessione ----
 function subscribeRealtime() {
-  if (realtimeChannel || !supabase) return;
-  const channel = supabase
+  if (realtimeChannel || !sb) return;
+  const channel = sb
     .channel('scorochiatu-db-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'movies' }, onDbChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'votes' }, onDbChange)
@@ -166,16 +166,16 @@ function subscribeRealtime() {
 }
 
 function unsubscribeRealtime() {
-  if (realtimeChannel && supabase) {
-    supabase.removeChannel(realtimeChannel);
+  if (realtimeChannel && sb) {
+    sb.removeChannel(realtimeChannel);
     realtimeChannel = null;
   }
 }
 
 async function insertMovie(newMovie) {
   const finalMovie = { ...newMovie };
-  if (supabase) {
-    const { data, error } = await supabase.from('movies').insert([newMovie]).select();
+  if (sb) {
+    const { data, error } = await sb.from('movies').insert([newMovie]).select();
     if (error) {
       console.error('[sc(r)occhiaTu] insertMovie fallita su Supabase:', error.message);
       dbMode = 'local';
@@ -185,13 +185,13 @@ async function insertMovie(newMovie) {
   }
   if (!finalMovie.id) finalMovie.id = Date.now().toString() + Math.random();
   movies.push(finalMovie); // teniamo movies aggiornato anche col DB attivo (es. dedup nel bulk)
-  if (!supabase) saveLocal();
+  if (!sb) saveLocal();
   return finalMovie;
 }
 
 async function updateMovie(id, patch) {
-  if (supabase) {
-    const { error } = await supabase.from('movies').update(patch).eq('id', id);
+  if (sb) {
+    const { error } = await sb.from('movies').update(patch).eq('id', id);
     if (error) {
       console.error('[sc(r)occhiaTu] updateMovie fallita su Supabase:', error.message);
       dbMode = 'local';
@@ -205,8 +205,8 @@ async function updateMovie(id, patch) {
 }
 
 async function deleteMovie(id) {
-  if (supabase) {
-    const { error } = await supabase.from('movies').delete().eq('id', id);
+  if (sb) {
+    const { error } = await sb.from('movies').delete().eq('id', id);
     if (error) {
       console.error('[sc(r)occhiaTu] deleteMovie fallita su Supabase:', error.message);
       dbMode = 'local';
@@ -250,14 +250,14 @@ function getVotesForMovie(movieId) {
 }
 
 async function castVote(movieId, person, liked) {
-  if (supabase) {
-    const { error } = await supabase.from('votes').upsert([{ movie_id: movieId, person, liked }], { onConflict: 'movie_id,person' });
+  if (sb) {
+    const { error } = await sb.from('votes').upsert([{ movie_id: movieId, person, liked }], { onConflict: 'movie_id,person' });
     if (error) {
       console.error('[sc(r)occhiaTu] castVote fallito su Supabase:', error.message);
       dbMode = 'local';
       lastSupabaseFailAt = Date.now();
     }
-    const { data } = await supabase.from('votes').select('*');
+    const { data } = await sb.from('votes').select('*');
     if (data) { votes = data; saveLocal(); }
   } else {
     const existing = votes.find(v => v.movie_id === movieId && v.person === person);
@@ -290,14 +290,14 @@ function vetoedMovieIdsThisWeek() {
 async function addVeto(person, movieId) {
   const wk = currentWeekKey();
   if (vetoUsedThisWeek(person)) return false;
-  if (supabase) {
-    const { error } = await supabase.from('vetoes').insert([{ person, movie_id: movieId, week_key: wk }]);
+  if (sb) {
+    const { error } = await sb.from('vetoes').insert([{ person, movie_id: movieId, week_key: wk }]);
     if (error) {
       console.error('[sc(r)occhiaTu] addVeto fallito su Supabase:', error.message);
       dbMode = 'local';
       lastSupabaseFailAt = Date.now();
     }
-    const { data } = await supabase.from('vetoes').select('*');
+    const { data } = await sb.from('vetoes').select('*');
     if (data) { vetoes = data; saveLocal(); }
   } else {
     vetoes.push({ id: Date.now().toString() + Math.random(), person, movie_id: movieId, week_key: wk });
@@ -326,8 +326,8 @@ function activeNightForMovie(movieId) {
 }
 
 async function insertMovieNight(night) {
-  if (supabase) {
-    const { data, error } = await supabase.from('movie_nights').insert([night]).select();
+  if (sb) {
+    const { data, error } = await sb.from('movie_nights').insert([night]).select();
     if (error) {
       console.error('[sc(r)occhiaTu] insertMovieNight fallita su Supabase:', error.message);
       dbMode = 'local';
@@ -341,8 +341,8 @@ async function insertMovieNight(night) {
 }
 
 async function updateMovieNight(id, patch) {
-  if (supabase) {
-    const { error } = await supabase.from('movie_nights').update(patch).eq('id', id);
+  if (sb) {
+    const { error } = await sb.from('movie_nights').update(patch).eq('id', id);
     if (error) {
       console.error('[sc(r)occhiaTu] updateMovieNight fallita su Supabase:', error.message);
       dbMode = 'local';
