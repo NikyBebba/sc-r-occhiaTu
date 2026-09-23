@@ -200,6 +200,65 @@ async function okA(name, fn) {
     const v = getVotesForMovie(movies[0].id);
     return v.N === true && v.V === true;
   }));
+  await okA('castVote: riclick dello stesso voto lo rimuove (toggle locale)', runA(async () => {
+    await castVote('vote-extra', 'N', true);
+    const liked = getVotesForMovie('vote-extra').N === true;
+    await castVote('vote-extra', 'N', true); // stesso voto: annulla
+    const removed = votes.filter(v => v.movie_id === 'vote-extra').length === 0;
+    return liked && removed;
+  }));
+  await okA('castVote: switch like→dislike sostituisce senza duplicati', runA(async () => {
+    await castVote('vote-extra', 'N', false);
+    return getVotesForMovie('vote-extra').N === false
+      && votes.filter(v => v.movie_id === 'vote-extra').length === 1;
+  }));
+  await okA('castVote su Supabase: riclick dello stesso voto fa DELETE (mock sb)', runA(async () => {
+    const rows = [];
+    const mockFrom = table => {
+      if (table !== 'votes') throw new Error('mock: solo votes');
+      return {
+        upsert: async incoming => {
+          for (const r of incoming) {
+            const i = rows.findIndex(x => x.movie_id === r.movie_id && x.person === r.person);
+            if (i >= 0) rows[i] = { ...rows[i], ...r };
+            else rows.push({ id: 'mock-' + (rows.length + 1), ...r });
+          }
+          return { error: null };
+        },
+        select: () => ({ then: resolve => resolve({ data: rows.map(r => ({ ...r })), error: null }) }),
+        delete: () => {
+          const q = {
+            where: {},
+            eq(column, value) { this.where[column] = value; return this; },
+            then: resolve => {
+              for (let i = rows.length - 1; i >= 0; i--) {
+                const r = rows[i];
+                if (Object.keys(q.where).every(k => r[k] === q.where[k])) rows.splice(i, 1);
+              }
+              resolve({ error: null });
+            }
+          };
+          return q;
+        }
+      };
+    };
+    const prevSb = sb, prevMode = dbMode, prevVotes = votes;
+    const prevLSVotes = localStorage.getItem('scorochiatu_votes');
+    sb = { from: mockFrom }; dbMode = 'supabase';
+    try {
+      await castVote('m-vote', 'N', true);   // insert
+      const inserted = rows.length === 1 && rows[0].liked === true;
+      await castVote('m-vote', 'N', true);   // stesso voto: delete su Supabase
+      const deleted = rows.length === 0 && getVotesForMovie('m-vote').N === undefined;
+      await castVote('m-vote', 'N', false);  // switch; ancora una riga, niente dup
+      const switched = rows.length === 1 && rows[0].liked === false;
+      return inserted && deleted && switched;
+    } finally {
+      sb = prevSb; dbMode = prevMode; votes = prevVotes;
+      if (prevLSVotes === null) localStorage.removeItem('scorochiatu_votes');
+      else localStorage.setItem('scorochiatu_votes', prevLSVotes);
+    }
+  }));
   await okA('addVeto settimanale (1 per persona)', runA(async () => {
     const a = await addVeto('N', movies[0].id);
     const b = await addVeto('N', movies[1].id);

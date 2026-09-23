@@ -250,19 +250,38 @@ function getVotesForMovie(movieId) {
 }
 
 async function castVote(movieId, person, liked) {
+  // Toggle: riclickare lo STESSO voto lo rimuove (delete della riga in votes).
+  // La decisione legge lo stato in memoria (votes, già sincronizzato da
+  // loadMovies/resync), non una query dedicata.
+  const existing = votes.find(v => v.movie_id === movieId && v.person === person);
+  const removing = existing && existing.liked === liked;
+
   if (sb) {
-    const { error } = await sb.from('votes').upsert([{ movie_id: movieId, person, liked }], { onConflict: 'movie_id,person' });
-    if (error) {
-      console.error('[sc(r)occhiaTu] castVote fallito su Supabase:', error.message);
-      dbMode = 'local';
-      lastSupabaseFailAt = Date.now();
+    if (removing) {
+      const { error } = await sb.from('votes').delete().eq('movie_id', movieId).eq('person', person);
+      if (error) {
+        console.error('[sc(r)occhiaTu] rimozione voto fallita su Supabase:', error.message);
+        dbMode = 'local';
+        lastSupabaseFailAt = Date.now();
+      }
+    } else {
+      const { error } = await sb.from('votes').upsert([{ movie_id: movieId, person, liked }], { onConflict: 'movie_id,person' });
+      if (error) {
+        console.error('[sc(r)occhiaTu] castVote fallito su Supabase:', error.message);
+        dbMode = 'local';
+        lastSupabaseFailAt = Date.now();
+      }
     }
     const { data } = await sb.from('votes').select('*');
     if (data) { votes = data; saveLocal(); }
   } else {
-    const existing = votes.find(v => v.movie_id === movieId && v.person === person);
-    if (existing) existing.liked = liked;
-    else votes.push({ id: Date.now().toString() + Math.random(), movie_id: movieId, person, liked });
+    if (removing) {
+      votes = votes.filter(v => !(v.movie_id === movieId && v.person === person));
+    } else if (existing) {
+      existing.liked = liked;
+    } else {
+      votes.push({ id: Date.now().toString() + Math.random(), movie_id: movieId, person, liked });
+    }
     saveLocal();
   }
 }
