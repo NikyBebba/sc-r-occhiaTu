@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>sc(r)occhiaTu</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body class="min-h-screen pb-12">
+
+  <!-- Livello per l'effetto confetti al reveal della ruota -->
+  <div id="confettiLayer"></div>
+
+  <!-- LANDING: scelta persona -->
+  <div id="landingScreen" class="hidden fixed inset-0 flex items-center justify-center" style="background:#0f172a;">
+    <div class="text-center space-y-8 px-4">
+      <div>
+        <div class="p-4 bg-indigo-600/20 text-indigo-400 rounded-2xl inline-block mb-3"><i class="fa-solid fa-film text-3xl"></i></div>
+        <h1 class="text-3xl font-bold tracking-tight gradient-text">sc(r)occhiaTu</h1>
+        <p class="text-sm text-slate-400 mt-1">Chi sei?</p>
+      </div>
+      <div class="flex gap-6 justify-center">
+        <button onclick="selectUser('N')" class="glass w-28 h-28 rounded-2xl border border-slate-800 hover:border-indigo-500 transition flex flex-col items-center justify-center gap-2">
+          <span class="text-3xl font-bold badge badge-n" style="padding:10px 16px; font-size:1.1rem;">N</span>
+        </button>
+        <button onclick="selectUser('V')" class="glass w-28 h-28 rounded-2xl border border-slate-800 hover:border-indigo-500 transition flex flex-col items-center justify-center gap-2">
+          <span class="text-3xl font-bold badge badge-v" style="padding:10px 16px; font-size:1.1rem;">V</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PIN GATE -->
+  <div id="pinGate" class="hidden">
+    <div class="glass p-8 rounded-2xl max-w-xs w-full mx-4 text-center space-y-4 border border-slate-800">
+      <i class="fa-solid fa-lock text-3xl text-indigo-400"></i>
+      <p id="pinGateLabel" class="text-sm text-slate-300 font-medium">Inserisci il PIN</p>
+      <input id="pinInput" type="password" inputmode="numeric" maxlength="8"
+        class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-100 focus:outline-none focus:border-indigo-500"
+        onkeydown="if(event.key==='Enter') submitPin()">
+      <p id="pinError" class="hidden text-xs text-rose-400">PIN errato, riprova.</p>
+      <button onclick="submitPin()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg text-sm">Entra</button>
+      <button onclick="backToLanding()" class="text-xs text-slate-500 hover:text-slate-300 underline">Non sono io, torna indietro</button>
+    </div>
+  </div>
+
+  <div id="appRoot" class="hidden">
+    <!-- NAVBAR -->
+    <nav class="glass sticky top-0 z-40 px-4 sm:px-6 py-3 sm:py-4 mb-8 flex justify-between items-center border-b border-slate-800">
+      <div class="flex items-center gap-3">
+        <div class="hidden sm:flex p-2 bg-indigo-600/20 text-indigo-400 rounded-xl"><i class="fa-solid fa-film text-xl"></i></div>
+        <h1 class="text-base sm:text-xl font-bold tracking-tight gradient-text">sc(r)occhiaTu</h1>
+      </div>
+      <div class="flex items-center gap-2 sm:gap-3">
+        <span id="currentUserBadge"></span>
+        <button onclick="openModal('statsModal'); renderStats();" class="px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm transition flex items-center gap-2" title="Il Nostro Cinema">
+          <i class="fa-solid fa-chart-simple"></i>
+        </button>
+        <button onclick="openSurprisePicker()" class="px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm transition flex items-center gap-2" title="Scegli a sorpresa">
+          <i class="fa-solid fa-gift"></i>
+        </button>
+        <button onclick="openModal('importModal')" class="px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm transition flex items-center gap-2">
+          <i class="fa-solid fa-file-import"></i><span class="hidden sm:inline"> Importa</span>
+        </button>
+        <button onclick="openAddModal()" class="px-3 sm:px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg text-sm shadow-lg shadow-indigo-500/20 transition flex items-center gap-2">
+          <i class="fa-solid fa-plus"></i><span class="hidden sm:inline"> Aggiungi</span>
+        </button>
+        <button onclick="logout()" class="px-2 py-2 text-slate-500 hover:text-rose-400 transition" title="Cambia utente">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </div>
+    </nav>
+
+    <div class="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
+
+      <!-- COLONNA SINISTRA -->
+      <div class="space-y-6">
+        <div class="glass p-5 rounded-2xl border border-slate-800 text-center">
+          <h2 class="text-lg font-bold text-slate-100 mb-1 flex items-center justify-center gap-2">
+            <i class="fa-solid fa-compass text-indigo-400"></i> Ruota della Fortuna
+          </h2>
+          <p class="text-xs text-slate-400 mb-3">Non sapete cosa guardare? Fate girare la ruota!</p>
+          <select id="moodFilterSelect" onchange="setMoodFilter(this.value)" class="w-full mb-3 bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+            <option value="all">🎬 Qualsiasi mood</option>
+            <option value="romantico">💕 Romantico</option>
+            <option value="risata">😂 Risata</option>
+            <option value="paura">👻 Paura</option>
+            <option value="nostalgia">🕰️ Nostalgia</option>
+            <option value="azione">💥 Azione</option>
+            <option value="altro">🎞️ Altro</option>
+          </select>
+          <div class="relative w-64 h-64 mx-auto mb-4">
+            <div class="absolute -top-3 left-1/2 -translate-x-1/2 z-10 text-amber-400 text-2xl drop-shadow">
+              <i class="fa-solid fa-caret-down"></i>
+            </div>
+            <canvas id="wheelCanvas" width="256" height="256" class="w-full h-full rounded-full shadow-2xl"></canvas>
+          </div>
+          <button onclick="spinWheel()" class="w-full py-3 bg-gradient-to-r from-indigo-500 to-sky-500 hover:from-indigo-600 hover:to-sky-600 text-white font-bold rounded-xl shadow-lg transition">
+            GIRA LA RUOTA!
+          </button>
+          <div id="wheelWinner" class="mt-3 text-sm font-semibold text-emerald-400 hidden"></div>
+          <div id="vetoInfo" class="mt-3 text-[11px] text-slate-500"></div>
+        </div>
+
+        <div class="glass p-5 rounded-2xl border border-slate-800">
+          <h2 class="text-lg font-bold text-slate-100 mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-calendar-day text-sky-400"></i> Prossimo Film
+          </h2>
+          <div id="nextMovieBox" class="mb-4"></div>
+          <div id="scheduledList" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <!-- COLONNA DESTRA -->
+      <div class="md:col-span-2 space-y-6">
+        <div class="flex bg-slate-900/60 p-1 rounded-xl border border-slate-800 text-sm">
+          <button onclick="setTab('watchlist')" id="tabWatchlist" class="flex-1 py-2 rounded-lg font-medium transition bg-indigo-600 text-white">Da Vedere</button>
+          <button onclick="setTab('tonight')" id="tabTonight" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white">Stasera</button>
+          <button onclick="setTab('watched')" id="tabWatched" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white">Visti e Recensioni</button>
+        </div>
+        <div id="movieGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE AGGIUNGI FILM SINGOLO -->
+  <div id="addModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass p-6 rounded-2xl max-w-md w-full border border-slate-800 space-y-4">
+      <h3 class="text-lg font-bold text-slate-100">Aggiungi un Film</h3>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1">Titolo del Film</label>
+        <input type="text" id="addTitle" placeholder="es. Inception" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1">Proposto da</label>
+        <select id="addBy" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+          <option value="N">N</option>
+          <option value="V">V</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1">Mood (opzionale)</label>
+        <select id="addMood" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+          <option value="">Nessuno</option>
+          <option value="romantico">💕 Romantico</option>
+          <option value="risata">😂 Risata</option>
+          <option value="paura">👻 Paura</option>
+          <option value="nostalgia">🕰️ Nostalgia</option>
+          <option value="azione">💥 Azione</option>
+          <option value="altro">🎞️ Altro</option>
+        </select>
+      </div>
+      <p class="text-xs text-slate-500">💡 Locandina, durata, streaming e trailer verranno cercati automaticamente!</p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('addModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
+        <button id="addSaveBtn" onclick="initiateAddMovie()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">Cerca</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE IMPORTA IN BLOCCO -->
+  <div id="importModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass p-6 rounded-2xl max-w-lg w-full border border-slate-800 space-y-4">
+      <h3 class="text-lg font-bold text-slate-100">Importa Lista Titoli</h3>
+      <p class="text-xs text-slate-400">Incolla qui la tua lista JustWatch o i titoli messaggiati (un titolo per riga):</p>
+      <textarea id="importText" rows="6" placeholder="Interstellar&#10;Pulp Fiction&#10;La Citta Incantata" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"></textarea>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1">Chi ha proposto questi film?</label>
+        <select id="importAddedBy" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+          <option value="N">N (da JustWatch)</option>
+          <option value="V">V (da Messaggi)</option>
+        </select>
+      </div>
+      <p id="importProgress" class="hidden"></p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('importModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
+        <button id="importSaveBtn" onclick="bulkImportMovies()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">Importa Tutti</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE PROGRAMMAZIONE (sostituisce prompt) -->
+  <div id="scheduleModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass p-6 rounded-2xl max-w-sm w-full border border-slate-800 space-y-4">
+      <h3 class="text-lg font-bold text-slate-100">Programma la serata</h3>
+      <input type="hidden" id="scheduleMovieId">
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1">Data</label>
+        <input type="date" id="scheduleDate" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1">Ora</label>
+        <input type="time" id="scheduleTime" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1">Snack della serata</label>
+        <div class="flex gap-2">
+          <select id="scheduleSnack" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+            <option value="🍿 Popcorn dolce">🍿 Popcorn dolce</option>
+            <option value="🍿 Popcorn salato">🍿 Popcorn salato</option>
+            <option value="🍫 Cioccolato">🍫 Cioccolato</option>
+            <option value="🍕 Pizza">🍕 Pizza</option>
+            <option value="🍦 Gelato">🍦 Gelato</option>
+            <option value="🍟 Patatine">🍟 Patatine</option>
+          </select>
+          <button type="button" onclick="randomizeSnack()" class="px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg" title="Scegli a caso"><i class="fa-solid fa-shuffle"></i></button>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('scheduleModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
+        <button onclick="confirmSchedule()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">Conferma</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE RECENSIONE (sostituisce 3x prompt) -->
+  <div id="reviewModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass p-6 rounded-2xl max-w-md w-full border border-slate-800 space-y-4">
+      <h3 class="text-lg font-bold text-slate-100">Visto & Recensione</h3>
+      <input type="hidden" id="reviewMovieId">
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1">Recensione</label>
+        <textarea id="reviewText" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Chi l'ha visto</label>
+          <select id="reviewBy" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+            <option value="N">N</option>
+            <option value="V">V</option>
+            <option value="both" selected>Insieme</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Voto (1-5)</label>
+          <select id="reviewStars" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+            <option value="1">⭐</option>
+            <option value="2">⭐⭐</option>
+            <option value="3">⭐⭐⭐</option>
+            <option value="4">⭐⭐⭐⭐</option>
+            <option value="5" selected>⭐⭐⭐⭐⭐</option>
+          </select>
+        </div>
+      </div>
+      <p class="text-[11px] text-slate-500">💡 Se l'ha visto solo N o V, il film resta in watchlist per un rewatch insieme. Se "Insieme", finisce tra i Visti.</p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('reviewModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
+        <button onclick="confirmReview()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium">Salva Recensione</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE SCELTA RISULTATI TMDb -->
+  <div id="pickerModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass p-6 rounded-2xl max-w-2xl w-full border border-slate-800 space-y-4 max-h-[85vh] overflow-y-auto">
+      <h3 class="text-lg font-bold text-slate-100">Quale intendevi?</h3>
+      <p class="text-xs text-slate-400">Scegli il film giusto tra i risultati trovati.</p>
+      <div id="pickerResults" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+      <div class="flex justify-between items-center pt-2 border-t border-slate-800">
+        <button id="pickerNoneBtn" class="text-xs text-slate-500 hover:text-slate-300 underline">Nessuno di questi, salva come inserito</button>
+        <button onclick="closeModal('pickerModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE CORREGGI TITOLO / RICERCA DI NUOVO -->
+  <div id="retryModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass p-6 rounded-2xl max-w-sm w-full border border-slate-800 space-y-4">
+      <h3 class="text-lg font-bold text-slate-100">Correggi il titolo</h3>
+      <p class="text-xs text-slate-400">Nessun riscontro trovato. Prova con il titolo originale (es. in inglese) o con l'anno di uscita.</p>
+      <input type="hidden" id="retryMovieId">
+      <input type="text" id="retryTitle" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('retryModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
+        <button id="retrySearchBtn" onclick="confirmRetryMatch()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">Cerca</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE CONFERMA GENERICA (sostituisce confirm) -->
+  <div id="confirmModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass p-6 rounded-2xl max-w-sm w-full border border-slate-800 space-y-4 text-center">
+      <h3 id="confirmTitle" class="text-lg font-bold text-slate-100">Conferma</h3>
+      <p id="confirmMessage" class="text-sm text-slate-400"></p>
+      <div class="flex justify-center gap-2 pt-2">
+        <button id="confirmNo" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
+        <button id="confirmYes" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-sm font-medium">Conferma</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE IL NOSTRO CINEMA (statistiche) -->
+  <div id="statsModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass p-6 rounded-2xl max-w-lg w-full border border-slate-800 space-y-4 max-h-[85vh] overflow-y-auto">
+      <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa-solid fa-chart-simple text-indigo-400"></i> Il Nostro Cinema</h3>
+      <div id="statsGrid" class="grid grid-cols-2 gap-3"></div>
+      <div>
+        <h4 class="text-sm font-bold text-slate-300 mb-2 flex items-center gap-2"><i class="fa-solid fa-timeline text-indigo-400"></i> Timeline recensioni</h4>
+        <div id="reviewTimeline" class="space-y-3"></div>
+      </div>
+      <div class="flex justify-end pt-2">
+        <button onclick="closeModal('statsModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE SCELTA A SORPRESA -->
+  <div id="surpriseModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass p-6 rounded-2xl max-w-md w-full border border-slate-800 space-y-4 max-h-[85vh] overflow-y-auto">
+      <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa-solid fa-gift text-indigo-400"></i> Scegli a sorpresa</h3>
+      <p class="text-xs text-slate-400">Scegli in segreto un film dalla watchlist: il poster resterà sfocato per l'altra persona finché non deciderà di rivelarlo.</p>
+      <div id="surpriseList" class="space-y-2"></div>
+      <div class="flex justify-end pt-2">
+        <button onclick="closeModal('surpriseModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/wheel.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

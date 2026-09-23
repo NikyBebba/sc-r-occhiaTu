@@ -1,0 +1,121 @@
+body {
+  background-color: #0f172a;
+  color: #f8fafc;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.glass {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #38bdf8, #818cf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  backdrop-filter: blur(4px);
+  color: #fff;
+}
+.badge-n { background: rgba(14, 165, 233, 0.8); }
+.badge-v { background: rgba(168, 85, 247, 0.8); }
+
+/* PIN gate */
+#pinGate {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f172a;
+}
+#pinGate input {
+  letter-spacing: 0.4em;
+  text-align: center;
+  font-size: 1.5rem;
+}
+
+/* Landing: resta sopra i contenuti dell'app */
+#landingScreen {
+  z-index: 120;
+}
+
+/* Import progress */
+#importProgress {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* Confetti reveal della ruota */
+#confettiLayer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 200;
+  overflow: hidden;
+}
+.confetti-piece {
+  position: absolute;
+  top: 40%;
+  width: 8px;
+  height: 14px;
+  opacity: 0.9;
+  animation-name: confetti-fall;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+}
+@keyframes confetti-fall {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate(var(--dx), 60vh) rotate(var(--rot)); opacity: 0; }
+}
+
+/* Poster sfocato in modalità sorpresa, finché l'altra persona non rivela */
+.surprise-blur {
+  filter: blur(18px) brightness(0.6);
+}
+.surprise-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 8px;
+}
+
+/* Veto: card leggermente sbiadita ma ancora visibile in griglia */
+.card-vetoed {
+  opacity: 0.45;
+}
+
+/* Match badge */
+.match-yes { color: #34d399; }
+.match-no { color: #fb7185; }
+
+/* Timeline recensioni */
+.timeline-item {
+  position: relative;
+  padding-left: 18px;
+  border-left: 2px solid rgba(99, 102, 241, 0.4);
+}
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #6366f1;
+}

@@ -1,0 +1,26 @@
+# OS / macOS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node / build / cache
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+build/
+.cache/
+
+# Log / temporanei
+*.log
+*.tmp
+*.temp
+
+# Env (placeholder; qui non usato: le chiavi vivono in js/config.js)
+.env
+.env.*
