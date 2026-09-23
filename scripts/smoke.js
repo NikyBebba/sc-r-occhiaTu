@@ -415,6 +415,21 @@ async function okA(name, fn) {
   ok('escapeHtml neutralizza tag', run(() => escapeHtml('<script>').indexOf('&lt;script&gt;') !== -1));
   ok('jsAttrEscape neutralizza apici', run(() => jsAttrEscape("O'Brien").indexOf("\\'") !== -1));
 
+  // --- 5b) statistiche ---
+  console.log('\n[statistiche — icone card + genere escapato]');
+  ok('renderStats: 4 card con icona, genere non mappato escaped, mai "undefined"', run(() => {
+    movies.push({ id: 'stats-ghost', title: 'x', status: 'watched', genre: 'a<b', rating: 5, review_text: '', review_by: 'both' });
+    renderStats();
+    const html = document.getElementById('statsGrid').innerHTML;
+    return html.indexOf('fa-clapperboard') !== -1
+      && html.indexOf('fa-star') !== -1
+      && html.indexOf('fa-face-smile-beam') !== -1
+      && html.indexOf('fa-heart') !== -1
+      && html.indexOf('a&lt;b') !== -1
+      && html.indexOf('a<b') === -1
+      && html.indexOf('undefined') === -1;
+  }));
+
   // --- 6) calendario: logica pura + render (step 3a, solo vista) ---
   console.log('\n[calendario — logica pura + render]');
   ok('dayKey con padding a 2 cifre', run(() => dayKey(2026, 9, 3) === '2026-09-03'));

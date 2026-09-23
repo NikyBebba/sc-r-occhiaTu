@@ -110,14 +110,15 @@ function renderStats() {
   const matchPct = matchable.length ? Math.round((matches.length / matchable.length) * 100) : null;
 
   const cards = [
-    { label: 'Film visti insieme', value: totalWatched },
-    { label: 'Voto medio', value: avgRating === '—' ? '—' : `⭐ ${avgRating}` },
-    { label: 'Mood preferito', value: topGenre ? MOOD_LABELS[topGenre] : '—' },
-    { label: 'Match sui gusti', value: matchPct === null ? '—' : `${matchPct}%` }
+    { icon: 'fa-clapperboard', iconClass: 'text-rose-400', label: 'Film visti insieme', value: totalWatched },
+    { icon: 'fa-star', iconClass: 'text-amber-400', label: 'Voto medio', value: avgRating === '—' ? '—' : `⭐ ${avgRating}` },
+    { icon: 'fa-face-smile-beam', iconClass: 'text-sky-400', label: 'Mood preferito', value: topGenre ? (MOOD_LABELS[topGenre] || topGenre) : '—' },
+    { icon: 'fa-heart', iconClass: 'text-emerald-400', label: 'Match sui gusti', value: matchPct === null ? '—' : `${matchPct}%` }
   ];
   document.getElementById('statsGrid').innerHTML = cards.map(c => `
     <div class="p-4 bg-slate-900/80 rounded-xl border border-slate-800 text-center">
-      <div class="text-xl font-bold text-slate-100">${c.value}</div>
+      <div class="text-2xl ${c.iconClass}"><i class="fa-solid ${c.icon}"></i></div>
+      <div class="text-xl font-bold text-slate-100 mt-1">${escapeHtml(c.value)}</div>
       <div class="text-[10px] text-slate-500 mt-1">${c.label}</div>
     </div>
   `).join('');
