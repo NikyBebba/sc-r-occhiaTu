@@ -324,6 +324,25 @@ async function okA(name, fn) {
     return Array.isArray(c) && c.length > 0 && typeof c[0].id === 'number';
   }));
 
+  // --- 3b) api generi/durata: oggetti canned, nessuna rete ---
+  console.log('\n[api — generi + durata (canned)]');
+  await okA('buildTmdbDetails (canned, niente imdb_id → nessuna rete) espone genres + mood + duration', runA(async () => {
+    const d = await buildTmdbDetails({ id: 11, title: 'T', runtime: 92, genres: [{ id: 35, name: 'Commedia' }, { id: 18, name: 'Dramma' }], 'watch/providers': { results: {} }, videos: { results: [] } }, 'T');
+    return d.genres.join() === 'Commedia,Dramma' && d.genre === 'risata' && d.duration === '92 min';
+  }));
+  await okA('buildTmdbDetails (canned) senza runtime → duration null, genre null', runA(async () => {
+    const d = await buildTmdbDetails({ id: 12, title: 'T2', runtime: null, genres: [] }, 'T2');
+    return d.duration === null && d.genre === null && Array.isArray(d.genres) && d.genres.length === 0;
+  }));
+  ok('omdbToDetails (canned): Genre "Drama, Comedy" → genres + mood + duration', run(() => {
+    const d = omdbToDetails({ Title: 'OD', Runtime: '142 min', Genre: 'Drama, Comedy', Poster: 'N/A' }, 'OD');
+    return d.genres.join() === 'Drama,Comedy' && d.genre === 'risata' && d.duration === '142 min';
+  }));
+  ok('omdbToDetails (canned): Runtime/Genre N/A → duration null, genre null', run(() => {
+    const d = omdbToDetails({ Title: 'OD2', Runtime: 'N/A', Genre: 'N/A' }, 'OD2');
+    return d.duration === null && d.genre === null && d.genres.length === 0;
+  }));
+
   // --- 4) ui aggiunta film (locale) via applyResolvedDetails ---
   console.log('\n[ui — aggiunta con metadati]');
   await okA('applyResolvedDetails (add) persiste tmdb_id', runA(async () => {
@@ -339,6 +358,59 @@ async function okA(name, fn) {
     const m = movies.find(x => x.id === target.id);
     return m.tmdb_id === 999 && m.collection_name === 'Saga';
   }));
+
+  console.log('\n[ui — generi + durata in aggiunta/retry]');
+  await okA('add salva genres + mood derivato; duration null senza runtime', runA(async () => {
+    pickerMode = 'add'; pendingAddedBy = 'N';
+    await applyResolvedDetails({ title: 'Con Generi', tmdb_id: 991, genres: ['Dramma'], genre: 'nostalgia', duration: null, platform: 'P', poster: '', trailerUrl: '', matched: true });
+    const m = movies.find(x => x.tmdb_id === 991);
+    movies = movies.filter(x => x.tmdb_id !== 991);
+    return Boolean(m) && m.genres.join() === 'Dramma' && m.genre === 'nostalgia' && m.duration === null;
+  }));
+  await okA('add senza generi → genre null, genres [], nessun "120 min"', runA(async () => {
+    pickerMode = 'add'; pendingAddedBy = 'N';
+    await applyResolvedDetails({ title: 'Senza Generi', tmdb_id: 992, genres: [], genre: null, duration: null, platform: 'P', poster: '', trailerUrl: '', matched: true });
+    const m = movies.find(x => x.tmdb_id === 992);
+    movies = movies.filter(x => x.tmdb_id !== 992);
+    return m !== undefined && m.genre === null && Array.isArray(m.genres) && m.genres.length === 0 && m.duration === null;
+  }));
+  await okA('add: mood scelto a mano vince su quello derivato', runA(async () => {
+    pickerMode = 'add'; pendingAddedBy = 'N'; pendingGenre = 'paura';
+    await applyResolvedDetails({ title: 'Mood Manuale', tmdb_id: 993, genres: ['Commedia'], genre: 'risata', duration: '90 min', platform: 'P', poster: '', trailerUrl: '', matched: true });
+    pendingGenre = '';
+    const m = movies.find(x => x.tmdb_id === 993);
+    movies = movies.filter(x => x.tmdb_id !== 993);
+    return m.genre === 'paura' && m.genres.join() === 'Commedia';
+  }));
+  await okA('retry: preserva mood manuale ma aggiorna i generi', runA(async () => {
+    const manual = { id: 'manualretry', title: 'M Retry', added_by: 'N', status: 'watchlist', genre: 'romantico', genres: [], duration: null, platform: 'P', poster: '' };
+    movies.push(manual);
+    pickerMode = 'retry'; pickerTargetId = manual.id;
+    await applyResolvedDetails({ title: 'M Retry', genres: ['Fantascienza'], genre: 'altro', duration: '131 min', platform: 'S', poster: '', trailerUrl: '', matched: true });
+    const m = movies.find(x => x.id === manual.id);
+    movies = movies.filter(x => x.id !== manual.id);
+    return m.genre === 'romantico' && m.genres.join() === 'Fantascienza' && m.duration === '131 min';
+  }));
+  await okA('retry: genre null → deriva il mood dai generi', runA(async () => {
+    const emptyMood = { id: 'retrynull', title: 'R Null', added_by: 'N', status: 'watchlist', genre: null, genres: [], duration: null, platform: 'P', poster: '' };
+    movies.push(emptyMood);
+    pickerMode = 'retry'; pickerTargetId = emptyMood.id;
+    await applyResolvedDetails({ title: 'R Null', genres: ['Horror'], genre: 'paura', duration: '95 min', platform: 'S', poster: '', trailerUrl: '', matched: true });
+    const m = movies.find(x => x.id === emptyMood.id);
+    movies = movies.filter(x => x.id !== emptyMood.id);
+    return m.genre === 'paura' && m.duration === '95 min';
+  }));
+  // ripristino: togli i ghost di test (array + mirror localStorage) per non
+  // inquinare statistiche/render dei test successivi
+  run(() => {
+    movies = movies.filter(x => x.tmdb_id !== 991 && x.tmdb_id !== 992 && x.tmdb_id !== 993);
+    const ghostTitles = ['Con Generi', 'Senza Generi', 'Mood Manuale'];
+    const mirror = JSON.parse(localStorage.getItem('scorochiatu_movies') || '[]');
+    if (Array.isArray(mirror) && mirror.some(x => ghostTitles.includes(x.title))) {
+      localStorage.setItem('scorochiatu_movies', JSON.stringify(mirror.filter(x => !ghostTitles.includes(x.title))));
+    }
+    return true;
+  });
 
   // --- 5) modal helpers ---
   console.log('\n[modali + anti-XSS]');
@@ -415,6 +487,19 @@ async function okA(name, fn) {
   }));
   ok('escapeHtml neutralizza tag', run(() => escapeHtml('<script>').indexOf('&lt;script&gt;') !== -1));
   ok('jsAttrEscape neutralizza apici', run(() => jsAttrEscape("O'Brien").indexOf("\\'") !== -1));
+  ok('render card: duration null → nessun "null" né bullet vuoto; duration presente sì', run(() => {
+    const prevUser = currentUser; currentUser = 'N';
+    movies.push({ id: 'dur-null', title: 'Niente Durata', status: 'watchlist', duration: null, platform: 'CINEMA-TEST-NULL', poster: '', added_by: 'N', genre: 'azione' });
+    movies.push({ id: 'dur-ok', title: 'Con Durata', status: 'watchlist', duration: '126 min', platform: 'DUR-TEST', poster: '', added_by: 'N', genre: 'azione' });
+    currentTab = 'watchlist';
+    render();
+    const html = document.getElementById('movieGrid').innerHTML;
+    const okNull = html.indexOf('</i> CINEMA-TEST-NULL') !== -1 && html.indexOf('CINEMA-TEST-NULL •') === -1 && html.indexOf('null min') === -1;
+    const okDur = html.indexOf('DUR-TEST • 126 min') !== -1;
+    movies = movies.filter(x => x.id !== 'dur-null' && x.id !== 'dur-ok');
+    currentUser = prevUser;
+    return okNull && okDur;
+  }));
 
   // --- 5b) statistiche ---
   console.log('\n[statistiche — icone card + genere escapato]');

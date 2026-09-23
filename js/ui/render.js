@@ -199,7 +199,7 @@ function render() {
           ${isVetoed ? `<span class="badge bg-rose-500/90">vietato</span>` : ''}
         </div>
         ${!isSurpriseHidden ? `<div class="absolute bottom-2 left-2 px-2 py-1 bg-black/60 rounded text-[10px] text-slate-300 backdrop-blur">
-          <i class="fa-solid fa-tv text-indigo-400"></i> ${escapeHtml(m.platform || 'Streaming')} • ${escapeHtml(m.duration || '')}
+          <i class="fa-solid fa-tv text-indigo-400"></i> ${escapeHtml(m.platform || 'Streaming')}${m.duration ? ' • ' + escapeHtml(m.duration) : ''}
         </div>` : ''}
         ${(m.trailer_url && !isSurpriseHidden) ? `<a href="${m.trailer_url}" target="_blank" rel="noopener" class="absolute bottom-2 right-2 px-2 py-1 bg-red-600/80 hover:bg-red-500 rounded text-[10px] text-white backdrop-blur"><i class="fa-solid fa-play"></i> Trailer</a>` : ''}
       </div>

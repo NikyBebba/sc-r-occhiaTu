@@ -47,13 +47,17 @@ async function buildTmdbDetails(detail, fallbackTitle) {
   if (trailer) trailerUrl = `https://www.youtube.com/watch?v=${trailer.key}`;
 
   const omdbData = detail.imdb_id ? await fetchOmdbByImdbId(detail.imdb_id) : null;
+  const genreIds = (detail.genres || []).map(g => g.id);
+  const genreNames = (detail.genres || []).map(g => g.name);
 
   return {
     tmdb_id: detail.id,
     title: detail.title || fallbackTitle,
     collection_id: detail.belongs_to_collection?.id ?? null,
     collection_name: detail.belongs_to_collection?.name || null,
-    duration: detail.runtime ? `${detail.runtime} min` : '120 min',
+    genres: genreNames,
+    genre: genreIds.length ? moodFromGenres(genreIds) : null,
+    duration: detail.runtime ? `${detail.runtime} min` : null,
     platform,
     poster: detail.poster_path ? `https://image.tmdb.org/t/p/w500${detail.poster_path}` : '',
     trailerUrl,
@@ -74,7 +78,7 @@ async function fetchTmdbDetailsById(id) {
   } catch (err) {
     console.error('Errore dettaglio TMDb:', err);
     return {
-      tmdb_id: id, title: 'Errore', duration: '120 min', platform: 'Streaming',
+      tmdb_id: id, title: 'Errore', genres: [], genre: null, duration: null, platform: 'Streaming',
       poster: '', trailerUrl: '', matched: false,
       collection_id: null, collection_name: null, ...emptyRatings
     };

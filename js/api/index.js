@@ -15,7 +15,7 @@
 // si vede subito quali titoli vanno controllati a mano.
 async function fetchMovieDetails(title) {
   const notFound = {
-    title, duration: '120 min', platform: 'Streaming', poster: '', trailerUrl: '',
+    title, genres: [], genre: null, duration: null, platform: 'Streaming', poster: '', trailerUrl: '',
     matched: false, tmdb_id: null, collection_id: null, collection_name: null,
     ...emptyRatings
   };

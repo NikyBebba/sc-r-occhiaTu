@@ -50,12 +50,20 @@ async function fetchOmdbByImdbId(imdbId) {
 }
 
 // Converte una risposta OMDb riuscita nell'oggetto dettagli usato dall'app.
-// chiavi: title, duration, platform, poster, trailerUrl, matched, tmdb_id,
-// collection_id, collection_name, imdbRating, rtRating, metacriticRating.
+// chiavi: title, genres, genre, duration, platform, poster, trailerUrl,
+// matched, tmdb_id, collection_id, collection_name, imdbRating, rtRating,
+// metacriticRating. duration restante null se Runtime è assente/N/A (mai il
+// vecchio segnaposto '120 min').
 function omdbToDetails(omdbData, fallbackTitle) {
+  const genreNames = (omdbData.Genre || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(s => s && s.toLowerCase() !== 'n/a');
   return {
     title: omdbData.Title || fallbackTitle,
-    duration: omdbData.Runtime && omdbData.Runtime !== 'N/A' ? omdbData.Runtime : '120 min',
+    genres: genreNames,
+    genre: genreNames.length ? moodFromGenreNames(genreNames) : null,
+    duration: omdbData.Runtime && omdbData.Runtime !== 'N/A' ? omdbData.Runtime : null,
     platform: 'Streaming',
     poster: omdbData.Poster && omdbData.Poster !== 'N/A' ? omdbData.Poster : '',
     trailerUrl: '',

@@ -86,19 +86,30 @@ async function applyResolvedDetails(details) {
   const tmdbFields = {
     tmdb_id: details.tmdb_id ?? null, collection_id: details.collection_id ?? null, collection_name: details.collection_name || null
   };
+  const genreFields = {
+    genres: details.genres || []
+  };
   if (pickerMode === 'retry') {
+    // Correzione metadati: aggiorna i generi, ma PRESERVA un mood impostato
+    // a mano (genre già valorizzato); lo ricava solo se era null.
+    const current = movies.find(x => x.id === pickerTargetId);
+    const genre = current && current.genre != null ? current.genre : (details.genre || null);
     await updateMovie(pickerTargetId, {
       title: details.title, duration: details.duration, platform: details.platform,
       poster: details.poster, trailer_url: details.trailerUrl, matched: details.matched,
-      ...tmdbFields, ...ratingFields
+      genre,
+      ...genreFields, ...tmdbFields, ...ratingFields
     });
   } else {
+    // Nuovo film: vince il mood scelto a mano nel modale; altrimenti quello
+    // derivato dai generi TMDb/OMDb.
     const newMovie = {
       title: details.title, added_by: pendingAddedBy, status: 'watchlist',
       duration: details.duration, platform: details.platform,
       poster: details.poster, trailer_url: details.trailerUrl,
-      matched: details.matched, rating: 0, genre: pendingGenre || null,
-      ...tmdbFields, ...ratingFields
+      matched: details.matched, rating: 0,
+      genre: pendingGenre || details.genre || null,
+      ...genreFields, ...tmdbFields, ...ratingFields
     };
     await insertMovie(newMovie);
     document.getElementById('addTitle').value = '';
@@ -133,6 +144,7 @@ async function bulkImportMovies() {
       duration: details.duration, platform: details.platform,
       poster: details.poster, trailer_url: details.trailerUrl,
       matched: details.matched, rating: 0,
+      genres: details.genres || [], genre: details.genre || null,
       tmdb_id: details.tmdb_id ?? null, collection_id: details.collection_id ?? null, collection_name: details.collection_name || null,
       imdb_rating: details.imdbRating || '', rt_rating: details.rtRating || '', metacritic_rating: details.metacriticRating || ''
     };
