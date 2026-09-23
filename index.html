@@ -84,15 +84,27 @@
             <i class="fa-solid fa-compass text-indigo-400"></i> Ruota della Fortuna
           </h2>
           <p class="text-xs text-slate-400 mb-3">Non sapete cosa guardare? Fate girare la ruota!</p>
-          <select id="moodFilterSelect" onchange="setMoodFilter(this.value)" class="w-full mb-3 bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
-            <option value="all">🎬 Qualsiasi mood</option>
-            <option value="romantico">💕 Romantico</option>
-            <option value="risata">😂 Risata</option>
-            <option value="paura">👻 Paura</option>
-            <option value="nostalgia">🕰️ Nostalgia</option>
-            <option value="azione">💥 Azione</option>
-            <option value="altro">🎞️ Altro</option>
-          </select>
+          <div class="space-y-2 mb-3">
+            <select id="moodFilterSelect" onchange="setMoodFilter(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+              <option value="all">🎬 Qualsiasi mood</option>
+              <option value="romantico">💕 Romantico</option>
+              <option value="risata">😂 Risata</option>
+              <option value="paura">👻 Paura</option>
+              <option value="nostalgia">🕰️ Nostalgia</option>
+              <option value="azione">💥 Azione</option>
+              <option value="altro">🎞️ Altro</option>
+            </select>
+            <select id="durationFilterSelect" onchange="setDurationFilter(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+              <option value="all">⏱️ Qualsiasi durata</option>
+              <option value="short">Corta (&lt; 100 min)</option>
+              <option value="medium">Media (100–119 min)</option>
+              <option value="long">Lunga (120–149 min)</option>
+              <option value="epic">Epica (≥ 150 min)</option>
+            </select>
+            <select id="genreFilterSelect" onchange="setGenreFilter(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+              <option value="all">🎞️ Qualsiasi genere</option>
+            </select>
+          </div>
           <div class="relative w-64 h-64 mx-auto mb-4">
             <div class="absolute -top-3 left-1/2 -translate-x-1/2 z-10 text-amber-400 text-2xl drop-shadow">
               <i class="fa-solid fa-caret-down"></i>

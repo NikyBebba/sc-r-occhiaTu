@@ -485,6 +485,105 @@ async function okA(name, fn) {
       && box.innerHTML.indexOf('fa-xmark') !== -1
       && box.innerHTML.indexOf('closeWheelWinner') !== -1;
   }));
+
+  // --- 5d) ruota: filtri durata + genere reali ---
+  console.log('\n[ruota — durata + genere]');
+  ok('parseDurationMinutes: stringhe e null senza crash', run(() =>
+    parseDurationMinutes('126 min') === 126 && parseDurationMinutes('95') === 95
+    && parseDurationMinutes(null) === null && parseDurationMinutes('') === null
+    && parseDurationMinutes(undefined) === null && parseDurationMinutes('N/A') === null
+    && parseDurationMinutes('abc') === null));
+  ok('durationBucket: soglie 100/120/150 + null', run(() =>
+    durationBucket(95) === 'short' && durationBucket(99) === 'short'
+    && durationBucket(100) === 'medium' && durationBucket(119) === 'medium'
+    && durationBucket(120) === 'long' && durationBucket(149) === 'long'
+    && durationBucket(150) === 'epic' && durationBucket(null) === null));
+  ok('wheelPool: durata short/medium/epic esclusi null e durate non in bucket', run(() => {
+    const saved = movies;
+    movies = [
+      { id: 'w-short', title: 'Corto', status: 'watchlist', duration: '95 min', genres: ['Azione'] },
+      { id: 'w-med', title: 'Medio', status: 'watchlist', duration: '110 min', genres: ['Commedia'] },
+      { id: 'w-epic', title: 'Epico', status: 'watchlist', duration: '160 min', genres: ['Dramma'] },
+      { id: 'w-nodur', title: 'NoDur', status: 'watchlist', duration: null, genres: ['Azione'] }
+    ];
+    moodFilter = 'all'; genreFilter = 'all';
+    durationFilter = 'short';
+    let ids = wheelPool().map(m => m.id).sort();
+    const okShort = ids.join() === 'w-short';
+    durationFilter = 'medium';
+    ids = wheelPool().map(m => m.id).sort();
+    const okMed = ids.join() === 'w-med';
+    durationFilter = 'epic';
+    ids = wheelPool().map(m => m.id).sort();
+    const okEpic = ids.join() === 'w-epic';
+    durationFilter = 'all';
+    movies = saved;
+    return okShort && okMed && okEpic;
+  }));
+  ok('wheelPool: mood + durata + genere combinati; film senza generi solo in "tutti"', run(() => {
+    const saved = movies;
+    movies = [
+      { id: 'c-short', title: 'AzioneCorta', status: 'watchlist', duration: '95 min', genre: 'azione', genres: ['Azione', 'Thriller'] },
+      { id: 'c-med', title: 'CommediaMedia', status: 'watchlist', duration: '110 min', genre: 'risata', genres: ['Commedia'] },
+      { id: 'c-nogen', title: 'Nostalgico', status: 'watchlist', duration: '95 min', genre: 'nostalgia', genres: null }
+    ];
+    durationFilter = 'all'; moodFilter = 'all'; genreFilter = 'Azione';
+    let ids = wheelPool().map(m => m.id).sort();
+    const okAzione = ids.join() === 'c-short';
+    genreFilter = 'all'; moodFilter = 'risata';
+    ids = wheelPool().map(m => m.id).sort();
+    const okMood = ids.join() === 'c-med';
+    moodFilter = 'all'; durationFilter = 'short'; genreFilter = 'all';
+    ids = wheelPool().map(m => m.id).sort();
+    const okShortNoGenInAll = ids.join() === 'c-nogen,c-short';
+    durationFilter = 'medium'; genreFilter = 'Commedia';
+    ids = wheelPool().map(m => m.id).sort();
+    const okCommedia = ids.join() === 'c-med';
+    genreFilter = 'Dramma';
+    const noDramma = wheelPool().length === 0;
+    genreFilter = 'all'; durationFilter = 'all';
+    movies = saved;
+    return okAzione && okMood && okShortNoGenInAll && okCommedia && noDramma;
+  }));
+  ok('syncGenreFilterOptions: conteggio/ordine/escape → selezione preservata o azzerata', run(() => {
+    const saved = movies;
+    const sel = document.getElementById('genreFilterSelect');
+    sel.value = 'all'; sel.dataset.genresKey = '';
+    movies = [
+      { id: 'g1', title: 't1', status: 'watchlist', genres: ['Azione', 'Thriller'] },
+      { id: 'g2', title: 't2', status: 'watchlist', genres: ['Azione'] },
+      { id: 'g3', title: 't3', status: 'watchlist', genres: ["O'Brien"] }
+    ];
+    syncGenreFilterOptions();
+    const html = sel.innerHTML;
+    const azioneFirst = html.indexOf('>Azione (2)</option>') !== -1
+      && html.indexOf('>Azione (2)</option>') < html.indexOf('>Thriller (1)</option>')
+      && html.indexOf('>Azione (2)</option>') < html.indexOf('>O&#39;Brien (1)</option>');
+    const xss = html.indexOf('value="O\\\'Brien"') !== -1 && html.indexOf('O&#39;Brien (1)') !== -1 && html.indexOf("O'Brien") === -1;
+    const key = sel.dataset.genresKey;
+    sel.value = 'Azione';
+    syncGenreFilterOptions(); // opzioni identiche → nessun rebuild
+    const preserved = sel.value === 'Azione' && sel.dataset.genresKey === key;
+    movies = [{ id: 'g9', title: 't9', status: 'watchlist', genres: ['Dramma'] }];
+    syncGenreFilterOptions();
+    const resetAll = sel.value === 'all' && genreFilter === 'all';
+    sel.value = 'all'; genreFilter = 'all';
+    movies = saved;
+    return azioneFirst && xss && preserved && resetAll;
+  }));
+  ok('render() costruisce le opzioni genere della ruota', run(() => {
+    const saved = movies;
+    const sel = document.getElementById('genreFilterSelect');
+    sel.value = 'all'; sel.dataset.genresKey = '';
+    movies = [{ id: 'r1', title: 'Rr', status: 'watchlist', duration: '90 min', genre: 'azione', genres: ['Azione'], added_by: 'N', poster: '', platform: '' }];
+    currentTab = 'watchlist';
+    render();
+    const has = sel.innerHTML.indexOf('>Azione (1)</option>') !== -1;
+    const selStillAll = sel.value === 'all';
+    movies = saved;
+    return has && selStillAll;
+  }));
+
   ok('escapeHtml neutralizza tag', run(() => escapeHtml('<script>').indexOf('&lt;script&gt;') !== -1));
   ok('jsAttrEscape neutralizza apici', run(() => jsAttrEscape("O'Brien").indexOf("\\'") !== -1));
   ok('render card: duration null → nessun "null" né bullet vuoto; duration presente sì', run(() => {

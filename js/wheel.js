@@ -5,21 +5,87 @@
 let wheelRotation = 0; // rotazione corrente in radianti, persiste tra i redraw
 let wheelSpinning = false;
 let moodFilter = 'all'; // 'all' oppure uno dei tag mood
+let durationFilter = 'all'; // 'all' | short | medium | long | epic
+let genreFilter = 'all'; // 'all' oppure un genere reale da movies.genres
+
+// Durata stringa → minuti interi (null se non ricavabile).
+// Supporta '126 min' (TMDb/OMDb), 'N/A' assente, numeri nudi.
+function parseDurationMinutes(d) {
+  if (d === null || d === undefined || d === '') return null;
+  const n = parseInt(String(d), 10);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+// Bucket di durata per il filtro ruota. null = durata sconosciuta
+// (esclusa da ogni bucket specifico, inclusa solo in 'all').
+function durationBucket(mins) {
+  if (mins === null) return null;
+  if (mins < 100) return 'short';
+  if (mins < 120) return 'medium';
+  if (mins < 150) return 'long';
+  return 'epic';
+}
 
 // Film disponibili per la ruota: in watchlist, non vietati questa
-// settimana, ed eventualmente filtrati per mood.
+// settimana, ed eventualmente filtrati per mood, durata e genere reali.
 function wheelPool() {
   const vetoed = vetoedMovieIdsThisWeek();
-  return movies.filter(m =>
-    m.status === 'watchlist' &&
-    !vetoed.includes(m.id) &&
-    (moodFilter === 'all' || m.genre === moodFilter)
-  );
+  return movies.filter(m => {
+    if (m.status !== 'watchlist' || vetoed.includes(m.id)) return false;
+    if (moodFilter !== 'all' && m.genre !== moodFilter) return false;
+    if (durationFilter !== 'all') {
+      const bucket = durationBucket(parseDurationMinutes(m.duration));
+      if (bucket === null || bucket !== durationFilter) return false;
+    }
+    if (genreFilter !== 'all') {
+      if (!Array.isArray(m.genres) || !m.genres.includes(genreFilter)) return false;
+    }
+    return true;
+  });
 }
 
 function setMoodFilter(value) {
   moodFilter = value;
   drawWheel();
+}
+
+function setDurationFilter(value) {
+  durationFilter = value;
+  drawWheel();
+}
+
+function setGenreFilter(value) {
+  genreFilter = value;
+  drawWheel();
+}
+
+// Ricostruisce le opzioni del select genere SOLO se cambiano (preserva la
+// selezione dell'utente; torna a 'all' se il genere scelto non esiste più).
+// Chiamata da render(): i nuovi film/metadati Realtime arrivano lì.
+function syncGenreFilterOptions() {
+  const sel = document.getElementById('genreFilterSelect');
+  if (!sel) return;
+  const counts = {};
+  movies.forEach(m => (m.genres || []).forEach(g => {
+    if (g) counts[g] = (counts[g] || 0) + 1;
+  }));
+  const genres = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+
+  const key = genres.map(g => g[0]).join('|');
+  if (sel.dataset.genresKey === key) return;
+
+  sel.dataset.genresKey = key;
+  const chosen = sel.value;
+  sel.innerHTML = '<option value="all">🎞️ Qualsiasi genere</option>'
+    + genres.map(([g, c]) =>
+      `<option value="${jsAttrEscape(g)}">${escapeHtml(g)} (${c})</option>`).join('');
+  if (chosen === 'all' || genres.some(([g]) => g === chosen)) {
+    sel.value = chosen;
+  } else {
+    sel.value = 'all';
+    genreFilter = 'all';
+  }
 }
 
 function drawWheel() {

@@ -149,6 +149,7 @@ function render() {
     renderSyncStatus();
     renderNextMovieBox();
     if (!countdownTimer) countdownTimer = setInterval(renderNextMovieBox, 30000);
+    syncGenreFilterOptions();
     drawWheel();
     return;
   }
@@ -262,6 +263,7 @@ function render() {
   renderSyncStatus();
   renderNextMovieBox();
   if (!countdownTimer) countdownTimer = setInterval(renderNextMovieBox, 30000);
+  syncGenreFilterOptions();
   drawWheel();
 }
 
