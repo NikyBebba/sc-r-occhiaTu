@@ -1,0 +1,666 @@
+{
+  "app": "sc(r)occhiaTu",
+  "source_doc": "lista film da vedere.rtf",
+  "expected_totals": {
+    "N": 116,
+    "V": 15,
+    "total": 131
+  },
+  "movies": [
+    {
+      "title": "Hamnet - Nel nome del figlio",
+      "year": 2025,
+      "source": "N"
+    },
+    {
+      "title": "Il traditore",
+      "year": 2019,
+      "source": "N"
+    },
+    {
+      "title": "Elvis",
+      "year": 2022,
+      "source": "N"
+    },
+    {
+      "title": "Il discorso del re",
+      "year": 2010,
+      "source": "N"
+    },
+    {
+      "title": "Via col vento",
+      "year": 1939,
+      "source": "N"
+    },
+    {
+      "title": "Non ci resta che piangere",
+      "year": 1984,
+      "source": "N"
+    },
+    {
+      "title": "Si alza il vento",
+      "year": 2013,
+      "source": "N"
+    },
+    {
+      "title": "Furiosa: A Mad Max Saga",
+      "year": 2024,
+      "source": "N"
+    },
+    {
+      "title": "The Fabelmans",
+      "year": 2022,
+      "source": "N"
+    },
+    {
+      "title": "American Gangster",
+      "year": 2007,
+      "source": "N"
+    },
+    {
+      "title": "Donnie Brasco",
+      "year": 1997,
+      "source": "N"
+    },
+    {
+      "title": "Parthenope",
+      "year": 2024,
+      "source": "N"
+    },
+    {
+      "title": "Malcolm X",
+      "year": 1992,
+      "source": "N"
+    },
+    {
+      "title": "Il mio vicino Totoro",
+      "year": 1988,
+      "source": "N"
+    },
+    {
+      "title": "Porco Rosso",
+      "year": 1992,
+      "source": "N"
+    },
+    {
+      "title": "Le Mans '66 - La grande sfida",
+      "year": 2019,
+      "source": "N"
+    },
+    {
+      "title": "The Terminal",
+      "year": 2004,
+      "source": "N"
+    },
+    {
+      "title": "Cloud Atlas",
+      "year": 2012,
+      "source": "N"
+    },
+    {
+      "title": "La battaglia di Hacksaw Ridge",
+      "year": 2016,
+      "source": "N"
+    },
+    {
+      "title": "Le iene",
+      "year": 1992,
+      "source": "N"
+    },
+    {
+      "title": "Quinto potere",
+      "year": 1976,
+      "source": "N"
+    },
+    {
+      "title": "Mad Max: Fury Road",
+      "year": 2015,
+      "source": "N"
+    },
+    {
+      "title": "Watchmen",
+      "year": 2009,
+      "source": "N"
+    },
+    {
+      "title": "The Fall Guy",
+      "year": 2024,
+      "source": "N"
+    },
+    {
+      "title": "Rain Man - L'uomo della pioggia",
+      "year": 1988,
+      "source": "N"
+    },
+    {
+      "title": "Killers of the Flower Moon",
+      "year": 2023,
+      "source": "N"
+    },
+    {
+      "title": "Nosferatu",
+      "year": 2024,
+      "source": "N"
+    },
+    {
+      "title": "Anora",
+      "year": 2024,
+      "source": "N"
+    },
+    {
+      "title": "Full Monty - Squattrinati organizzati",
+      "year": 1997,
+      "source": "N"
+    },
+    {
+      "title": "Avengers: Doomsday",
+      "year": 2026,
+      "source": "N"
+    },
+    {
+      "title": "Proposta indecente",
+      "year": 1993,
+      "source": "N"
+    },
+    {
+      "title": "Il sorpasso",
+      "year": 1962,
+      "source": "N"
+    },
+    {
+      "title": "Stand by Me - Ricordo di un'estate",
+      "year": 1986,
+      "source": "N"
+    },
+    {
+      "title": "La verità è che non gli piaci abbastanza",
+      "year": 2009,
+      "source": "N"
+    },
+    {
+      "title": "Questione di tempo",
+      "year": 2013,
+      "source": "N"
+    },
+    {
+      "title": "Detachment - Il distacco",
+      "year": 2011,
+      "source": "N"
+    },
+    {
+      "title": "Past Lives",
+      "year": 2023,
+      "source": "N"
+    },
+    {
+      "title": "Aftersun",
+      "year": 2022,
+      "source": "N"
+    },
+    {
+      "title": "La persona peggiore del mondo",
+      "year": 2021,
+      "source": "N"
+    },
+    {
+      "title": "Obsession",
+      "year": 2026,
+      "source": "N"
+    },
+    {
+      "title": "Balls Up: Palle al sicuro",
+      "year": 2026,
+      "source": "N"
+    },
+    {
+      "title": "No Other Choice - Non c'è altra scelta",
+      "year": 2025,
+      "source": "N"
+    },
+    {
+      "title": "Before Sunset - Prima del tramonto",
+      "year": 2004,
+      "source": "N"
+    },
+    {
+      "title": "Il postino",
+      "year": 1994,
+      "source": "N"
+    },
+    {
+      "title": "Ricomincio da tre",
+      "year": 1981,
+      "source": "N"
+    },
+    {
+      "title": "Manuale scout per l'apocalisse zombie",
+      "year": 2015,
+      "source": "N"
+    },
+    {
+      "title": "Weapons",
+      "year": 2025,
+      "source": "N"
+    },
+    {
+      "title": "1997: Fuga da New York",
+      "year": 1981,
+      "source": "N"
+    },
+    {
+      "title": "La cosa",
+      "year": 1982,
+      "source": "N"
+    },
+    {
+      "title": "The Last Duel",
+      "year": 2021,
+      "source": "N"
+    },
+    {
+      "title": "Napoleon",
+      "year": 2023,
+      "source": "N"
+    },
+    {
+      "title": "Il sapore del successo",
+      "year": 2015,
+      "source": "N"
+    },
+    {
+      "title": "Il dottor Stranamore",
+      "year": 1964,
+      "source": "N"
+    },
+    {
+      "title": "Audition",
+      "year": 2000,
+      "source": "N"
+    },
+    {
+      "title": "Memento",
+      "year": 2000,
+      "source": "N"
+    },
+    {
+      "title": "Akira",
+      "year": 1988,
+      "source": "N"
+    },
+    {
+      "title": "I Goonies",
+      "year": 1985,
+      "source": "N"
+    },
+    {
+      "title": "Poltergeist - Demoniache presenze",
+      "year": 1982,
+      "source": "N"
+    },
+    {
+      "title": "Attrazione fatale",
+      "year": 1987,
+      "source": "N"
+    },
+    {
+      "title": "L'amore bugiardo - Gone Girl",
+      "year": 2014,
+      "source": "N"
+    },
+    {
+      "title": "F1: Il film",
+      "year": 2025,
+      "source": "N"
+    },
+    {
+      "title": "Frankenstein",
+      "year": 2025,
+      "source": "N"
+    },
+    {
+      "title": "I peccatori",
+      "year": 2025,
+      "source": "N"
+    },
+    {
+      "title": "The Prestige",
+      "year": 2006,
+      "source": "N"
+    },
+    {
+      "title": "Mission Impossible - The Final Reckoning",
+      "year": 2025,
+      "source": "N"
+    },
+    {
+      "title": "Avatar: Fuoco e cenere",
+      "year": 2025,
+      "source": "N"
+    },
+    {
+      "title": "Zootropolis 2",
+      "year": 2025,
+      "source": "N"
+    },
+    {
+      "title": "Demon Slayer: Il Castello dell'Infinito",
+      "year": 2025,
+      "source": "N"
+    },
+    {
+      "title": "Springsteen - Liberami dal nulla",
+      "year": 2025,
+      "source": "N"
+    },
+    {
+      "title": "Una battaglia dopo l'altra",
+      "year": 2025,
+      "source": "N"
+    },
+    {
+      "title": "Quarto potere",
+      "year": 1941,
+      "source": "N"
+    },
+    {
+      "title": "Freaky Tales",
+      "year": 2025,
+      "source": "N"
+    },
+    {
+      "title": "Zabriskie Point",
+      "year": 1970,
+      "source": "N"
+    },
+    {
+      "title": "Pandaemonium",
+      "year": 2001,
+      "source": "N"
+    },
+    {
+      "title": "P.S. I Love You",
+      "year": 2007,
+      "source": "N"
+    },
+    {
+      "title": "Italia 1982, una storia azzurra",
+      "year": 2022,
+      "source": "N"
+    },
+    {
+      "title": "The Holdovers - Lezioni di vita",
+      "year": 2023,
+      "source": "N"
+    },
+    {
+      "title": "Crazy, Stupid, Love.",
+      "year": 2011,
+      "source": "N"
+    },
+    {
+      "title": "Prisoners",
+      "year": 2013,
+      "source": "N"
+    },
+    {
+      "title": "Trap",
+      "year": 2024,
+      "source": "N"
+    },
+    {
+      "title": "Arrival",
+      "year": 2016,
+      "source": "N"
+    },
+    {
+      "title": "Il petroliere",
+      "year": 2007,
+      "source": "N"
+    },
+    {
+      "title": "Eli",
+      "year": 2019,
+      "source": "N"
+    },
+    {
+      "title": "Der große Fake: Die Wirecard-Story",
+      "year": null,
+      "source": "N"
+    },
+    {
+      "title": "Drive My Car",
+      "year": 2021,
+      "source": "N"
+    },
+    {
+      "title": "L'ufficiale e la spia",
+      "year": 2019,
+      "source": "N"
+    },
+    {
+      "title": "Hereditary - Le radici del male",
+      "year": 2018,
+      "source": "N"
+    },
+    {
+      "title": "Il treno per il Darjeeling",
+      "year": 2007,
+      "source": "N"
+    },
+    {
+      "title": "Asteroid City",
+      "year": 2023,
+      "source": "N"
+    },
+    {
+      "title": "Nonnas",
+      "year": 2025,
+      "source": "N"
+    },
+    {
+      "title": "Babylon",
+      "year": 2022,
+      "source": "N"
+    },
+    {
+      "title": "Il silenzio degli innocenti",
+      "year": 1991,
+      "source": "N"
+    },
+    {
+      "title": "Don't Look Up",
+      "year": 2021,
+      "source": "N"
+    },
+    {
+      "title": "Il castello errante di Howl",
+      "year": 2004,
+      "source": "N"
+    },
+    {
+      "title": "L'incredibile storia dell'Isola delle Rose",
+      "year": 2020,
+      "source": "N"
+    },
+    {
+      "title": "Eyes Wide Shut",
+      "year": 1999,
+      "source": "N"
+    },
+    {
+      "title": "Il grande Lebowski",
+      "year": 1998,
+      "source": "N"
+    },
+    {
+      "title": "Pleasantville",
+      "year": 1998,
+      "source": "N"
+    },
+    {
+      "title": "Midsommar - Il villaggio dei dannati",
+      "year": 2019,
+      "source": "N"
+    },
+    {
+      "title": "Fight Club",
+      "year": 1999,
+      "source": "N"
+    },
+    {
+      "title": "Blade Runner",
+      "year": 1982,
+      "source": "N"
+    },
+    {
+      "title": "The Lighthouse",
+      "year": 2019,
+      "source": "N"
+    },
+    {
+      "title": "2001: Odissea nello spazio",
+      "year": 1968,
+      "source": "N"
+    },
+    {
+      "title": "Scappa - Get Out",
+      "year": 2017,
+      "source": "N"
+    },
+    {
+      "title": "Little Miss Sunshine",
+      "year": 2006,
+      "source": "N"
+    },
+    {
+      "title": "Manchester by the Sea",
+      "year": 2016,
+      "source": "N"
+    },
+    {
+      "title": "John Wick - Capitolo 2",
+      "year": 2017,
+      "source": "N"
+    },
+    {
+      "title": "Animali fantastici - I segreti di Silente",
+      "year": 2018,
+      "source": "N"
+    },
+    {
+      "title": "Lei",
+      "year": 2013,
+      "source": "N"
+    },
+    {
+      "title": "Seven",
+      "year": 1995,
+      "source": "N"
+    },
+    {
+      "title": "Il metodo di Phil Stutz",
+      "year": 2022,
+      "source": "N"
+    },
+    {
+      "title": "Gli spiriti dell'isola",
+      "year": 2022,
+      "source": "N"
+    },
+    {
+      "title": "Arancia meccanica",
+      "year": 1971,
+      "source": "N"
+    },
+    {
+      "title": "The Gray Man",
+      "year": 2022,
+      "source": "N"
+    },
+    {
+      "title": "Bullet Train",
+      "year": 2022,
+      "source": "N"
+    },
+    {
+      "title": "Rumore bianco",
+      "year": 2022,
+      "source": "N"
+    },
+    {
+      "title": "The Truman Show",
+      "year": 1998,
+      "source": "V"
+    },
+    {
+      "title": "American Psycho",
+      "year": 2000,
+      "source": "V"
+    },
+    {
+      "title": "Sleepers",
+      "year": 1996,
+      "source": "V"
+    },
+    {
+      "title": "Matrix",
+      "year": 1999,
+      "source": "V"
+    },
+    {
+      "title": "Forrest Gump",
+      "year": 1994,
+      "source": "V"
+    },
+    {
+      "title": "Shutter Island",
+      "year": 2010,
+      "source": "V"
+    },
+    {
+      "title": "Inception",
+      "year": 2010,
+      "source": "V"
+    },
+    {
+      "title": "La società della neve",
+      "year": 2023,
+      "source": "V"
+    },
+    {
+      "title": "È stata la mano di Dio",
+      "year": 2021,
+      "source": "V"
+    },
+    {
+      "title": "Il curioso caso di Benjamin Button",
+      "year": 2008,
+      "source": "V"
+    },
+    {
+      "title": "Eternal Sunshine of the Spotless Mind",
+      "year": 2004,
+      "source": "V"
+    },
+    {
+      "title": "Batman - Il cavaliere oscuro",
+      "year": 2008,
+      "source": "V"
+    },
+    {
+      "title": "The Irishman",
+      "year": 2019,
+      "source": "V"
+    },
+    {
+      "title": "Don't Worry Darling",
+      "year": 2022,
+      "source": "V"
+    },
+    {
+      "title": "Nuovo Cinema Paradiso",
+      "year": 1988,
+      "source": "V"
+    }
+  ]
+}

@@ -47,11 +47,16 @@ NON introdurre framework/bundler/backend senza autorizzazione.
 Flusso di caricamento dei moduli (ordine in `index.html`):
 
 ```
-config → api → store → wheel → ui → main
+config → api(omdb+tmdb → index) → store → wheel → ui(modals+navigation+actions+render) → main
 ```
 
 - `js/config.js` — chiavi runtime (TMDb/OMDb/Supabase) + `PEOPLE` (label + PIN).
-- `js/api.js` — TMDb/OMDb: ricerca candidati, dettaglio, bulk, fallback, rating.
+- `js/api/omdb.js` — OMDb: `omdbConfigured`, `extractRatings`, `fetchOmdbByTitle`,
+  `fetchOmdbByImdbId`, `omdbToDetails`, `emptyRatings`.
+- `js/api/tmdb.js` — TMDb: `tmdbConfigured`, `searchTmdbCandidates`,
+  `buildTmdbDetails(detail, fallbackTitle)`, `fetchTmdbDetailsById`,
+  `fetchTmdbDetailsByTitle`.
+- `js/api/index.js` — orchestratore `fetchMovieDetails` (TMDb → OMDb → notFound).
 - `js/store.js` — livello dati: Supabase (o localStorage), `movies`, `votes`,
   `vetoes`, `movie_nights`, logica serata (`setQuickTonight`, `proposeNight`,
   `confirmNight`, `cancelNight`, `completeNight`, `nextMoviePick`), match %,
@@ -60,10 +65,27 @@ config → api → store → wheel → ui → main
   resync debounced + render solo se il dato cambia) e modalità degradata
   (`dbMode` 'supabase'|'local' con badge in UI, ripristino automatico).
 - `js/wheel.js` — ruota canvas: pool, draw, spin animato, confetti.
-- `js/ui.js` — render, modali, tab, azioni sui film, helper anti-XSS
-  (`escapeHtml`, `jsAttrEscape`), stats, timeline, badge sync.
+- `js/ui/modals.js` — `openModal`/`closeModal`/`showConfirmModal` + helper
+  anti-XSS `escapeHtml`/`jsAttrEscape` + costanti visuali (`MOOD_LABELS`,
+  `personBadge`).
+- `js/ui/navigation.js` — tab (state + switch).
+- `js/ui/actions.js` — azioni sui film: aggiunta singola (picker TMDb), import
+  bulk, aggiusta/retry con metadati, programma/annulla serata, voto, veto,
+  sorpresa, recensione, "stasera".
+- `js/ui/render.js` — `render`, `renderScheduled`, `renderStats`,
+  `renderVetoInfo`, `renderSyncStatus`, `renderNextMovieBox` (countdown 30s),
+  `drawWheel` invocata dal render.
 - `js/main.js` — login (landing → persona → PIN → `sessionStorage`) e
   attivazione Realtime all'ingresso.
+- `scripts/import-movies.js` — import/aggiornamento massivo dei film da
+  `data/movie-watchlist.json` (match TMDb prudente + alias documentati +
+  fallback OMDb, idempotente, `--dry-run` e `--limit=N`, non tocca
+  titoli/status/voti/recensioni/serate). Serve anche da verifica live del DB.
+- `scripts/smoke.js` — harness smoke-test (`node scripts/smoke.js`): carica
+  tutti i moduli con DOM stub, verifica guardie/load, serate su `movie_nights`,
+  vote/veto/sorpresa/recensione, metadati TMDb live, anti-XSS. Atteso green.
+- `data/movie-watchlist.json` — lista ufficiale titoli (source of truth), N: 116
+  + V: 15 = 131.
 
 Stato: variabili globali (`movies`, `votes`, `vetoes`, `movieNights`,
 `currentUser`, `currentTab`, `dbMode`). Ogni azione segue il ciclo:
@@ -106,7 +128,7 @@ ANALYZE → PLAN → IMPLEMENT → TEST → REVIEW → COMMIT
 
 ## Security/configuration rule
 
-Le API key presenti in `js/config.js` (e referenziate in `js/api.js`) sono
+Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 **REALI** e usate direttamente dal frontend (modello client-side del progetto).
 
 - NON inserirle in AGENTS.md, README, report, commit message, log o output.
@@ -126,13 +148,25 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api.js`) sono
 ├── AGENTS.md
 ├── supabase-schema.sql
 ├── supabase-migration-step2.sql
+├── data/
+│   └── movie-watchlist.json
+├── scripts/
+│   ├── import-movies.js
+│   └── smoke.js
 ├── js/
 │   ├── config.js
-│   ├── api.js
 │   ├── store.js
 │   ├── wheel.js
-│   ├── ui.js
-│   └── main.js
+│   ├── main.js
+│   ├── api/
+│   │   ├── index.js
+│   │   ├── omdb.js
+│   │   └── tmdb.js
+│   └── ui/
+│       ├── actions.js
+│       ├── modals.js
+│       ├── navigation.js
+│       └── render.js
 └── css/
     └── style.css
 ```
@@ -192,6 +226,14 @@ proposed/confirmed/cancelled/completed, `skipped` riservato), Realtime
 centralizzato (un canale, resync debounced, no loop/doppio render), fallback
 localStorage come mirror + badge "modalità offline" (visibile, non silenzioso).
 
+**Step 2.5 — moduli + watchlist reale**: refactoring strutturale senza
+cambio di comportamento (`js/api.js` → `js/api/{omdb,tmdb,index}.js`,
+`js/ui.js` → `js/ui/{modals,navigation,actions,render}.js`, nomi API pubblici
+invariati, ordine script in `index.html` allineato) e import della watchlist
+ufficiale in Supabase da `data/movie-watchlist.json` via
+`scripts/import-movies.js` (matching TMDb prudente su title/original_title +
+bonus sottotitolo-prefisso + alias documentati, fallback OMDb, idempotente).
+
 ## Feature pianificate (NON implementate)
 
 Calendario mensile, export .ics, giorno fisso settimanale, saghe/collection
@@ -233,16 +275,22 @@ egg. **Nessuna di queste va implementata senza una fase dedicata.**
   `confirmNight`, `cancelNight`, `nextMoviePick` (ora su `movie_nights`
   con mirror legacy), più `completeNight`, `subscribeRealtime`.
 - Database Supabase **verificato live** (anon key + REST): `movies`,
-  `votes`, `vetoes` esistenti e vuoti, CRUD OK, RLS aperte OK, Realtime già
+  `votes`, `vetoes` esistenti, CRUD OK, RLS aperte OK, Realtime già
   pubblicato su movies/votes/vetoes. `movie_nights` + `tmdb_id`/
-  `collection_id`/`collection_name` presenti **nella MIGRATION** ma da
-  applicare in Dashboard (il client anon non può fare DDL).
+  `collection_id`/`collection_name` **applicati in Dashboard**. **Watchlist
+  131 film importata** (N: 116 + V: 15, `--dry-run` poi inserimento reale):
+  tmdb_id 100%, collection 22 titoli, 0 duplicati, idempotente (2° run: 0
+  insert, 131 already existing, 0 metadata update).
 - **Test live Realtime end-to-end PASS**: insert via client reale → evento
   `postgres_changes` → resync debounced → dati aggiornati; con `movie_nights`
   assente la app resta in modalità `supabase` con warning one-time e fallback
   box legacy (`movieNightsAvailable=false` evita la sottoscrizione a una
   tabella non ancora pubblicata).
-- Struttura: file sotto `js/` e `css/`, riferimenti `index.html` allineati.
-- Harness Step 2: **27/27 PASS** (guards, store locale incluse serate, metadati
-  TMDb live incluse collection, ui add/retry con metadati).
-- 36/36 smoke-test PASS (harness Node + DOM stub + chiamate live TMDb/OMDb).
+- Struttura **modulare**: `js/api/{index,omdb,tmdb}.js` e
+  `js/ui/{actions,modals,navigation,render}.js` (f.To `js/api.js`/`js/ui.js`
+  rimossi), ordine script in `index.html` allineato, `store.js`/`config.js`
+  centralizzati.
+- Harness smoke (`scripts/smoke.js`): **32/32 PASS** (guards + load, serate
+  su `movie_nights`, vote/veto/sorpresa/recensione, metadati TMDb live
+  incluse collection+aliasing titoli IT, ui add/retry, anti-XSS).
+- `node --check` OK su tutti i moduli `js/**/*.js` + `scripts/`.
