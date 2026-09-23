@@ -98,6 +98,7 @@ async function okA(name, fn) {
 (async () => {
   const sources = [
     'js/config.js',
+    'js/genres.js',
     'js/api/omdb.js', 'js/api/tmdb.js', 'js/api/index.js',
     'js/store.js', 'js/wheel.js',
     'js/ui/modals.js', 'js/ui/navigation.js', 'js/ui/actions.js', 'js/ui/render.js', 'js/ui/calendar.js',
@@ -429,6 +430,29 @@ async function okA(name, fn) {
       && html.indexOf('a<b') === -1
       && html.indexOf('undefined') === -1;
   }));
+
+  // --- 5c) generi: mappa + derivazione mood (oggetti canned, nessuna rete) ---
+  console.log('\n[generi — mappa TMDb/OMDb → mood]');
+  ok('TMDB_GENRE_MOOD: id principali mappati', run(() =>
+    TMDB_GENRE_MOOD[27] === 'paura' && TMDB_GENRE_MOOD[53] === 'paura'
+    && TMDB_GENRE_MOOD[18] === 'nostalgia' && TMDB_GENRE_MOOD[36] === 'nostalgia'
+    && TMDB_GENRE_MOOD[35] === 'risata' && TMDB_GENRE_MOOD[28] === 'azione'
+    && TMDB_GENRE_MOOD[10749] === 'romantico'));
+  ok('TMDB_GENRE_MOOD: Fantasy(14) e Science Fiction(878) restano in \'altro\'', run(() =>
+    TMDB_GENRE_MOOD[14] === 'altro' && TMDB_GENRE_MOOD[878] === 'altro'));
+  ok('moodFromGenres: horror+drama → paura (priorità)', run(() => moodFromGenres([27, 18]) === 'paura'));
+  ok('moodFromGenres: drama+comedy → risata (priorità)', run(() => moodFromGenres([18, 35]) === 'risata'));
+  ok('moodFromGenres: romantico+thriller → paura (thriller vince)', run(() => moodFromGenres([10749, 53]) === 'paura'));
+  ok('moodFromGenres: singolo azione → azione', run(() => moodFromGenres([28]) === 'azione'));
+  ok('moodFromGenres: solo fantascienza → altro', run(() => moodFromGenres([878]) === 'altro'));
+  ok('moodFromGenres: vuoto/null/id ignoto → altro', run(() =>
+    moodFromGenres([]) === 'altro' && moodFromGenres(null) === 'altro' && moodFromGenres([999999]) === 'altro'));
+  ok('moodFromGenreNames: Drama+Comedy → risata (nomi OMDb)', run(() => moodFromGenreNames(['Drama', 'Comedy']) === 'risata'));
+  ok('moodFromGenreNames: Horror+Drama → paura (nomi OMDb)', run(() => moodFromGenreNames(['Horror', 'Drama']) === 'paura'));
+  ok('moodFromGenreNames: Sci-Fi → altro (nomi OMDb)', run(() => moodFromGenreNames(['Sci-Fi']) === 'altro'));
+  ok('moodFromGenreNames: nomi it-IT TMDb (Fantascienza+Dramma → nostalgia)', run(() => moodFromGenreNames(['Fantascienza', 'Dramma']) === 'nostalgia'));
+  ok('moodFromGenreNames: vuoto o nome ignoto → altro', run(() =>
+    moodFromGenreNames([]) === 'altro' && moodFromGenreNames(['Sconosciuto']) === 'altro'));
 
   // --- 6) calendario: logica pura + render (step 3a, solo vista) ---
   console.log('\n[calendario — logica pura + render]');
