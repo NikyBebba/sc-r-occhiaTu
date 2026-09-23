@@ -22,8 +22,13 @@ create table movies (
   proposed_by text check (proposed_by in ('N', 'V')), -- chi ha proposto QUESTA sera (data/ora), non chi ha aggiunto il film
   night_confirmed boolean default false, -- true quando l'altra persona ha confermato la serata proposta
   surprise_by text check (surprise_by in ('N', 'V')), -- chi l'ha scelto in modalità sorpresa, null = non è una sorpresa (o già rivelata)
+  tmdb_id bigint, -- id stabile del film su TMDb (step 2): enable funzione saghe/collection, raccomandazioni, match futuri; null = aggiunto prima/fallback OMDb/non trovato
+  collection_id bigint, -- se il film fa parte di una saga/collection TMDb
+  collection_name text, -- nome leggibile della collection (es. "Il Signore degli Anelli")
   created_at timestamp with time zone default now()
 );
+
+create index if not exists idx_movies_tmdb_id on movies (tmdb_id);
 
 alter table movies enable row level security;
 
@@ -32,6 +37,46 @@ alter table movies enable row level security;
 -- il PIN lato client (vedi config.js). Se in futuro vuoi sicurezza reale,
 -- va sostituita con Supabase Auth + policy legate a auth.uid().
 create policy "Public Access" on movies for all using (true) with check (true);
+
+-- ============================================
+-- SERATE (step 2) — "1 film = 1 contenuto, 1 serata = 1 evento".
+-- Separare la serata dal film permette di avere PIÙ serate per lo stesso
+-- film (rewatch) e uno storico persistente per calendario/streak future.
+-- I campi legacy scheduled_*/proposed_by/night_confirmed su movies restano
+-- per compatibilità (strategia B: li alimentiamo ancora in scrittura).
+-- ============================================
+create table movie_nights (
+  id uuid primary key default gen_random_uuid(),
+  movie_id uuid not null references movies(id) on delete cascade,
+  date date,            -- null = pick veloce "stasera" (senza data fissa)
+  time text,            -- es. "21:30"
+  snack text,           -- snack abbinato alla serata
+  proposed_by text check (proposed_by in ('N', 'V')), -- chi ha proposto la serata
+  status text not null default 'proposed'
+    check (status in ('proposed', 'confirmed', 'cancelled', 'completed', 'skipped')),
+  created_at timestamp with time zone default now(),
+  confirmed_at timestamp with time zone, -- quando l'altra persona ha confermato
+  cancelled_at timestamp with time zone, -- quando è stata annullata/rifiutata
+  completed_at timestamp with time zone  -- quando il film è stato visto insieme
+);
+
+-- status spiegato:
+--   proposed   -> proposta in attesa di conferma dall'altra persona
+--   confirmed  -> accettata da entrambi (o pick veloce "stasera")
+--   cancelled  -> annullata prima di essere guardata
+--   completed  -> serata avvenuta (film visto)
+--   skipped    -> RISERVATA a future feature (streak/calendario): una serata
+--                 confermata che non si è tenuta. Oggi NESSUN flusso la scrive.
+
+create index if not exists idx_movie_nights_movie_id on movie_nights (movie_id);
+create index if not exists idx_movie_nights_status on movie_nights (status);
+
+alter table movie_nights enable row level security;
+create policy "Public Access" on movie_nights for all using (true) with check (true);
+
+-- Realtime: la pubblicazione supabase_realtime deve includere tutte le
+-- tabelle sincronizzate tra i due telefoni.
+alter publication supabase_realtime add table movies, votes, vetoes, movie_nights;
 
 -- ============================================
 -- Voti indipendenti per il "Match %" — ognuno vota like/dislike

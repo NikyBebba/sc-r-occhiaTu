@@ -100,7 +100,10 @@ async function fetchTmdbDetailsById(id) {
     const omdbData = detail.imdb_id ? await fetchOmdbByImdbId(detail.imdb_id) : null;
 
     return {
+      tmdb_id: id,
       title: detail.title,
+      collection_id: detail.belongs_to_collection?.id ?? null,
+      collection_name: detail.belongs_to_collection?.name || null,
       duration: detail.runtime ? `${detail.runtime} min` : '120 min',
       platform,
       poster: detail.poster_path ? `https://image.tmdb.org/t/p/w500${detail.poster_path}` : '',
@@ -110,7 +113,7 @@ async function fetchTmdbDetailsById(id) {
     };
   } catch (err) {
     console.error('Errore dettaglio TMDb:', err);
-    return { title: 'Errore', duration: '120 min', platform: 'Streaming', poster: '', trailerUrl: '', matched: false, ...emptyRatings };
+    return { tmdb_id: id, title: 'Errore', duration: '120 min', platform: 'Streaming', poster: '', trailerUrl: '', matched: false, collection_id: null, collection_name: null, ...emptyRatings };
   }
 }
 
@@ -124,7 +127,7 @@ async function fetchTmdbDetailsById(id) {
 // il film viene comunque salvato ma marcato matched:false, così in UI
 // si vede subito quali titoli vanno controllati a mano.
 async function fetchMovieDetails(title) {
-  const notFound = { title, duration: '120 min', platform: 'Streaming', poster: '', trailerUrl: '', matched: false, ...emptyRatings };
+  const notFound = { title, duration: '120 min', platform: 'Streaming', poster: '', trailerUrl: '', matched: false, tmdb_id: null, collection_id: null, collection_name: null, ...emptyRatings };
   if (!tmdbConfigured()) return notFound;
 
   try {
@@ -143,6 +146,9 @@ async function fetchMovieDetails(title) {
         poster: omdbData.Poster && omdbData.Poster !== 'N/A' ? omdbData.Poster : '',
         trailerUrl: '',
         matched: true,
+        tmdb_id: null,
+        collection_id: null,
+        collection_name: null,
         ...extractRatings(omdbData)
       };
     }
@@ -166,7 +172,10 @@ async function fetchMovieDetails(title) {
     const omdbData = detail.imdb_id ? await fetchOmdbByImdbId(detail.imdb_id) : null;
 
     return {
+      tmdb_id: movie.id,
       title: detail.title || title,
+      collection_id: detail.belongs_to_collection?.id ?? null,
+      collection_name: detail.belongs_to_collection?.name || null,
       duration: detail.runtime ? `${detail.runtime} min` : '120 min',
       platform,
       poster: detail.poster_path ? `https://image.tmdb.org/t/p/w500${detail.poster_path}` : '',
@@ -185,6 +194,9 @@ async function fetchMovieDetails(title) {
       poster: omdbData.Poster && omdbData.Poster !== 'N/A' ? omdbData.Poster : '',
       trailerUrl: '',
       matched: true,
+      tmdb_id: null,
+      collection_id: null,
+      collection_name: null,
       ...extractRatings(omdbData)
     };
   }

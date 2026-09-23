@@ -119,11 +119,14 @@ async function applyResolvedDetails(details) {
   const ratingFields = {
     imdb_rating: details.imdbRating || '', rt_rating: details.rtRating || '', metacritic_rating: details.metacriticRating || ''
   };
+  const tmdbFields = {
+    tmdb_id: details.tmdb_id ?? null, collection_id: details.collection_id ?? null, collection_name: details.collection_name || null
+  };
   if (pickerMode === 'retry') {
     await updateMovie(pickerTargetId, {
       title: details.title, duration: details.duration, platform: details.platform,
       poster: details.poster, trailer_url: details.trailerUrl, matched: details.matched,
-      ...ratingFields
+      ...tmdbFields, ...ratingFields
     });
   } else {
     const newMovie = {
@@ -131,7 +134,7 @@ async function applyResolvedDetails(details) {
       duration: details.duration, platform: details.platform,
       poster: details.poster, trailer_url: details.trailerUrl,
       matched: details.matched, rating: 0, genre: pendingGenre || null,
-      ...ratingFields
+      ...tmdbFields, ...ratingFields
     };
     await insertMovie(newMovie);
     document.getElementById('addTitle').value = '';
@@ -166,11 +169,11 @@ async function bulkImportMovies() {
       duration: details.duration, platform: details.platform,
       poster: details.poster, trailer_url: details.trailerUrl,
       matched: details.matched, rating: 0,
+      tmdb_id: details.tmdb_id ?? null, collection_id: details.collection_id ?? null, collection_name: details.collection_name || null,
       imdb_rating: details.imdbRating || '', rt_rating: details.rtRating || '', metacritic_rating: details.metacriticRating || ''
     };
     await insertMovie(newMovie);
-    // teniamo movies aggiornato localmente anche col DB attivo, per il controllo duplicati nel loop
-    movies.push(newMovie);
+    // insertMovie aggiorna già movies localmente (con id) per il controllo duplicati nel loop
     if (!details.matched) unmatchedTitles.push(clean);
   }
 
@@ -271,6 +274,9 @@ async function confirmReview() {
   // in watchlist, resta proponibile per un rewatch insieme (con badge).
   const newStatus = by === 'both' ? 'watched' : 'watchlist';
   await updateMovie(id, { review_text: text, review_by: by, rating: stars, status: newStatus });
+  // Se l'abbiamo visto insieme, la serata (se c'era una serata attiva) è
+  // avvenuta: la segnamo come completed nello storico.
+  if (by === 'both') await completeNight(id);
   closeModal('reviewModal');
   loadMovies();
 }
@@ -330,6 +336,19 @@ function renderVetoInfo() {
     : `<i class="fa-regular fa-hand"></i> Puoi ancora vietare 1 film questa settimana.`;
   if (vetoedTitles.length) html += `<br>Esclusi dalla ruota: ${escapeHtml(vetoedTitles.join(', '))}`;
   el.innerHTML = html;
+}
+
+// Badge di stato sync: fallback visibile quando Supabase non è raggiungibile.
+// Il fallback (localStorage) non deve essere silenzioso.
+function renderSyncStatus() {
+  const el = document.getElementById('syncBadge');
+  if (!el) return;
+  if (dbMode === 'local') {
+    el.textContent = 'modalità offline';
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
 }
 
 // ---- Box "Prossimo Film" — il pick corrente (via ruota, match o proposta
@@ -586,6 +605,7 @@ function render() {
 
   renderScheduled();
   renderVetoInfo();
+  renderSyncStatus();
   renderNextMovieBox();
   if (!countdownTimer) countdownTimer = setInterval(renderNextMovieBox, 30000);
   drawWheel();

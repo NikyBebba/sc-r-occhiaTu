@@ -33,10 +33,11 @@ cinematografica, personale.
 - **Tailwind CSS via CDN Play** + `css/style.css` custom;
 - **Font Awesome via CDN**;
 - **@supabase/supabase-js v2 via CDN** (tabelle: `movies`, `votes`, `vetoes`,
-  RLS aperte);
+  `movie_nights`, RLS aperte, **Realtime**: postgres_changes su tutte e 4);
 - **TMDb API v3** (`language=it-IT`) per ricerca, dettagli, provider, trailer;
 - **OMDb API** come fallback e per rating (IMDb / RT / Metacritic);
-- **localStorage** come fallback offline di Supabase;
+- **localStorage** come fallback offline di Supabase (mirror + modalità
+  degradata segnalata in UI tramite badge);
 - **canvas 2D** per la ruota della fortuna.
 
 NON introdurre framework/bundler/backend senza autorizzazione.
@@ -52,22 +53,31 @@ config → api → store → wheel → ui → main
 - `js/config.js` — chiavi runtime (TMDb/OMDb/Supabase) + `PEOPLE` (label + PIN).
 - `js/api.js` — TMDb/OMDb: ricerca candidati, dettaglio, bulk, fallback, rating.
 - `js/store.js` — livello dati: Supabase (o localStorage), `movies`, `votes`,
-  `vetoes`, logica serata (`setQuickTonight`, `proposeNight`, `confirmNight`,
-  `cancelNight`, `nextMoviePick`), match %, veto settimanale, sorpresa.
+  `vetoes`, `movie_nights`, logica serata (`setQuickTonight`, `proposeNight`,
+  `confirmNight`, `cancelNight`, `completeNight`, `nextMoviePick`), match %,
+  veto settimanale, sorpresa, **Realtime centralizzato**
+  (`subscribeRealtime`/`unsubscribeRealtime`, un solo canale per sessione,
+  resync debounced + render solo se il dato cambia) e modalità degradata
+  (`dbMode` 'supabase'|'local' con badge in UI, ripristino automatico).
 - `js/wheel.js` — ruota canvas: pool, draw, spin animato, confetti.
 - `js/ui.js` — render, modali, tab, azioni sui film, helper anti-XSS
-  (`escapeHtml`, `jsAttrEscape`), stats, timeline.
-- `js/main.js` — login (landing → persona → PIN → `sessionStorage`).
+  (`escapeHtml`, `jsAttrEscape`), stats, timeline, badge sync.
+- `js/main.js` — login (landing → persona → PIN → `sessionStorage`) e
+  attivazione Realtime all'ingresso.
 
-Stato: variabili globali (`movies`, `votes`, `vetoes`, `currentUser`,
-`currentTab`). Ogni azione segue il ciclo:
+Stato: variabili globali (`movies`, `votes`, `vetoes`, `movieNights`,
+`currentUser`, `currentTab`, `dbMode`). Ogni azione segue il ciclo:
 
 ```
 azione → persistenza (Supabase/localStorage) → loadMovies() → render()
 ```
 
+Le modifiche fatte dagli ALTRI telefoni arrivano via Realtime → resync
+debounced (120 ms) → `resyncQuiet()` che fa render SOLO se i dati sono
+cambiati (nessun loop/doppio render per gli echi delle proprie scritture).
+
 `render()` ricostruisce il DOM e chiama: `renderScheduled`, `renderVetoInfo`,
-`renderNextMovieBox` (countdown ogni 30s), `drawWheel`.
+`renderSyncStatus`, `renderNextMovieBox` (countdown ogni 30s), `drawWheel`.
 
 ## Development workflow
 
@@ -115,6 +125,7 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api.js`) sono
 ├── index.html
 ├── AGENTS.md
 ├── supabase-schema.sql
+├── supabase-migration-step2.sql
 ├── js/
 │   ├── config.js
 │   ├── api.js
@@ -131,19 +142,35 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api.js`) sono
 - `movies(id, title, added_by, status, duration, platform, poster,
   trailer_url, matched, imdb_rating, rt_rating, metacritic_rating, rating,
   scheduled_date, scheduled_time, snack, review_text, review_by, watched_by,
-  genre, proposed_by, night_confirmed, surprise_by, created_at)`
+  genre, proposed_by, night_confirmed, surprise_by, tmdb_id, collection_id,
+  collection_name, created_at)`
   - `status`: `watchlist` | `tonight` | `watched`.
-  - La "serata" vive su flag del film (`scheduled_*`, `proposed_by`,
-    `night_confirmed`, `status`), NON è un'entità separata.
+  - `tmdb_id`/`collection_id`/`collection_name` (step 2): identificativo
+    stabile TMDb + saga/collection, per future feature (saghe,
+    raccomandazioni). `null` per film aggiunti prima/fallback OMDb.
+  - La "serata" VIVE sull'entità separata `movie_nights`. I flag legacy
+    sul film (`scheduled_*`, `proposed_by`, `night_confirmed`) restano
+    alimentati in scrittura per compatibilità (strategia B), così vecchi
+    dati/render continuano a funzionare.
 - `votes(id, movie_id FK, person, liked, unique(movie_id,person))`.
 - `vetoes(id, person, movie_id FK, week_key 'YYYY-W##', unique(person,
   week_key))`.
+- `movie_nights(id, movie_id FK, date, time, snack, proposed_by, status,
+  created_at, confirmed_at, cancelled_at, completed_at)`
+  - `status`: `proposed` | `confirmed` | `cancelled` | `completed` |
+    `skipped` (quest'ultimo RISERVATO a future feature streak/calendario,
+    oggi nessun flusso lo scrive).
+  - Regola: **1 film = 1 contenuto, 1 serata = 1 evento** → più serate
+    possono puntare allo stesso film (rewatch), storico persistente per
+    calendario/streak future.
+  - `date NULL` = pick veloce "Stasera" (senza data fissa).
 
 ## UX principles
 
-- Due utenti, due telefoni: ogni azione deve riflettersi per entrambi
-  (oggi tramite refetch dopo azioni; realtime pianificato ma NON ancora
-  implementato).
+- Due utenti, due telefoni: ogni azione di uno si riflette sull'altro via
+  **Realtime** (postgres_changes su movies/votes/vetoes/movie_nights) con
+  resync silenzioso e render solo su cambiamento reale; il refetch post-azione
+  resta come rete di sicurezza.
 - Dark cinema, glass cards, accent indigo/sky, ruota + confetti + sorpresa
   = cuore ludico dell'esperienza.
 - Testi piccoli (`text-[10px]`) usati per info complementari: da tenere sotto
@@ -157,6 +184,13 @@ bulk + dedup titolo normalizzato, voto like/dislike + "Match %", ruota
 ruota), serata: "Stasera" / programmazione data-ora-snack / proposta-conferma
 rifiuto-annullamento / countdown box "Prossimo Film", recensioni, sorpresa,
 statistiche + timeline, fix anti-XSS su campi utente.
+
+**Step 2 — fondazione dati condivisa**: verifica live database Supabase,
+metadati TMDb persistiti (`tmdb_id`, `collection_id`, `collection_name`),
+entità `movie_nights` (serata = evento separato dal film, stati
+proposed/confirmed/cancelled/completed, `skipped` riservato), Realtime
+centralizzato (un canale, resync debounced, no loop/doppio render), fallback
+localStorage come mirror + badge "modalità offline" (visibile, non silenzioso).
 
 ## Feature pianificate (NON implementate)
 
@@ -172,13 +206,15 @@ egg. **Nessuna di queste va implementata senza una fase dedicata.**
 - Nessun service worker / manifest oggi.
 - HTML delle card generato come stringhe: usare `escapeHtml`/`jsAttrEscape`
   per qualsiasi dato proveniente dall'utente.
-- Storage locale chiavi prefisse `scorochiatu_*`.
+- Storage locale chiavi prefisse `scorochiatu_*` (inclusa
+  `scorochiatu_movie_nights`).
 
 ## Cose da NON fare senza prima chiedere
 
-1. NON cambiare/eliminare/rinominare colonne o tabelle DB (`movies`, `votes`,
-   `vetoes`) — le feature future (calendario/streak/collection) partiranno da
-   una decisione sul data model "serata".
+1. NON cambiare/eliminare/rinominare colonne o tabelle DB (`movies`,
+   `votes`, `vetoes`, `movie_nights`) senza autorizzazione — le feature
+   future (calendario/streak/collection) partono dal data model "serata"
+   (film = contenuto, serata = evento in `movie_nights`).
 2. NON introdurre framework/bundler/backend/auth server.
 3. NON cambiare identità visiva globale o spostare ruota/sorpresa in secondo
    piano.
@@ -193,7 +229,20 @@ egg. **Nessuna di queste va implementata senza una fase dedicata.**
 - Guard logic `tmdbConfigured()`/`omdbConfigured()` corrette: TMDb e OMDb
   attivi con le chiavi reali in `config.js`; verificati live (ricerca,
   dettaglio, provider, trailer, rating OMDb).
-- Funzioni serata ripristinate in `js/store.js`: `setQuickTonight`,
-  `proposeNight`, `confirmNight`, `cancelNight`, `nextMoviePick`.
+- Funzioni serata in `js/store.js`: `setQuickTonight`, `proposeNight`,
+  `confirmNight`, `cancelNight`, `nextMoviePick` (ora su `movie_nights`
+  con mirror legacy), più `completeNight`, `subscribeRealtime`.
+- Database Supabase **verificato live** (anon key + REST): `movies`,
+  `votes`, `vetoes` esistenti e vuoti, CRUD OK, RLS aperte OK, Realtime già
+  pubblicato su movies/votes/vetoes. `movie_nights` + `tmdb_id`/
+  `collection_id`/`collection_name` presenti **nella MIGRATION** ma da
+  applicare in Dashboard (il client anon non può fare DDL).
+- **Test live Realtime end-to-end PASS**: insert via client reale → evento
+  `postgres_changes` → resync debounced → dati aggiornati; con `movie_nights`
+  assente la app resta in modalità `supabase` con warning one-time e fallback
+  box legacy (`movieNightsAvailable=false` evita la sottoscrizione a una
+  tabella non ancora pubblicata).
 - Struttura: file sotto `js/` e `css/`, riferimenti `index.html` allineati.
+- Harness Step 2: **27/27 PASS** (guards, store locale incluse serate, metadati
+  TMDb live incluse collection, ui add/retry con metadati).
 - 36/36 smoke-test PASS (harness Node + DOM stub + chiamate live TMDb/OMDb).

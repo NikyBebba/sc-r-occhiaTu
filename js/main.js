@@ -53,6 +53,7 @@ function submitPin() {
 }
 
 function logout() {
+  unsubscribeRealtime();
   sessionStorage.removeItem('scorochiatu_user');
   currentUser = null;
   location.reload();
@@ -63,6 +64,7 @@ function showApp() {
   const badge = document.getElementById('currentUserBadge');
   const person = CONFIG.PEOPLE[currentUser];
   badge.innerHTML = `<span class="badge ${person.badgeClass}">${person.label}</span>`;
+  subscribeRealtime();
   loadMovies();
 }
 
