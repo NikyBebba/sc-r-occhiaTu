@@ -191,7 +191,10 @@ function render() {
         <div class="absolute top-2 right-2 flex flex-col gap-1 items-end">
           ${personBadge(m.added_by)}
           ${m.matched === false ? `<span class="badge bg-amber-500/90" title="Nessun riscontro trovato su TMDb/OMDb, titolo forse errato"><i class="fa-solid fa-triangle-exclamation"></i> verifica</span>` : ''}
-          ${m.surprise_by === currentUser ? `<span class="badge bg-indigo-500/90">🎁 tua sorpresa</span>` : ''}
+          ${m.surprise_by === currentUser ? `<div class="flex items-center gap-1">
+            <span class="badge bg-indigo-500/90">🎁 tua sorpresa</span>
+            <button onclick="revealSurpriseUI('${m.id}')" class="px-1.5 py-0.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 rounded text-[10px] transition" title="Annulla la sorpresa">Annulla sorpresa</button>
+          </div>` : ''}
           ${isVetoed ? `<span class="badge bg-rose-500/90">vietato</span>` : ''}
         </div>
         ${!isSurpriseHidden ? `<div class="absolute bottom-2 left-2 px-2 py-1 bg-black/60 rounded text-[10px] text-slate-300 backdrop-blur">

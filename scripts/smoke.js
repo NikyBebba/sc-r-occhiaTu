@@ -26,10 +26,11 @@ function makeEl(id) {
       add(c) { this._set.add(c); }, remove(c) { this._set.delete(c); },
       contains(c) { return this._set.has(c); }, toggle(c, on) { on ? this._set.add(c) : this._set.delete(c); }
     },
-    value: '', dataset: {}, onclick: null, onkeydown: null,
-    appendChild() {}, remove() {}, focus() {}, scrollIntoView() {},
+    value: '', dataset: {}, onclick: null, onkeydown: null, onmousedown: null,
+    _children: [],
+    appendChild(c) { this._children.push(c); }, remove() {}, focus() {}, scrollIntoView() {},
     setAttribute(k, v) { this[k] = v; }, getAttribute(k) { return this[k]; },
-    set innerHTML(v) { this._innerHTML = String(v); }, get innerHTML() { return this._innerHTML; },
+    set innerHTML(v) { this._innerHTML = String(v); this._children = []; }, get innerHTML() { return this._innerHTML + this._children.map(c => (c._innerHTML || '')).join(''); },
     set textContent(v) { this._text = String(v); }, get textContent() { return this._text; }
   };
   Object.defineProperty(el, 'value', { get() { return el._value; }, set(v) { el._value = v; }, configurable: true });
@@ -269,6 +270,31 @@ async function okA(name, fn) {
     const sur = movies.find(x => x.id === movies[0].id).surprise_by === 'V';
     await revealSurprise(movies[0].id);
     return sur && movies.find(x => x.id === movies[0].id).surprise_by === null;
+  }));
+  await okA('setSurprise/reveal NON toccano movie_nights', runA(async () => {
+    const before = JSON.stringify(movieNights.map(n => ({ id: n.id, status: n.status })));
+    await setSurprise(movies[1].id, 'V');
+    await revealSurprise(movies[1].id);
+    const after = JSON.stringify(movieNights.map(n => ({ id: n.id, status: n.status })));
+    return before === after;
+  }));
+  ok('render: "Annulla sorpresa" visibile SOLO al creatore (e id escapato)', run(() => {
+    const m = movies.find(x => x.status === 'watchlist');
+    if (!m) return false;
+    const prevUser = currentUser;
+    m.surprise_by = 'N';
+    currentTab = 'watchlist';
+    currentUser = 'V';
+    render();
+    const away = document.getElementById('movieGrid').innerHTML.indexOf('Annulla sorpresa') === -1;
+    currentUser = 'N';
+    render();
+    const html = document.getElementById('movieGrid').innerHTML;
+    const mine = html.indexOf('Annulla sorpresa') !== -1
+      && html.indexOf(`revealSurpriseUI('${m.id}')`) !== -1;
+    m.surprise_by = null;
+    currentUser = prevUser;
+    return away && mine;
   }));
   await okA('proposeMovie/acceptProposal', runA(async () => {
     await proposeMovie({ title: 'Proposal Test', matched: true }, 'V');
