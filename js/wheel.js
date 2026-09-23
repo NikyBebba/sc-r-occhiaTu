@@ -101,11 +101,19 @@ function spinWheel() {
     } else {
       wheelSpinning = false;
       resultDiv.classList.remove('hidden');
-      resultDiv.innerHTML = `🎉 Stasera si guarda: <span class="text-white font-bold">${winner.title}</span>!`;
+      resultDiv.innerHTML = `🎉 Stasera si guarda: <span class="text-white font-bold">${escapeHtml(winner.title)}</span>!
+        <button onclick="closeWheelWinner()" class="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-slate-400 hover:text-white transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark text-[10px]"></i></button>`;
       fireConfetti();
     }
   }
   requestAnimationFrame(frame);
+}
+
+// Chiude il box del risultato ruota: nasconde SOLO il box, senza toccare
+// spin/confetti in corso (un nuovo giro lo riapre al termine).
+function closeWheelWinner() {
+  const el = document.getElementById('wheelWinner');
+  if (el) el.classList.add('hidden');
 }
 
 // ---- Confetti leggero in puro DOM/CSS, nessuna libreria esterna ----

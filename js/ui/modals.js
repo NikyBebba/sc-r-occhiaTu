@@ -2,8 +2,64 @@
 // UI — helper condivisi, anti-XSS e modali generici
 // ============================================
 
-function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
-function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+// Apertura/chiusura modali con stack per la chiusura LIFO (Esc su top).
+// openModal sullo stesso id NON duplica mai lo stack: un solo Esc lo chiude.
+let modalStack = [];
+
+function openModal(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('hidden');
+  if (!modalStack.includes(id)) modalStack.push(id);
+  wireBackdropClose(el, id);
+}
+
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('hidden');
+  modalStack = modalStack.filter(x => x !== id);
+}
+
+function modalStackTop() {
+  return modalStack[modalStack.length - 1] || null;
+}
+
+function closeTopModal() {
+  const id = modalStackTop();
+  if (id) closeModal(id);
+}
+
+// Chiusura del modale di conferma generica: se il handler "Annulla" è attivo
+// lo invoca (così la Promise di showConfirmModal si risolve SEMPRE, con
+// false — nessun leak se l'utente chiude via X/Esc/backdrop), altrimenti
+// chiude semplicemente il modale.
+function cancelConfirmModal() {
+  const no = document.getElementById('confirmNo');
+  if (no && typeof no.onclick === 'function') no.onclick();
+  closeModal('confirmModal');
+}
+
+// Backdrop: chiude SOLO se mousedown E click partono entrambi dall'overlay.
+// Se si seleziona del testo in un input e si rilascia fuori dal modale il
+// click arriva comunque sull'overlay: col flag del mousedown non chiudiamo.
+function wireBackdropClose(el, id) {
+  let downOnOverlay = false;
+  el.onmousedown = e => { downOnOverlay = !!(e && e.target === el); };
+  el.onclick = e => {
+    if (e && e.target === el && downOnOverlay) {
+      if (id === 'confirmModal') cancelConfirmModal();
+      else closeModal(id);
+    }
+  };
+}
+
+// Esc chiude l'ultimo modale aperto (LIFO); per la conferma generica il
+// comportamento è quello del pulsante "Annulla" (risolve false).
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (modalStackTop() === 'confirmModal') cancelConfirmModal();
+  else closeTopModal();
+});
 
 // ---- Utilità anti-XSS per testi provenienti dall'utente ----
 function escapeHtml(s) {

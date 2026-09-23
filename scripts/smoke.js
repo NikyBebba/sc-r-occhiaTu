@@ -257,6 +257,76 @@ async function okA(name, fn) {
   // --- 5) modal helpers ---
   console.log('\n[modali + anti-XSS]');
   ok('openModal/closeModal gestiscono le classi', run(() => { openModal('x'); closeModal('x'); return true; }));
+  ok('openModal due volte sullo stesso id NON duplica lo stack', run(() => {
+    openModal('reviewModal');
+    openModal('reviewModal');
+    const size = modalStack.length;
+    closeModal('reviewModal');
+    return size === 1;
+  }));
+  ok('closeTopModal chiude il top (LIFO), lascia sotto eventuali altri', run(() => {
+    openModal('statsModal');
+    openModal('surpriseModal');
+    closeTopModal();
+    const surpriseHidden = document.getElementById('surpriseModal').classList.contains('hidden');
+    const statsStillOpen = !document.getElementById('statsModal').classList.contains('hidden');
+    closeModal('statsModal');
+    return surpriseHidden && statsStillOpen && modalStack.length === 0;
+  }));
+  ok('backdrop: mousedown+click sull\'overlay chiude il modale', run(() => {
+    const overlay = document.getElementById('reviewModal');
+    openModal('reviewModal');
+    overlay.onmousedown({ target: overlay });
+    overlay.onclick({ target: overlay });
+    return overlay.classList.contains('hidden') && modalStack.length === 0;
+  }));
+  ok('backdrop: selezione testo (mousedown nel pannello) NON chiude', run(() => {
+    const overlay = document.getElementById('reviewModal');
+    const panel = { tagName: 'DIV' };
+    openModal('reviewModal');
+    overlay.onmousedown({ target: panel });
+    overlay.onclick({ target: overlay });
+    const stillOpen = !overlay.classList.contains('hidden');
+    closeModal('reviewModal');
+    return stillOpen;
+  }));
+  ok('cancelConfirmModal risolve false (handler attivo) e chiude', run(() => {
+    const no = document.getElementById('confirmNo');
+    let resolved = null;
+    no.onclick = () => { resolved = false; };
+    openModal('confirmModal');
+    cancelConfirmModal();
+    return resolved === false && document.getElementById('confirmModal').classList.contains('hidden');
+  }));
+  ok('closeWheelWinner nasconde il box senza toccare lo spin', run(() => {
+    const box = document.getElementById('wheelWinner');
+    box.classList.remove('hidden');
+    wheelSpinning = true;
+    closeWheelWinner();
+    return box.classList.contains('hidden') && wheelSpinning === true;
+  }));
+  await okA('un nuovo spin ri-mostra il box del vincitore con X', runA(async () => {
+    const box = document.getElementById('wheelWinner');
+    box.classList.add('hidden');
+    wheelSpinning = false;
+    moodFilter = 'all';
+    if (wheelPool().length === 0) return false; // servono film in watchlist
+    const origRaf = requestAnimationFrame;
+    const origPerf = performance;
+    requestAnimationFrame = cb => setTimeout(() => cb(Date.now() + 5000), 0);
+    performance = { now: Date.now };
+    try {
+      spinWheel();
+      await new Promise(r => setTimeout(r, 30));
+    } finally {
+      requestAnimationFrame = origRaf;
+      performance = origPerf;
+    }
+    wheelSpinning = false;
+    return !box.classList.contains('hidden')
+      && box.innerHTML.indexOf('fa-xmark') !== -1
+      && box.innerHTML.indexOf('closeWheelWinner') !== -1;
+  }));
   ok('escapeHtml neutralizza tag', run(() => escapeHtml('<script>').indexOf('&lt;script&gt;') !== -1));
   ok('jsAttrEscape neutralizza apici', run(() => jsAttrEscape("O'Brien").indexOf("\\'") !== -1));
 

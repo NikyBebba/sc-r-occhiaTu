@@ -131,7 +131,10 @@
   <!-- MODALE AGGIUNGI FILM SINGOLO -->
   <div id="addModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass p-6 rounded-2xl max-w-md w-full border border-slate-800 space-y-4">
-      <h3 class="text-lg font-bold text-slate-100">Aggiungi un Film</h3>
+      <div class="flex items-center justify-between gap-2">
+        <h3 class="text-lg font-bold text-slate-100">Aggiungi un Film</h3>
+        <button onclick="closeModal('addModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
+      </div>
       <div>
         <label class="block text-xs font-medium text-slate-400 mb-1">Titolo del Film</label>
         <input type="text" id="addTitle" placeholder="es. Inception" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
@@ -166,7 +169,10 @@
   <!-- MODALE IMPORTA IN BLOCCO -->
   <div id="importModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass p-6 rounded-2xl max-w-lg w-full border border-slate-800 space-y-4">
-      <h3 class="text-lg font-bold text-slate-100">Importa Lista Titoli</h3>
+      <div class="flex items-center justify-between gap-2">
+        <h3 class="text-lg font-bold text-slate-100">Importa Lista Titoli</h3>
+        <button onclick="closeModal('importModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
+      </div>
       <p class="text-xs text-slate-400">Incolla qui la tua lista JustWatch o i titoli messaggiati (un titolo per riga):</p>
       <textarea id="importText" rows="6" placeholder="Interstellar&#10;Pulp Fiction&#10;La Citta Incantata" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"></textarea>
       <div>
@@ -187,7 +193,10 @@
   <!-- MODALE PROGRAMMAZIONE (sostituisce prompt) -->
   <div id="scheduleModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass p-6 rounded-2xl max-w-sm w-full border border-slate-800 space-y-4">
-      <h3 class="text-lg font-bold text-slate-100">Programma la serata</h3>
+      <div class="flex items-center justify-between gap-2">
+        <h3 class="text-lg font-bold text-slate-100">Programma la serata</h3>
+        <button onclick="closeModal('scheduleModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
+      </div>
       <input type="hidden" id="scheduleMovieId">
       <div>
         <label class="block text-xs font-medium text-slate-400 mb-1">Data</label>
@@ -221,7 +230,10 @@
   <!-- MODALE RECENSIONE (sostituisce 3x prompt) -->
   <div id="reviewModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass p-6 rounded-2xl max-w-md w-full border border-slate-800 space-y-4">
-      <h3 class="text-lg font-bold text-slate-100">Visto & Recensione</h3>
+      <div class="flex items-center justify-between gap-2">
+        <h3 class="text-lg font-bold text-slate-100">Visto & Recensione</h3>
+        <button onclick="closeModal('reviewModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
+      </div>
       <input type="hidden" id="reviewMovieId">
       <div>
         <label class="block text-xs font-medium text-slate-400 mb-1">Recensione</label>
@@ -258,7 +270,10 @@
   <!-- MODALE SCELTA RISULTATI TMDb -->
   <div id="pickerModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass p-6 rounded-2xl max-w-2xl w-full border border-slate-800 space-y-4 max-h-[85vh] overflow-y-auto">
-      <h3 class="text-lg font-bold text-slate-100">Quale intendevi?</h3>
+      <div class="flex items-center justify-between gap-2">
+        <h3 class="text-lg font-bold text-slate-100">Quale intendevi?</h3>
+        <button onclick="closeModal('pickerModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
+      </div>
       <p class="text-xs text-slate-400">Scegli il film giusto tra i risultati trovati.</p>
       <div id="pickerResults" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
       <div class="flex justify-between items-center pt-2 border-t border-slate-800">
@@ -271,7 +286,10 @@
   <!-- MODALE CORREGGI TITOLO / RICERCA DI NUOVO -->
   <div id="retryModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass p-6 rounded-2xl max-w-sm w-full border border-slate-800 space-y-4">
-      <h3 class="text-lg font-bold text-slate-100">Correggi il titolo</h3>
+      <div class="flex items-center justify-between gap-2">
+        <h3 class="text-lg font-bold text-slate-100">Correggi il titolo</h3>
+        <button onclick="closeModal('retryModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
+      </div>
       <p class="text-xs text-slate-400">Nessun riscontro trovato. Prova con il titolo originale (es. in inglese) o con l'anno di uscita.</p>
       <input type="hidden" id="retryMovieId">
       <input type="text" id="retryTitle" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
@@ -285,7 +303,10 @@
   <!-- MODALE CONFERMA GENERICA (sostituisce confirm) -->
   <div id="confirmModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass p-6 rounded-2xl max-w-sm w-full border border-slate-800 space-y-4 text-center">
-      <h3 id="confirmTitle" class="text-lg font-bold text-slate-100">Conferma</h3>
+      <div class="flex items-center justify-between gap-2">
+        <h3 id="confirmTitle" class="text-lg font-bold text-slate-100">Conferma</h3>
+        <button onclick="cancelConfirmModal()" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
+      </div>
       <p id="confirmMessage" class="text-sm text-slate-400"></p>
       <div class="flex justify-center gap-2 pt-2">
         <button id="confirmNo" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
@@ -297,7 +318,10 @@
   <!-- MODALE IL NOSTRO CINEMA (statistiche) -->
   <div id="statsModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass p-6 rounded-2xl max-w-lg w-full border border-slate-800 space-y-4 max-h-[85vh] overflow-y-auto">
-      <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa-solid fa-chart-simple text-indigo-400"></i> Il Nostro Cinema</h3>
+      <div class="flex items-center justify-between gap-2">
+        <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa-solid fa-chart-simple text-indigo-400"></i> Il Nostro Cinema</h3>
+        <button onclick="closeModal('statsModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
+      </div>
       <div id="statsGrid" class="grid grid-cols-2 gap-3"></div>
       <div>
         <h4 class="text-sm font-bold text-slate-300 mb-2 flex items-center gap-2"><i class="fa-solid fa-timeline text-indigo-400"></i> Timeline recensioni</h4>
@@ -312,7 +336,10 @@
   <!-- MODALE SCELTA A SORPRESA -->
   <div id="surpriseModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass p-6 rounded-2xl max-w-md w-full border border-slate-800 space-y-4 max-h-[85vh] overflow-y-auto">
-      <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa-solid fa-gift text-indigo-400"></i> Scegli a sorpresa</h3>
+      <div class="flex items-center justify-between gap-2">
+        <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa-solid fa-gift text-indigo-400"></i> Scegli a sorpresa</h3>
+        <button onclick="closeModal('surpriseModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
+      </div>
       <p class="text-xs text-slate-400">Scegli in segreto un film dalla watchlist: il poster resterà sfocato per l'altra persona finché non deciderà di rivelarlo.</p>
       <div id="surpriseList" class="space-y-2"></div>
       <div class="flex justify-end pt-2">
