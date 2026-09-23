@@ -38,6 +38,9 @@ body {
   justify-content: center;
   background: #0f172a;
 }
+#pinGate.hidden {
+  display: none;
+}
 #pinGate input {
   letter-spacing: 0.4em;
   text-align: center;
