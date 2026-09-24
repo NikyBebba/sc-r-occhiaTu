@@ -1911,7 +1911,7 @@ async function okA(name, fn) {
         matchProbeTimeoutMs, lobbyPresenceState, realtimeChannel,
         matchChannelStatus, currentTab, matchPrevTab, matchDragging,
         matchPendingRender, matchNightCreated, matchPendingSchedule, matchExitTimer,
-        matchEnterErrorMsg, matchEnterErrorLogged };
+        matchEnterErrorMsg, matchEnterErrorLogged, matchContinueErrLoggedAt };
     }
     function __matchRestore(p) {
       sb = p.sb; dbMode = p.dbMode; currentUser = p.currentUser; movies = p.movies;
@@ -1927,6 +1927,7 @@ async function okA(name, fn) {
       matchPendingRender = p.matchPendingRender; matchNightCreated = p.matchNightCreated;
       matchPendingSchedule = p.matchPendingSchedule; matchExitTimer = p.matchExitTimer;
       matchEnterErrorMsg = p.matchEnterErrorMsg; matchEnterErrorLogged = p.matchEnterErrorLogged;
+      matchContinueErrLoggedAt = p.matchContinueErrLoggedAt;
     }
     // Riallinea lo stato minimo delle viste Match (niente canale reale: la
     // vista "completa" dei casi si testa impostando direttamente lo stato).
@@ -2022,7 +2023,7 @@ async function okA(name, fn) {
     } finally { __matchRestore(p); }
   }));
 
-  await okA('recordSwipe: upsert con onConflict+ignoreDuplicates; doppio like → reconcile matched', runA(async () => {
+  await okA('recordSwipe: upsert su onConflict+ignoreDuplicates; il doppio like NON scrive (celebrazione dai dati, status resta open)', runA(async () => {
     const p = __matchSnap();
     const movie = { id: 'ma', title: 'Match A', status: 'watchlist' };
     const mock = mockMatchSb({ sessions: [{ id: 's1', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }] });
@@ -2036,12 +2037,11 @@ async function okA(name, fn) {
         && up.rows[0].session_id === 's1' && up.rows[0].movie_id === 'ma' && up.rows[0].person === 'N' && up.rows[0].liked === true;
       await recordSwipe(session, 'ma', 'V', true);
       const calls = mock.__calls();
-      const matched = calls.updates.find(f => f.patch.status === 'matched');
       const s = mock.__sessions().find(x => x.id === 's1');
       return optsOk
         && calls.upserts.length === 2
-        && matched && matched.in.vals.join() === 'open'
-        && s.status === 'matched' && s.matched_movie_id === 'ma' && Boolean(s.matched_at);
+        && calls.updates.filter(f => f.patch.status === 'matched').length === 0   // il match NON si scrive mai
+        && s.status === 'open' && s.matched_movie_id === undefined && !s.matched_at;
     } finally { __matchRestore(p); }
   }));
 
@@ -2063,26 +2063,29 @@ async function okA(name, fn) {
     } finally { __matchRestore(p); }
   }));
 
-  await okA('continueMatch: matched→open condizionato; reconcile tardivo → nessuna ricelebrazione', runA(async () => {
+  await okA('continueMatch = RICONOSCIMENTO: matched_movie_id=pending + open, condizionato a open|matched; reconcile tardivo non riscrive', runA(async () => {
     const p = __matchSnap();
-    const mock = mockMatchSb({ sessions: [{ id: 'sC', status: 'matched', created_at: new Date().toISOString(), deck: ['ma', 'mb'], matched_movie_id: 'ma' }] });
+    const mock = mockMatchSb({ sessions: [{ id: 'sC', status: 'open', created_at: new Date().toISOString(), deck: ['ma', 'mb'], matched_movie_id: null }] });
     sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
     movies = [{ id: 'ma', status: 'watchlist' }, { id: 'mb', status: 'watchlist' }];
     swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
     try {
-      const session = { id: 'sC', status: 'matched', created_at: new Date().toISOString(), deck: ['ma', 'mb'], matched_movie_id: 'ma' };
+      const session = { id: 'sC', status: 'open', created_at: new Date().toISOString(), deck: ['ma', 'mb'], matched_movie_id: null };
       swipeSessions = [session];
       swipes = [
         { movie_id: 'ma', person: 'N', liked: true },
         { movie_id: 'ma', person: 'V', liked: true }
       ];
       await continueMatch(session);
-      const afterContinue = mock.__calls().updates.length === 1 && mock.__calls().updates[0].patch.status === 'open';
+      const up0 = mock.__calls().updates[0];
+      const afterContinue = mock.__calls().updates.length === 1
+        && up0.patch.status === 'open' && up0.patch.matched_movie_id === 'ma' && up0.patch.matched_at
+        && up0.in.vals.join() === 'open,matched';
       await reconcileSession(session, swipes); // il "reconcile in ritardo" dell'altro telefono
       const row = mock.__sessions().find(x => x.id === 'sC');
       return afterContinue && row.status === 'open'
-        && mock.__calls().updates.length === 1   // nessuna update aggiuntiva (niente ricelebrazione)
-        && row.matched_movie_id === 'ma';
+        && mock.__calls().updates.length === 1   // nessuna update aggiuntiva (niente ricelebrazione / riscritture)
+        && row.matched_movie_id === 'ma' && Boolean(row.matched_at);
     } finally { __matchRestore(p); }
   }));
 
@@ -2098,6 +2101,206 @@ async function okA(name, fn) {
       mock.__sessions().push({ id: 's-new', status: 'open', created_at: new Date().toISOString(), deck: [] });
       await resyncMatchQuiet();
       return swipeSessions[0].id === 's-new';
+    } finally { __matchRestore(p); }
+  }));
+
+  // --- 8b3) regressioni "riconoscimento match dai dati" (commit fix) ---
+  // Il caso rosso del doppio client resta permanente: il percorso swipe NON
+  // scrive più status 'matched' (celebrazione derivata dai dati via
+  // pendingMatch); matched_movie_id vive SOLO del riconoscimento ("Continua");
+  // la transizione open→done è delegata anche al resync (sullo stato
+  // fetchato, non sugli swipe locali).
+  console.log('\n[match — riconoscimento dai dati (regressioni fix)]');
+
+  await okA('reb(a) primo match: celebrato su entrambi e NESSUNA scrittura di stato (prima del fix il 2° fetch scriveva matched)', runA(async () => {
+    const p = __matchSnap();
+    const A = { id: 'ma', title: 'A', status: 'watchlist' };
+    const B = { id: 'mb', title: 'B', status: 'watchlist' };
+    const mock = mockMatchSb({ sessions: [{ id: 'sA', status: 'open', created_at: new Date().toISOString(), deck: ['ma', 'mb'] }] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    movies = [A, B]; swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    try {
+      const session = mock.__sessions()[0];
+      await recordSwipe(session, 'ma', 'N', true);
+      await recordSwipe(session, 'ma', 'V', true);
+      const s = mock.__sessions().find(x => x.id === 'sA');
+      const partner = await fetchLatestMatchState();
+      const mine = evaluateSession(swipeSessions[0], swipes, movies);
+      const theirs = evaluateSession(partner.session, partner.swipes, movies);
+      console.log('[reb(a)] update matched=' + mock.__calls().updates.filter(u => u.patch.status === 'matched').length
+        + ' status=' + s.status + ' mmid=' + (s.matched_movie_id || '∅')
+        + ' vista locale=' + mine.view + '/' + mine.movieId + ' vista partner=' + theirs.view + '/' + theirs.movieId);
+      return mock.__calls().updates.filter(u => u.patch.status === 'matched').length === 0
+        && s.status === 'open' && s.matched_movie_id === undefined
+        && mine.view === 'match' && mine.movieId === 'ma'
+        && theirs.view === 'match' && theirs.movieId === 'ma';
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('reb(b) match A + Continua, poi match B quasi-simultaneo: riconosciuto di nuovo, mmid=B, card successivo su entrambi', runA(async () => {
+    const p = __matchSnap();
+    const A = { id: 'ma', title: 'A', status: 'watchlist' };
+    const B = { id: 'mb', title: 'B', status: 'watchlist' };
+    const C = { id: 'mc', title: 'C', status: 'watchlist' };
+    const mock = mockMatchSb({ sessions: [{ id: 'sB', status: 'open', created_at: new Date().toISOString(), deck: ['ma', 'mb', 'mc'] }], movies: [A, B, C] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    movies = [A, B, C]; swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    try {
+      const session = mock.__sessions()[0];
+      const ups = (movieId, person) => sb.from('swipes').upsert(
+        [{ session_id: 'sB', movie_id: movieId, person, liked: true }],
+        { onConflict: 'session_id,movie_id,person', ignoreDuplicates: true });
+      const base = async () => {
+        const st = await fetchLatestMatchState();
+        return (st && st.swipes ? st.swipes : []).slice();
+      };
+      // match su A (percorso sequenziale classico) + riconoscimento
+      await recordSwipe(session, 'ma', 'N', true);
+      await recordSwipe(session, 'ma', 'V', true);
+      await continueMatch(session);
+      const afterContA = { ...mock.__sessions().find(x => x.id === 'sB') };
+      // match su B con like QUASI-SIMULTANEI: i due reconcile (stale) vedono
+      // ciascuno solo il proprio swipe → il resync NON recupera (solo "Continua")
+      const baseSwipes = await base();
+      await ups('mb', 'N');
+      await reconcileSession(session, baseSwipes.concat([{ movie_id: 'mb', person: 'N', liked: true }]));
+      await ups('mb', 'V');
+      await reconcileSession(session, baseSwipes.concat([{ movie_id: 'mb', person: 'V', liked: true }]));
+      await resyncMatchQuiet();
+      const stB = await fetchLatestMatchState();
+      const beforeCont = evaluateSession(stB.session, stB.swipes, movies);
+      // Continua su UN client, poi l'altro client resincronizza
+      await continueMatch(mock.__sessions()[0]);
+      await resyncMatchQuiet();
+      const s = mock.__sessions().find(x => x.id === 'sB');
+      const v = evaluateSession(swipeSessions[0], swipes, movies);
+      const partner = await fetchLatestMatchState();
+      const pv = evaluateSession(partner.session, partner.swipes, movies);
+      console.log('[reb(b)] dopo Continua-B: status=' + s.status + ' mmid=' + s.matched_movie_id
+        + ' vista=' + v.view + '/' + v.movieId + ' partner=' + pv.view + '/' + pv.movieId);
+      return afterContA.status === 'open' && afterContA.matched_movie_id === 'ma'
+        && beforeCont.view === 'match' && beforeCont.movieId === 'mb'
+        && s.status === 'open' && s.matched_movie_id === 'mb'
+        && v.view === 'swipe' && v.movieId === 'mc'
+        && pv.view === 'swipe' && pv.movieId === 'mc'
+        && mock.__calls().updates.filter(u => u.patch.status === 'matched').length === 0;
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('reb(c) Continua con update a vuoto (locale/DB disallineati) → console.error una volta + riallineamento', runA(async () => {
+    const p = __matchSnap();
+    const A = { id: 'ma', title: 'A', status: 'watchlist' };
+    // DB: sessione GIÀ done (l'altro telefono ha riconosciuto e finito);
+    // locale: ancora open con match su ma non riconosciuto → update 0 righe.
+    const mock = mockMatchSb({
+      sessions: [{ id: 'sC', status: 'done', created_at: new Date().toISOString(), deck: ['ma'], matched_movie_id: 'ma' }],
+      swipes: [
+        { session_id: 'sC', movie_id: 'ma', person: 'N', liked: true },
+        { session_id: 'sC', movie_id: 'ma', person: 'V', liked: true }
+      ]
+    });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    movies = [A]; swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    const errs = [];
+    const origErr = console.error;
+    console.error = (...a) => { errs.push(a.map(x => String(x)).join(' ')); };
+    try {
+      const local = { id: 'sC', status: 'open', created_at: new Date().toISOString(), deck: ['ma'], matched_movie_id: null };
+      swipeSessions = [local];
+      swipes = [
+        { movie_id: 'ma', person: 'N', liked: true },
+        { movie_id: 'ma', person: 'V', liked: true }
+      ];
+      await continueMatch(local);
+      const s = mock.__sessions().find(x => x.id === 'sC');
+      const v = evaluateSession(swipeSessions[0], swipes, movies);
+      console.log('[reb(c)] errori=' + errs.length + ' status=' + s.status + ' mmid=' + (s.matched_movie_id || '∅') + ' vista=' + v.view);
+      return errs.length === 1                                  // console.error UNA volta
+        && s.status === 'done' && s.matched_movie_id === 'ma'   // DB intatto
+        && swipeSessions[0].status === 'done' && swipeSessions[0].matched_movie_id === 'ma' // riallineato
+        && v.view === 'done';                                    // vista coerente (non muta/stallo)
+    } finally { console.error = origErr; __matchRestore(p); }
+  }));
+
+  await okA('reb(d) uscita+rientro con match non riconosciuto: la celebrazione riappare (derivata dai dati)', runA(async () => {
+    const p = __matchSnap();
+    const A = { id: 'ma', title: 'A', status: 'watchlist' };
+    const mock = mockMatchSb({
+      sessions: [{ id: 'sD', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }],
+      swipes: [
+        { id: 'w1', session_id: 'sD', movie_id: 'ma', person: 'N', liked: true },
+        { id: 'w2', session_id: 'sD', movie_id: 'ma', person: 'V', liked: true }
+      ]
+    });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    movies = [A]; swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    try {
+      // "uscita": stato locale azzerato (la sessione resta open NON riconosciuta nel DB)
+      swipeSessions = []; swipes = []; matchChannel = null;
+      // "rientro": ensureActiveSession riprende l'attiva e applica lo stato fetchato
+      const resumed = await ensureActiveSession();
+      const v = evaluateSession(swipeSessions[0], swipes, movies);
+      console.log('[reb(d)] ripresa sessione=' + (resumed && resumed.id) + ' vista=' + v.view + '/' + v.movieId);
+      return resumed && resumed.id === 'sD'
+        && v.view === 'match' && v.movieId === 'ma'
+        && mock.__calls().updates.length === 0; // il rientro NON scrive nulla
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('reb(e) reconcile in ritardo dopo "Continua": non riscrive niente (match né done)', runA(async () => {
+    const p = __matchSnap();
+    const A = { id: 'ma', title: 'A', status: 'watchlist' };
+    const B = { id: 'mb', title: 'B', status: 'watchlist' };
+    const mock = mockMatchSb({ sessions: [{ id: 'sE', status: 'open', created_at: new Date().toISOString(), deck: ['ma', 'mb'] }] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    movies = [A, B]; swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    try {
+      const session = mock.__sessions()[0];
+      await recordSwipe(session, 'ma', 'N', true);
+      await recordSwipe(session, 'ma', 'V', true);
+      await continueMatch(session);                  // riconoscimento → mmid='ma', open
+      const before = mock.__calls().updates.length;  // 1 (il riconoscimento)
+      // reconcile in ritardo: snapshot stantio (solo il like di N) e snapshot pieno
+      await reconcileSession(session, [{ movie_id: 'ma', person: 'N', liked: true }]);
+      await reconcileSession(session, [
+        { movie_id: 'ma', person: 'N', liked: true },
+        { movie_id: 'ma', person: 'V', liked: true }
+      ]);
+      const s = mock.__sessions().find(x => x.id === 'sE');
+      return before === 1 && mock.__calls().updates.length === 1
+        && s.status === 'open' && s.matched_movie_id === 'ma';
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('reb(f) mazzo esaurito con swipe quasi-simultanei: view done su entrambi, "done" scritto dal RESYNC', runA(async () => {
+    const p = __matchSnap();
+    const A = { id: 'ma', title: 'A', status: 'watchlist' };
+    const mock = mockMatchSb({ sessions: [{ id: 'sF', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    movies = [A]; swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    try {
+      const session = mock.__sessions()[0];
+      const ups = (person, liked) => sb.from('swipes').upsert(
+        [{ session_id: 'sF', movie_id: 'ma', person, liked }],
+        { onConflict: 'session_id,movie_id,person', ignoreDuplicates: true });
+      // Nessun match (N e V rifiutano). I reconcile quasi-simultanei (stale)
+      // non vedono il mazzo esaurito → niente 'done' finché non arriva il resync.
+      await ups('N', false);
+      await reconcileSession(session, [{ movie_id: 'ma', person: 'N', liked: false }]);
+      await ups('V', false);
+      await reconcileSession(session, [{ movie_id: 'ma', person: 'V', liked: false }]);
+      const beforeResync = mock.__calls().updates.length;
+      // il resync porta l'ULTIMO swipe dell'altro → open→done scritto QUI
+      await resyncMatchQuiet();
+      const s = mock.__sessions().find(x => x.id === 'sF');
+      const v = evaluateSession(swipeSessions[0], swipes, movies);
+      const lastUp = mock.__calls().updates[mock.__calls().updates.length - 1];
+      console.log('[reb(f)] prima-resync updates=' + beforeResync + ' dopo: status=' + s.status
+        + ' vista=' + v.view + ' (' + (lastUp && lastUp.patch.status) + ')');
+      return beforeResync === 0
+        && lastUp && lastUp.patch.status === 'done'
+        && s.status === 'done'
+        && v.view === 'done' && v.movieId === null;
     } finally { __matchRestore(p); }
   }));
 

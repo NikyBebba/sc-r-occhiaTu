@@ -66,6 +66,21 @@ config → api(omdb+tmdb → index) → store → wheel → ui(modals+navigation
   per isolare i guasti dal core — i binding match+presence stanno SOLO lì;
   resync debounced + render solo se il dato cambia) e modalità degradata
   (`dbMode` 'supabase'|'local' con badge in UI, ripristino automatico).
+  - **CONTRACT Match (riconoscimento dai dati)**: la celebrazione è derivata
+    ESCLUSIVAMENTE dai dati (`pendingMatch(session, swipes, deck, movies)`
+    != null); lo status `'matched'` NON è un prerequisito e il percorso
+    swipe/reconcile/resync NON lo scrive più (resta ammesso dallo schema ma
+    inutilizzato, nessuna migration). `matched_movie_id` = ultimo match
+    RICONOSCIUTO via "Continua" (scritto solo in quel momento, con
+    `matched_at` informativo). `reconcileSession` resta per la sola transizione
+    `open→done` (mazzo esaurito, nessun match pendente), idempotente,
+    condizionato a id+status `'open'`; chiamato da recordSwipe E dal resync
+    (sullo stato fetchato, non sugli swipe locali). "Continua"
+    (`continueMatch`): update `matched_movie_id=pending`, `matched_at`,
+    status `'open'` (o `'done'` se mazzo esaurito), condizionato a id+status
+    `IN('open','matched')`, poi re-read + riallineamento; 0 righe o errore →
+    `console.error` una volta (dedup 60s) + riallineamento, mai UI muta;
+    idempotente se entrambi premono insieme.
 - `js/wheel.js` — ruota canvas: pool, draw, spin animato, confetti.
 - `js/ui/modals.js` — `openModal`/`closeModal`/`showConfirmModal` + helper
   anti-XSS `escapeHtml`/`jsAttrEscape` + costanti visuali (`MOOD_LABELS`,

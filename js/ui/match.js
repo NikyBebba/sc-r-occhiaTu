@@ -154,9 +154,10 @@ function matchSwipeHtml(state) {
     </div>`;
 }
 
-// MATCH: celebrazione. Si celebra solo se pendingMatch() non è null (lo è
-// sempre in view 'match'); dopo "Continua" la sessione torna open e niente
-// ricelebrazioni (matched_movie_id).
+// MATCH: celebrazione. Derivata ESCLUSIVAMENTE da pendingMatch() != null
+// (status DB non è prerequisito). Il riconoscimento ("Continua") aggiorna
+// matched_movie_id (solo in quel momento), evitando ricelebrazioni anche
+// con reconcile in ritardo.
 function matchMatchHtml(state) {
   const movie = resolveDeckMovie(movies, state.movieId) || null;
   const title = movie ? movie.title : 'Film rimosso';
@@ -164,12 +165,13 @@ function matchMatchHtml(state) {
       <div class="text-5xl">💘</div>
       <p class="text-xl font-bold text-slate-100">Match!</p>
       <p class="text-sm text-slate-400">Volete vedere <span class="font-semibold text-slate-100">${escapeHtml(title)}</span> insieme.</p>
+      <p class="text-xs text-slate-500">Il riconoscimento sincronizza lo stato tra i telefoni: il partner vedrà sparire la celebrazione al prossimo riallineamento (o premendo "Continua a swipare").</p>
       <div class="flex gap-2">
         <button onclick="createMatchNight('${movie ? jsAttrEscape(movie.id) : ''}', 'tonight')" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium transition">Stasera</button>
         <button onclick="createMatchNight('${movie ? jsAttrEscape(movie.id) : ''}', 'schedule')" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-sm font-medium transition">Programma</button>
       </div>
       <div class="flex gap-2">
-        <button onclick="continueFromMatch()" class="flex-1 py-2.5 bg-sky-600/20 hover:bg-sky-600/40 text-sky-300 rounded-xl text-sm font-medium transition">Continua</button>
+        <button onclick="continueFromMatch()" class="flex-1 py-2.5 bg-sky-600/20 hover:bg-sky-600/40 text-sky-300 rounded-xl text-sm font-medium transition">Continua a swipare</button>
         ${matchNewSessionBtn()}
         <button onclick="exitMatchView()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-medium transition">Esci</button>
       </div>

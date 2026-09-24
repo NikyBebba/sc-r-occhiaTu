@@ -8,15 +8,15 @@
 // (deck uuid[] letto dal DB, stesso ordine sui due telefoni). seed =
 // generato dal CLIENT (crypto.getRandomValues), MAI derivato da data/day.
 //
+// CONTRACT (Match — riconoscimento dai dati):
+// - Celebrazione: pendingMatch(session, swipes, deck) != null. Lo status 'matched' NON è un prerequisito.
+// - matched_movie_id = ultimo match RICONOSCIUTO tramite "Continua" (non scritto al doppio like).
+// - Il percorso swipe/reconcile/resync NON scrive più 'matched'. Schema ammette ancora 'matched' (inutilizzato), nessuna migration.
+// - reconcileSession resta solo per open→done (mazzo esaurito, nessun match pendente), idempotente, condizionato a id+status 'open'.
+// - "Continua": update con matched_movie_id = pending, matched_at (informativo), status 'open' (o 'done' se esaurito), condizionato a id+status IN('open','matched'); se 0 righe o errore → console.error una volta + riallineamento; idempotente.
+
 // Regole chiave:
-// - stati sessione: open|matched = attive; done|closed = non attive.
-//   Al massimo UNA attiva (garantito a DB dall'indice unico parziale).
-// - card corrente = primo card non "risolto" (manca una risposta). Un id
-//   nel deck senza film (film cancellato) vale come card risolto.
-// - celebrazione (pendingMatch): si celebra SOLO il card con l'indice più
-//   alto del deck tra quelli con doppio like, e solo se session.
-//   matched_movie_id è diverso da quel film (niente ricelebrazioni dopo
-//   "Continua", nemmeno per un reconcile in ritardo dell'altro telefono).
+// - stati sessione: open|matched = attive; done|closed = non attive. (status 'matched' ammesso ma non usato per la celebrazione).
 // - attività sessione = max(created_at) degli swipe, altrimenti created_at
 //   della sessione (nessuna colonna updated_at).
 // - TTL di ripresa: SESSION_TTL_HOURS = 6.

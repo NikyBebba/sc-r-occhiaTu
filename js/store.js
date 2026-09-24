@@ -711,34 +711,63 @@ async function recordSwipe(session, movieId, person, liked) {
   await reconcileSession(state.session, state.swipes);
 }
 
-// Celebrazione / done, SOLO se la sessione è ancora 'open'.
+// CONTRACT (Match — riconoscimento dai dati):
+// - Celebrazione = pendingMatch(session, swipes, deck, movies) != null (solo dati). status 'matched' non è prerequisito.
+// - matched_movie_id = ultimo match RICONOSCIUTO via "Continua". Non viene scritto al momento del doppio like, solo al riconoscimento.
+// - Il percorso swipe/reconcile/resync NON scrive più status 'matched'. Lo status 'matched' resta ammesso dallo schema ma inutilizzato (nessuna migration).
+// - reconcileSession si occupa SOLO di 'done' (open→done se mazzo esaurito e nessun match pendente). Chiamato da recordSwipe e da resync (sullo stato fetchato, non sugli swipe locali). Idempotente, condizionato a id + status 'open'.
+
+// Transizione SOLO per 'done' (open→done: mazzo esaurito e nessun match
+// pendente). Il match NON scrive più status 'matched' né matched_movie_id:
+// la celebrazione è derivata dai dati (pendingMatch ≠ null) e
+// matched_movie_id si aggiorna SOLO al riconoscimento ("Continua"), così un
+// reconcile in ritardo non fa gara col riconoscimento. Idempotente,
+// condizionato a id + status 'open'. Chiamata da recordSwipe E dal resync
+// (sullo stato fetchato, non sugli swipe locali).
 async function reconcileSession(session, sessionSwipes) {
   if (!session || !matchAvailable || !sb || dbMode === 'local') return;
   const deck = Array.isArray(session.deck) ? session.deck : [];
   const pending = pendingMatch(session, sessionSwipes, deck, movies);
-  if (pending !== null) {
-    await updateSessionConditional(session.id, {
-      status: 'matched', matched_movie_id: pending, matched_at: new Date().toISOString()
-    }, ['open']);
-    return;
-  }
+  if (pending !== null) return; // match da riconoscere: resta 'open', niente da scrivere
   if (currentIndex(deck, sessionSwipes, movies) >= deck.length) {
     await updateSessionConditional(session.id, { status: 'done' }, ['open']);
   }
 }
 
-// "Continua" dopo un match: da 'matched' si torna 'open' (o 'done' se il mazzo
-// è esaurito). Condizionato a 'matched': un secondo click/reconcile tardivo
-// non deve modificare una sessione in altro stato.
+// Errori del riconoscimento ("Continua"): console.error DEDUPLICATO (60s,
+// stesso pattern di warnMatch), oltre al warning in badge.
+let matchContinueErrLoggedAt = 0;
+function reportContinueMatchError(msg) {
+  warnMatch(msg);
+  if (Date.now() - matchContinueErrLoggedAt > 60000) {
+    matchContinueErrLoggedAt = Date.now();
+    console.error('[sc(r)occhiaTu] Continua: ' + msg);
+  }
+}
+
+// "Continua" = RICONOSCIMENTO del match corrente: scrive matched_movie_id
+// (= il match pendente, ultimo riconosciuto) + matched_at informativo e avanza
+// a 'open' (o 'done' se il mazzo è esaurito). Condizionato a id + status
+// IN ('open','matched'): idempotente se entrambi premono insieme (il 2° click,
+// ormai con matched_movie_id allineato, NON clobbera: il patch aggiorna
+// matched_movie_id solo se esiste ancora un match pendente) e una sessione
+// spenta (done/closed) non viene riaperta. Rilettura SEMPRE dopo (anche con
+// update a vuoto o in errore): mai UI muta/stallata — se l'update tocca 0
+// righe o fallisce, console.error (una volta) e riallineamento.
 async function continueMatch(session) {
   if (!session || !matchAvailable || !sb || dbMode === 'local') return;
   const deck = Array.isArray(session.deck) ? session.deck : [];
+  const pending = pendingMatch(session, swipes, deck, movies);
   const done = currentIndex(deck, swipes, movies) >= deck.length;
-  const updated = await updateSessionConditional(session.id, { status: done ? 'done' : 'open' }, ['matched']);
-  if (updated) {
-    const state = await fetchLatestMatchState();
-    if (state) applyMatchState(state);
+  const patch = { status: done ? 'done' : 'open' };
+  if (pending !== null) {
+    patch.matched_movie_id = pending;
+    patch.matched_at = new Date().toISOString();
   }
+  const updated = await updateSessionConditional(session.id, patch, ['open', 'matched']);
+  if (!updated) reportContinueMatchError('update senza effetto (0 righe o errore) — ho riallineato lo stato.');
+  const state = await fetchLatestMatchState();
+  if (state) applyMatchState(state);
 }
 
 // Firma deterministica dello stato Match (sessione + swipe normalizzati):
@@ -767,6 +796,7 @@ async function resyncMatchQuiet() {
   const state = await fetchLatestMatchState();
   if (!state) return;
   applyMatchState(state);
+  await reconcileSession(state.session, state.swipes);
   if (matchSignature(swipeSessions[0], swipes) !== prev) renderMatchArea();
 }
 
