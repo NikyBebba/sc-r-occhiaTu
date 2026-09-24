@@ -59,7 +59,7 @@
   --radius-full: 9999px;
 
   /* Ombre / blur */
-  --shadow-card: 0 10px 15px -3px rgba(99, 102, 241, 0.2), 0 4px 6px -4px rgba(99, 102, 241, 0.2);
+  --shadow-card: 0 10px 25px -12px rgba(0, 0, 0, 0.6);  /* ombra morbida .glass-card */
   --blur-vetro: 12px;
   --blur-fumoso: 4px;
 
@@ -76,11 +76,29 @@ body {
   font-family: var(--font-sans);
 }
 
-.glass {
+/* ---- STEP 1 · Phase 13 — Glassmorphism system.
+   .glass-panel = superfici grandi (nav, modali, box principali).
+   .glass-card  = card (film, sorpresa, selezioni).
+   .glass       = alias retrocompatibile (stesso aspetto storico).
+   Fallback senza backdrop-filter: superficie pressoché opaca. ---- */
+.glass,
+.glass-panel,
+.glass-card {
   background: var(--color-vetro);
   backdrop-filter: blur(var(--blur-vetro));
   -webkit-backdrop-filter: blur(var(--blur-vetro));
   border: 1px solid var(--bordo-vetro);
+}
+.glass-card {
+  box-shadow: var(--shadow-card);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass,
+  .glass-panel,
+  .glass-card {
+    background: rgba(15, 23, 42, 0.97);
+  }
 }
 
 .gradient-text {

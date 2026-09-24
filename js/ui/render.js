@@ -377,7 +377,7 @@ function render() {
     if (m.release_year) metaParts.push(String(m.release_year));
     if (m.duration) metaParts.push(m.duration);
     const card = document.createElement('div');
-    card.className = "glass rounded-xl overflow-hidden border border-slate-800 flex flex-col justify-between" + (isVetoed ? ' card-vetoed' : '');
+    card.className = "glass-card rounded-xl overflow-hidden border border-slate-800 flex flex-col justify-between" + (isVetoed ? ' card-vetoed' : '');
 
     const votesObj = getVotesForMovie(m.id);
     const bothVoted = votesObj.N !== undefined && votesObj.V !== undefined;

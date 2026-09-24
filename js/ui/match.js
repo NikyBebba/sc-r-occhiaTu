@@ -142,7 +142,7 @@ function matchSwipeHtml(state) {
 
   return `<div class="col-span-full max-w-sm mx-auto space-y-3">
       <div class="text-center text-[10px] uppercase tracking-wider text-slate-400">Swipe a due — card ${state.index + 1} di ${deckLength}</div>
-      <div id="matchCard" class="swipe-card glass rounded-2xl border border-slate-800 overflow-hidden">
+      <div id="matchCard" class="swipe-card glass-card rounded-2xl border border-slate-800 overflow-hidden">
         <div class="aspect-[2/3] bg-slate-900">${matchPoster(movie)}</div>
         <div class="p-4 space-y-1">
           <div class="font-bold text-slate-100 text-lg leading-snug">${escapeHtml(movie.title)}</div>
