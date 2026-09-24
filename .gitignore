@@ -21,6 +21,9 @@ build/
 *.tmp
 *.temp
 
+# Documenti locali
+*.rtf
+
 # Env (placeholder; qui non usato: le chiavi vivono in js/config.js)
 .env
 .env.*
