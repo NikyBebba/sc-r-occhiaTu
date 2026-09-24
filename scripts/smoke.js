@@ -70,6 +70,7 @@ const sandbox = {
   document: documentStub,
   localStorage: storageStub(localStore),
   sessionStorage: storageStub(sessionStore),
+  location: { reload() {} },
   console,
   fetch: typeof fetch === 'function' ? fetch : undefined,
   AbortController: typeof AbortController !== 'undefined' ? AbortController : undefined,
@@ -1677,6 +1678,416 @@ async function okA(name, fn) {
       { movie_id: 'ok', person: 'N', liked: true }
     ], moviesList);
     return r.view === 'swipe' && r.movieId === 'ok';
+  }));
+
+  // --- 8b) match — data layer + canale SEPARATO (mock sb, step 6 commit 3) ---
+  // Mock in-memory di Supabase per sessione/swipe + canale virtuale.
+  console.log('\n[match — data layer + canale separato]');
+  vm.runInContext(`
+    function mockMatchSb(seed) {
+      const s     = (seed && seed.sessions) ? seed.sessions.map(x => Object.assign({ deck: [] }, x)) : [];
+      const w     = (seed && seed.swipes) ? seed.swipes.slice() : [];
+      const calls = {
+        gets: [], inserts: 0, inserted: [], upserts: [],
+        updates: [], removes: 0, removed: [], channels: [], tracks: 0, trackPayloads: []
+      };
+      const failInsert = seed ? seed.failInsert : null;
+      const slowProbe  = !!(seed && seed.slowProbe);
+      const rowsOf = name => (name === 'swipe_sessions' ? s : w);
+      const filter = (name, b) => {
+        let out = rowsOf(name).slice();
+        if (b._eq) out = out.filter(r => r[b._eq.col] === b._eq.v);
+        if (b._in) out = out.filter(r => b._in.vals.indexOf(r[b._in.col]) !== -1);
+        return out;
+      };
+      const from = name => {
+        const b = {
+          _limit: null, _order: null, _eq: null, _in: null,
+          select(cols) { this._cols = cols || '*'; return this; },
+          order(col, o) { this._order = col; this._asc = !!(o && o.ascending); return this; },
+          limit(n) { this._limit = n; return this; },
+          eq(col, v) { this._eq = { col, v }; return this; },
+          in(col, vals) { this._in = { col, vals }; return this; },
+          insert(rows) {
+            calls.inserts += rows.length;
+            if (failInsert) return { select: async () => ({ data: null, error: { code: failInsert, message: 'unique violation' } }) };
+            const made = rows.map(r => Object.assign({ id: 'sess-' + (s.length + 1), created_at: new Date().toISOString() }, r));
+            s.unshift.apply(s, made);
+            calls.inserted = made;
+            return { select: async () => ({ data: made.map(x => Object.assign({}, x)), error: null }) };
+          },
+          upsert(rows, opts) {
+            calls.upserts.push({ rows: rows.map(r => Object.assign({}, r)), opts: Object.assign({}, opts) });
+            rows.forEach(r => {
+              const i = w.findIndex(x => x.session_id === r.session_id && x.movie_id === r.movie_id && x.person === r.person);
+              if (i >= 0) { if (!(opts && opts.ignoreDuplicates)) w[i] = Object.assign({}, w[i], r); }
+              else w.push(Object.assign({ id: 'sw-' + (w.length + 1) }, r));
+            });
+            return Promise.resolve({ error: null });
+          },
+          update(patch) {
+            return {
+              eq(col, v) { b._eq = { col, v }; return this; },
+              in(col, vals) { b._in = { col, vals }; return this; },
+              select: async () => {
+                const rows = filter(name, b).filter(r => !b._in || b._in.vals.indexOf(r.status) !== -1);
+                calls.updates.push({
+                  table: name, patch: Object.assign({}, patch),
+                  eq: b._eq ? Object.assign({}, b._eq) : null,
+                  in: b._in ? { vals: b._in.vals.slice() } : null,
+                  affected: rows.map(r => r.id)
+                });
+                rows.forEach(r => Object.assign(r, patch));
+                return { data: rows.map(r => Object.assign({}, r)), error: null };
+              }
+            };
+          },
+          then(resolve) {
+            if (slowProbe) return new Promise(() => {});
+            calls.gets.push(name);
+            let rows = filter(name, b);
+            if (b._order) rows = rows.slice().sort((x, y) => {
+              const a = String(x[b._order] || ''), c = String(y[b._order] || '');
+              if (a === c) return 0;
+              return (a > c ? 1 : -1) * (b._asc ? 1 : -1);
+            });
+            if (b._limit != null) rows = rows.slice(0, b._limit);
+            return resolve({ data: rows.map(x => Object.assign({}, x)), error: null });
+          }
+        };
+        return b;
+      };
+      return {
+        from,
+        channel(name, opts) {
+          const ch = {
+            name, opts: opts || {}, bindings: [],
+            on(ev, filterOrCb, cb) { this.bindings.push({ ev, filter: filterOrCb, cb }); return this; },
+            subscribe(cb) { this.statusCb = cb; calls.channels.push({ name: this.name, bindingsAtSubscribe: this.bindings.length, ch: this }); return this; },
+            track(p) { calls.tracks++; calls.trackPayloads.push(Object.assign({}, p)); return Promise.resolve('ok'); },
+            untrack() { calls.tracks--; return Promise.resolve('ok'); },
+            presenceState() { return { N: [{ user: 'N' }], V: [{ user: 'V' }] }; },
+            fire(status, err) { if (this.statusCb) this.statusCb(status, err); }
+          };
+          return ch;
+        },
+        removeChannel(ch) { calls.removes++; calls.removed.push(ch ? ch.name : null); if (ch) ch.removed = true; return Promise.resolve('ok'); },
+        getChannels() { return []; },
+        __calls: () => calls,
+        __sessions: () => s,
+        __swipes: () => w
+      };
+    }
+    function __matchSnap() {
+      return { sb, dbMode, currentUser, movies, vetoes, movieNights,
+        matchAvailable, swipeSessions, swipes, matchChannel, matchResyncTimer,
+        matchProbeDone, matchChannelSeq, matchLeaving, matchUnavailableWarnedAt,
+        matchProbeTimeoutMs, lobbyPresenceState, realtimeChannel };
+    }
+    function __matchRestore(p) {
+      sb = p.sb; dbMode = p.dbMode; currentUser = p.currentUser; movies = p.movies;
+      vetoes = p.vetoes; movieNights = p.movieNights;
+      matchAvailable = p.matchAvailable; swipeSessions = p.swipeSessions; swipes = p.swipes;
+      matchChannel = p.matchChannel; matchResyncTimer = p.matchResyncTimer;
+      matchProbeDone = p.matchProbeDone; matchChannelSeq = p.matchChannelSeq;
+      matchLeaving = p.matchLeaving; matchUnavailableWarnedAt = p.matchUnavailableWarnedAt;
+      matchProbeTimeoutMs = p.matchProbeTimeoutMs; lobbyPresenceState = p.lobbyPresenceState;
+      realtimeChannel = p.realtimeChannel;
+    }
+  `, sandbox);
+
+  await okA('ensureActiveSession: attiva recente → ripresa, nessun insert', runA(async () => {
+    const p = __matchSnap();
+    const mock = mockMatchSb({ sessions: [{ id: 's-fresh', status: 'open', created_at: new Date(Date.now() - 60000).toISOString() }] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    try {
+      const session = await ensureActiveSession();
+      return session && session.id === 's-fresh'
+        && mock.__calls().inserts === 0
+        && swipeSessions[0].id === 's-fresh';
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('ensureActiveSession: attiva SCADUTA → closeSession (filter id+status) poi nuova sessione', runA(async () => {
+    const p = __matchSnap();
+    const old = new Date(Date.now() - 7 * 3600000).toISOString();
+    const mock = mockMatchSb({ sessions: [{ id: 's-old', status: 'open', created_at: old }] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    try {
+      const session = await ensureActiveSession();
+      const calls = mock.__calls();
+      const closed = calls.updates.find(u => u.patch.status === 'closed');
+      const fresh = mock.__sessions().find(x => x.status === 'open');
+      return session && session.id !== 's-old'
+        && calls.inserts === 1
+        && closed && closed.eq.col === 'id' && closed.eq.v === 's-old'
+        && closed.in.vals.join() === 'open,matched'
+        && fresh.status === 'open';
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('ensureActiveSession: ultima sessione done → nuova sessione (done non riprendibile)', runA(async () => {
+    const p = __matchSnap();
+    const mock = mockMatchSb({ sessions: [{ id: 's-done', status: 'done', created_at: new Date().toISOString() }] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    try {
+      const session = await ensureActiveSession();
+      return session && session.status === 'open' && session.id !== 's-done'
+        && mock.__calls().inserts === 1;
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('startNewSession: corsa 23505 → aggancio alla sessione attiva esistente (niente errori)', runA(async () => {
+    const p = __matchSnap();
+    const mock = mockMatchSb({ failInsert: '23505', sessions: [{ id: 's-existing', status: 'open', created_at: new Date().toISOString() }] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    try {
+      const session = await startNewSession();
+      return session && session.id === 's-existing' && swipeSessions[0].id === 's-existing';
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('closeSession: SOLO per id e SOLO open|matched (done/closed intatte)', runA(async () => {
+    const p = __matchSnap();
+    const mock = mockMatchSb({ sessions: [
+      { id: 's-open', status: 'open', created_at: new Date().toISOString() },
+      { id: 's-done', status: 'done', created_at: new Date().toISOString() }
+    ] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    try {
+      await closeSession('s-done');           // filtro esclude done → 0 righe
+      const updated = await closeSession('s-open');
+      const calls = mock.__calls();
+      const rows = mock.__sessions();
+      const doneRow = rows.find(x => x.id === 's-done');
+      const openRow = rows.find(x => x.id === 's-open');
+      return updated && updated.status === 'closed'
+        && doneRow.status === 'done'
+        && openRow.status === 'closed'
+        && calls.updates[0].in.vals.join() === 'open,matched' && calls.updates[0].affected.length === 0
+        && calls.updates[1].eq.v === 's-open' && calls.updates[1].affected.length === 1;
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('recordSwipe: upsert con onConflict+ignoreDuplicates; doppio like → reconcile matched', runA(async () => {
+    const p = __matchSnap();
+    const movie = { id: 'ma', title: 'Match A', status: 'watchlist' };
+    const mock = mockMatchSb({ sessions: [{ id: 's1', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    movies = [movie]; swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    try {
+      const session = { id: 's1', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] };
+      await recordSwipe(session, 'ma', 'N', true);
+      const up = mock.__calls().upserts[0];
+      const optsOk = up.opts.onConflict === 'session_id,movie_id,person' && up.opts.ignoreDuplicates === true
+        && up.rows[0].session_id === 's1' && up.rows[0].movie_id === 'ma' && up.rows[0].person === 'N' && up.rows[0].liked === true;
+      await recordSwipe(session, 'ma', 'V', true);
+      const calls = mock.__calls();
+      const matched = calls.updates.find(f => f.patch.status === 'matched');
+      const s = mock.__sessions().find(x => x.id === 's1');
+      return optsOk
+        && calls.upserts.length === 2
+        && matched && matched.in.vals.join() === 'open'
+        && s.status === 'matched' && s.matched_movie_id === 'ma' && Boolean(s.matched_at);
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('reconcileSession: sessione già closed → NESSUNA modifica (reconcile in ritardo non riapre)', runA(async () => {
+    const p = __matchSnap();
+    const mock = mockMatchSb({ sessions: [{ id: 'sX', status: 'closed', created_at: new Date().toISOString(), deck: ['ma'] }] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    movies = [{ id: 'ma', status: 'watchlist' }]; swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    try {
+      const session = { id: 'sX', status: 'closed', created_at: new Date().toISOString(), deck: ['ma'], matched_movie_id: null };
+      await reconcileSession(session, [
+        { movie_id: 'ma', person: 'N', liked: true },
+        { movie_id: 'ma', person: 'V', liked: true }
+      ]);
+      const calls = mock.__calls();
+      const row = mock.__sessions().find(x => x.id === 'sX');
+      return row.status === 'closed'
+        && (calls.updates.length === 0 || calls.updates.every(u => u.affected.length === 0));
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('continueMatch: matched→open condizionato; reconcile tardivo → nessuna ricelebrazione', runA(async () => {
+    const p = __matchSnap();
+    const mock = mockMatchSb({ sessions: [{ id: 'sC', status: 'matched', created_at: new Date().toISOString(), deck: ['ma', 'mb'], matched_movie_id: 'ma' }] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    movies = [{ id: 'ma', status: 'watchlist' }, { id: 'mb', status: 'watchlist' }];
+    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    try {
+      const session = { id: 'sC', status: 'matched', created_at: new Date().toISOString(), deck: ['ma', 'mb'], matched_movie_id: 'ma' };
+      swipeSessions = [session];
+      swipes = [
+        { movie_id: 'ma', person: 'N', liked: true },
+        { movie_id: 'ma', person: 'V', liked: true }
+      ];
+      await continueMatch(session);
+      const afterContinue = mock.__calls().updates.length === 1 && mock.__calls().updates[0].patch.status === 'open';
+      await reconcileSession(session, swipes); // il "reconcile in ritardo" dell'altro telefono
+      const row = mock.__sessions().find(x => x.id === 'sC');
+      return afterContinue && row.status === 'open'
+        && mock.__calls().updates.length === 1   // nessuna update aggiuntiva (niente ricelebrazione)
+        && row.matched_movie_id === 'ma';
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('resyncMatchQuiet: il partner chiude e apre una nuova → ci agganciamo alla NUOVA', runA(async () => {
+    const p = __matchSnap();
+    const mock = mockMatchSb({ sessions: [{ id: 's-old', status: 'open', created_at: new Date(Date.now() - 120000).toISOString() }] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    try {
+      await ensureActiveSession();
+      const sOld = mock.__sessions()[0];
+      mock.__sessions()[0].status = 'closed'; // partner chiude
+      mock.__sessions().push({ id: 's-new', status: 'open', created_at: new Date().toISOString(), deck: [] });
+      await resyncMatchQuiet();
+      return swipeSessions[0].id === 's-new';
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('enterMatch: dbMode local → matchAvailable false, nessun canale', runA(async () => {
+    const p = __matchSnap();
+    const mock = mockMatchSb({});
+    sb = mock; dbMode = 'local'; currentUser = 'N'; matchProbeDone = true; matchAvailable = true;
+    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    try {
+      await enterMatch();
+      return matchAvailable === false && mock.__calls().channels.length === 0 && matchChannel === null;
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('enterMatch: sonda con TIMEOUT (3s) → matchAvailable false, niente canale', runA(async () => {
+    const p = __matchSnap();
+    const mock = mockMatchSb({ slowProbe: true });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchProbeDone = false; matchAvailable = true;
+    matchProbeTimeoutMs = 40; swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
+    try {
+      const t0 = Date.now();
+      await enterMatch();
+      const elapsed = Date.now() - t0;
+      return matchAvailable === false && matchProbeDone === true
+        && mock.__calls().channels.length === 0
+        && elapsed >= 30 && elapsed < 2000;
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('canale core: nessun binding match (solo movies/votes/vetoes/movie_nights)', run(() => {
+    const mock = mockMatchSb({});
+    const prevSb = sb, prevRtc = realtimeChannel;
+    sb = mock; realtimeChannel = null;
+    try {
+      subscribeRealtime();
+      const core = mock.__calls().channels.find(c => c.ch.name === 'scorochiatu-db-changes');
+      if (!core) return false;
+      const evs = core.ch.bindings.map(b => b.ev);
+      const tables = core.ch.bindings
+        .filter(b => b.ev === 'postgres_changes')
+        .map(b => b.filter.table);
+      const okTables = tables.every(t => ['movies', 'votes', 'vetoes', 'movie_nights'].includes(t));
+      return evs.indexOf('presence') === -1
+        && tables.indexOf('swipe_sessions') === -1 && tables.indexOf('swipes') === -1
+        && okTables;
+    } finally { sb = prevSb; realtimeChannel = prevRtc; }
+  }));
+
+  await okA('canale match: binding PRIMA di subscribe; CHANNEL_ERROR → matchAvailable false e core INTATTO', runA(async () => {
+    const p = __matchSnap();
+    const mock = mockMatchSb({});
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false; realtimeChannel = null;
+    try {
+      subscribeRealtime(); // core attivo
+      const coreName = realtimeChannel && realtimeChannel.name;
+      openMatchChannel();
+      const m = mock.__calls();
+      const entry = m.channels.find(c => !c.ch.name.startsWith('scorochiatu-db-changes'));
+      if (!entry) return false;
+      const bindingsBefore = entry.bindingsAtSubscribe;
+      const matchTables = entry.ch.bindings.filter(b => b.ev === 'postgres_changes').map(b => b.filter.table).join();
+      entry.ch.fire('CHANNEL_ERROR', Error('boom'));
+      await new Promise(r => setTimeout(r, 20));
+      const removedMatch = m.removed.indexOf(entry.ch.name) !== -1;
+      return bindingsBefore === 3
+        && matchTables === 'swipe_sessions,swipes'
+        && entry.ch.bindings.some(b => b.ev === 'presence')
+        && matchAvailable === false && matchChannel === null
+        && removedMatch
+        && realtimeChannel !== null && realtimeChannel.name === coreName;
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('logout: removeChannel; rientro → canale NUOVO con binding prima di subscribe', runA(async () => {
+    const p = __matchSnap();
+    const mock = mockMatchSb({});
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false; matchChannelSeq = 0;
+    try {
+      openMatchChannel();
+      const m = mock.__calls();
+      const first = m.channels[0];
+      const firstBindings = first.ch.bindings.length;
+      logout(); // → unsubscribeRealtime (noop) + leaveMatch + sessionStorage + reload
+      const removedAfterLogout = m.removed.indexOf(first.ch.name) !== -1 && matchChannel === null && currentUser === null;
+      currentUser = 'N';
+      await enterMatch(); // rientro: nuovo canale (seq incrementata)
+      const second = m.channels[1];
+      return firstBindings === 3
+        && removedAfterLogout && first.ch.removed === true
+        && second && second.ch.name !== first.ch.name
+        && second.bindingsAtSubscribe === 3
+        && m.channels[0].ch.name === 'scorochiatu-match-1'
+        && second.ch.name === 'scorochiatu-match-2';
+    } finally { __matchRestore(p); }
+  }));;
+
+  await okA('track solo dopo SUBSCRIBED; dopo SUBSCRIBED refetch dell\'ultima sessione', runA(async () => {
+    const p = __matchSnap();
+    const mock = mockMatchSb({ sessions: [{ id: 's-before', status: 'open', created_at: new Date(Date.now() - 1000).toISOString(), deck: [] }] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    swipeSessions = [{ id: 's-before', status: 'open', created_at: new Date(Date.now() - 1000).toISOString(), deck: [] }];
+    swipes = []; matchChannel = null; matchLeaving = false; matchChannelSeq = 0;
+    try {
+      openMatchChannel();
+      const m = mock.__calls();
+      const entry = m.channels[0];
+      const noTrackYet = m.tracks === 0;
+      // tra la lettura iniziale e l'aggancio arriva una sessione nuova
+      mock.__sessions().push({ id: 's-after', status: 'open', created_at: new Date().toISOString(), deck: [] });
+      entry.ch.fire('SUBSCRIBED');
+      await new Promise(r => setTimeout(r, 20));
+      return noTrackYet
+        && m.tracks === 1 && m.trackPayloads[0].user === 'N'
+        && swipeSessions[0].id === 's-after';
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('onMatchChange: debounce proprio 120ms → un solo resync per burst', runA(async () => {
+    const p = __matchSnap();
+    const mock = mockMatchSb({ sessions: [{ id: 's-d', status: 'open', created_at: new Date().toISOString(), deck: [] }] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false; matchResyncTimer = null;
+    try {
+      for (let i = 0; i < 5; i++) onMatchChange();
+      await new Promise(r => setTimeout(r, 250));
+      // un resync = GET sessioni + GET swipe = 2 letture, non 5
+      const gets = mock.__calls().gets.length;
+      return gets === 2;
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('presenceUsers: chiavi uniche per persona (una key per utente)', run(() => {
+    const a = presenceUsers({ N: [{ user: 'N' }], V: [{ user: 'V' }] });
+    const b = presenceUsers(null);
+    const c = presenceUsers({});
+    return a.join() === 'N,V' && b.length === 0 && c.length === 0;
   }));
 
   console.log(`\n=== RISULTATO: ${pass}/${pass + fail} PASS ===`);

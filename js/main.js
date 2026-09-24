@@ -54,6 +54,7 @@ function submitPin() {
 
 function logout() {
   unsubscribeRealtime();
+  leaveMatch();
   sessionStorage.removeItem('scorochiatu_user');
   currentUser = null;
   location.reload();

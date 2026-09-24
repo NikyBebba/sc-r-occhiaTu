@@ -488,3 +488,399 @@ function nextMoviePick() {
   }
   return candidates[candidates.length - 1];
 }
+
+// ============================================
+// MATCH LIVE (step 6) — sessione di swipe condivisa N/V
+//
+// Canale DEDICATO e temporaneo ('scorochiatu-match-<seq>'), SEPARATO dal
+// canale del core (movies/votes/vetoes/movie_nights). Motivo: un guasto del
+// Match (tabella non pubblicata su Realtime, presence, CHANNEL_ERROR) non deve
+// mai trasformarsi in CHANNEL_ERROR del canale core. La sonda cold-start
+// verifica l'esistenza delle tabelle PRIMA di creare il canale; bindings
+// match+presence stanno SOLO su questo canale.
+//
+// Nome univoco per entrata: supabase-js 2.x deduplica i canali per topic in
+// getChannels() e removeChannel() NON rimuove l'istanza (fa unsubscribe +
+// teardown con bindings=[]), quindi riusare lo stesso nome restituirebbe
+// l'istanza vecchia. Con 'scorochiatu-match-<seq>' ogni entrata crea un canale
+// NUOVO con i binding registrati SEMPRE prima di .subscribe() (dopo subscribe
+// .on('presence'/'postgres_changes') lancia).
+//
+// Lo swipe NON scrive su votes/vetoes: vive solo sulla sessione.
+// Il resync segue SEMPRE l'ultima sessione per created_at, mai un id fisso.
+// ============================================
+
+let matchAvailable = false;          // abilitato solo se le tabelle esistono (sonda)
+let swipeSessions = [];              // sessioni di swipe (ultima sessione letta)
+let swipes = [];                     // swipe della sessione corrente
+let matchChannel = null;             // canale 'scorochiatu-match-<seq>' (separato dal core)
+let matchResyncTimer = null;
+let lobbyPresenceState = [];         // persone presenti nella lobby (una key per persona)
+let matchChannelSeq = 0;             // nome univoco del canale per entrata
+let matchProbeDone = false;          // sonda cold-start: una volta per sessione app
+let matchLeaving = false;            // chiusura intenzionale (leave/logout)
+let matchUnavailableWarnedAt = 0;    // warning "Match non disponibile" una tantum (60s)
+let matchProbeTimeoutMs = 3000;      // cap della sonda cold-start
+
+function saveMatchLocal() {
+  localStorage.setItem('scorochiatu_swipe_sessions', JSON.stringify(swipeSessions));
+  localStorage.setItem('scorochiatu_swipes', JSON.stringify(swipes));
+}
+
+function loadMatchLocal() {
+  swipeSessions = JSON.parse(localStorage.getItem('scorochiatu_swipe_sessions') || '[]');
+  swipes = JSON.parse(localStorage.getItem('scorochiatu_swipes') || '[]');
+  if (!Array.isArray(swipeSessions)) swipeSessions = [];
+  if (!Array.isArray(swipes)) swipes = [];
+}
+
+function applyMatchState(state) {
+  swipeSessions = state && state.session ? [state.session] : [];
+  swipes = filterSwipes(state ? state.swipes : []);
+  saveMatchLocal();
+}
+
+function warnMatch(msg) {
+  if (Date.now() - matchUnavailableWarnedAt > 60000) {
+    console.warn('[sc(r)occhiaTu] Match: ' + msg);
+    matchUnavailableWarnedAt = Date.now();
+  }
+}
+
+// Sonda cold-start (alla prima entrata nel Match): verifica che swipe_sessions
+// e swipes esistano (select id limit 1) con un cap di matchProbeTimeoutMs.
+// Fallita → matchAvailable = false e nessun canale. Il canale del core non
+// viene MAI toccato (la sonda riguarda solo il canale Match).
+function probeMatchTables() {
+  if (!sb) return Promise.resolve(false);
+  const attempt = (async () => {
+    try {
+      const [a, b] = await Promise.all([
+        sb.from('swipe_sessions').select('id').limit(1),
+        sb.from('swipes').select('id').limit(1)
+      ]);
+      return !(a && a.error) && !(b && b.error);
+    } catch (e) {
+      return false;
+    }
+  })();
+  return Promise.race([
+    attempt,
+    new Promise(resolve => setTimeout(() => resolve(false), matchProbeTimeoutMs))
+  ]);
+}
+
+// Legge l'ULTIMA sessione per created_at (qualunque stato) + i suoi swipe.
+// Il resync segue sempre l'ultima sessione, non un id fisso: se il partner ha
+// chiuso e iniziato un giro nuovo, il nostro stato si aggancia al nuovo.
+async function fetchLatestMatchState() {
+  if (!sb || dbMode === 'local') return null;
+  try {
+    const sessionRes = await sb.from('swipe_sessions')
+      .select('*').order('created_at', { ascending: false }).limit(1);
+    if (sessionRes.error) { warnMatch('fetch session: ' + sessionRes.error.message); return null; }
+    const session = (sessionRes.data && sessionRes.data[0]) || null;
+    let sessionSwipes = [];
+    if (session) {
+      const swipesRes = await sb.from('swipes').select('*').eq('session_id', session.id);
+      if (swipesRes.error) { warnMatch('fetch swipes: ' + swipesRes.error.message); return null; }
+      sessionSwipes = swipesRes.data || [];
+    }
+    return { session, swipes: sessionSwipes };
+  } catch (e) {
+    warnMatch('fetchLatestMatchState: ' + e.message);
+    return null;
+  }
+}
+
+// All'ingresso nel Match: riprende l'attiva non scaduta, chiude+ricrea se
+// scaduta, altrimenti (incluso ultima sessione done/closed) ne crea una nuova.
+async function ensureActiveSession() {
+  const state = await fetchLatestMatchState();
+  if (!state) return null;
+  applyMatchState(state);
+  const active = activeSession(swipeSessions);
+  if (active) {
+    if (isExpired(active, swipes, Date.now())) {
+      await closeSession(active.id);
+      return await startNewSession();
+    }
+    return active;
+  }
+  return await startNewSession();
+}
+
+// Crea una sessione 'open' con deck congelato (veto + serate attive escluse).
+// Su corsa 23505 (indice unico parziale: un'altra attiva è appena nata) si
+// aggancia alla sessione attiva esistente, senza errori in UI.
+async function startNewSession() {
+  if (!sb || dbMode === 'local' || !matchAvailable) return null;
+  const deckInfo = buildDeck(movies, {
+    vetoedIds: vetoedMovieIdsThisWeek(),
+    excludeIds: activeNights().map(n => n.movie_id)
+  });
+  const { data, error } = await sb.from('swipe_sessions')
+    .insert([{ status: 'open', created_by: currentUser, seed: deckInfo.seed, deck: deckInfo.deck }])
+    .select();
+  if (error) {
+    if (error.code === '23505') {
+      const state = await fetchLatestMatchState();
+      if (state && state.session && activeSession([state.session])) {
+        applyMatchState(state);
+        return state.session;
+      }
+    } else {
+      warnMatch('startNewSession: ' + error.message);
+    }
+    return null;
+  }
+  const session = data && data[0];
+  if (session) applyMatchState({ session, swipes: [] });
+  return session;
+}
+
+// Chiude SOLO quella sessione e SOLO se attiva (open|matched): un update in
+// ritardo non deve mai toccare sessioni già done/closed.
+async function closeSession(id) {
+  if (!sb || dbMode === 'local') return null;
+  const { data, error } = await sb.from('swipe_sessions')
+    .update({ status: 'closed' })
+    .eq('id', id)
+    .in('status', ['open', 'matched'])
+    .select();
+  if (error) { warnMatch('closeSession: ' + error.message); return null; }
+  const row = data && data[0];
+  if (row) {
+    const local = swipeSessions.find(s => s.id === id);
+    if (local) Object.assign(local, row);
+    saveMatchLocal();
+  }
+  return row || null;
+}
+
+// Update condizionato allo stato: nessuna transizione se lo status corrente
+// non è in allowedStatuses (un reconcile tardivo non riapre/modifica sessioni
+// già chiuse o celebrate altrove).
+async function updateSessionConditional(id, patch, allowedStatuses) {
+  if (!sb || dbMode === 'local') return null;
+  const { data, error } = await sb.from('swipe_sessions')
+    .update(patch).eq('id', id).in('status', allowedStatuses).select();
+  if (error) { warnMatch('update session: ' + error.message); return null; }
+  const row = data && data[0];
+  if (row) {
+    const local = swipeSessions.find(s => s.id === id);
+    if (local) Object.assign(local, row);
+    saveMatchLocal();
+  }
+  return row || null;
+}
+
+// Upsert idempotente (ignoreDuplicates → ON CONFLICT DO NOTHING), poi refresh
+// locale e reconcile sull'ULTIMA sessione. Lo swipe non tocca votes/vetoes.
+async function recordSwipe(session, movieId, person, liked) {
+  if (!session || !sb || dbMode === 'local') return;
+  const { error } = await sb.from('swipes').upsert(
+    [{ session_id: session.id, movie_id: movieId, person, liked: !!liked }],
+    { onConflict: 'session_id,movie_id,person', ignoreDuplicates: true }
+  );
+  if (error) { warnMatch('recordSwipe: ' + error.message); return; }
+  const state = await fetchLatestMatchState();
+  if (!state) return;
+  applyMatchState(state);
+  await reconcileSession(state.session, state.swipes);
+}
+
+// Celebrazione / done, SOLO se la sessione è ancora 'open'.
+async function reconcileSession(session, sessionSwipes) {
+  if (!session || !matchAvailable || !sb || dbMode === 'local') return;
+  const deck = Array.isArray(session.deck) ? session.deck : [];
+  const pending = pendingMatch(session, sessionSwipes, deck, movies);
+  if (pending !== null) {
+    await updateSessionConditional(session.id, {
+      status: 'matched', matched_movie_id: pending, matched_at: new Date().toISOString()
+    }, ['open']);
+    return;
+  }
+  if (currentIndex(deck, sessionSwipes, movies) >= deck.length) {
+    await updateSessionConditional(session.id, { status: 'done' }, ['open']);
+  }
+}
+
+// "Continua" dopo un match: da 'matched' si torna 'open' (o 'done' se il mazzo
+// è esaurito). Condizionato a 'matched': un secondo click/reconcile tardivo
+// non deve modificare una sessione in altro stato.
+async function continueMatch(session) {
+  if (!session || !matchAvailable || !sb || dbMode === 'local') return;
+  const deck = Array.isArray(session.deck) ? session.deck : [];
+  const done = currentIndex(deck, swipes, movies) >= deck.length;
+  const updated = await updateSessionConditional(session.id, { status: done ? 'done' : 'open' }, ['matched']);
+  if (updated) {
+    const state = await fetchLatestMatchState();
+    if (state) applyMatchState(state);
+  }
+}
+
+// Firma deterministica dello stato Match (sessione + swipe normalizzati):
+// usata dalla resync per fare render SOLO se il dato è cambiato.
+function matchSignature(session, sessionSwipes) {
+  const s = session || null;
+  const list = (sessionSwipes || [])
+    .map(w => [w.movie_id, w.person, w.liked === true])
+    .sort((a, b) => (a[0] + a[1]).localeCompare(b[0] + b[1]));
+  return JSON.stringify([
+    s === null ? null : [
+      s.id, s.status, s.matched_movie_id || null, s.matched_at || null,
+      s.created_at || null, s.seed == null ? null : s.seed,
+      Array.isArray(s.deck) ? s.deck : []
+    ],
+    list
+  ]);
+}
+
+function renderMatchArea() {
+  if (typeof renderMatch === 'function' && currentTab === 'match') renderMatch();
+}
+
+async function resyncMatchQuiet() {
+  const prev = matchSignature(swipeSessions[0], swipes);
+  const state = await fetchLatestMatchState();
+  if (!state) return;
+  applyMatchState(state);
+  if (matchSignature(swipeSessions[0], swipes) !== prev) renderMatchArea();
+}
+
+// Debounce proprio (120ms) per il Match: MAI onDbChange/dataSignature/render()
+// globale — il canale Match è isolato dal core.
+function onMatchChange() {
+  if (matchResyncTimer) return;
+  matchResyncTimer = setTimeout(async () => {
+    matchResyncTimer = null;
+    try {
+      await resyncMatchQuiet();
+    } catch (e) {
+      warnMatch('resync: ' + e.message);
+    }
+  }, 120);
+}
+
+// ---- Presence (canale Match): una key per persona ----
+// key di config = etichetta persona (N/V), condivisa tra i tab dello stesso
+// utente: le chiavi uniche di presenceState() SONO le persone presenti.
+function presenceUsers(state) {
+  return Object.keys(state || {}).filter(k => k && k !== '');
+}
+
+function onPresenceChange() {
+  if (!matchChannel) return;
+  try {
+    lobbyPresenceState = presenceUsers(matchChannel.presenceState());
+    renderMatchArea();
+  } catch (e) {
+    warnMatch('presence: ' + e.message);
+  }
+}
+
+function trackLobbyPresence(user) {
+  if (!matchChannel || !user) return;
+  Promise.resolve(matchChannel.track({ user })).catch(() => {});
+}
+
+function untrackLobbyPresence() {
+  if (matchChannel) Promise.resolve(matchChannel.untrack()).catch(() => {});
+  lobbyPresenceState = [];
+}
+
+// ---- Canale 'scorochiatu-match-<seq>' ----
+function matchChannelName() {
+  matchChannelSeq += 1;
+  return 'scorochiatu-match-' + matchChannelSeq;
+}
+
+function teardownMatchChannel(channel) {
+  if (sb && channel) {
+    try { sb.removeChannel(channel); } catch (e) {}
+  }
+  if (matchChannel === channel) matchChannel = null;
+  matchLeaving = false;
+  lobbyPresenceState = [];
+}
+
+// Crea il canale col NOME UNIVOCO di questa entrata e TUTTI i binding
+// (postgres_changes su swipe_sessions+swipes, presence sync) PRIMA di
+// .subscribe(). track() solo dopo SUBSCRIBED; dopo SUBSCRIBED si rifà un
+// fetchLatestMatchState() per non perdere gli eventi accaduti tra la lettura
+// iniziale e l'aggancio. CHANNEL_ERROR/TIMED_OUT/CLOSED inatteso → Match
+// degradato (matchAvailable=false) SENZA toccare il canale core.
+function openMatchChannel() {
+  if (!sb || matchChannel || !matchAvailable) return null;
+  const topic = matchChannelName();
+  const channel = sb
+    .channel(topic, { config: { presence: { key: currentUser } } })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'swipe_sessions' }, onMatchChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'swipes' }, onMatchChange)
+    .on('presence', {}, onPresenceChange);
+  matchLeaving = false;
+  let failureHandled = false;
+  matchChannel = channel.subscribe((status, err) => {
+    if (status === 'SUBSCRIBED') {
+      matchLeaving = false;
+      trackLobbyPresence(currentUser);
+      fetchLatestMatchState().then(state => {
+        if (matchChannel === channel && state) {
+          applyMatchState(state);
+          renderMatchArea();
+        }
+      });
+      return;
+    }
+    if (status === 'CLOSED' && matchLeaving) { matchLeaving = false; return; }
+    if (matchChannel !== channel || failureHandled) return;
+    failureHandled = true;
+    matchAvailable = false;
+    warnMatch('canale non disponibile (' + status + '): ' + (err ? err.message : ''));
+    setTimeout(() => teardownMatchChannel(channel), 0);
+    renderMatchArea();
+  });
+  return matchChannel;
+}
+
+// Uscita dal Match: rimuove il canale (chiusura intenzionale, CLOSED inatteso
+// escluso dal flag matchLeaving). Al rientro enterMatch() crea un canale nuovo.
+function leaveMatch() {
+  matchLeaving = true;
+  untrackLobbyPresence();
+  if (matchChannel && sb) {
+    const ch = matchChannel;
+    matchChannel = null;
+    try { sb.removeChannel(ch); } catch (e) {}
+  } else {
+    matchLeaving = false;
+  }
+  lobbyPresenceState = [];
+}
+
+// Ingresso nel Match: sonda una volta (prima entrata), poi sessione attiva e
+// canale. dbMode 'local' o sonda fallita → matchAvailable = false, niente
+// canale, il core resta intatto.
+async function enterMatch() {
+  if (!sb || dbMode === 'local' || !currentUser) {
+    matchAvailable = false;
+    renderMatchArea();
+    return;
+  }
+  if (!matchProbeDone) {
+    matchProbeDone = true;
+    const ok = await probeMatchTables();
+    if (!ok) {
+      matchAvailable = false;
+      warnMatch('non disponibile: tabelle swipe non raggiungibili (sonda fallita).');
+      renderMatchArea();
+      return;
+    }
+    matchAvailable = true;
+  }
+  if (!matchAvailable) { renderMatchArea(); return; }
+  await ensureActiveSession();
+  openMatchChannel();
+  renderMatchArea();
+}

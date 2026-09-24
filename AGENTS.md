@@ -61,7 +61,9 @@ config → api(omdb+tmdb → index) → store → wheel → ui(modals+navigation
   `vetoes`, `movie_nights`, logica serata (`setQuickTonight`, `proposeNight`,
   `confirmNight`, `cancelNight`, `completeNight`, `nextMoviePick`), match %,
   veto settimanale, sorpresa, **Realtime centralizzato**
-  (`subscribeRealtime`/`unsubscribeRealtime`, un solo canale per sessione,
+  (`subscribeRealtime`/`unsubscribeRealtime`: il canale del CORE è unico;
+  il Match "live" usa un canale separato e temporaneo `scorochiatu-match`,
+  per isolare i guasti dal core — i binding match+presence stanno SOLO lì;
   resync debounced + render solo se il dato cambia) e modalità degradata
   (`dbMode` 'supabase'|'local' con badge in UI, ripristino automatico).
 - `js/wheel.js` — ruota canvas: pool, draw, spin animato, confetti.
