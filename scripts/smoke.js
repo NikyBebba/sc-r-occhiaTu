@@ -1429,6 +1429,46 @@ async function okA(name, fn) {
     return okR;
   }));
 
+  console.log('\n[renderScheduled — film watched]');
+  ok('scheduledList: film watched con scheduled_date NON compare', run(() => {
+    const savedM = movies, savedN = movieNights;
+    movies = [{ id: 'w1', title: 'Watched Film', status: 'watched', scheduled_date: '2026-10-20', scheduled_time: '21:00', added_by: 'N', platform: 'P', poster: '' }];
+    movieNights = [];
+    renderScheduled();
+    const html = document.getElementById('scheduledList').innerHTML;
+    const okR = html.indexOf('Watched Film') === -1;
+    movies = savedM; movieNights = savedN;
+    return okR;
+  }));
+  ok('scheduledList: film in watchlist con data resta in lista', run(() => {
+    const savedM = movies, savedN = movieNights;
+    movies = [{ id: 'wl1', title: 'Planned Film', status: 'watchlist', scheduled_date: '2026-10-22', scheduled_time: '20:00', added_by: 'V', platform: 'Q', poster: '' }];
+    movieNights = [];
+    renderScheduled();
+    const html = document.getElementById('scheduledList').innerHTML;
+    const okR = html.indexOf('Planned Film') !== -1;
+    movies = savedM; movieNights = savedN;
+    return okR;
+  }));
+  ok('scheduledList: nessun altro caso cambia (watched+watchlist → solo watchlist; quick-only → messaggio)', run(() => {
+    const savedM = movies, savedN = movieNights;
+    movies = [
+      { id: 'm1', title: 'Seen', status: 'watched', scheduled_date: '2026-10-20', added_by: 'N', platform: 'P', poster: '' },
+      { id: 'm2', title: 'Keep', status: 'watchlist', scheduled_date: '2026-10-22', added_by: 'V', platform: 'Q', poster: '' }
+    ];
+    movieNights = [];
+    renderScheduled();
+    const mix = document.getElementById('scheduledList').innerHTML;
+    const ok1 = mix.indexOf('Keep') !== -1 && mix.indexOf('Seen') === -1;
+    movies = [{ id: 'q1', title: 'Quick', status: 'tonight', scheduled_date: null, added_by: 'N', platform: 'P', poster: '' }];
+    movieNights = [{ id: 'nq', movie_id: 'q1', date: null, time: null, status: 'confirmed', proposed_by: 'N' }];
+    renderScheduled();
+    const quick = document.getElementById('scheduledList').innerHTML;
+    const ok2 = quick.indexOf('Nessun film programmato.') !== -1;
+    movies = savedM; movieNights = savedN;
+    return ok1 && ok2;
+  }));
+
   ok('collapse: toggle mobile + render/resync non tocca lo stato del pannello', run(() => {
     const panel = document.getElementById('listFiltersPanel');
     const savedOpen = listFiltersOpen;
