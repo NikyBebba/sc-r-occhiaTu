@@ -59,11 +59,17 @@ function omdbToDetails(omdbData, fallbackTitle) {
     .split(',')
     .map(s => s.trim())
     .filter(s => s && s.toLowerCase() !== 'n/a');
+  // Step 5b: anno dalla prima cifra di Year (gestisce range tipo
+  // '1990–1994'), regista da Director. Nessun dato → null.
+  const yMatch = String(omdbData.Year || '').match(/^\d{4}/);
+  const releaseYear = yMatch && parseInt(yMatch[0], 10) > 0 ? parseInt(yMatch[0], 10) : null;
   return {
     title: omdbData.Title || fallbackTitle,
     genres: genreNames,
     genre: genreNames.length ? moodFromGenreNames(genreNames) : null,
     duration: omdbData.Runtime && omdbData.Runtime !== 'N/A' ? omdbData.Runtime : null,
+    release_year: releaseYear,
+    director: omdbData.Director && omdbData.Director !== 'N/A' ? omdbData.Director : null,
     platform: 'Streaming',
     poster: omdbData.Poster && omdbData.Poster !== 'N/A' ? omdbData.Poster : '',
     trailerUrl: '',

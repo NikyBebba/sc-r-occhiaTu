@@ -17,6 +17,7 @@ async function fetchMovieDetails(title) {
   const notFound = {
     title, genres: [], genre: null, duration: null, platform: 'Streaming', poster: '', trailerUrl: '',
     matched: false, tmdb_id: null, collection_id: null, collection_name: null,
+    release_year: null, director: null,
     ...emptyRatings
   };
 

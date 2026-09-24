@@ -343,6 +343,50 @@ async function okA(name, fn) {
     return d.duration === null && d.genre === null && d.genres.length === 0;
   }));
 
+  // --- 3c) api anno + regista: oggetti canned, nessuna rete (step 5b) ---
+  console.log('\n[api — anno + regista (canned)]');
+  await okA('buildTmdbDetails (canned): 0 registi → director null, no release_date → year null', runA(async () => {
+    const d = await buildTmdbDetails({ id: 21, title: 'T0', release_date: '', genres: [], credits: { crew: [] }, 'watch/providers': { results: {} }, videos: { results: [] } }, 'T0');
+    return d.director === null && d.release_year === null;
+  }));
+  await okA('buildTmdbDetails (canned): 1 regista (Director/Directing) + year da release_date', runA(async () => {
+    const d = await buildTmdbDetails({ id: 22, title: 'T1', release_date: '1972-03-24', genres: [], credits: { crew: [{ job: 'Director', department: 'Directing', name: 'Francis Ford Coppola' }] }, 'watch/providers': { results: {} }, videos: { results: [] } }, 'T1');
+    return d.director === 'Francis Ford Coppola' && d.release_year === 1972;
+  }));
+  await okA('buildTmdbDetails (canned): N registi → unica stringa ", "; producer escluso', runA(async () => {
+    const d = await buildTmdbDetails({ id: 23, title: 'T2', release_date: '1991-01-01', genres: [], credits: { crew: [{ job: 'Director', department: 'Directing', name: 'A' }, { job: 'Director', department: 'Directing', name: 'B' }, { job: 'Producer', department: 'Production', name: 'C' }] }, 'watch/providers': { results: {} }, videos: { results: [] } }, 'T2');
+    return d.director === 'A, B' && d.release_year === 1991;
+  }));
+  await okA('buildTmdbDetails (canned): release_date assente → year null', runA(async () => {
+    const d = await buildTmdbDetails({ id: 24, title: 'T3', genres: [], credits: { crew: [] }, 'watch/providers': { results: {} }, videos: { results: [] } }, 'T3');
+    return d.release_year === null && d.director === null;
+  }));
+  ok('omdbToDetails (canned): Year 1990 → 1990; Director → stringa', run(() => {
+    const d = omdbToDetails({ Title: 'L', Year: '1990', Runtime: '90 min', Genre: 'Drama', Director: 'Stanley Kubrick', Poster: 'N/A' }, 'L');
+    return d.release_year === 1990 && d.director === 'Stanley Kubrick';
+  }));
+  ok('omdbToDetails (canned): Year "1990–1994" → prima cifra 1990; direttori multipli preservati', run(() => {
+    const d = omdbToDetails({ Title: 'R', Year: '1990–1994', Runtime: '90 min', Genre: 'Drama', Director: 'A, B', Poster: 'N/A' }, 'R');
+    return d.release_year === 1990 && d.director === 'A, B';
+  }));
+  ok('omdbToDetails (canned): Year/Director N/A → null', run(() => {
+    const d = omdbToDetails({ Title: 'N', Year: 'N/A', Runtime: 'N/A', Genre: 'N/A', Director: 'N/A', Poster: 'N/A' }, 'N');
+    return d.release_year === null && d.director === null;
+  }));
+  await okA('fetchMovieDetails notFound: release_year/director null (fetch stub, nessuna rete)', runA(async () => {
+    const stub = async url => ({
+      json: async () => (String(url).includes('omdbapi') ? { Response: 'False' } : { results: [] })
+    });
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = stub;
+    try {
+      const d = await fetchMovieDetails('ZZZNonEsiste999');
+      return d.matched === false && d.tmdb_id === null && d.release_year === null && d.director === null && d.title === 'ZZZNonEsiste999';
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  }));
+
   // --- 4) ui aggiunta film (locale) via applyResolvedDetails ---
   console.log('\n[ui — aggiunta con metadati]');
   await okA('applyResolvedDetails (add) persiste tmdb_id', runA(async () => {
@@ -409,6 +453,71 @@ async function okA(name, fn) {
     if (Array.isArray(mirror) && mirror.some(x => ghostTitles.includes(x.title))) {
       localStorage.setItem('scorochiatu_movies', JSON.stringify(mirror.filter(x => !ghostTitles.includes(x.title))));
     }
+    return true;
+  });
+
+  // --- 4b) ui anno + regista in aggiunta (canned) + mock sb (step 5b) ---
+  console.log('\n[ui — anno + regista (add/retry + mock sb)]');
+  await okA('add salva release_year + director (valori)', runA(async () => {
+    pickerMode = 'add'; pendingAddedBy = 'N';
+    await applyResolvedDetails({ title: 'Con Regista', tmdb_id: 994, release_year: 2000, director: 'Christopher Nolan', genres: [], genre: null, duration: null, platform: 'P', poster: '', trailerUrl: '', matched: true });
+    const m = movies.find(x => x.tmdb_id === 994);
+    return Boolean(m) && m.release_year === 2000 && m.director === 'Christopher Nolan';
+  }));
+  await okA('add senza dato → release_year/director null', runA(async () => {
+    pickerMode = 'add'; pendingAddedBy = 'N';
+    await applyResolvedDetails({ title: 'Senza Regista', tmdb_id: 995, release_year: null, director: null, genres: [], genre: null, duration: null, platform: 'P', poster: '', trailerUrl: '', matched: true });
+    const m = movies.find(x => x.tmdb_id === 995);
+    return m !== undefined && m.release_year === null && m.director === null;
+  }));
+  await okA('retry aggiorna release_year/director se non-null', runA(async () => {
+    const target = { id: 'retry-meta', title: 'M', added_by: 'N', status: 'watchlist', genre: null, genres: [], duration: null, platform: 'P', poster: '' };
+    movies.push(target);
+    pickerMode = 'retry'; pickerTargetId = target.id;
+    await applyResolvedDetails({ title: 'M', release_year: 1984, director: 'A, B', genres: [], genre: null, duration: null, platform: 'S', poster: '', trailerUrl: '', matched: true });
+    const m = movies.find(x => x.id === target.id);
+    return m.release_year === 1984 && m.director === 'A, B';
+  }));
+  await okA('retry con valori null NON sovrascrive anno/regista esistenti', runA(async () => {
+    const target = { id: 'retry-meta-null', title: 'M2', added_by: 'N', status: 'watchlist', genre: null, genres: [], duration: null, platform: 'P', poster: '', release_year: 2010, director: 'Stanley Kubrick' };
+    movies.push(target);
+    pickerMode = 'retry'; pickerTargetId = target.id;
+    await applyResolvedDetails({ title: 'M2', release_year: null, director: null, genres: [], genre: null, duration: null, platform: 'S', poster: '', trailerUrl: '', matched: true });
+    const m = movies.find(x => x.id === target.id);
+    return m.release_year === 2010 && m.director === 'Stanley Kubrick';
+  }));
+  await okA('insertMovie su Supabase (mock sb): release_year/director nel payload', runA(async () => {
+    const rows = [];
+    const mockFrom = table => {
+      if (table !== 'movies') throw new Error('mock: solo movies');
+      return {
+        insert: incoming => {
+          rows.push({ id: 'mock-m' + (rows.length + 1), ...incoming[0] });
+          return { select: async () => ({ data: rows.map(r => ({ ...r })), error: null }) };
+        }
+      };
+    };
+    const prevSb = sb, prevMode = dbMode, prevMovies = movies;
+    const prevLSMovies = localStorage.getItem('scorochiatu_movies');
+    sb = { from: mockFrom }; dbMode = 'supabase';
+    try {
+      const m = await insertMovie({ title: 'MockMeta', added_by: 'N', status: 'watchlist', release_year: 1999, director: 'Quentin Tarantino' });
+      return m.id === 'mock-m1' && rows[0].release_year === 1999 && rows[0].director === 'Quentin Tarantino';
+    } finally {
+      sb = prevSb; dbMode = prevMode; movies = prevMovies;
+      if (prevLSMovies === null) localStorage.removeItem('scorochiatu_movies');
+      else localStorage.setItem('scorochiatu_movies', prevLSMovies);
+    }
+  }));
+  // ripristino dei ghost di test 5b (array + mirror localStorage)
+  run(() => {
+    movies = movies.filter(x => x.tmdb_id !== 994 && x.tmdb_id !== 995 && x.id !== 'retry-meta' && x.id !== 'retry-meta-null');
+    const ghostTitles = ['Con Regista', 'Senza Regista', 'M', 'M2', 'MockMeta'];
+    const mirror = JSON.parse(localStorage.getItem('scorochiatu_movies') || '[]');
+    if (Array.isArray(mirror) && mirror.some(x => ghostTitles.includes(x.title))) {
+      localStorage.setItem('scorochiatu_movies', JSON.stringify(mirror.filter(x => !ghostTitles.includes(x.title))));
+    }
+    pickerMode = 'add'; pickerTargetId = null;
     return true;
   });
 

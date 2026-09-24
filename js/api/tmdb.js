@@ -1,5 +1,5 @@
 // ============================================
-// TMDb API — poster, durata, streaming, trailer, collection
+// TMDb API — poster, durata, streaming, trailer, collection, regista+anno
 // (source primaria di ricerca e dettaglio)
 // ============================================
 
@@ -50,6 +50,15 @@ async function buildTmdbDetails(detail, fallbackTitle) {
   const genreIds = (detail.genres || []).map(g => g.id);
   const genreNames = (detail.genres || []).map(g => g.name);
 
+  // Step 5b — regista + anno: direttore/i dai credits (crew, job Director),
+  // anno da release_date (primi 4 caratteri). Nessun dato → null, mai
+  // stringhe vuote né placeholder.
+  const directors = ((detail.credits && detail.credits.crew) || [])
+    .filter(p => p.job === 'Director' && p.department === 'Directing')
+    .map(p => p.name).filter(Boolean);
+  const yMatch = String(detail.release_date || '').match(/^\d{4}/);
+  const releaseYear = yMatch && parseInt(yMatch[0], 10) > 0 ? parseInt(yMatch[0], 10) : null;
+
   return {
     tmdb_id: detail.id,
     title: detail.title || fallbackTitle,
@@ -58,6 +67,8 @@ async function buildTmdbDetails(detail, fallbackTitle) {
     genres: genreNames,
     genre: genreIds.length ? moodFromGenres(genreIds) : null,
     duration: detail.runtime ? `${detail.runtime} min` : null,
+    release_year: releaseYear,
+    director: directors.length ? directors.join(', ') : null,
     platform,
     poster: detail.poster_path ? `https://image.tmdb.org/t/p/w500${detail.poster_path}` : '',
     trailerUrl,
@@ -71,7 +82,7 @@ async function buildTmdbDetails(detail, fallbackTitle) {
 async function fetchTmdbDetailsById(id) {
   try {
     const detailRes = await fetch(
-      `https://api.themoviedb.org/3/movie/${id}?api_key=${CONFIG.TMDB_API_KEY}&append_to_response=watch/providers,videos&language=it-IT`
+      `https://api.themoviedb.org/3/movie/${id}?api_key=${CONFIG.TMDB_API_KEY}&append_to_response=watch/providers,videos,credits&language=it-IT`
     );
     const detail = await detailRes.json();
     return await buildTmdbDetails(detail);
@@ -102,7 +113,7 @@ async function fetchTmdbDetailsByTitle(title) {
 
     const movie = searchData.results[0];
     const detailRes = await fetch(
-      `https://api.themoviedb.org/3/movie/${movie.id}?api_key=${CONFIG.TMDB_API_KEY}&append_to_response=watch/providers,videos&language=it-IT`
+      `https://api.themoviedb.org/3/movie/${movie.id}?api_key=${CONFIG.TMDB_API_KEY}&append_to_response=watch/providers,videos,credits&language=it-IT`
     );
     const detail = await detailRes.json();
     return await buildTmdbDetails(detail, title);

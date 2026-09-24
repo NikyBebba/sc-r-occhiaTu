@@ -89,17 +89,27 @@ async function applyResolvedDetails(details) {
   const genreFields = {
     genres: details.genres || []
   };
+  // Step 5b — anno + regista per i film nuovi (valore o null).
+  const metaFields = {
+    release_year: details.release_year ?? null,
+    director: details.director || null
+  };
   if (pickerMode === 'retry') {
     // Correzione metadati: aggiorna i generi, ma PRESERVA un mood impostato
     // a mano (genre già valorizzato); lo ricava solo se era null.
     const current = movies.find(x => x.id === pickerTargetId);
     const genre = current && current.genre != null ? current.genre : (details.genre || null);
-    await updateMovie(pickerTargetId, {
+    const patch = {
       title: details.title, duration: details.duration, platform: details.platform,
       poster: details.poster, trailer_url: details.trailerUrl, matched: details.matched,
       genre,
       ...genreFields, ...tmdbFields, ...ratingFields
-    });
+    };
+    // Step 5b: anno/regista aggiornati SOLO se il nuovo valore è non-null:
+    // mai sovrascrivere un dato esistente con null.
+    if (details.release_year != null) patch.release_year = details.release_year;
+    if (details.director) patch.director = details.director;
+    await updateMovie(pickerTargetId, patch);
   } else {
     // Nuovo film: vince il mood scelto a mano nel modale; altrimenti quello
     // derivato dai generi TMDb/OMDb.
@@ -109,7 +119,7 @@ async function applyResolvedDetails(details) {
       poster: details.poster, trailer_url: details.trailerUrl,
       matched: details.matched, rating: 0,
       genre: pendingGenre || details.genre || null,
-      ...genreFields, ...tmdbFields, ...ratingFields
+      ...genreFields, ...tmdbFields, ...ratingFields, ...metaFields
     };
     await insertMovie(newMovie);
     document.getElementById('addTitle').value = '';
@@ -146,6 +156,7 @@ async function bulkImportMovies() {
       matched: details.matched, rating: 0,
       genres: details.genres || [], genre: details.genre || null,
       tmdb_id: details.tmdb_id ?? null, collection_id: details.collection_id ?? null, collection_name: details.collection_name || null,
+      release_year: details.release_year ?? null, director: details.director || null,
       imdb_rating: details.imdbRating || '', rt_rating: details.rtRating || '', metacritic_rating: details.metacriticRating || ''
     };
     await insertMovie(newMovie);
