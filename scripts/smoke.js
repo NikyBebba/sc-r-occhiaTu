@@ -1053,6 +1053,150 @@ async function okA(name, fn) {
     return ok;
   }));
 
+  ok('collapse: toggle mobile + render/resync non tocca lo stato del pannello', run(() => {
+    const panel = document.getElementById('listFiltersPanel');
+    const savedOpen = listFiltersOpen;
+    panel.classList.remove('hidden');
+    panel.classList.add('hidden'); // stato di default: collassato (su mobile)
+    toggleListFiltersPanel();
+    const opened = listFiltersOpen === true && !panel.classList.contains('hidden');
+    render(); // un render/resync NON deve cambiare lo stato del collapse
+    const afterRender = listFiltersOpen === true && !panel.classList.contains('hidden');
+    toggleListFiltersPanel();
+    const closed = listFiltersOpen === false && panel.classList.contains('hidden');
+    listFiltersOpen = savedOpen;
+    return opened && afterRender && closed;
+  }));
+  ok('dropdown: opzioni costruite una volta, selezione preservata, dati escapati (O\'Brien)', run(() => {
+    const saved = movies;
+    const prevG = listGenre, prevPl = listPlatform, prevP = listProposer;
+    movies = [
+      { id: 'c1', title: 'A', status: 'watchlist', added_by: 'N', genres: ["O'Brien"], platform: 'Netflix' },
+      { id: 'c2', title: 'B', status: 'watchlist', added_by: 'V', genres: ['Horror'], platform: 'Netflix' }
+    ];
+    listGenre = ''; listPlatform = ''; listProposer = '';
+    const g = document.getElementById('genreListFilterSelect');
+    const pl = document.getElementById('platformFilterSelect');
+    delete g.dataset.listGenreOptions;
+    delete pl.dataset.listPlatformOptions;
+    g.value = 'all'; pl.value = 'all';
+    syncListFilterSelects();
+    const html1 = g.innerHTML;
+    const key = g.dataset.listGenreOptions;
+    const hasEscape = html1.includes('O&#39;Brien (1)') && html1.includes("value=\"O\\'Brien\"")
+      && html1.indexOf("O'Brien") === -1; // nessun apostrofo nudo
+    g.value = "O'Brien";
+    syncListFilterSelects(); // opzioni identiche: niente rebuild, scelta intatta
+    const preserved = g.value === "O'Brien" && g.dataset.listGenreOptions === key && g.innerHTML === html1;
+    const plBuilt = pl.innerHTML.includes('Netflix (2)');
+    movies = saved;
+    listGenre = prevG; listPlatform = prevPl; listProposer = prevP;
+    return hasEscape && preserved && plBuilt;
+  }));
+  ok('dropdown: opzione scelta che sparisce torna a "all" (stato azzerato); opzione che resta preservata', run(() => {
+    const saved = movies;
+    const prevG = listGenre, prevPl = listPlatform, prevP = listProposer;
+    const g = document.getElementById('genreListFilterSelect');
+    const pl = document.getElementById('platformFilterSelect');
+    const p = document.getElementById('proposerFilterSelect');
+    movies = [
+      { id: 'y1', title: 'A', status: 'watchlist', added_by: 'N', genres: ['Dramma'], platform: 'Netflix' }
+    ];
+    listGenre = ''; listPlatform = ''; listProposer = '';
+    delete g.dataset.listGenreOptions; delete pl.dataset.listPlatformOptions; delete p.dataset.listProposerOptions;
+    g.value = 'all'; pl.value = 'all'; p.value = 'all';
+    syncListFilterSelects();
+    setPlatformFilter('Netflix'); // selezione + stato coerenti
+    setProposerFilter('N');
+    const selected = listPlatform === 'Netflix' && pl.value === 'Netflix' && listProposer === 'N' && p.value === 'N';
+    movies = [
+      { id: 'y2', title: 'B', status: 'watchlist', added_by: 'N', genres: ['Dramma'], platform: 'Prime' }
+    ]; // Netflix sparita dal dataset, 'N' resta
+    syncListFilterSelects();
+    const platformReset = listPlatform === '' && pl.value === 'all';
+    const proposerKept = listProposer === 'N' && p.value === 'N';
+    syncListFilterSelects(); // idempotenza: niente rebuild, stato invariato
+    const idemOk = listPlatform === '' && pl.value === 'all' && listProposer === 'N' && p.value === 'N';
+    movies = saved;
+    listGenre = prevG; listPlatform = prevPl; listProposer = prevP;
+    g.value = 'all'; pl.value = 'all'; p.value = 'all'; // ripristino select condivise
+    return selected && platformReset && proposerKept && idemOk;
+  }));
+  ok('sort: toggle direzione aggiorna stato+icona; null sempre in fondo nelle due direzioni', run(() => {
+    const saved = movies;
+    const prevKey = listSortKey, prevDir = listSortDir, prevTab = currentTab;
+    const prevQ = listQuery, prevP = listProposer, prevG = listGenre, prevPl = listPlatform;
+    // stato filtri ermetico: eventuali selezioni residue di test precedenti
+    // agirebbero sul predicato (es. proposer 'N' escluderebbe il film 'V').
+    listQuery = ''; listProposer = ''; listGenre = ''; listPlatform = '';
+    ['proposerFilterSelect', 'genreListFilterSelect', 'platformFilterSelect']
+      .forEach(id => { document.getElementById(id).value = 'all'; });
+    movies = [
+      { id: 's1', title: 'Corto', status: 'watchlist', added_by: 'N', duration: '95 min', genres: ['Azione'], platform: 'Netflix', poster: '' },
+      { id: 's2', title: 'NullDurata', status: 'watchlist', added_by: 'V', duration: null, genres: ['Azione'], platform: 'Netflix', poster: '' },
+      { id: 's3', title: 'Lungo', status: 'watchlist', added_by: 'N', duration: '150 min', genres: ['Azione'], platform: 'Netflix', poster: '' }
+    ];
+    currentTab = 'all';
+    listSortKey = 'duration'; listSortDir = 'asc'; renderSortDirBtn();
+    render();
+    const grid = () => document.getElementById('movieGrid').innerHTML;
+    const pos = h => [h.indexOf('Corto'), h.indexOf('Lungo'), h.indexOf('NullDurata')];
+    let [aC, aL, aN] = pos(grid());
+    const ascOk = aC < aL && aL < aN;
+    listSortDir = 'desc'; renderSortDirBtn();
+    render();
+    let [dC, dL, dN] = pos(grid());
+    const descOk = dL < dC && dC < dN; // null (NullDurata) in fondo anche in desc
+    toggleListSortDir(); // desc → asc
+    const toggleAsc = listSortDir === 'asc' && document.getElementById('sortDirIcon').className.includes('fa-arrow-up-a-z');
+    toggleListSortDir();
+    const toggleDesc = listSortDir === 'desc' && document.getElementById('sortDirIcon').className.includes('fa-arrow-down-a-z');
+    listSortDir = 'asc';
+    setListSortKey('title');
+    const keyTitle = listSortKey === 'title' && document.getElementById('sortKeySelect').value === 'title';
+    render();
+    let [tC, tL, tN] = pos(grid());
+    const titleAscOk = tC < tL && tL < tN;
+    listSortKey = prevKey; listSortDir = prevDir; currentTab = prevTab; movies = saved;
+    listQuery = prevQ; listProposer = prevP; listGenre = prevG; listPlatform = prevPl;
+    return ascOk && descOk && toggleAsc && toggleDesc && keyTitle && titleAscOk;
+  }));
+  ok('setter dropdown/sort + Azzera filtri: stato, select e vista sempre coerenti', run(() => {
+    const savedMovies = movies;
+    const prevU = currentUser, prevTab = currentTab;
+    const prevP = listProposer, prevG = listGenre, prevPl = listPlatform, prevK = listSortKey, prevD = listSortDir;
+    movies = [
+      { id: 'f1', title: 'Azione Alfa', status: 'watchlist', added_by: 'N', genres: ['Azione'], platform: 'Netflix', poster: '' },
+      { id: 'f2', title: 'Commedia Beta', status: 'watchlist', added_by: 'V', genres: ['Commedia'], platform: 'Prime', poster: '' }
+    ];
+    currentUser = 'N'; currentTab = 'all';
+    listProposer = ''; listGenre = ''; listPlatform = ''; listSortKey = 'added'; listSortDir = 'desc';
+    const grid = () => document.getElementById('movieGrid').innerHTML;
+    setGenreListFilter('Azione');
+    const genreOk = listGenre === 'Azione' && grid().includes('Azione Alfa') && grid().indexOf('Commedia Beta') === -1;
+    resetListFiltersUI();
+    setPlatformFilter('Prime');
+    const platOk = listPlatform === 'Prime' && grid().includes('Commedia Beta') && grid().indexOf('Azione Alfa') === -1;
+    resetListFiltersUI();
+    setProposerFilter('N');
+    const propOk = listProposer === 'N' && grid().includes('Azione Alfa') && grid().indexOf('Commedia Beta') === -1;
+    resetListFiltersUI();
+    setListSortKey('title');
+    const sortOk = listSortKey === 'title' && document.getElementById('sortKeySelect').value === 'title';
+    resetListFiltersUI();
+    const resetOk = listProposer === '' && listGenre === '' && listPlatform === '' && listSortKey === 'added' && listSortDir === 'desc'
+      && document.getElementById('proposerFilterSelect').value === 'all'
+      && document.getElementById('genreListFilterSelect').value === 'all'
+      && document.getElementById('platformFilterSelect').value === 'all'
+      && document.getElementById('sortKeySelect').value === 'added'
+      && document.getElementById('sortDirIcon').className.includes('fa-arrow-down');
+    const allShown = grid().includes('Azione Alfa') && grid().includes('Commedia Beta');
+    currentUser = prevU; currentTab = prevTab;
+    listProposer = prevP; listGenre = prevG; listPlatform = prevPl; listSortKey = prevK; listSortDir = prevD;
+    movies = savedMovies;
+    return genreOk && platOk && propOk && sortOk && resetOk && allShown;
+  }));
+
   console.log(`\n=== RISULTATO: ${pass}/${pass + fail} PASS ===`);
   if (fails.length) { console.log('FAIL:', fails.join('\n  ')); process.exit(1); }
   process.exit(0);

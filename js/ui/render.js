@@ -182,12 +182,107 @@ function emptyListStateHtml() {
     </div>`;
 }
 
-// Azzera i filtri (stato + DOM) e ri-render. I dropdown di genere/piattaforma/
-// e il sort arrivano nello step (c): qui il reset copre la ricerca.
+// ---- Collapse mobile del pannello filtri/ordinamento. Lo stato NON viene
+// mai toccato da render()/resync: il pannello resta aperto/chiuso come lo
+// ha lasciato l'utente. Da md in su il bottone è nascosto e il pannello
+// è visibile sempre (regola CSS `hidden md:flex`). ----
+let listFiltersOpen = false;
+function toggleListFiltersPanel() {
+  const panel = document.getElementById('listFiltersPanel');
+  const chevron = document.getElementById('filtersToggleChevron');
+  if (!panel) return;
+  listFiltersOpen = !listFiltersOpen;
+  panel.classList.toggle('hidden', !listFiltersOpen);
+  if (chevron) chevron.classList.toggle('rotate-180', listFiltersOpen);
+}
+
+// ---- Dropdown filtri (propositori/generi/piattaforme) + sort. ----
+// Pattern di syncGenreFilterOptions: le opzioni vengono ricostruite SOLO se
+// cambiano (cache sul dataset), la scelta dell'utente è preservata e torna
+// a "all" se l'opzione scelta sparisce. I valori testuali passano SEMPRE da
+// escapeHtml/jsAttrEscape (es. generi con apostrofi tipo O'Brien).
+function refreshSelectOptions(sel, cacheAttr, options, allLabel) {
+  const key = options.map(o => o.value + ':' + o.count).join('|');
+  if (sel.dataset[cacheAttr] === key) return sel.value;
+  sel.dataset[cacheAttr] = key;
+  const chosen = sel.value;
+  const stillExists = chosen === 'all' || options.some(o => o.value === chosen);
+  sel.innerHTML = `<option value="all">${escapeHtml(allLabel)}</option>`
+    + options.map(o => `<option value="${jsAttrEscape(o.value)}">${escapeHtml(o.value)} (${o.count})</option>`).join('');
+  sel.value = stillExists ? chosen : 'all';
+  return sel.value;
+}
+function syncListFilterSelects() {
+  if (!document.getElementById('listFiltersPanel')) return;
+  const opts = deriveFilterOptions(movies);
+  const proposerSel = document.getElementById('proposerFilterSelect');
+  if (proposerSel) {
+    const eff = refreshSelectOptions(proposerSel, 'listProposerOptions', opts.proposers, '👤 Tutti i propositori');
+    if (eff !== listProposer) listProposer = eff && eff !== 'all' ? eff : '';
+  }
+  const genreSel = document.getElementById('genreListFilterSelect');
+  if (genreSel) {
+    const eff = refreshSelectOptions(genreSel, 'listGenreOptions', opts.genres, '🎞️ Tutti i generi');
+    if (eff !== listGenre) listGenre = eff && eff !== 'all' ? eff : '';
+  }
+  const platformSel = document.getElementById('platformFilterSelect');
+  if (platformSel) {
+    const eff = refreshSelectOptions(platformSel, 'listPlatformOptions', opts.platforms, '📺 Tutte le piattaforme');
+    if (eff !== listPlatform) listPlatform = eff && eff !== 'all' ? eff : '';
+  }
+}
+function setProposerFilter(v) {
+  listProposer = v === 'all' ? '' : v;
+  const sel = document.getElementById('proposerFilterSelect');
+  if (sel) sel.value = v;
+  render();
+}
+function setGenreListFilter(v) {
+  listGenre = v === 'all' ? '' : v;
+  const sel = document.getElementById('genreListFilterSelect');
+  if (sel) sel.value = v;
+  render();
+}
+function setPlatformFilter(v) {
+  listPlatform = v === 'all' ? '' : v;
+  const sel = document.getElementById('platformFilterSelect');
+  if (sel) sel.value = v;
+  render();
+}
+function setListSortKey(v) {
+  listSortKey = v || 'added';
+  const sel = document.getElementById('sortKeySelect');
+  if (sel) sel.value = listSortKey;
+  render();
+}
+
+// ---- Ordine del sort: toggle direzione (asc/desc). L'icona del bottone
+// segue lo stato; mai ricreata da render(). ----
+function renderSortDirBtn() {
+  const icon = document.getElementById('sortDirIcon');
+  const btn = document.getElementById('sortDirBtn');
+  if (icon) icon.className = listSortDir === 'desc' ? 'fa-solid fa-arrow-down-a-z' : 'fa-solid fa-arrow-up-a-z';
+  if (btn) btn.title = listSortDir === 'desc' ? 'Decrescente' : 'Crescente';
+}
+function toggleListSortDir() {
+  listSortDir = listSortDir === 'desc' ? 'asc' : 'desc';
+  renderSortDirBtn();
+  render();
+}
+
+// Azzera i filtri (stato + DOM) e ri-render: ricerca, dropdown (torna a "all")
+// e sort (chiave "added" + direzione desc), lasciando intatti i dataset-cache.
 function resetListFiltersUI() {
   resetListFilters();
   const input = document.getElementById('movieSearchInput');
   if (input) input.value = '';
+  ['proposerFilterSelect', 'genreListFilterSelect', 'platformFilterSelect'].forEach(id => {
+    const s = document.getElementById(id);
+    if (s) s.value = 'all';
+  });
+  const sortSel = document.getElementById('sortKeySelect');
+  if (sortSel) sortSel.value = 'added';
+  renderSortDirBtn();
   render();
 }
 
@@ -205,6 +300,7 @@ function render() {
     renderNextMovieBox();
     if (!countdownTimer) countdownTimer = setInterval(renderNextMovieBox, 30000);
     syncGenreFilterOptions();
+    syncListFilterSelects();
     drawWheel();
     return;
   }
@@ -322,6 +418,7 @@ function render() {
   renderNextMovieBox();
   if (!countdownTimer) countdownTimer = setInterval(renderNextMovieBox, 30000);
   syncGenreFilterOptions();
+  syncListFilterSelects();
   drawWheel();
 }
 
