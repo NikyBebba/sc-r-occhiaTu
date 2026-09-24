@@ -100,7 +100,7 @@ async function okA(name, fn) {
     'js/config.js',
     'js/genres.js',
     'js/api/omdb.js', 'js/api/tmdb.js', 'js/api/index.js',
-    'js/store.js', 'js/filters.js', 'js/wheel.js',
+    'js/store.js', 'js/match.js', 'js/filters.js', 'js/wheel.js',
     'js/ui/modals.js', 'js/ui/navigation.js', 'js/ui/actions.js', 'js/ui/render.js', 'js/ui/calendar.js',
     'js/main.js'
   ].map(f => read(f) + '\n;');
@@ -1421,6 +1421,262 @@ async function okA(name, fn) {
     listProposer = prevP; listGenre = prevG; listPlatform = prevPl; listSortKey = prevK; listSortDir = prevD;
     movies = savedMovies;
     return genreOk && platOk && propOk && sortOk && resetOk && allShown;
+  }));
+
+  // --- 8) match: logica pura — deck, seed, valutazione sessione (step 6) ---
+  // Seed sempre iniettato: nessuna casualità reale nei test.
+  console.log('\n[match — logica pura (seed, deck, sessione)]');
+  ok('SESSION_TTL_HOURS = 6', run(() => SESSION_TTL_HOURS === 6));
+  ok('newSeed: stub crypto 0xffffffff → 0x7fffffff (mask 31 bit)', run(() => {
+    globalThis.crypto = { getRandomValues: a => { a[0] = 0xffffffff; return a; } };
+    try { return newSeed() === 0x7fffffff; } finally { delete globalThis.crypto; }
+  }));
+  ok('newSeed: valori vari nello stub → sempre nel range 0..2^31-1', run(() => {
+    const vals = [0, 1, 42, 0x7ffffffe, 0x40000000];
+    globalThis.crypto = { getRandomValues: a => { a[0] = vals.shift(); return a; } };
+    try {
+      for (let i = 0; i < 5; i++) {
+        const s = newSeed();
+        if (!(Number.isInteger(s) && s >= 0 && s <= 0x7fffffff)) return false;
+      }
+      return true;
+    } finally { delete globalThis.crypto; }
+  }));
+  ok('newSeed: fallback senza crypto → range valido', run(() => {
+    const orig = Math.random;
+    Math.random = () => 0.999999;
+    try {
+      const s = newSeed();
+      return Number.isInteger(s) && s >= 0 && s <= 0x7fffffff;
+    } finally { Math.random = orig; }
+  }));
+  ok('seededShuffle: stesso seed → stesso ordine (deterministico, nessuna perdita)', run(() => {
+    const src = ['a', 'b', 'c', 'd', 'e', 'f'];
+    const A = seededShuffle(src, 12345);
+    const B = seededShuffle(src, 12345);
+    return JSON.stringify(A) === JSON.stringify(B)
+      && A.length === src.length
+      && src.slice().sort().join() === A.slice().sort().join();
+  }));
+  ok('seededShuffle: seed diversi → ordini diversi', run(() => {
+    const src = ['a', 'b', 'c', 'd', 'e', 'f'];
+    const A = seededShuffle(src, 1);
+    const B = seededShuffle(src, 999983);
+    return JSON.stringify(A) !== JSON.stringify(B)
+      && src.slice().sort().join() === A.slice().sort().join()
+      && src.slice().sort().join() === B.slice().sort().join();
+  }));
+  ok('buildDeck: stesso seed → stesso mazzo; seed diverso → mazzo diverso', run(() => {
+    const list = [
+      { id: 'm1', title: 'A', status: 'watchlist' }, { id: 'm2', title: 'B', status: 'watchlist' },
+      { id: 'm3', title: 'C', status: 'watchlist' }, { id: 'm4', title: 'D', status: 'watchlist' },
+      { id: 'm5', title: 'E', status: 'watchlist' }
+    ];
+    const A = buildDeck(list, { seed: 7 });
+    const B = buildDeck(list, { seed: 7 });
+    const C = buildDeck(list, { seed: 8 });
+    return A.seed === 7 && JSON.stringify(A.deck) === JSON.stringify(B.deck)
+      && JSON.stringify(A.deck) !== JSON.stringify(C.deck)
+      && A.deck.slice().sort().join() === 'm1,m2,m3,m4,m5';
+  }));
+  ok('buildDeck: filtra status/veto/escluse + dedupe (seed iniettato)', run(() => {
+    const list = [
+      { id: 'a', title: 'A', status: 'watchlist' },
+      { id: 'b', title: 'B', status: 'tonight' },
+      { id: 'c', title: 'C', status: 'watched' },
+      { id: 'd', title: 'D' },
+      { id: 'e', title: 'E', status: 'watchlist' },
+      { id: 'f', title: 'F', status: 'watchlist' },
+      { id: 'g', title: 'Doppio', status: 'watchlist' },
+      { id: 'g', title: 'Doppio 2', status: 'watchlist' },
+      { id: null, title: 'no-id', status: 'watchlist' }
+    ];
+    const r = buildDeck(list, { vetoedIds: ['e'], excludeIds: ['f'], seed: 5 });
+    const deck = r.deck.slice().sort();
+    return r.seed === 5 && deck.join() === 'a,d,g'
+      && deck.length === new Set(deck).size;
+  }));
+  ok('buildDeck: i film swipati in sessioni PRECEDENTI sono riammessi', run(() => {
+    const list = [{ id: 'x', title: 'X', status: 'watchlist' }, { id: 'y', title: 'Y', status: 'watchlist' }];
+    // Il mazzo NON consulta gli swipe passati: x e y restano ammissibili.
+    const r = buildDeck(list, { seed: 11 });
+    return r.deck.slice().sort().join() === 'x,y';
+  }));
+  ok('activeSession: solo open|matched attive; done non è ripresa', run(() => {
+    const a = activeSession([
+      { id: 's-open', status: 'open', created_at: 3 },
+      { id: 's-done', status: 'done', created_at: 9 },
+      { id: 's-closed', status: 'closed', created_at: 7 }
+    ]);
+    return a && a.id === 's-open';
+  }));
+  ok('activeSession: matched è attiva, la più recente vince, vuoto → null', run(() => {
+    const a = activeSession([
+      { id: 'm1', status: 'matched', created_at: '2026-09-10T10:00:00Z' },
+      { id: 'm2', status: 'open', created_at: '2026-09-12T10:00:00Z' }
+    ]);
+    return a && a.id === 'm2' && activeSession([]) === null && activeSession(null) === null;
+  }));
+  ok('swipesForCard: coppia mancante → undefined; persone non N/V ignorate', run(() => {
+    const swipes = [
+      { movie_id: 'm1', person: 'N', liked: true, created_at: 1 },
+      { movie_id: 'm1', person: 'X', liked: true, created_at: 2 }, // invalida
+      { movie_id: 'm2', person: 'V', liked: false, created_at: 3 }
+    ];
+    const r1 = swipesForCard(swipes, 'm1');
+    const r2 = swipesForCard(swipes, 'm2');
+    return r1.N === true && r1.V === undefined
+      && r2.V === false && r2.N === undefined
+      && hasMatchOnCard(swipes, 'm1') === false
+      && hasMatchOnCard([
+        { movie_id: 'm1', person: 'N', liked: true },
+        { movie_id: 'm1', person: 'V', liked: true }
+      ], 'm1') === true;
+  }));
+  ok('lastActivityAt: max creato_at degli swipe, altrimenti created_at sessione', run(() => {
+    const session = { id: 'sn', created_at: 100 };
+    const a = lastActivityAt(session, [
+      { movie_id: 'm', person: 'N', created_at: 300 },
+      { movie_id: 'm', person: 'V', created_at: 200 }
+    ]);
+    const b = lastActivityAt(session, []);
+    const c = lastActivityAt({ id: 's2', created_at: '2026-09-01T00:00:00Z' }, []);
+    return a === 300 && b === 100 && c === Date.parse('2026-09-01T00:00:00Z');
+  }));
+  ok('isExpired: a cavallo delle 6 ore (now iniettato)', run(() => {
+    const now = Date.parse('2026-09-10T12:00:00Z');
+    const fresh = { id: 's', created_at: now - 5 * 3600000 };
+    const boundary = { id: 's2', created_at: now - 6 * 3600000 };
+    const old = { id: 's3', created_at: now - 7 * 3600000 };
+    return isExpired(fresh, [], now) === false
+      && isExpired(boundary, [], now) === true
+      && isExpired(old, [], now) === true;
+  }));
+  ok('isExpired: un swipe recente tiene viva una sessione vecchia', run(() => {
+    const now = Date.parse('2026-09-10T12:00:00Z');
+    const session = { id: 's', created_at: now - 20 * 3600000 };
+    const swipes = [
+      { movie_id: 'm', person: 'N', created_at: now - 2 * 3600000 },
+      { movie_id: 'm', person: 'V', created_at: now - 3600000 }
+    ];
+    return lastActivityAt(session, swipes) === now - 3600000
+      && isExpired(session, swipes, now) === false;
+  }));
+  ok('currentIndex: primo card senza entrambe le risposte; esaurito → lunghezza', run(() => {
+    const deck = ['a', 'b', 'c'];
+    const none = currentIndex(deck, []);
+    const oneN = currentIndex(deck, [{ movie_id: 'a', person: 'N', liked: true }]);
+    const abPartial = currentIndex(deck, [
+      { movie_id: 'a', person: 'N', liked: true } , { movie_id: 'a', person: 'V', liked: false },
+      { movie_id: 'b', person: 'N', liked: false }
+    ]);
+    const allDone = currentIndex(deck, [
+      { movie_id: 'a', person: 'N', liked: true }, { movie_id: 'a', person: 'V', liked: true },
+      { movie_id: 'b', person: 'N', liked: false }, { movie_id: 'b', person: 'V', liked: true },
+      { movie_id: 'c', person: 'N', liked: true }, { movie_id: 'c', person: 'V', liked: true }
+    ]);
+    return none === 0 && oneN === 0 && abPartial === 1 && allDone === 3;
+  }));
+  ok('currentIndex: film cancellato nel deck = card risolto', run(() => {
+    const deck = ['ghost', 'ok'];
+    const moviesList = [{ id: 'ok', title: 'OK', status: 'watchlist' }];
+    return currentIndex(deck, [], moviesList) === 1;
+  }));
+  ok('resolveDeckMovie: trova il film o null (niente crash su id mancante)', run(() => {
+    const list = [{ id: 'm1', title: 'T1' }];
+    return resolveDeckMovie(list, 'm1') && resolveDeckMovie(list, 'm1').title === 'T1'
+      && resolveDeckMovie(list, 'zzz') === null
+      && resolveDeckMovie([], 'm1') === null
+      && resolveDeckMovie(null, 'm1') === null;
+  }));
+  ok('pendingMatch: nessun doppio like → null', run(() => {
+    return pendingMatch({ id: 's', matched_movie_id: null }, [
+      { movie_id: 'a', person: 'N', liked: true }, { movie_id: 'a', person: 'V', liked: false }
+    ], ['a', 'b']) === null;
+  }));
+  ok('pendingMatch: doppio like → id col card più alto del DECK (non timestamp)', run(() => {
+    // doppio like su a e b: vince b (ordine deck), anche se i like di a sono più "recenti".
+    const swipes = [
+      { movie_id: 'b', person: 'V', liked: true, created_at: 1 },
+      { movie_id: 'b', person: 'N', liked: true, created_at: 2 },
+      { movie_id: 'a', person: 'N', liked: true, created_at: 3 },
+      { movie_id: 'a', person: 'V', liked: true, created_at: 4 }
+    ];
+    return pendingMatch({ id: 's', matched_movie_id: null }, swipes, ['a', 'b']) === 'b';
+  }));
+  ok('pendingMatch: "Continua poi reconcile in ritardo" → null (nessuna ricelebrazione)', run(() => {
+    // Primo match su "a" già celebrato e continuato: il reconcile tardivo
+    // dell'altro telefono NON deve portare a una nuova celebrazione.
+    const session = { id: 's', status: 'matched', matched_movie_id: 'a' };
+    const swipes = [
+      { movie_id: 'a', person: 'N', liked: true },
+      { movie_id: 'a', person: 'V', liked: true }
+    ];
+    return pendingMatch(session, swipes, ['a', 'b']) === null;
+  }));
+  ok('pendingMatch: un secondo match successivo → restituisce il nuovo id', run(() => {
+    const session = { id: 's', status: 'matched', matched_movie_id: 'a' };
+    const swipes = [
+      { movie_id: 'a', person: 'N', liked: true }, { movie_id: 'a', person: 'V', liked: true },
+      { movie_id: 'b', person: 'N', liked: true }, { movie_id: 'b', person: 'V', liked: true }
+    ];
+    return pendingMatch(session, swipes, ['a', 'b']) === 'b';
+  }));
+  ok('pendingMatch: film cancellato nel deck mai celebrato', run(() => {
+    const swipes = [
+      { movie_id: 'ghost', person: 'N', liked: true }, { movie_id: 'ghost', person: 'V', liked: true }
+    ];
+    return pendingMatch({ id: 's', matched_movie_id: null }, swipes, ['ghost', 'ok'],
+      [{ id: 'ok', status: 'watchlist' }]) === null;
+  }));
+  ok('countAllMatches: conta i doppio like; persone non valide ignorate', run(() => {
+    const swipes = [
+      { movie_id: 'a', person: 'N', liked: true }, { movie_id: 'a', person: 'V', liked: true },
+      { movie_id: 'b', person: 'N', liked: true }, { movie_id: 'b', person: 'Z', liked: true },
+      { movie_id: 'c', person: 'N', liked: true }, { movie_id: 'c', person: 'V', liked: false }
+    ];
+    return countAllMatches(swipes) === 1;
+  }));
+  ok('evaluateSession: swipe → card corrente; match → celebra; done → riepilogo', run(() => {
+    const moviesList = [
+      { id: 'a', title: 'A', status: 'watchlist' },
+      { id: 'b', title: 'B', status: 'watchlist' },
+      { id: 'c', title: 'C', status: 'watchlist' }
+    ];
+    const deck = ['a', 'b', 'c'];
+    const s0 = evaluateSession({ id: 's', deck, status: 'open' }, [], moviesList);
+    const s1 = evaluateSession({ id: 's', deck, status: 'open' }, [{ movie_id: 'a', person: 'N', liked: true }], moviesList);
+    const sMatch = evaluateSession({ id: 's', deck, status: 'matched' }, [
+      { movie_id: 'a', person: 'N', liked: true }, { movie_id: 'a', person: 'V', liked: true }
+    ], moviesList);
+    const consumed = evaluateSession({ id: 's', deck, status: 'open', matched_movie_id: 'a' }, [
+      { movie_id: 'a', person: 'N', liked: true }, { movie_id: 'a', person: 'V', liked: true }
+    ], moviesList);
+    const done = evaluateSession({ id: 's', deck, status: 'done', matched_movie_id: 'a' }, [
+      { movie_id: 'a', person: 'N', liked: true }, { movie_id: 'a', person: 'V', liked: true },
+      { movie_id: 'b', person: 'N', liked: false }, { movie_id: 'b', person: 'V', liked: true },
+      { movie_id: 'c', person: 'N', liked: true }, { movie_id: 'c', person: 'V', liked: false }
+    ], moviesList);
+    return s0.view === 'swipe' && s0.movieId === 'a' && s0.index === 0 && s0.matches === 0
+      && s1.view === 'swipe' && s1.movieId === 'a'
+      && sMatch.view === 'match' && sMatch.movieId === 'a' && sMatch.matches === 1
+      && consumed.view === 'swipe' && consumed.movieId === 'b'
+      && done.view === 'done' && done.movieId === null && done.index === 3 && done.matches === 1;
+  }));
+  ok('evaluateSession: match sull\'ultimo card → celebra prima del riepilogo', run(() => {
+    const moviesList = [{ id: 'm', title: 'Ultimo', status: 'watchlist' }];
+    const r = evaluateSession({ id: 's', deck: ['m'], status: 'matched' }, [
+      { movie_id: 'm', person: 'N', liked: true }, { movie_id: 'm', person: 'V', liked: true }
+    ], moviesList);
+    return r.view === 'match' && r.movieId === 'm';
+  }));
+  ok('evaluateSession: persone non N/V ignorate; film cancellato = card risolto', run(() => {
+    const moviesList = [{ id: 'ok', title: 'OK', status: 'watchlist' }];
+    const r = evaluateSession({ id: 's', deck: ['ghost', 'ok'], status: 'open' }, [
+      { movie_id: 'ghost', person: 'Z', liked: true }, // person invalida: ignorata
+      { movie_id: 'ok', person: 'N', liked: true }
+    ], moviesList);
+    return r.view === 'swipe' && r.movieId === 'ok';
   }));
 
   console.log(`\n=== RISULTATO: ${pass}/${pass + fail} PASS ===`);
