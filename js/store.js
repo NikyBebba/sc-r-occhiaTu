@@ -521,6 +521,7 @@ let matchProbeDone = false;          // sonda cold-start: una volta per sessione
 let matchLeaving = false;            // chiusura intenzionale (leave/logout)
 let matchUnavailableWarnedAt = 0;    // warning "Match non disponibile" una tantum (60s)
 let matchProbeTimeoutMs = 3000;      // cap della sonda cold-start
+let matchChannelStatus = null;       // 'connecting' | 'subscribed' | 'error' | null
 
 function saveMatchLocal() {
   localStorage.setItem('scorochiatu_swipe_sessions', JSON.stringify(swipeSessions));
@@ -803,6 +804,7 @@ function teardownMatchChannel(channel) {
   if (matchChannel === channel) matchChannel = null;
   matchLeaving = false;
   lobbyPresenceState = [];
+  matchChannelStatus = null;
 }
 
 // Crea il canale col NOME UNIVOCO di questa entrata e TUTTI i binding
@@ -821,9 +823,11 @@ function openMatchChannel() {
     .on('presence', {}, onPresenceChange);
   matchLeaving = false;
   let failureHandled = false;
+  matchChannelStatus = 'connecting';
   matchChannel = channel.subscribe((status, err) => {
     if (status === 'SUBSCRIBED') {
       matchLeaving = false;
+      matchChannelStatus = 'subscribed';
       trackLobbyPresence(currentUser);
       fetchLatestMatchState().then(state => {
         if (matchChannel === channel && state) {
@@ -837,6 +841,7 @@ function openMatchChannel() {
     if (matchChannel !== channel || failureHandled) return;
     failureHandled = true;
     matchAvailable = false;
+    matchChannelStatus = 'error';
     warnMatch('canale non disponibile (' + status + '): ' + (err ? err.message : ''));
     setTimeout(() => teardownMatchChannel(channel), 0);
     renderMatchArea();
@@ -846,6 +851,8 @@ function openMatchChannel() {
 
 // Uscita dal Match: rimuove il canale (chiusura intenzionale, CLOSED inatteso
 // escluso dal flag matchLeaving). Al rientro enterMatch() crea un canale nuovo.
+// Se il Match era NON disponibile (sonda fallita / canale in errore), azzera
+// matchProbeDone così la sonda viene RILEGGIATA al prossimo ingresso.
 function leaveMatch() {
   matchLeaving = true;
   untrackLobbyPresence();
@@ -857,6 +864,8 @@ function leaveMatch() {
     matchLeaving = false;
   }
   lobbyPresenceState = [];
+  matchChannelStatus = null;
+  if (!matchAvailable) matchProbeDone = false;
 }
 
 // Ingresso nel Match: sonda una volta (prima entrata), poi sessione attiva e

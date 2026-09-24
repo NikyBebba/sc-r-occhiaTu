@@ -289,6 +289,26 @@ function resetListFiltersUI() {
 // ---- Render principale ----
 function render() {
   renderPillCounters();
+  // La pill "Match" è visibile SOLO in modalità Supabase (nessun counter).
+  const tabMatch = document.getElementById('tabMatch');
+  if (tabMatch) tabMatch.classList.toggle('hidden', dbMode !== 'supabase');
+
+  // Vista Match: si comporta come il Calendario — il pannello filtri/ricerca
+  // della LISTA è ignorato (il Match ha il suo stato), le pill continuano a
+  // mostrare i contatori. La vista occupa #movieGrid con early-return.
+  if (currentTab === 'match') {
+    renderMatch();
+    renderScheduled();
+    renderVetoInfo();
+    renderSyncStatus();
+    renderNextMovieBox();
+    if (!countdownTimer) countdownTimer = setInterval(renderNextMovieBox, 30000);
+    syncGenreFilterOptions();
+    syncListFilterSelects();
+    drawWheel();
+    return;
+  }
+
   // Vista Calendario: il mese occupa la colonna destra, colonna sinistra
   // invariata. I filtri della LISTA sono ignorati (il calendario ha il suo
   // stato), ma le pill continuano a mostrare i contatori coi filtri attivi.

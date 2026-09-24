@@ -122,3 +122,14 @@ body {
   border-radius: 50%;
   background: #6366f1;
 }
+
+/* Match — card swipe: niente selezione/testo durante il gesto, il movimento
+   orizzontale è gestito dall'app (verticale lascia scrollare la pagina). */
+.swipe-card {
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+}
+.swipe-card img {
+  pointer-events: none;
+}

@@ -215,6 +215,15 @@ async function confirmSchedule() {
   if (!date) return;
   await proposeNight(id, currentUser, date, time, snack);
   closeModal('scheduleModal');
+  // Match → serata: la proposta È stata creata (controllo a posteriori).
+  // Solo ora la sessione di swipe si chiude; se l'utente annulla il modale
+  // questa funzione non gira mai e la sessione resta attiva.
+  const pending = typeof matchPendingSchedule !== 'undefined' ? matchPendingSchedule : null;
+  if (pending && pending.movieId === id) {
+    matchPendingSchedule = null;
+    await closeSession(pending.sessionId);
+    if (typeof matchNightDone === 'function') matchNightDone(id);
+  }
   loadMovies();
 }
 

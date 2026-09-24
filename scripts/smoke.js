@@ -27,6 +27,12 @@ function makeEl(id) {
       contains(c) { return this._set.has(c); }, toggle(c, on) { on ? this._set.add(c) : this._set.delete(c); }
     },
     value: '', dataset: {}, onclick: null, onkeydown: null, onmousedown: null,
+    _handlers: {},
+    addEventListener(ev, cb) { (this._handlers[ev] = this._handlers[ev] || []).push(cb); },
+    removeEventListener(ev, cb) {
+      const arr = this._handlers[ev] || [];
+      this._handlers[ev] = arr.filter(x => x !== cb);
+    },
     _children: [],
     appendChild(c) { this._children.push(c); }, remove() {}, focus() {}, scrollIntoView() {},
     setAttribute(k, v) { this[k] = v; }, getAttribute(k) { return this[k]; },
@@ -103,6 +109,7 @@ async function okA(name, fn) {
     'js/api/omdb.js', 'js/api/tmdb.js', 'js/api/index.js',
     'js/store.js', 'js/match.js', 'js/filters.js', 'js/wheel.js',
     'js/ui/modals.js', 'js/ui/navigation.js', 'js/ui/actions.js', 'js/ui/render.js', 'js/ui/calendar.js',
+    'js/ui/match.js',
     'js/main.js'
   ].map(f => read(f) + '\n;');
 
@@ -1685,15 +1692,25 @@ async function okA(name, fn) {
   console.log('\n[match — data layer + canale separato]');
   vm.runInContext(`
     function mockMatchSb(seed) {
-      const s     = (seed && seed.sessions) ? seed.sessions.map(x => Object.assign({ deck: [] }, x)) : [];
-      const w     = (seed && seed.swipes) ? seed.swipes.slice() : [];
+      // Root tabellare generico: la serata dal Match (setQuickTonight/proposeNight)
+      // scrive su movie_nights/movies, la sessione swipe su swipe_sessions/swipes.
+      const root = {
+        swipe_sessions: (seed && seed.sessions) ? seed.sessions.map(x => Object.assign({ deck: [] }, x)) : [],
+        swipes: (seed && seed.swipes) ? seed.swipes.slice() : [],
+        movies: (seed && seed.movies) ? seed.movies.map(x => Object.assign({}, x)) : [],
+        votes: [],
+        vetoes: [],
+        movie_nights: (seed && seed.movie_nights) ? seed.movie_nights.slice() : []
+      };
       const calls = {
         gets: [], inserts: 0, inserted: [], upserts: [],
         updates: [], removes: 0, removed: [], channels: [], tracks: 0, trackPayloads: []
       };
       const failInsert = seed ? seed.failInsert : null;
       const slowProbe  = !!(seed && seed.slowProbe);
-      const rowsOf = name => (name === 'swipe_sessions' ? s : w);
+      const pref = { swipe_sessions: 'sess', swipes: 'sw', movies: 'mov', movie_nights: 'night' };
+      const rowsOf = name => (root[name] || (root[name] = []));
+      const makeId = name => pref[name] + '-' + (rowsOf(name).length + 1);
       const filter = (name, b) => {
         let out = rowsOf(name).slice();
         if (b._eq) out = out.filter(r => r[b._eq.col] === b._eq.v);
@@ -1711,17 +1728,19 @@ async function okA(name, fn) {
           insert(rows) {
             calls.inserts += rows.length;
             if (failInsert) return { select: async () => ({ data: null, error: { code: failInsert, message: 'unique violation' } }) };
-            const made = rows.map(r => Object.assign({ id: 'sess-' + (s.length + 1), created_at: new Date().toISOString() }, r));
-            s.unshift.apply(s, made);
+            const made = rows.map(r => Object.assign({ id: makeId(name), created_at: new Date().toISOString() }, r));
+            rowsOf(name).unshift.apply(rowsOf(name), made);
             calls.inserted = made;
             return { select: async () => ({ data: made.map(x => Object.assign({}, x)), error: null }) };
           },
           upsert(rows, opts) {
             calls.upserts.push({ rows: rows.map(r => Object.assign({}, r)), opts: Object.assign({}, opts) });
             rows.forEach(r => {
-              const i = w.findIndex(x => x.session_id === r.session_id && x.movie_id === r.movie_id && x.person === r.person);
-              if (i >= 0) { if (!(opts && opts.ignoreDuplicates)) w[i] = Object.assign({}, w[i], r); }
-              else w.push(Object.assign({ id: 'sw-' + (w.length + 1) }, r));
+              const table = rowsOf(name);
+              const i = table.findIndex(x =>
+                x.session_id === r.session_id && x.movie_id === r.movie_id && x.person === r.person);
+              if (i >= 0) { if (!(opts && opts.ignoreDuplicates)) table[i] = Object.assign({}, table[i], r); }
+              else table.push(Object.assign({ id: makeId(name) }, r));
             });
             return Promise.resolve({ error: null });
           },
@@ -1774,15 +1793,18 @@ async function okA(name, fn) {
         removeChannel(ch) { calls.removes++; calls.removed.push(ch ? ch.name : null); if (ch) ch.removed = true; return Promise.resolve('ok'); },
         getChannels() { return []; },
         __calls: () => calls,
-        __sessions: () => s,
-        __swipes: () => w
+        __sessions: () => root.swipe_sessions,
+        __swipes: () => root.swipes,
+        __root: () => root
       };
     }
     function __matchSnap() {
       return { sb, dbMode, currentUser, movies, vetoes, movieNights,
         matchAvailable, swipeSessions, swipes, matchChannel, matchResyncTimer,
         matchProbeDone, matchChannelSeq, matchLeaving, matchUnavailableWarnedAt,
-        matchProbeTimeoutMs, lobbyPresenceState, realtimeChannel };
+        matchProbeTimeoutMs, lobbyPresenceState, realtimeChannel,
+        matchChannelStatus, currentTab, matchPrevTab, matchDragging,
+        matchPendingRender, matchNightCreated, matchPendingSchedule, matchExitTimer };
     }
     function __matchRestore(p) {
       sb = p.sb; dbMode = p.dbMode; currentUser = p.currentUser; movies = p.movies;
@@ -1793,6 +1815,24 @@ async function okA(name, fn) {
       matchLeaving = p.matchLeaving; matchUnavailableWarnedAt = p.matchUnavailableWarnedAt;
       matchProbeTimeoutMs = p.matchProbeTimeoutMs; lobbyPresenceState = p.lobbyPresenceState;
       realtimeChannel = p.realtimeChannel;
+      matchChannelStatus = p.matchChannelStatus; currentTab = p.currentTab;
+      matchPrevTab = p.matchPrevTab; matchDragging = p.matchDragging;
+      matchPendingRender = p.matchPendingRender; matchNightCreated = p.matchNightCreated;
+      matchPendingSchedule = p.matchPendingSchedule; matchExitTimer = p.matchExitTimer;
+    }
+    // Riallinea lo stato minimo delle viste Match (niente canale reale: la
+    // vista "completa" dei casi si testa impostando direttamente lo stato).
+    function __matchUI(seed) {
+      matchAvailable = true; matchChannelStatus = 'subscribed'; matchChannel = {};
+      matchLeaving = false; matchNightCreated = null; matchPendingSchedule = null;
+      matchDragging = false; matchPendingRender = false; matchExitTimer = null;
+      matchProbeDone = true; matchProbeTimeoutMs = 3000;
+      currentTab = 'match'; matchPrevTab = 'watchlist';
+      currentUser = seed && seed.user ? seed.user : 'N';
+      swipeSessions = (seed && seed.sessions) ? seed.sessions.slice() : [];
+      swipes = (seed && seed.swipes) ? seed.swipes.slice() : [];
+      movies = (seed && seed.movies) ? seed.movies.slice() : [];
+      lobbyPresenceState = (seed && seed.presence) ? seed.presence.slice() : [];
     }
   `, sandbox);
 
@@ -2088,6 +2128,310 @@ async function okA(name, fn) {
     const b = presenceUsers(null);
     const c = presenceUsers({});
     return a.join() === 'N,V' && b.length === 0 && c.length === 0;
+  }));
+
+  // --- 8c) match — UI (lobby, swipe, match, done, serata dal match) ---
+  console.log('\n[match — UI tab]');
+
+  ok('vista non disponibile: "Match non disponibile" + Riprova (azzera sonda)', run(() => {
+    const p = __matchSnap();
+    try {
+      __matchUI({});
+      matchAvailable = false; matchChannel = null; matchChannelStatus = null;
+      const html = matchViewHtml();
+      const beforeProbe = matchProbeDone;
+      tryMatchAgain();
+      return html.indexOf('Match non disponibile') !== -1
+        && html.indexOf('Riprova') !== -1
+        && matchProbeDone === false && matchAvailable === false
+        && beforeProbe === true;
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('vista connessione: status non subscribed → "Connessione…"', run(() => {
+    const p = __matchSnap();
+    try {
+      __matchUI({});
+      matchChannelStatus = 'connecting';
+      return matchViewHtml().indexOf('Connessione…') !== -1;
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('lobby SOLO: chip presenza + "In attesa di V" + Nuova sessione', run(() => {
+    const p = __matchSnap();
+    try {
+      __matchUI({ presence: ['N'], sessions: [{ id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }], movies: [{ id: 'ma', title: 'M' }] });
+      const html = matchViewHtml();
+      return html.indexOf('Chi c\'è?') !== -1
+        && /In attesa di V/.test(html)
+        && html.indexOf('Nuova sessione') !== -1;
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('lobby con presenza DOPPIO TAB deduplicata → LOBBY_DUE → swipe auto-start', run(() => {
+    const p = __matchSnap();
+    try {
+      __matchUI({ presence: ['N', 'N', 'V'], sessions: [{ id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }], movies: [{ id: 'ma', title: 'Geometria del terrore' }] });
+      const present = matchPresentUsers();
+      const html = matchViewHtml();
+      return present.join() === 'N,V' && html.indexOf('Nope') !== -1 && html.indexOf('Like') !== -1;
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('card corrente: titolo/anno•durata senza null/undefined; film cancellato = card risolto (DONE)', run(() => {
+    const p = __matchSnap();
+    try {
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }], movies: [{ id: 'ma', title: 'Le Iene', release_year: 1992, duration: '100 min', poster: null, genres: ['Thriller', 'Crime'] }] });
+      const html = matchViewHtml();
+      const noNull = html.indexOf('null') === -1 && html.indexOf('undefined') === -1;
+      const withMeta = html.indexOf('Le Iene') !== -1 && html.indexOf('1992') !== -1 && html.indexOf('100 min') !== -1;
+      // film cancellato (unico del deck) = card risolto → vista DONE, senza null/undefined
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ghost'] }], movies: [] });
+      const removedHtml = matchViewHtml();
+      const removed = removedHtml.indexOf('Mazzo finito!') !== -1
+        && removedHtml.indexOf('null') === -1 && removedHtml.indexOf('undefined') === -1;
+      return noNull && withMeta && removed;
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('"Nuova sessione": presente in lobby/MATCH/DONE, ASSENTE in SWIPE', run(() => {
+    const p = __matchSnap();
+    try {
+      // lobby (nessuna sessione)
+      __matchUI({ presence: ['N'] });
+      const inLobby = matchViewHtml().indexOf('Nuova sessione') !== -1;
+      // MATCH (doppio like non ancora celebrato)
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sM', status: 'matched', created_at: new Date().toISOString(), deck: ['ma', 'mb'], matched_movie_id: null }], swipes: [{ movie_id: 'ma', person: 'N', liked: true }, { movie_id: 'ma', person: 'V', liked: true }], movies: [{ id: 'ma', title: 'M' }, { id: 'mb', title: 'B' }] });
+      const matchHtml = matchViewHtml();
+      const inMatch = matchHtml.indexOf('Match!') !== -1 && matchHtml.indexOf('Nuova sessione') !== -1;
+      // DONE (mazzo esaurito, match già celebrato)
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sD', status: 'open', created_at: new Date().toISOString(), deck: ['ma'], matched_movie_id: 'ma' }], swipes: [{ movie_id: 'ma', person: 'N', liked: true }, { movie_id: 'ma', person: 'V', liked: true }], movies: [{ id: 'ma', title: 'M' }] });
+      const doneHtml = matchViewHtml();
+      const inDone = doneHtml.indexOf('Mazzo finito!') !== -1 && doneHtml.indexOf('Nuova sessione') !== -1;
+      // SWIPE (entrambi presenti, card corrente)
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sS', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }], swipes: [], movies: [{ id: 'ma', title: 'M' }] });
+      const swipeHtml = matchViewHtml();
+      const absentInSwipe = swipeHtml.indexOf('Nuova sessione') === -1 && swipeHtml.indexOf('Nope') !== -1;
+      return inLobby && inMatch && inDone && absentInSwipe;
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('swipe bloccato se ho già risposto: "In attesa di V", niente bottoni, recordSwipe non parte', runA(async () => {
+    const p = __matchSnap();
+    const S = { id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] };
+    const mock = mockMatchSb({ sessions: [S], swipes: [] });
+    sb = mock; dbMode = 'supabase';
+    __matchUI({ presence: ['N', 'V'], sessions: [S], swipes: [{ movie_id: 'ma', person: 'N', liked: true }], movies: [{ id: 'ma', title: 'M' }] });
+    try {
+      const html = matchViewHtml();
+      const blocked = html.indexOf('In attesa di V') !== -1
+        && html.indexOf('fa-xmark') === -1 && html.indexOf('Nope') === -1;
+      await swipeCard('ma', false);
+      await new Promise(r => setTimeout(r, 20));
+      return blocked && mock.__root().swipes.length === 0 && mock.__calls().upserts.length === 0;
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('MATCH: si celebra SOLO con pendingMatch non-null (no ricelebrazione)', run(() => {
+    const p = __matchSnap();
+    try {
+      // (a) pendingMatch null (matched_movie_id === doppio like) → nessuna celebrazione
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sM', status: 'matched', created_at: new Date().toISOString(), deck: ['ma', 'mb'], matched_movie_id: 'ma' }], swipes: [{ movie_id: 'ma', person: 'N', liked: true }, { movie_id: 'ma', person: 'V', liked: true }], movies: [{ id: 'ma', title: 'M' }, { id: 'mb', title: 'B' }] });
+      const noCelebration = matchViewHtml().indexOf('Match!') === -1;
+      // (b) pendingMatch non-null (doppio like su card ≠ matched_movie_id) → celebra
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sM2', status: 'matched', created_at: new Date().toISOString(), deck: ['ma', 'mb'], matched_movie_id: 'ma' }], swipes: [{ movie_id: 'mb', person: 'N', liked: true }, { movie_id: 'mb', person: 'V', liked: true }], movies: [{ id: 'ma', title: 'M' }, { id: 'mb', title: 'B' }] });
+      const html = matchViewHtml();
+      const celebrates = html.indexOf('Match!') !== -1
+        && html.indexOf('Stasera') !== -1 && html.indexOf('Programma') !== -1
+        && html.indexOf('Continua') !== -1 && html.indexOf('Esci') !== -1;
+      return noCelebration && celebrates;
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('DONE: riepilogo "1 match" + Nuova sessione/Esci', runA(async () => {
+    const p = __matchSnap();
+    try {
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sD', status: 'open', created_at: new Date().toISOString(), deck: ['ma'], matched_movie_id: 'ma' }], swipes: [{ movie_id: 'ma', person: 'N', liked: true }, { movie_id: 'ma', person: 'V', liked: true }], movies: [{ id: 'ma', title: 'M' }] });
+      const html = matchViewHtml();
+      return html.indexOf('match in questa sessione') !== -1
+        && html.indexOf('Mazzo finito!') !== -1
+        && html.indexOf('Nuova sessione') !== -1 && html.indexOf('Esci') !== -1;
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('gesto touch (soglia ~80px) e bottoni convergono su swipeCard; sotto soglia nessuno swipe', runA(async () => {
+    const p = __matchSnap();
+    const S = { id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] };
+    const mock = mockMatchSb({ sessions: [S], movies: [{ id: 'ma', title: 'M' }] });
+    sb = mock; dbMode = 'supabase';
+    __matchUI({ presence: ['N', 'V'], sessions: [S], movies: [{ id: 'ma', title: 'M' }] });
+    try {
+      renderMatch();
+      const card = document.getElementById('matchCard');
+      if (!card || !card._handlers.touchstart) return false;
+      const last = a => a[a.length - 1];
+      const fire = (ev, e) => { const arr = card._handlers[ev]; if (!arr || !arr.length) return; last(arr)(e); };
+      fire('touchstart', { touches: [{ clientX: 10 }] });
+      fire('touchmove', { cancelable: true, preventDefault() {}, touches: [{ clientX: 130 }] });
+      fire('touchend', {});
+      await new Promise(r => setTimeout(r, 20));
+      const afterSwipe = mock.__root().swipes.length === 1
+        && mock.__root().swipes[0].person === 'N' && mock.__root().swipes[0].liked === true;
+      renderMatch();
+      fire('touchstart', { touches: [{ clientX: 10 }] });
+      fire('touchmove', { cancelable: true, preventDefault() {}, touches: [{ clientX: 40 }] });
+      fire('touchend', {});
+      await new Promise(r => setTimeout(r, 20));
+      return afterSwipe && mock.__root().swipes.length === 1;
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('anti-XSS: titolo/genere non iniettano markup (swipe e match), dati sempre escappati', run(() => {
+    const p = __matchSnap();
+    const evil = '<img src=x onerror=alert(1)>';
+    try {
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }], movies: [{ id: 'ma', title: evil, release_year: 1992, duration: '90 min', genres: ['<script>O\'Brien</script>'] }] });
+      const swipeHtml = matchViewHtml();
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sM', status: 'matched', created_at: new Date().toISOString(), deck: ['mb', 'ma'], matched_movie_id: null }], swipes: [{ movie_id: 'ma', person: 'N', liked: true }, { movie_id: 'ma', person: 'V', liked: true }], movies: [{ id: 'ma', title: evil }] });
+      const matchHtml = matchViewHtml();
+      const clean = h => h.indexOf('<img src=x') === -1 && h.indexOf('O\'Brien') === -1 && h.indexOf('&lt;img') !== -1;
+      return clean(swipeHtml) && clean(matchHtml);
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('serata dal match: Stasera → confirmed + sessione chiusa SOLO dopo creazione', runA(async () => {
+    const p = __matchSnap();
+    const S = { id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] };
+    const mock = mockMatchSb({ sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
+    sb = mock; dbMode = 'supabase';
+    __matchUI({ presence: ['N', 'V'], sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
+    try {
+      await createMatchNight('ma', 'tonight');
+      const root = mock.__root();
+      const night = root.movie_nights.find(n => n.movie_id === 'ma');
+      const sessionAfter = root.swipe_sessions[0];
+      const okNight = night && night.status === 'confirmed' && night.date === null && night.proposed_by === 'N';
+      const okClose = sessionAfter && sessionAfter.status === 'closed';
+      const okView = document.getElementById('movieGrid').innerHTML.indexOf('Serata creata ✓') !== -1;
+      if (matchExitTimer) { clearTimeout(matchExitTimer); matchExitTimer = null; }
+      return okNight && okClose && okView && matchNightCreated && matchNightCreated.movieId === 'ma';
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('serata dal match: Programma → modale, annullo NON chiude; confirmSchedule chiude SOLO a serata creata', runA(async () => {
+    const p = __matchSnap();
+    const S = { id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] };
+    const mock = mockMatchSb({ sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
+    sb = mock; dbMode = 'supabase';
+    __matchUI({ presence: ['N', 'V'], sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
+    const dateEl = document.getElementById('scheduleDate');
+    const movieIdEl = document.getElementById('scheduleMovieId');
+    const timeEl = document.getElementById('scheduleTime');
+    const snackEl = document.getElementById('scheduleSnack');
+    try {
+      await createMatchNight('ma', 'schedule');
+      const atModalOpen = mock.__root().swipe_sessions[0].status === 'open'
+        && matchPendingSchedule && matchPendingSchedule.sessionId === 'sU' && matchPendingSchedule.movieId === 'ma'
+        && matchNightCreated === null;
+      closeModal('scheduleModal');      // annullo: nessuna conferma
+      const afterCancel = mock.__root().swipe_sessions[0].status === 'open' && matchNightCreated === null;
+      // data vuota → confirmSchedule esce prima (ancora nessuna serata creata)
+      movieIdEl.value = 'ma'; dateEl.value = ''; timeEl.value = '21:30'; snackEl.value = '';
+      await confirmSchedule();
+      const afterEmpty = mock.__root().swipe_sessions[0].status === 'open' && mock.__root().movie_nights.length === 0;
+      // conferma vera → serata proposta + sessione chiusa (controllo a posteriori)
+      dateEl.value = '2026-12-24';
+      await confirmSchedule();
+      const root = mock.__root();
+      const night = root.movie_nights.find(n => n.movie_id === 'ma');
+      const ok = atModalOpen && afterCancel && afterEmpty
+        && root.swipe_sessions[0].status === 'closed'
+        && night && night.status === 'proposed' && night.date === '2026-12-24'
+        && matchPendingSchedule === null && matchNightCreated && matchNightCreated.movieId === 'ma'
+        && document.getElementById('movieGrid').innerHTML.indexOf('Serata creata ✓') !== -1;
+      if (matchExitTimer) { clearTimeout(matchExitTimer); matchExitTimer = null; }
+      return ok;
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('setTab(match): entra e render; uscita verso altro tab chiude SOLO il canale; prevTab salvato', runA(async () => {
+    const p = __matchSnap();
+    const S = { id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] };
+    const mock = mockMatchSb({ sessions: [S], movies: [{ id: 'ma', title: 'M' }] });
+    sb = mock; dbMode = 'supabase';
+    __matchUI({});
+    currentTab = 'watchlist'; matchPrevTab = 'watchlist';
+    swipeSessions = [S]; swipes = []; movies = [{ id: 'ma', title: 'M' }];
+    matchChannel = null; matchChannelSeq = 0; matchChannelStatus = null; matchLeaving = false;
+    realtimeChannel = null;
+    try {
+      setTab('match');
+      await new Promise(r => setTimeout(r, 30));
+      const entered = currentTab === 'match' && matchPrevTab === 'watchlist'
+        && matchChannel && matchChannelStatus === 'connecting'
+        && document.getElementById('movieGrid').innerHTML.indexOf('Connessione…') !== -1;
+      // subscribed → presence → swipe (LOBBY_DUE auto-start)
+      matchChannel.fire('SUBSCRIBED');
+      await new Promise(r => setTimeout(r, 30));
+      matchChannel.bindings.filter(b => b.ev === 'presence').forEach(b => b.cb());
+      await new Promise(r => setTimeout(r, 10));
+      const swipeView = document.getElementById('movieGrid').innerHTML.indexOf('Nope') !== -1;
+      setTab('calendar');
+      const left = currentTab === 'calendar' && matchChannel === null && matchChannelStatus === null;
+      const removedName = mock.__calls().removed.indexOf('scorochiatu-match-1') !== -1;
+      // rientro da calendar → prevTab aggiornato a calendar
+      setTab('match');
+      await new Promise(r => setTimeout(r, 30));
+      const reentered = matchPrevTab === 'calendar' && currentTab === 'match';
+      return entered && swipeView && left && removedName && reentered;
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('guardie: setTab su tab inesistente e dbMode local non cambiano stato; render nasconde la pill offline', run(() => {
+    const p = __matchSnap();
+    try {
+      __matchUI({});
+      currentTab = 'watchlist'; matchChannel = null; matchChannelStatus = null;
+      dbMode = 'local';
+      render();
+      const hiddenLocally = document.getElementById('tabMatch').classList.contains('hidden');
+      setTab('match');
+      const notEntered = currentTab === 'watchlist' && matchChannel === null;
+      dbMode = 'supabase';
+      render();
+      const visibleSupabase = !document.getElementById('tabMatch').classList.contains('hidden');
+      setTab('does-not-exist');
+      const guardOk = currentTab === 'watchlist';
+      return hiddenLocally && notEntered && visibleSupabase && guardOk;
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('renderMatch fuori dal tab match: nessuna scrittura nella grid', run(() => {
+    const p = __matchSnap();
+    try {
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }], movies: [{ id: 'ma', title: 'M' }] });
+      currentTab = 'watchlist';
+      const grid = document.getElementById('movieGrid');
+      grid.innerHTML = 'contenuto lista';
+      renderMatch();
+      return grid.innerHTML === 'contenuto lista';
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('logout chiude il canale del Match senza toccare setTab/currentTab', run(() => {
+    const p = __matchSnap();
+    const mock = mockMatchSb({});
+    const ch = mock.channel('scorochiatu-match-1', {});
+    sb = mock; dbMode = 'supabase';
+    __matchUI({});
+    currentUser = 'N'; matchChannel = ch; matchChannelStatus = 'subscribed'; currentTab = 'match';
+    try {
+      logout();
+      return currentTab === 'match'                     // logout NON chiama setTab
+        && currentUser === null
+        && matchChannel === null && matchChannelStatus === null
+        && mock.__calls().removed.indexOf('scorochiatu-match-1') !== -1;
+    } finally { __matchRestore(p); }
   }));
 
   console.log(`\n=== RISULTATO: ${pass}/${pass + fail} PASS ===`);
