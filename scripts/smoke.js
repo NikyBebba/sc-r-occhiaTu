@@ -2299,11 +2299,12 @@ async function okA(name, fn) {
     } finally { __matchRestore(p); }
   }));
 
-  await okA('serata dal match: Stasera → confirmed + sessione chiusa SOLO dopo creazione', runA(async () => {
+  await okA('serata dal match: Stasera → confirmed + sessione chiusa SOLO dopo creazione reale', runA(async () => {
     const p = __matchSnap();
     const S = { id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] };
     const mock = mockMatchSb({ sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
     sb = mock; dbMode = 'supabase';
+    movieNights = [];   // hermetic: la verifica passa da activeNightForMovie
     __matchUI({ presence: ['N', 'V'], sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
     try {
       await createMatchNight('ma', 'tonight');
@@ -2314,43 +2315,144 @@ async function okA(name, fn) {
       const okClose = sessionAfter && sessionAfter.status === 'closed';
       const okView = document.getElementById('movieGrid').innerHTML.indexOf('Serata creata ✓') !== -1;
       if (matchExitTimer) { clearTimeout(matchExitTimer); matchExitTimer = null; }
-      return okNight && okClose && okView && matchNightCreated && matchNightCreated.movieId === 'ma';
+      return okNight && okClose && okView && matchNightCreated && matchNightCreated.movieId === 'ma'
+        && activeNightForMovie('ma') && activeNightForMovie('ma').status === 'confirmed';
     } finally { __matchRestore(p); }
   }));
 
-  await okA('serata dal match: Programma → modale, annullo NON chiude; confirmSchedule chiude SOLO a serata creata', runA(async () => {
+  await okA('Stasera: serata NON creata (insert fallito) → sessione aperta, niente "Serata creata"', runA(async () => {
+    const p = __matchSnap();
+    const S = { id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] };
+    const mock = mockMatchSb({ failInsert: '500', sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
+    sb = mock; dbMode = 'supabase';
+    movieNights = [];
+    __matchUI({ presence: ['N', 'V'], sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
+    document.getElementById('movieGrid').innerHTML = '';   // hermetic: verifica assenza celebrazione
+    try {
+      await createMatchNight('ma', 'tonight');
+      const root = mock.__root();
+      return activeNightForMovie('ma') === null
+        && root.swipe_sessions[0].status === 'open'
+        && matchNightCreated === null
+        && root.movie_nights.length === 0
+        && document.getElementById('movieGrid').innerHTML.indexOf('Serata creata ✓') === -1;
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('Programma: annullo/chiudi modale azzera il pending; conferma dalla lista NON chiude la sessione Match', runA(async () => {
     const p = __matchSnap();
     const S = { id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] };
     const mock = mockMatchSb({ sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
     sb = mock; dbMode = 'supabase';
+    movieNights = [];
     __matchUI({ presence: ['N', 'V'], sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
     const dateEl = document.getElementById('scheduleDate');
     const movieIdEl = document.getElementById('scheduleMovieId');
     const timeEl = document.getElementById('scheduleTime');
     const snackEl = document.getElementById('scheduleSnack');
+    document.getElementById('movieGrid').innerHTML = '';    // hermetic: verifica assenza celebrazione
     try {
       await createMatchNight('ma', 'schedule');
       const atModalOpen = mock.__root().swipe_sessions[0].status === 'open'
         && matchPendingSchedule && matchPendingSchedule.sessionId === 'sU' && matchPendingSchedule.movieId === 'ma'
         && matchNightCreated === null;
       closeModal('scheduleModal');      // annullo: nessuna conferma
-      const afterCancel = mock.__root().swipe_sessions[0].status === 'open' && matchNightCreated === null;
-      // data vuota → confirmSchedule esce prima (ancora nessuna serata creata)
+      const afterCancel = mock.__root().swipe_sessions[0].status === 'open'
+        && matchPendingSchedule === null && matchNightCreated === null;
+      // data vuota → confirmSchedule esce prima (modale ancora aperta, ancora inerte)
       movieIdEl.value = 'ma'; dateEl.value = ''; timeEl.value = '21:30'; snackEl.value = '';
       await confirmSchedule();
-      const afterEmpty = mock.__root().swipe_sessions[0].status === 'open' && mock.__root().movie_nights.length === 0;
-      // conferma vera → serata proposta + sessione chiusa (controllo a posteriori)
+      const afterEmpty = mock.__root().swipe_sessions[0].status === 'open'
+        && mock.__root().movie_nights.length === 0 && matchPendingSchedule === null;
+      // stesso film programmato dalla LISTA normale: il pending è stato azzerato
+      // dall'annullo → la sessione Match NON si chiude e non mostra "Serata creata"
       dateEl.value = '2026-12-24';
       await confirmSchedule();
       const root = mock.__root();
       const night = root.movie_nights.find(n => n.movie_id === 'ma');
-      const ok = atModalOpen && afterCancel && afterEmpty
+      return atModalOpen && afterCancel && afterEmpty
+        && root.swipe_sessions[0].status === 'open'
+        && night && night.status === 'proposed' && night.date === '2026-12-24'
+        && matchPendingSchedule === null && matchNightCreated === null
+        && document.getElementById('movieGrid').innerHTML.indexOf('Serata creata ✓') === -1;
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('Programma: conferma DIRETTA dal Match → sessione chiusa SOLO a serata creata (a posteriori)', runA(async () => {
+    const p = __matchSnap();
+    const S = { id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] };
+    const mock = mockMatchSb({ sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
+    sb = mock; dbMode = 'supabase';
+    movieNights = [];
+    __matchUI({ presence: ['N', 'V'], sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
+    const dateEl = document.getElementById('scheduleDate');
+    const movieIdEl = document.getElementById('scheduleMovieId');
+    try {
+      await createMatchNight('ma', 'schedule');
+      const sessionId = matchPendingSchedule && matchPendingSchedule.sessionId;
+      movieIdEl.value = 'ma'; dateEl.value = '2026-12-24';
+      await confirmSchedule();
+      const root = mock.__root();
+      const night = root.movie_nights.find(n => n.movie_id === 'ma');
+      const ok = sessionId === 'sU'
         && root.swipe_sessions[0].status === 'closed'
         && night && night.status === 'proposed' && night.date === '2026-12-24'
         && matchPendingSchedule === null && matchNightCreated && matchNightCreated.movieId === 'ma'
         && document.getElementById('movieGrid').innerHTML.indexOf('Serata creata ✓') !== -1;
       if (matchExitTimer) { clearTimeout(matchExitTimer); matchExitTimer = null; }
       return ok;
+    } finally { __matchRestore(p); }
+  }));
+
+  await okA('confirmSchedule: hook scatta SOLO se currentTab === match (pending da fuori Match non chiude)', runA(async () => {
+    const p = __matchSnap();
+    const S = { id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] };
+    const mock = mockMatchSb({ sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
+    sb = mock; dbMode = 'supabase';
+    movieNights = [];
+    __matchUI({ presence: ['N', 'V'], sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
+    currentTab = 'watchlist';   // fuori dal tab Match
+    const dateEl = document.getElementById('scheduleDate');
+    const movieIdEl = document.getElementById('scheduleMovieId');
+    document.getElementById('movieGrid').innerHTML = '';    // hermetic: verifica assenza celebrazione
+    try {
+      matchPendingSchedule = { sessionId: 'sU', movieId: 'ma' }; // pending "scaduto"/stale
+      movieIdEl.value = 'ma'; dateEl.value = '2026-12-24';
+      await confirmSchedule();
+      const root = mock.__root();
+      return root.swipe_sessions[0].status === 'open'          // sessione Match NON chiusa
+        && root.movie_nights.length === 1                       // ma la serata dalla lista SÌ è creata
+        && matchNightCreated === null && matchPendingSchedule === null
+        && document.getElementById('movieGrid').innerHTML.indexOf('Serata creata ✓') === -1;
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('uscita dal tab Match: clearMatchState azzera matchPendingSchedule', run(() => {
+    const p = __matchSnap();
+    try {
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }], movies: [{ id: 'ma', title: 'M' }] });
+      matchPendingSchedule = { sessionId: 'sU', movieId: 'ma' };
+      matchChannel = { untrack() { return Promise.resolve('ok'); } };
+      matchChannelStatus = 'subscribed'; matchLeaving = false;
+      setTab('watchlist');
+      return matchPendingSchedule === null && matchNightCreated === null
+        && currentTab === 'watchlist';
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('filtri: blocco lista visibile in lista/calendario, nascosto (più !hidden) solo nel tab Match', run(() => {
+    const p = __matchSnap();
+    try {
+      __matchUI({});
+      dbMode = 'supabase';
+      currentTab = 'watchlist'; render();
+      const blk = document.getElementById('listFiltersBlock');
+      const visibleLista = blk && !blk.classList.contains('!hidden');
+      currentTab = 'calendar'; render();
+      const visibleCalendario = blk && !blk.classList.contains('!hidden');
+      currentTab = 'match'; render();
+      const hiddenMatch = blk && blk.classList.contains('!hidden');
+      return visibleLista && visibleCalendario && hiddenMatch;
     } finally { __matchRestore(p); }
   }));
 

@@ -293,6 +293,16 @@ function render() {
   const tabMatch = document.getElementById('tabMatch');
   if (tabMatch) tabMatch.classList.toggle('hidden', dbMode !== 'supabase');
 
+  // Nel tab Match il pannello filtri/ricerca della LISTA è un input inerte
+  // (la vista Match non lo usa): lo nascondiamo con ...!hidden che vince su
+  // `md:flex` del pannello, così il blocco resta nascosto anche da md in su.
+  // Il Calendario invece lo tiene visibile (stesso comportamento inerte ma
+  // pattern storico). Lo stato di collapse su mobile NON è toccato: al ritorno
+  // il pannello resta come l'utente l'ha lasciato (regola render non tocca
+  // listFiltersOpen).
+  const listFilterBlock = document.getElementById('listFiltersBlock');
+  if (listFilterBlock) listFilterBlock.classList.toggle('!hidden', currentTab === 'match');
+
   // Vista Match: si comporta come il Calendario — il pannello filtri/ricerca
   // della LISTA è ignorato (il Match ha il suo stato), le pill continuano a
   // mostrare i contatori. La vista occupa #movieGrid con early-return.

@@ -213,14 +213,15 @@ async function confirmSchedule() {
   const time = document.getElementById('scheduleTime').value;
   const snack = document.getElementById('scheduleSnack').value;
   if (!date) return;
+  // Match → serata: l'hook scatta solo se si viene dal tab Match con pending
+  // attivo per QUESTO film. Il pending va letto PRIMA di closeModal (che lo
+  // azzera sempre, anche su annullo), e la sessione si chiude solo se la
+  // serata È stata davvero creata (controllo a posteriori, mai all'apertura).
+  const pending = typeof matchPendingSchedule !== 'undefined' ? matchPendingSchedule : null;
+  const fromMatch = !!(pending && pending.movieId === id && currentTab === 'match');
   await proposeNight(id, currentUser, date, time, snack);
   closeModal('scheduleModal');
-  // Match → serata: la proposta È stata creata (controllo a posteriori).
-  // Solo ora la sessione di swipe si chiude; se l'utente annulla il modale
-  // questa funzione non gira mai e la sessione resta attiva.
-  const pending = typeof matchPendingSchedule !== 'undefined' ? matchPendingSchedule : null;
-  if (pending && pending.movieId === id) {
-    matchPendingSchedule = null;
+  if (fromMatch && activeNightForMovie(id)) {
     await closeSession(pending.sessionId);
     if (typeof matchNightDone === 'function') matchNightDone(id);
   }

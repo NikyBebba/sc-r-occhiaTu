@@ -280,6 +280,14 @@ async function createMatchNight(movieId, mode) {
   if (!session || !movieId) return;
   if (mode === 'tonight') {
     await setQuickTonight(movieId);
+    // La serata deve ESISTERE davvero (insert Supabase riuscito e presente in
+    // movieNights): se non risulta creata (es. failover a locale) la sessione
+    // NON si chiude e la UI NON mostra "Serata creata" — si resta sulla
+    // celebrazione e si può ritentare.
+    if (!activeNightForMovie(movieId)) {
+      console.warn('[sc(r)occhiaTu] Stasera: serata non creata — sessione Match lasciata aperta.');
+      return;
+    }
     await closeSession(session.id);
     const movie = resolveDeckMovie(movies, movieId);
     matchNightCreated = { movieId, title: movie ? movie.title : '' };
@@ -288,6 +296,15 @@ async function createMatchNight(movieId, mode) {
   }
   matchPendingSchedule = { sessionId: session.id, movieId };
   scheduleMovie(movieId);
+}
+
+// La modale di programmazione si è chiusa (annullo, X, backdrop, Esc oppure
+// conferma): il pending "Programma dal Match" NON deve sopravvivere, altrimenti
+// una programmazione dello stesso film dalla lista normale chiuderebbe la
+// sessione Match dal tab sbagliato. Guard typeof in modals.js (va in load
+// prima di match.js).
+function matchScheduleModalClosed() {
+  matchPendingSchedule = null;
 }
 
 // Chiamato da actions.confirmSchedule dopo che proposeNight è andato a buon

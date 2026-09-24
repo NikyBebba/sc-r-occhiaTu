@@ -18,6 +18,14 @@ function closeModal(id) {
   const el = document.getElementById(id);
   if (el) el.classList.add('hidden');
   modalStack = modalStack.filter(x => x !== id);
+  // Serata dal Match ("Programma"): alla chiusura del modale di programmazione
+  // (annullo, X, backdrop, Esc oppure conferma) il pending va azzerato — se
+  // restasse attivo, una programmazione dello stesso film dalla lista normale
+  // chiuderebbe la sessione Match dal tab sbagliato (e mostrerebbe
+  // "Serata creata" fuori dal Match). Guard typeof: modals.js precede match.js.
+  if (id === 'scheduleModal' && typeof matchScheduleModalClosed === 'function') {
+    matchScheduleModalClosed();
+  }
 }
 
 function modalStackTop() {
