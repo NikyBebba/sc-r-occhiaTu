@@ -174,7 +174,6 @@ body {
 .card-vetoed {
   opacity: 0.45;
 }
-
 /* Match badge */
 .match-yes { color: var(--color-match-si); }
 .match-no { color: var(--color-match-no); }
@@ -205,4 +204,161 @@ body {
 }
 .swipe-card img {
   pointer-events: none;
+}
+
+/* ---- STEP 1 · Phase 1.3 — Temi stagionali (SOLO token).
+   Definizione anticipata: basta impostare data-theme sull'elemento <html>
+   (es. <html data-theme="halloween">) per cambiare l'intera palette.
+   Oggi NESSUN selettore né JS applica questi temi: l'attivazione è prevista
+   nello Step 7 (Phase 34 Seasonal Polish). I valori sovrascrivono solo i
+   token semantici definiti su :root. ---- */
+
+[data-theme="halloween"] {
+  --color-sala: #0b0a14;
+  --color-superficie: #131020;
+  --color-vetro: rgba(19, 16, 32, 0.75);
+  --color-chip: #221b3a;
+  --color-bordo: #2b2347;
+  --color-bordo-forte: #3a2f5e;
+  --color-testo-1: #f6f2ff;
+  --color-testo-2: #d5cbe9;
+  --color-testo-3: #ab9dc9;
+  --color-testo-4: #8878a8;
+  --color-accento: #ea6a00;
+  --color-accento-alto: #fb923c;
+  --color-dettaglio: #fdba74;
+  --color-rosso: #dc2626;
+  --color-oro: #fbbf24;
+  --color-successo: #22c55e;
+  --color-cielo: #22d3ee;
+  --color-persona-n: #38bdf8;
+  --color-persona-v: #ec4899;
+  --color-persona-n-muto: rgba(56, 189, 248, 0.8);
+  --color-persona-v-muto: rgba(236, 72, 153, 0.8);
+  --color-match-si: #4ade80;
+  --color-match-no: #fb7185;
+  --color-accento-percorso: rgba(148, 88, 255, 0.4);
+  --gradiente-logo: linear-gradient(135deg, #fb923c, #a855f7);
+  --bordo-vetro: rgba(255, 255, 255, 0.08);
+  --overlay-modal: rgba(0, 0, 0, 0.75);
+}
+
+[data-theme="natale"] {
+  --color-sala: #07140f;
+  --color-superficie: #0c1e16;
+  --color-vetro: rgba(14, 34, 24, 0.75);
+  --color-chip: #123625;
+  --color-bordo: #17422c;
+  --color-bordo-forte: #1f573b;
+  --color-testo-1: #f3faf6;
+  --color-testo-2: #cfe7db;
+  --color-testo-3: #a3c5b5;
+  --color-testo-4: #7c9c8c;
+  --color-accento: #dc2626;
+  --color-accento-alto: #ef4444;
+  --color-dettaglio: #fca5a5;
+  --color-rosso: #b91c1c;
+  --color-oro: #fde047;
+  --color-successo: #16a34a;
+  --color-cielo: #2dd4bf;
+  --color-persona-n: #38bdf8;
+  --color-persona-v: #f472b6;
+  --color-persona-n-muto: rgba(56, 189, 248, 0.8);
+  --color-persona-v-muto: rgba(244, 114, 182, 0.8);
+  --color-match-si: #4ade80;
+  --color-match-no: #f87171;
+  --color-accento-percorso: rgba(220, 38, 38, 0.4);
+  --gradiente-logo: linear-gradient(135deg, #f87171, #fde047);
+  --bordo-vetro: rgba(255, 255, 255, 0.08);
+  --overlay-modal: rgba(0, 0, 0, 0.75);
+}
+
+[data-theme="primavera"] {
+  --color-sala: #100b1d;
+  --color-superficie: #171129;
+  --color-vetro: rgba(24, 17, 41, 0.75);
+  --color-chip: #241b3f;
+  --color-bordo: #2e2350;
+  --color-bordo-forte: #3d2f68;
+  --color-testo-1: #f7f2ff;
+  --color-testo-2: #d6cbea;
+  --color-testo-3: #ada3c4;
+  --color-testo-4: #867b99;
+  --color-accento: #8b5cf6;
+  --color-accento-alto: #a78bfa;
+  --color-dettaglio: #c4b5fd;
+  --color-rosso: #e11d48;
+  --color-oro: #fbbf24;
+  --color-successo: #10b981;
+  --color-cielo: #38bdf8;
+  --color-persona-n: #38bdf8;
+  --color-persona-v: #f472b6;
+  --color-persona-n-muto: rgba(56, 189, 248, 0.8);
+  --color-persona-v-muto: rgba(244, 114, 182, 0.8);
+  --color-match-si: #34d399;
+  --color-match-no: #fb7185;
+  --color-accento-percorso: rgba(139, 92, 246, 0.4);
+  --gradiente-logo: linear-gradient(135deg, #a78bfa, #f472b6);
+  --bordo-vetro: rgba(255, 255, 255, 0.08);
+  --overlay-modal: rgba(0, 0, 0, 0.72);
+}
+
+[data-theme="estate"] {
+  --color-sala: #030f1c;
+  --color-superficie: #071a2c;
+  --color-vetro: rgba(8, 27, 44, 0.75);
+  --color-chip: #0e2b45;
+  --color-bordo: #143857;
+  --color-bordo-forte: #1b466b;
+  --color-testo-1: #f0f8ff;
+  --color-testo-2: #cde3f5;
+  --color-testo-3: #a0bfd8;
+  --color-testo-4: #7993aa;
+  --color-accento: #0284c7;
+  --color-accento-alto: #0ea5e9;
+  --color-dettaglio: #38bdf8;
+  --color-rosso: #e11d48;
+  --color-oro: #fbbf24;
+  --color-successo: #059669;
+  --color-cielo: #38bdf8;
+  --color-persona-n: #38bdf8;
+  --color-persona-v: #f472b6;
+  --color-persona-n-muto: rgba(56, 189, 248, 0.8);
+  --color-persona-v-muto: rgba(244, 114, 182, 0.8);
+  --color-match-si: #34d399;
+  --color-match-no: #fb7185;
+  --color-accento-percorso: rgba(14, 165, 233, 0.4);
+  --gradiente-logo: linear-gradient(135deg, #0ea5e9, #38bdf8);
+  --bordo-vetro: rgba(255, 255, 255, 0.08);
+  --overlay-modal: rgba(2, 20, 35, 0.75);
+}
+
+[data-theme="autunno"] {
+  --color-sala: #150d09;
+  --color-superficie: #1e130d;
+  --color-vetro: rgba(30, 19, 13, 0.75);
+  --color-chip: #2e1b10;
+  --color-bordo: #3d2313;
+  --color-bordo-forte: #522d17;
+  --color-testo-1: #fdf4ee;
+  --color-testo-2: #e6d2c3;
+  --color-testo-3: #c2a58f;
+  --color-testo-4: #9c7f68;
+  --color-accento: #c2410c;
+  --color-accento-alto: #ea580c;
+  --color-dettaglio: #fb923c;
+  --color-rosso: #b91c1c;
+  --color-oro: #f59e0b;
+  --color-successo: #16a34a;
+  --color-cielo: #22d3ee;
+  --color-persona-n: #38bdf8;
+  --color-persona-v: #ec4899;
+  --color-persona-n-muto: rgba(56, 189, 248, 0.8);
+  --color-persona-v-muto: rgba(236, 72, 153, 0.8);
+  --color-match-si: #4ade80;
+  --color-match-no: #fb7185;
+  --color-accento-percorso: rgba(194, 65, 12, 0.4);
+  --gradiente-logo: linear-gradient(135deg, #ea580c, #f59e0b);
+  --bordo-vetro: rgba(255, 255, 255, 0.08);
+  --overlay-modal: rgba(0, 0, 0, 0.75);
 }
