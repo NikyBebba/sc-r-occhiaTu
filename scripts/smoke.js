@@ -522,21 +522,21 @@ async function okA(name, fn) {
 
   // --- 3b) api generi/durata: oggetti canned, nessuna rete ---
   console.log('\n[api — generi + durata (canned)]');
-  await okA('buildTmdbDetails (canned, niente imdb_id → nessuna rete) espone genres + mood + duration', runA(async () => {
+  await okA('buildTmdbDetails (canned, niente imdb_id → nessuna rete) espone genres + duration', runA(async () => {
     const d = await buildTmdbDetails({ id: 11, title: 'T', runtime: 92, genres: [{ id: 35, name: 'Commedia' }, { id: 18, name: 'Dramma' }], 'watch/providers': { results: {} }, videos: { results: [] } }, 'T');
-    return d.genres.join() === 'Commedia,Dramma' && d.genre === 'risata' && d.duration === '92 min';
+    return d.genres.join() === 'Commedia,Dramma' && d.duration === '92 min';
   }));
-  await okA('buildTmdbDetails (canned) senza runtime → duration null, genre null', runA(async () => {
+  await okA('buildTmdbDetails (canned) senza runtime → duration null, genres []', runA(async () => {
     const d = await buildTmdbDetails({ id: 12, title: 'T2', runtime: null, genres: [] }, 'T2');
-    return d.duration === null && d.genre === null && Array.isArray(d.genres) && d.genres.length === 0;
+    return d.duration === null && Array.isArray(d.genres) && d.genres.length === 0;
   }));
-  ok('omdbToDetails (canned): Genre "Drama, Comedy" → genres + mood + duration', run(() => {
+  ok('omdbToDetails (canned): Genre "Drama, Comedy" → genres + duration', run(() => {
     const d = omdbToDetails({ Title: 'OD', Runtime: '142 min', Genre: 'Drama, Comedy', Poster: 'N/A' }, 'OD');
-    return d.genres.join() === 'Drama,Comedy' && d.genre === 'risata' && d.duration === '142 min';
+    return d.genres.join() === 'Drama,Comedy' && d.duration === '142 min';
   }));
-  ok('omdbToDetails (canned): Runtime/Genre N/A → duration null, genre null', run(() => {
+  ok('omdbToDetails (canned): Runtime/Genre N/A → duration null, genres []', run(() => {
     const d = omdbToDetails({ Title: 'OD2', Runtime: 'N/A', Genre: 'N/A' }, 'OD2');
-    return d.duration === null && d.genre === null && d.genres.length === 0;
+    return d.duration === null && d.genres.length === 0;
   }));
 
   // --- 3c) api anno + regista: oggetti canned, nessuna rete (step 5b) ---

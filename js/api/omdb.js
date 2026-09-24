@@ -50,7 +50,7 @@ async function fetchOmdbByImdbId(imdbId) {
 }
 
 // Converte una risposta OMDb riuscita nell'oggetto dettagli usato dall'app.
-// chiavi: title, genres, genre, duration, platform, poster, trailerUrl,
+// chiavi: title, genres, duration, platform, poster, trailerUrl,
 // matched, tmdb_id, collection_id, collection_name, imdbRating, rtRating,
 // metacriticRating. duration restante null se Runtime è assente/N/A (mai il
 // vecchio segnaposto '120 min').
@@ -66,7 +66,6 @@ function omdbToDetails(omdbData, fallbackTitle) {
   return {
     title: omdbData.Title || fallbackTitle,
     genres: genreNames,
-    genre: genreNames.length ? moodFromGenreNames(genreNames) : null,
     duration: omdbData.Runtime && omdbData.Runtime !== 'N/A' ? omdbData.Runtime : null,
     release_year: releaseYear,
     director: omdbData.Director && omdbData.Director !== 'N/A' ? omdbData.Director : null,

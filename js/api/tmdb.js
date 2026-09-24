@@ -47,7 +47,6 @@ async function buildTmdbDetails(detail, fallbackTitle) {
   if (trailer) trailerUrl = `https://www.youtube.com/watch?v=${trailer.key}`;
 
   const omdbData = detail.imdb_id ? await fetchOmdbByImdbId(detail.imdb_id) : null;
-  const genreIds = (detail.genres || []).map(g => g.id);
   const genreNames = (detail.genres || []).map(g => g.name);
 
   // Step 5b — regista + anno: direttore/i dai credits (crew, job Director),
@@ -65,7 +64,6 @@ async function buildTmdbDetails(detail, fallbackTitle) {
     collection_id: detail.belongs_to_collection?.id ?? null,
     collection_name: detail.belongs_to_collection?.name || null,
     genres: genreNames,
-    genre: genreIds.length ? moodFromGenres(genreIds) : null,
     duration: detail.runtime ? `${detail.runtime} min` : null,
     release_year: releaseYear,
     director: directors.length ? directors.join(', ') : null,
@@ -89,7 +87,7 @@ async function fetchTmdbDetailsById(id) {
   } catch (err) {
     console.error('Errore dettaglio TMDb:', err);
     return {
-      tmdb_id: id, title: 'Errore', genres: [], genre: null, duration: null, platform: 'Streaming',
+      tmdb_id: id, title: 'Errore', genres: [], duration: null, platform: 'Streaming',
       poster: '', trailerUrl: '', matched: false,
       collection_id: null, collection_name: null, ...emptyRatings
     };
