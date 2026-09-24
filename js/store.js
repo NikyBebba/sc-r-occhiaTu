@@ -492,19 +492,22 @@ function nextMoviePick() {
 // ============================================
 // MATCH LIVE (step 6) — sessione di swipe condivisa N/V
 //
-// Canale DEDICATO e temporaneo ('scorochiatu-match-<seq>'), SEPARATO dal
-// canale del core (movies/votes/vetoes/movie_nights). Motivo: un guasto del
-// Match (tabella non pubblicata su Realtime, presence, CHANNEL_ERROR) non deve
-// mai trasformarsi in CHANNEL_ERROR del canale core. La sonda cold-start
-// verifica l'esistenza delle tabelle PRIMA di creare il canale; bindings
-// match+presence stanno SOLO su questo canale.
+// Canale PERSISTENTE e dedicato ('scorochiatu-match'), SEPARATO dal canale
+// del core (movies/votes/vetoes/movie_nights). Motivo: un guasto del Match
+// (tabella non pubblicata su Realtime, presence, CHANNEL_ERROR) non deve mai
+// trasformarsi in CHANNEL_ERROR del canale core. La sonda cold-start verifica
+// l'esistenza delle tabelle PRIMA di creare il canale; bindings match+presence
+// stanno SOLO su questo canale.
 //
-// Nome univoco per entrata: supabase-js 2.x deduplica i canali per topic in
-// getChannels() e removeChannel() NON rimuove l'istanza (fa unsubscribe +
-// teardown con bindings=[]), quindi riusare lo stesso nome restituirebbe
-// l'istanza vecchia. Con 'scorochiatu-match-<seq>' ogni entrata crea un canale
-// NUOVO con i binding registrati SEMPRE prima di .subscribe() (dopo subscribe
-// .on('presence'/'postgres_changes') lancia).
+// Il topic è una COSTANTE identica per tutti i client: presence e
+// postgres_changes sono per-topic, quindi due client su topic diversi
+// ('scorochiatu-match-<seq>-localesufix' dell'implementazione precedente) non
+// si vedrebbero MAI. Il canale si crea UNA sola volta alla prima entrata, con
+// tutti i binding registrati PRIMA di .subscribe(). Uscire dal tab NON lo
+// rimuove (resta SUBSCRIBED): si fa solo untrack() della propria presence e al
+// rientro un nuovo track() + refetch. Una ricreazione avviene SOLO
+// dopo rimozione VERIFICATA (sb.getChannels() senza più il topic): mai due
+// canali sullo stesso topic in parallelo.
 //
 // Lo swipe NON scrive su votes/vetoes: vive solo sulla sessione.
 // Il resync segue SEMPRE l'ultima sessione per created_at, mai un id fisso.
@@ -513,10 +516,10 @@ function nextMoviePick() {
 let matchAvailable = false;          // abilitato solo se le tabelle esistono (sonda)
 let swipeSessions = [];              // sessioni di swipe (ultima sessione letta)
 let swipes = [];                     // swipe della sessione corrente
-let matchChannel = null;             // canale 'scorochiatu-match-<seq>' (separato dal core)
+let matchChannel = null;             // canale PERSISTENTE 'scorochiatu-match' (separato dal core)
 let matchResyncTimer = null;
 let lobbyPresenceState = [];         // persone presenti nella lobby (una key per persona)
-let matchChannelSeq = 0;             // nome univoco del canale per entrata
+const MATCH_TOPIC = 'scorochiatu-match'; // topic COSTANTE, identico tra N e V (mai suffisso locale)
 let matchProbeDone = false;          // sonda cold-start: una volta per sessione app
 let matchLeaving = false;            // chiusura intenzionale (leave/logout)
 let matchUnavailableWarnedAt = 0;    // warning "Match non disponibile" una tantum (60s)
@@ -768,11 +771,13 @@ async function resyncMatchQuiet() {
 }
 
 // Debounce proprio (120ms) per il Match: MAI onDbChange/dataSignature/render()
-// globale — il canale Match è isolato dal core.
+// globale — il canale Match è isolato dal core. Fuori dal tab non si leggono
+// dati (il rientro fa un refetch fresco in openMatchChannel).
 function onMatchChange() {
   if (matchResyncTimer) return;
   matchResyncTimer = setTimeout(async () => {
     matchResyncTimer = null;
+    if (currentTab !== 'match') return;
     try {
       await resyncMatchQuiet();
     } catch (e) {
@@ -788,19 +793,33 @@ function presenceUsers(state) {
   return Object.keys(state || {}).filter(k => k && k !== '');
 }
 
-function onPresenceChange() {
+// Legge la presence del topic AGORA' — shape di presenceState() == { N:[...], V:[...] },
+// con presenceUsers() sulle chiavi. Agganciata agli eventi (sync/join/leave)
+// MA anche al refresh esplicito dopo SUBSCRIBED + track: mai affidarla solo
+// all'evento (su supabase-js 2.x un binding 'presence' con filtro {} non è
+// garantito che fuochi) e mai svuotarla dopo un sync.
+function refreshLobbyPresence() {
   if (!matchChannel) return;
   try {
-    lobbyPresenceState = presenceUsers(matchChannel.presenceState());
-    renderMatchArea();
+    const st = typeof matchChannel.presenceState === 'function'
+      ? matchChannel.presenceState()
+      : {};
+    lobbyPresenceState = presenceUsers(st);
   } catch (e) {
     warnMatch('presence: ' + e.message);
   }
 }
 
+// Canale PERSISTENTE: gli eventi presence arrivano anche da tab non attivo.
+// Aggiornano SEMPRE lobbyPresenceState, ma il render avviene solo nel Match.
+function onPresenceChange() {
+  refreshLobbyPresence();
+  if (currentTab === 'match') renderMatchArea();
+}
+
 function trackLobbyPresence(user) {
-  if (!matchChannel || !user) return;
-  Promise.resolve(matchChannel.track({ user })).catch(() => {});
+  if (!matchChannel || !user) return Promise.resolve();
+  return Promise.resolve(matchChannel.track({ user })).catch(() => {});
 }
 
 function untrackLobbyPresence() {
@@ -808,36 +827,63 @@ function untrackLobbyPresence() {
   lobbyPresenceState = [];
 }
 
-// ---- Canale 'scorochiatu-match-<seq>' ----
-function matchChannelName() {
-  matchChannelSeq += 1;
-  return 'scorochiatu-match-' + matchChannelSeq;
-}
-
-function teardownMatchChannel(channel) {
+// Rimozione del canale con VERIFICA: prima si stacca matchChannel (mai più
+// callback su un'istanza morta), poi removeChannel; il controllo su
+// sb.getChannels() spetta alla ricreazione in openMatchChannel (niente topic
+// doppi). Se il Match non era disponibile, azzera la sonda per la prossima.
+function removeMatchChannel(channel) {
+  if (matchChannel === channel) matchChannel = null;
   if (sb && channel) {
     try { sb.removeChannel(channel); } catch (e) {}
   }
-  if (matchChannel === channel) matchChannel = null;
   matchLeaving = false;
   lobbyPresenceState = [];
   matchChannelStatus = null;
 }
 
-// Crea il canale col NOME UNIVOCO di questa entrata e TUTTI i binding
-// (postgres_changes su swipe_sessions+swipes, presence sync) PRIMA di
-// .subscribe(). track() solo dopo SUBSCRIBED; dopo SUBSCRIBED si rifà un
-// fetchLatestMatchState() per non perdere gli eventi accaduti tra la lettura
-// iniziale e l'aggancio. CHANNEL_ERROR/TIMED_OUT/CLOSED inatteso → Match
-// degradato (matchAvailable=false) SENZA toccare il canale core.
+// Apre (o riusa) il canale PERSISTENTE sul topic COSTANTE 'scorochiatu-match'.
+// TUTTI i binding (postgres_changes su swipe_sessions+swipes, presence
+// sync/join/leave) sono registrati PRIMA di .subscribe(). Nessun suffisso
+// locale: N e V condividono lo stesso topic → presence e postgres_changes si
+// vedono. Uscita dal tab = untrack() (leaveMatch) SENZA rimuovere il canale;
+// rientro = track() + refetch dello stato. La ricreazione avviene SOLO dopo
+// rimozione VERIFICATA (getChannels() senza il topic) — mai istanze parallele.
 function openMatchChannel() {
-  if (!sb || matchChannel || !matchAvailable) return null;
-  const topic = matchChannelName();
+  if (!sb || !matchAvailable) return null;
+  if (matchChannel) {
+    // Già creato: L'OBIETTIVO del rientro è riallacciare presence e stato,
+    // non ricreare il canale (evita il topic duplicato per definizione).
+    if (matchChannelStatus === 'subscribed') {
+      const ch = matchChannel;
+      trackLobbyPresence(currentUser).then(() => {
+        if (matchChannel === ch && matchChannelStatus === 'subscribed') refreshLobbyPresence();
+      });
+      refreshLobbyPresence();
+      setTimeout(() => {
+        if (matchChannel === ch && matchChannelStatus === 'subscribed') refreshLobbyPresence();
+      }, 60);
+      fetchLatestMatchState().then(state => {
+        if (matchChannel === ch && matchChannelStatus === 'subscribed' && state) {
+          applyMatchState(state);
+          if (currentTab === 'match') renderMatchArea();
+        }
+      });
+    }
+    return matchChannel;
+  }
+  // Sicurezza: prima di creare, rimuove eventuali residui dello stesso topic
+  // (mai due istanze sullo stesso nome in getChannels()).
+  if (sb && typeof sb.getChannels === 'function') {
+    const leftovers = sb.getChannels().filter(c => c && c.name === MATCH_TOPIC);
+    leftovers.forEach(c => { try { sb.removeChannel(c); } catch (e) {} });
+  }
   const channel = sb
-    .channel(topic, { config: { presence: { key: currentUser } } })
+    .channel(MATCH_TOPIC, { config: { presence: { key: currentUser } } })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'swipe_sessions' }, onMatchChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'swipes' }, onMatchChange)
-    .on('presence', {}, onPresenceChange);
+    .on('presence', { event: 'sync' }, onPresenceChange)
+    .on('presence', { event: 'join' }, onPresenceChange)
+    .on('presence', { event: 'leave' }, onPresenceChange);
   matchLeaving = false;
   let failureHandled = false;
   matchChannelStatus = 'connecting';
@@ -845,11 +891,21 @@ function openMatchChannel() {
     if (status === 'SUBSCRIBED') {
       matchLeaving = false;
       matchChannelStatus = 'subscribed';
-      trackLobbyPresence(currentUser);
+      trackLobbyPresence(currentUser).then(() => {
+        if (matchChannel === channel && matchChannelStatus === 'subscribed') refreshLobbyPresence();
+      });
+      // Presence popolata DA SUBITO e di nuovo a track completato: non ci si
+      // affida solo all'evento sync/join (filtro presence garantito).
+      refreshLobbyPresence();
+      setTimeout(() => {
+        if (matchChannel === channel && matchChannelStatus === 'subscribed') refreshLobbyPresence();
+      }, 60);
+      // Refetch dello stato: non si perdono gli eventi tra la lettura
+      // iniziale (ensureActiveSession) e l'aggancio al canale.
       fetchLatestMatchState().then(state => {
-        if (matchChannel === channel && state) {
+        if (matchChannel === channel && matchChannelStatus === 'subscribed' && state) {
           applyMatchState(state);
-          renderMatchArea();
+          if (currentTab === 'match') renderMatchArea();
         }
       });
       return;
@@ -860,28 +916,22 @@ function openMatchChannel() {
     matchAvailable = false;
     matchChannelStatus = 'error';
     warnMatch('canale non disponibile (' + status + '): ' + (err ? err.message : ''));
-    setTimeout(() => teardownMatchChannel(channel), 0);
+    setTimeout(() => removeMatchChannel(channel), 0);
     renderMatchArea();
   });
   return matchChannel;
 }
 
-// Uscita dal Match: rimuove il canale (chiusura intenzionale, CLOSED inatteso
-// escluso dal flag matchLeaving). Al rientro enterMatch() crea un canale nuovo.
-// Se il Match era NON disponibile (sonda fallita / canale in errore), azzera
-// matchProbeDone così la sonda viene RILEGGIATA al prossimo ingresso.
-function leaveMatch() {
-  matchLeaving = true;
+// Uscita dal Match. Dal TAB: il canale PERSISTENTE resta aperto e SUBSCRIBED
+// (unico per topic) — si rimuove SOLO la propria presence (untrack: l'altro
+// cliente vede il leave) e si azzerano vista e lobby; al rientro openMatchChannel
+// rifà il track + refetch. Con full=true (logout) il canale viene anche
+// RIMOSSO con verifica. Se il Match era non disponibile (sonda/canale in
+// errore), la sonda viene riletta al prossimo ingresso.
+function leaveMatch(full) {
   untrackLobbyPresence();
-  if (matchChannel && sb) {
-    const ch = matchChannel;
-    matchChannel = null;
-    try { sb.removeChannel(ch); } catch (e) {}
-  } else {
-    matchLeaving = false;
-  }
   lobbyPresenceState = [];
-  matchChannelStatus = null;
+  if (full && matchChannel && sb) removeMatchChannel(matchChannel);
   if (!matchAvailable) matchProbeDone = false;
 }
 

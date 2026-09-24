@@ -1758,6 +1758,18 @@ async function okA(name, fn) {
         gets: [], inserts: 0, inserted: [], upserts: [],
         updates: [], removes: 0, removed: [], channels: [], tracks: 0, trackPayloads: []
       };
+      // Registro presence PER-TOPIC. Con seed.hub condiviso tra più mock si
+      // simula il WEBSOCKET REALE: N e V iscritti allo STESSO topic vedono gli
+      // stessi pezzi (come su un topic Realtime vero); topic diversi = regioni
+      // diverse (i due client non si vedono). Questo è il punto che lo smoke
+      // PRECEDENTE non simulava (mock statico senza separazione per-topic).
+      const hub = (seed && seed.hub) ? seed.hub : null;
+      const ownRegions = {};
+      const regionOf = topic => {
+        const base = hub ? (hub.presence || (hub.presence = {})) : ownRegions;
+        return (base[topic] || (base[topic] = {}));
+      };
+      const liveChannels = [];
       const failInsert = seed ? seed.failInsert : null;
       const slowProbe  = !!(seed && seed.slowProbe);
       const pref = { swipe_sessions: 'sess', swipes: 'sw', movies: 'mov', movie_nights: 'night' };
@@ -1831,19 +1843,61 @@ async function okA(name, fn) {
       return {
         from,
         channel(name, opts) {
+          const pkey = (opts && opts.config && opts.config.presence && opts.config.presence.key) || null;
           const ch = {
             name, opts: opts || {}, bindings: [],
             on(ev, filterOrCb, cb) { this.bindings.push({ ev, filter: filterOrCb, cb }); return this; },
-            subscribe(cb) { this.statusCb = cb; calls.channels.push({ name: this.name, bindingsAtSubscribe: this.bindings.length, ch: this }); return this; },
-            track(p) { calls.tracks++; calls.trackPayloads.push(Object.assign({}, p)); return Promise.resolve('ok'); },
-            untrack() { calls.tracks--; return Promise.resolve('ok'); },
-            presenceState() { return { N: [{ user: 'N' }], V: [{ user: 'V' }] }; },
+            subscribe(cb) {
+              this.statusCb = cb;
+              liveChannels.push(this);
+              calls.channels.push({ name: this.name, bindingsAtSubscribe: this.bindings.length, ch: this });
+              return this;
+            },
+            track(p) {
+              calls.tracks++; calls.trackPayloads.push(Object.assign({}, p));
+              const region = regionOf(this.name);
+              const key = pkey || (p && p.user) || 'anon';
+              if (!region[key]) region[key] = [];
+              region[key].push(Object.assign({ user: p && p.user, tracked_at: new Date().toISOString() }, p));
+              return Promise.resolve('ok');
+            },
+            untrack() {
+              calls.tracks--;
+              const region = regionOf(this.name);
+              if (pkey && region[pkey]) delete region[pkey];
+              return Promise.resolve('ok');
+            },
+            presenceState() {
+              const region = regionOf(this.name);
+              const out = {};
+              Object.keys(region).forEach(k => out[k] = region[k].slice());
+              return out;
+            },
+            // Simula un evento presence ARRIVATO dal websocket: fuoca i binding
+            // presence (sync/join/leave) con lo snapshot corrente del topic.
+            firePresence(kind) {
+              const region = regionOf(this.name);
+              const snap = {};
+              Object.keys(region).forEach(k => snap[k] = region[k].slice());
+              this.bindings.filter(b => b.ev === 'presence').forEach(b => {
+                if (kind && b.filter && b.filter.event && b.filter.event !== kind) return;
+                b.cb({ event: kind || 'sync', key: pkey, currentPresences: snap, newPresences: [] });
+              });
+            },
             fire(status, err) { if (this.statusCb) this.statusCb(status, err); }
           };
           return ch;
         },
-        removeChannel(ch) { calls.removes++; calls.removed.push(ch ? ch.name : null); if (ch) ch.removed = true; return Promise.resolve('ok'); },
-        getChannels() { return []; },
+        removeChannel(ch) {
+          calls.removes++; calls.removed.push(ch ? ch.name : null);
+          if (ch) {
+            ch.removed = true;
+            const i = liveChannels.indexOf(ch);
+            if (i >= 0) liveChannels.splice(i, 1);
+          }
+          return Promise.resolve('ok');
+        },
+        getChannels() { return liveChannels.slice(); },
         __calls: () => calls,
         __sessions: () => root.swipe_sessions,
         __swipes: () => root.swipes,
@@ -1853,7 +1907,7 @@ async function okA(name, fn) {
     function __matchSnap() {
       return { sb, dbMode, currentUser, movies, vetoes, movieNights,
         matchAvailable, swipeSessions, swipes, matchChannel, matchResyncTimer,
-        matchProbeDone, matchChannelSeq, matchLeaving, matchUnavailableWarnedAt,
+        matchProbeDone, matchLeaving, matchUnavailableWarnedAt,
         matchProbeTimeoutMs, lobbyPresenceState, realtimeChannel,
         matchChannelStatus, currentTab, matchPrevTab, matchDragging,
         matchPendingRender, matchNightCreated, matchPendingSchedule, matchExitTimer,
@@ -1864,7 +1918,7 @@ async function okA(name, fn) {
       vetoes = p.vetoes; movieNights = p.movieNights;
       matchAvailable = p.matchAvailable; swipeSessions = p.swipeSessions; swipes = p.swipes;
       matchChannel = p.matchChannel; matchResyncTimer = p.matchResyncTimer;
-      matchProbeDone = p.matchProbeDone; matchChannelSeq = p.matchChannelSeq;
+      matchProbeDone = p.matchProbeDone;
       matchLeaving = p.matchLeaving; matchUnavailableWarnedAt = p.matchUnavailableWarnedAt;
       matchProbeTimeoutMs = p.matchProbeTimeoutMs; lobbyPresenceState = p.lobbyPresenceState;
       realtimeChannel = p.realtimeChannel;
@@ -2105,49 +2159,56 @@ async function okA(name, fn) {
       const entry = m.channels.find(c => !c.ch.name.startsWith('scorochiatu-db-changes'));
       if (!entry) return false;
       const bindingsBefore = entry.bindingsAtSubscribe;
+      const topic = entry.ch.name;
       const matchTables = entry.ch.bindings.filter(b => b.ev === 'postgres_changes').map(b => b.filter.table).join();
+      const presenceBindings = entry.ch.bindings.filter(b => b.ev === 'presence').length;
       entry.ch.fire('CHANNEL_ERROR', Error('boom'));
       await new Promise(r => setTimeout(r, 20));
-      const removedMatch = m.removed.indexOf(entry.ch.name) !== -1;
-      return bindingsBefore === 3
+      const removedMatch = m.removed.indexOf(topic) !== -1;
+      const matchGone = mock.getChannels().filter(c => c.name === 'scorochiatu-match').length === 0;
+      const coreKept = mock.getChannels().filter(c => c.name === coreName).length === 1;
+      return topic === 'scorochiatu-match'
+        && bindingsBefore === 5
         && matchTables === 'swipe_sessions,swipes'
+        && presenceBindings === 3
         && entry.ch.bindings.some(b => b.ev === 'presence')
         && matchAvailable === false && matchChannel === null
-        && removedMatch
+        && removedMatch && matchGone && coreKept
         && realtimeChannel !== null && realtimeChannel.name === coreName;
     } finally { __matchRestore(p); }
   }));
 
-  await okA('logout: removeChannel; rientro → canale NUOVO con binding prima di subscribe', runA(async () => {
+  await okA('logout: rimozione canale VERIFICATA (getChannels vuoto); rientro → canale NUOVO stesso topic, binding prima di subscribe', runA(async () => {
     const p = __matchSnap();
     const mock = mockMatchSb({});
     sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
-    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false; matchChannelSeq = 0;
+    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false;
     try {
       openMatchChannel();
       const m = mock.__calls();
       const first = m.channels[0];
       const firstBindings = first.ch.bindings.length;
-      logout(); // → unsubscribeRealtime (noop) + leaveMatch + sessionStorage + reload
-      const removedAfterLogout = m.removed.indexOf(first.ch.name) !== -1 && matchChannel === null && currentUser === null;
+      logout(); // → unsubscribeRealtime (noop) + leaveMatch(true): rimozione COMPLETA
+      const removedAfterLogout = m.removed.indexOf('scorochiatu-match') !== -1
+        && matchChannel === null && currentUser === null && mock.getChannels().length === 0;
       currentUser = 'N';
-      await enterMatch(); // rientro: nuovo canale (seq incrementata)
+      await enterMatch(); // rientro: la sonda è già passata (matchProbeDone=true)
       const second = m.channels[1];
-      return firstBindings === 3
+      return firstBindings === 5
         && removedAfterLogout && first.ch.removed === true
-        && second && second.ch.name !== first.ch.name
-        && second.bindingsAtSubscribe === 3
-        && m.channels[0].ch.name === 'scorochiatu-match-1'
-        && second.ch.name === 'scorochiatu-match-2';
+        && second && second.ch.name === 'scorochiatu-match'         // topic COSTANTE, non -1/-2
+        && second.ch.name === first.ch.name
+        && second.ch !== first.ch
+        && second.bindingsAtSubscribe === 5;
     } finally { __matchRestore(p); }
-  }));;
+  }));
 
   await okA('track solo dopo SUBSCRIBED; dopo SUBSCRIBED refetch dell\'ultima sessione', runA(async () => {
     const p = __matchSnap();
     const mock = mockMatchSb({ sessions: [{ id: 's-before', status: 'open', created_at: new Date(Date.now() - 1000).toISOString(), deck: [] }] });
     sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
     swipeSessions = [{ id: 's-before', status: 'open', created_at: new Date(Date.now() - 1000).toISOString(), deck: [] }];
-    swipes = []; matchChannel = null; matchLeaving = false; matchChannelSeq = 0;
+    swipes = []; matchChannel = null; matchLeaving = false;
     try {
       openMatchChannel();
       const m = mock.__calls();
@@ -2168,12 +2229,18 @@ async function okA(name, fn) {
     const mock = mockMatchSb({ sessions: [{ id: 's-d', status: 'open', created_at: new Date().toISOString(), deck: [] }] });
     sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
     swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false; matchResyncTimer = null;
+    currentTab = 'match'; // il canale è persistente: fuori dal tab il resync NON parte
     try {
       for (let i = 0; i < 5; i++) onMatchChange();
       await new Promise(r => setTimeout(r, 250));
       // un resync = GET sessioni + GET swipe = 2 letture, non 5
       const gets = mock.__calls().gets.length;
-      return gets === 2;
+      currentTab = 'watchlist';
+      onMatchChange();
+      await new Promise(r => setTimeout(r, 150));
+      // fuori dal tab: nessuna lettura aggiuntiva (il rientro rifarà il refetch)
+      const getsAfter = mock.__calls().gets.length;
+      return gets === 2 && getsAfter === 2;
     } finally { __matchRestore(p); }
   }));
 
@@ -2182,6 +2249,105 @@ async function okA(name, fn) {
     const b = presenceUsers(null);
     const c = presenceUsers({});
     return a.join() === 'N,V' && b.length === 0 && c.length === 0;
+  }));
+
+  // --- 8b2) REGRESSIONE topic/presence (commit fix: topic COSTANTE 'scorochiatu-match') ---
+  // Il mock PRECEDENTE non simulava la separazione per-topic: presenceState()
+  // era statico {N,V} per qualunque canale, quindi un canale NUOVO col suffisso
+  // '-<seq>' risultava comunque "compatibile". Qui l'hub condiviso (per-topic,
+  // condiviso tra "client" == websocket reale) riproduce il bug: topic diversi
+  // = regioni diverse = i client non si vedono. Il topic DOPO il fix è identico.
+  console.log('\n[match — topic costante + presence per-topic (regressione)]');
+
+  await okA('topic COSTANTE: identico dopo 3 cicli entrata/uscita e tra due client (hub condiviso)', runA(async () => {
+    const p = __matchSnap();
+    const hub = { presence: {} };
+    const mock = mockMatchSb({ hub, sessions: [], movies: [] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false; matchChannelStatus = null;
+    const vMock = mockMatchSb({ hub, sessions: [], movies: [] });
+    const vCh = vMock.channel('scorochiatu-match', { config: { presence: { key: 'V' } } });
+    try {
+      openMatchChannel();                    // entrata 1 (creazione)
+      const ch1 = matchChannel;
+      ch1.fire('SUBSCRIBED');
+      await new Promise(r => setTimeout(r, 10));
+      leaveMatch();                          // uscita: untrack, il canale RESTA
+      openMatchChannel();                    // rientro 1 (track + refetch)
+      openMatchChannel();                    // rientro 2
+      openMatchChannel();                    // rientro 3
+      await new Promise(r => setTimeout(r, 10));
+      const m = mock.__calls();
+      return m.channels.length === 1         // MAI ricreato (unico per topic)
+        && m.channels[0].ch.name === 'scorochiatu-match'           // nessun suffisso
+        && matchChannel === ch1              // stessa istanza PERSISTENTE
+        && vCh.name === 'scorochiatu-match'  // topic identico tra N e V
+        && m.tracks === 3;                   // 1 untrack (uscita) + 1 track per ciascuno dei 3 rientri
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('due client STESSO topic → presente entrambi; topic DIVERSI (suffisso) → non si vedono', run(() => {
+    const p = __matchSnap();
+    const hub = { presence: {} };
+    const mock = mockMatchSb({ hub, sessions: [], movies: [] });
+    const vMock = mockMatchSb({ hub, sessions: [], movies: [] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false; matchChannelStatus = null;
+    try {
+      openMatchChannel();
+      const nCh = matchChannel;
+      nCh.fire('SUBSCRIBED');
+      // V sullo STESSO topic 'scorochiatu-match' (mock separato, hub condiviso)
+      const vch = vMock.channel('scorochiatu-match', { config: { presence: { key: 'V' } } }).subscribe(() => {});
+      vch.track({ user: 'V' });
+      nCh.firePresence('sync');
+      const sameTopic = lobbyPresenceState.slice().sort().join() === 'N,V';
+      // V lascia il topic ufficiale e si sposta su un topic DIVERSO (= suffisso)
+      vch.untrack();
+      vMock.channel('scorochiatu-match-alt', { config: { presence: { key: 'V' } } })
+        .subscribe(() => {}).track({ user: 'V' });
+      nCh.firePresence('leave');
+      const differentTopic = lobbyPresenceState.join() === 'N';
+      return sameTopic && differentTopic;
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('solo N online: lobby con un solo chip e vista LOBBY_SOLO "In attesa di V"', run(() => {
+    const p = __matchSnap();
+    const hub = { presence: {} };
+    const mock = mockMatchSb({ hub, sessions: [], movies: [] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false; matchChannelStatus = null;
+    try {
+      openMatchChannel();
+      const nCh = matchChannel;
+      nCh.fire('SUBSCRIBED');
+      const solo = lobbyPresenceState.join() === 'N';
+      __matchUI({ presence: ['N'], sessions: [{ id: 'sS', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }], movies: [{ id: 'ma', title: 'M' }] });
+      const html = matchViewHtml();
+      return solo && html.indexOf('Chi c\'è?') !== -1 && /In attesa di V/.test(html);
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('uscita e rientro: canale UNICO (nessuna ricreazione) e track esattamente una volta per rientro', run(() => {
+    const p = __matchSnap();
+    const mock = mockMatchSb({ sessions: [], movies: [] });
+    sb = mock; dbMode = 'supabase'; currentUser = 'N'; matchAvailable = true; matchProbeDone = true;
+    swipeSessions = []; swipes = []; matchChannel = null; matchLeaving = false; matchChannelStatus = null;
+    try {
+      openMatchChannel();
+      const ch1 = matchChannel;
+      ch1.fire('SUBSCRIBED');
+      const tracksBefore = mock.__calls().tracks;           // 1
+      leaveMatch();                                          // untrack → 0
+      const tracksAfterLeave = mock.__calls().tracks;        // 0
+      openMatchChannel();
+      const tracksAfterReentry = mock.__calls().tracks;      // 1 (un solo track)
+      return matchChannel === ch1
+        && mock.__calls().channels.length === 1
+        && mock.__calls().removed.length === 0               // mai rimossi (persistente)
+        && tracksBefore === 1 && tracksAfterLeave === 0 && tracksAfterReentry === 1;
+    } finally { __matchRestore(p); }
   }));
 
   // --- 8c) match — UI (lobby, swipe, match, done, serata dal match) ---
@@ -2510,36 +2676,47 @@ async function okA(name, fn) {
     } finally { __matchRestore(p); }
   }));
 
-  await okA('setTab(match): entra e render; uscita verso altro tab chiude SOLO il canale; prevTab salvato', runA(async () => {
+  await okA('setTab(match): entra e render; uscita verso altro tab RIMUOVE SOLO la presence (canale persistente resta); rientro = track + same topic', runA(async () => {
     const p = __matchSnap();
     const S = { id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] };
-    const mock = mockMatchSb({ sessions: [S], movies: [{ id: 'ma', title: 'M' }] });
+    const hub = { presence: {} };
+    const mock = mockMatchSb({ sessions: [S], movies: [{ id: 'ma', title: 'M' }], hub });
     sb = mock; dbMode = 'supabase';
     __matchUI({});
     currentTab = 'watchlist'; matchPrevTab = 'watchlist';
     swipeSessions = [S]; swipes = []; movies = [{ id: 'ma', title: 'M' }];
-    matchChannel = null; matchChannelSeq = 0; matchChannelStatus = null; matchLeaving = false;
+    matchChannel = null; matchChannelStatus = null; matchLeaving = false;
     realtimeChannel = null;
     try {
       setTab('match');
       await new Promise(r => setTimeout(r, 30));
+      const ch1 = matchChannel;
       const entered = currentTab === 'match' && matchPrevTab === 'watchlist'
-        && matchChannel && matchChannelStatus === 'connecting'
+        && ch1 && ch1.name === 'scorochiatu-match' && matchChannelStatus === 'connecting'
         && document.getElementById('movieGrid').innerHTML.indexOf('Connessione…') !== -1;
-      // subscribed → presence → swipe (LOBBY_DUE auto-start)
-      matchChannel.fire('SUBSCRIBED');
+      // subscribed → presence (N) + V che entra sullo STESSO topic (hub) → LOBBY_DUE
+      ch1.fire('SUBSCRIBED');
       await new Promise(r => setTimeout(r, 30));
-      matchChannel.bindings.filter(b => b.ev === 'presence').forEach(b => b.cb());
+      const vMock = mockMatchSb({ hub, sessions: [], movies: [] });
+      await vMock.channel('scorochiatu-match', { config: { presence: { key: 'V' } } })
+        .subscribe(() => {}).track({ user: 'V' });
+      ch1.firePresence('sync');   // l'evento presence arriva a N dallo stesso topic
       await new Promise(r => setTimeout(r, 10));
       const swipeView = document.getElementById('movieGrid').innerHTML.indexOf('Nope') !== -1;
+      const lobbyDue = lobbyPresenceState.join() === 'N,V';
+      // uscita: UNTRACK SOLO — il canale resta aperto e SUBSCRIBED (stesso istanza)
       setTab('calendar');
-      const left = currentTab === 'calendar' && matchChannel === null && matchChannelStatus === null;
-      const removedName = mock.__calls().removed.indexOf('scorochiatu-match-1') !== -1;
-      // rientro da calendar → prevTab aggiornato a calendar
+      const left = currentTab === 'calendar'
+        && matchChannel === ch1 && matchChannelStatus === 'subscribed'
+        && mock.__calls().removed.indexOf('scorochiatu-match') === -1
+        && lobbyPresenceState.length === 0;
+      // rientro: nessun canale nuovo (unico per topic), un TRACK in più
       setTab('match');
       await new Promise(r => setTimeout(r, 30));
-      const reentered = matchPrevTab === 'calendar' && currentTab === 'match';
-      return entered && swipeView && left && removedName && reentered;
+      const reentered = matchPrevTab === 'calendar' && currentTab === 'match'
+        && matchChannel === ch1
+        && mock.__calls().channels.length === 1;
+      return entered && swipeView && lobbyDue && left && reentered;
     } finally { __matchRestore(p); }
   }));
 
@@ -2577,7 +2754,7 @@ async function okA(name, fn) {
   ok('logout chiude il canale del Match senza toccare setTab/currentTab', run(() => {
     const p = __matchSnap();
     const mock = mockMatchSb({});
-    const ch = mock.channel('scorochiatu-match-1', {});
+    const ch = mock.channel('scorochiatu-match', {});
     sb = mock; dbMode = 'supabase';
     __matchUI({});
     currentUser = 'N'; matchChannel = ch; matchChannelStatus = 'subscribed'; currentTab = 'match';
@@ -2586,7 +2763,7 @@ async function okA(name, fn) {
       return currentTab === 'match'                     // logout NON chiama setTab
         && currentUser === null
         && matchChannel === null && matchChannelStatus === null
-        && mock.__calls().removed.indexOf('scorochiatu-match-1') !== -1;
+        && mock.__calls().removed.indexOf('scorochiatu-match') !== -1;   // topic costante
     } finally { __matchRestore(p); }
   }));
 

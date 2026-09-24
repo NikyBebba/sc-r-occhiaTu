@@ -32,8 +32,9 @@ function setTab(tab) {
     render();
     return;
   }
-  // Uscendo dal Match (qualsiasi altro tab): chiude SOLO il canale dello store
-  // (leaveMatch) — la sessione resta attiva, premere di nuovo Match la riprende.
+  // Uscendo dal Match (qualsiasi altro tab): leaveMatch fa SOLO untrack della
+  // presence (il canale PERSISTENTE resta aperto e SUBSCRIBED — al rientro un
+  // nuovo track + refetch). La sessione resta attiva, premere Match la riprende.
   if (currentTab === 'match') {
     clearMatchState();
     leaveMatch();

@@ -54,7 +54,7 @@ function submitPin() {
 
 function logout() {
   unsubscribeRealtime();
-  leaveMatch();
+  leaveMatch(true);   // logout = rimozione COMPLETA del canale Match (persistente solo tra tab)
   sessionStorage.removeItem('scorochiatu_user');
   currentUser = null;
   location.reload();
