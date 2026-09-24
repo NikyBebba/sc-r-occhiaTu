@@ -348,6 +348,120 @@ async function okA(name, fn) {
     const b = await addVeto('N', movies[1].id);
     return a === true && b === false && vetoUsedThisWeek('N') === true && vetoedMovieIdsThisWeek().includes(movies[0].id);
   }));
+  await okA('vetoForMovieThisWeek: solo la settimana corrente (niente passato)', runA(async () => {
+    const prevV = vetoes, prevLS = localStorage.getItem('scorochiatu_vetoes');
+    vetoes = [
+      ...(prevV || []),
+      { id: 'past-veto', person: 'N', movie_id: 'xyz-movie', week_key: '2020-W01' }
+    ];
+    localStorage.removeItem('scorochiatu_vetoes');
+    try {
+      const currentV = vetoForMovieThisWeek(movies[0].id);
+      const pastV = vetoForMovieThisWeek('xyz-movie');
+      const missing = vetoForMovieThisWeek('id-missing');
+      return currentV !== null && currentV.person === 'N' && pastV === null && missing === null;
+    } finally {
+      vetoes = prevV;
+      if (prevLS === null) localStorage.removeItem('scorochiatu_vetoes');
+      else localStorage.setItem('scorochiatu_vetoes', prevLS);
+    }
+  }));
+  await okA('removeVeto: solo il proprietario, id mancanti no-op, slot liberato', runA(async () => {
+    const wk = currentWeekKey();
+    const prevV = vetoes, prevLS = localStorage.getItem('scorochiatu_vetoes');
+    vetoes = [
+      { id: 'v1', person: 'N', movie_id: 'mv-veto', week_key: wk },
+      { id: 'v2', person: 'V', movie_id: 'mv-veto2', week_key: wk }
+    ];
+    localStorage.removeItem('scorochiatu_vetoes');
+    try {
+      const notOwn = await removeVeto('V', 'mv-veto');       // veto di N
+      const missing = await removeVeto('N', 'mv-missing');   // riga inesistente
+      const own = await removeVeto('N', 'mv-veto');          // ok
+      const slotFreed = vetoUsedThisWeek('N') === false;
+      const reAdd = await addVeto('N', 'mv-veto');           // posto di nuovo libero
+      const otherIntact = vetoes.some(v => v.id === 'v2');   // veto di V intatto
+      return notOwn === false && missing === false && own === true
+        && slotFreed && reAdd === true && otherIntact;
+    } finally {
+      vetoes = prevV;
+      if (prevLS === null) localStorage.removeItem('scorochiatu_vetoes');
+      else localStorage.setItem('scorochiatu_vetoes', prevLS);
+    }
+  }));
+  await okA('removeVeto Supabase: delete per id + refetch coerente', runA(async () => {
+    const wk = currentWeekKey();
+    const prevSb = sb, prevMode = dbMode, prevV = vetoes;
+    const prevLS = localStorage.getItem('scorochiatu_vetoes');
+    const rows = [{ id: 'vx', person: 'N', movie_id: 'mv-x', week_key: wk }];
+    const mk = table => {
+      if (table !== 'vetoes') throw new Error('mock: solo vetoes');
+      const q = {
+        where: {},
+        eq(c, v) { q.where[c] = v; return q; },
+        select() { return q; },
+        then(resolve) {
+          const removed = rows.filter(r => Object.keys(q.where).every(k => r[k] === q.where[k]));
+          for (const r of removed) rows.splice(rows.indexOf(r), 1);
+          return resolve({ data: removed.map(r => ({ ...r })), error: null });
+        }
+      };
+      return {
+        delete() { return q; },
+        select() { return { then: resolve => resolve({ data: rows.map(r => ({ ...r })), error: null }) }; }
+      };
+    };
+    sb = { from: mk }; dbMode = 'supabase';
+    vetoes = [{ id: 'vx', person: 'N', movie_id: 'mv-x', week_key: wk }];
+    localStorage.removeItem('scorochiatu_vetoes');
+    try {
+      const removed = await removeVeto('N', 'mv-x');
+      return removed === true && rows.length === 0 && vetoes.length === 0;
+    } finally {
+      sb = prevSb; dbMode = prevMode; vetoes = prevV;
+      if (prevLS === null) localStorage.removeItem('scorochiatu_vetoes');
+      else localStorage.setItem('scorochiatu_vetoes', prevLS);
+    }
+  }));
+  await okA('removeVeto Supabase: delete 0 righe → no-op, stato locale intatto, nessun errore', runA(async () => {
+    const wk = currentWeekKey();
+    const prevSb = sb, prevMode = dbMode, prevV = vetoes;
+    const prevLS = localStorage.getItem('scorochiatu_vetoes');
+    const errs = [];
+    const origErr = console.error;
+    console.error = (...a) => errs.push(a.map(String).join(' '));
+    const rows = []; // DB già senza la riga (cancellata altrove)
+    const mk = table => {
+      if (table !== 'vetoes') throw new Error('mock: solo vetoes');
+      const q = {
+        where: {},
+        eq(c, v) { q.where[c] = v; return q; },
+        select() { return q; },
+        then(resolve) {
+          const removed = rows.filter(r => Object.keys(q.where).every(k => r[k] === q.where[k]));
+          for (const r of removed) rows.splice(rows.indexOf(r), 1);
+          return resolve({ data: removed.map(r => ({ ...r })), error: null });
+        }
+      };
+      return {
+        delete() { return q; },
+        select() { return { then: resolve => resolve({ data: rows.map(r => ({ ...r })), error: null }) }; }
+      };
+    };
+    sb = { from: mk }; dbMode = 'supabase';
+    vetoes = [{ id: 'vx', person: 'N', movie_id: 'mv-x', week_key: wk }]; // locale stantio
+    localStorage.removeItem('scorochiatu_vetoes');
+    try {
+      const res = await removeVeto('N', 'mv-x');
+      const localIntact = vetoes.length === 1 && vetoes[0].id === 'vx';
+      return res === true && localIntact && errs.length === 0;
+    } finally {
+      console.error = origErr;
+      sb = prevSb; dbMode = prevMode; vetoes = prevV;
+      if (prevLS === null) localStorage.removeItem('scorochiatu_vetoes');
+      else localStorage.setItem('scorochiatu_vetoes', prevLS);
+    }
+  }));
   await okA('setSurprise + reveal', runA(async () => {
     await setSurprise(movies[0].id, 'V');
     const sur = movies.find(x => x.id === movies[0].id).surprise_by === 'V';
@@ -1359,6 +1473,36 @@ async function okA(name, fn) {
     currentUser = prevUser;
     movies = saved;
     return ok;
+  }));
+
+  console.log('\n[render — pulsante "Togli veto"]');
+  ok('unveto: solo sul veto PROPRIO (veto altrui e assente → nessun bottone)', run(() => {
+    const saved = movies;
+    const prevUser = currentUser, prevTab = currentTab, prevVetoes = vetoes;
+    const wk = currentWeekKey();
+    currentUser = 'N';
+    currentTab = 'watchlist';
+    movies = [
+      { id: 'A', title: 'Alpha Watch', status: 'watchlist', added_by: 'N', poster: '', platform: '', genre: 'azione' }
+    ];
+    let ok1, ok2, ok3;
+    vetoes = [{ id: 'vx1', person: 'N', movie_id: 'A', week_key: wk }];
+    render();
+    let html = document.getElementById('movieGrid').innerHTML;
+    ok1 = html.indexOf('onclick="unvetoMovie(') !== -1 && html.indexOf('onclick="vetoMovie(') === -1;
+    vetoes = [{ id: 'vx2', person: 'V', movie_id: 'A', week_key: wk }];
+    render();
+    html = document.getElementById('movieGrid').innerHTML;
+    ok2 = html.indexOf('unvetoMovie') === -1 && html.indexOf('onclick="vetoMovie(') === -1;
+    vetoes = [];
+    render();
+    html = document.getElementById('movieGrid').innerHTML;
+    ok3 = html.indexOf('unvetoMovie') === -1 && html.indexOf('onclick="vetoMovie(') !== -1;
+    currentTab = prevTab;
+    currentUser = prevUser;
+    vetoes = prevVetoes;
+    movies = saved;
+    return ok1 && ok2 && ok3;
   }));
 
   console.log('\n[renderScheduled — dedup next night]');

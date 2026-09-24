@@ -437,7 +437,11 @@ function render() {
             <div class="flex gap-2">
               <button onclick="quickTonightUI('${m.id}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded font-medium">Stasera</button>
               <button onclick="scheduleMovie('${m.id}')" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded"><i class="fa-solid fa-calendar"></i></button>
-              ${!isVetoed ? `<button onclick="vetoMovie('${m.id}', '${jsAttrEscape(m.title)}')" class="px-2 py-1.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 rounded" title="Vieta questa settimana"><i class="fa-solid fa-ban"></i></button>` : ''}
+              ${!isVetoed
+                ? `<button onclick="vetoMovie('${m.id}', '${jsAttrEscape(m.title)}')" class="px-2 py-1.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 rounded" title="Vieta questa settimana"><i class="fa-solid fa-ban"></i></button>`
+                : (vetoForMovieThisWeek(m.id) && vetoForMovieThisWeek(m.id).person === currentUser
+                  ? `<button onclick="unvetoMovie('${m.id}')" class="px-2 py-1.5 bg-rose-900/50 hover:bg-rose-900/80 text-rose-300 rounded" title="Togli il veto"><i class="fa-solid fa-rotate-left"></i></button>`
+                  : '')}
             </div>
           ` : ''}
           ${m.status === 'tonight' ? `

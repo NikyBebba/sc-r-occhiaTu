@@ -325,6 +325,36 @@ async function addVeto(person, movieId) {
   return true;
 }
 
+// Riga veto corrente (settimana in corso) per un film, se c'è: serve a capire
+// chi ha messo il veto e a rimuoverlo; un veto di altra settimana non esiste.
+function vetoForMovieThisWeek(movieId) {
+  const wk = currentWeekKey();
+  return vetoes.find(v => v.movie_id === movieId && v.week_key === wk) || null;
+}
+
+// Toglie il veto posto da `person` sul film `movieId` (settimana corrente).
+// Solo chi ha messo il veto può toglierlo (guardia anche qui, oltre alla UI).
+async function removeVeto(person, movieId) {
+  const v = vetoForMovieThisWeek(movieId);
+  if (!v || v.person !== person) return false;
+  if (sb) {
+    const { data: deleted, error } = await sb.from('vetoes').delete().eq('id', v.id).select();
+    if (error) {
+      console.error('[sc(r)occhiaTu] removeVeto fallito su Supabase:', error.message);
+      return false;
+    }
+    // Delete che non ha colpito nessuna riga (es. già rimosso altrove):
+    // no-op senza errori né modifiche allo stato locale.
+    if (!deleted || deleted.length === 0) return true;
+    const { data } = await sb.from('vetoes').select('*');
+    if (data) { vetoes = data; saveLocal(); }
+  } else {
+    vetoes = vetoes.filter(x => x.id !== v.id);
+    saveLocal();
+  }
+  return true;
+}
+
 // ============================================
 // SERATE — entità movie_nights (step 2)
 // Regola: 1 film = 1 contenuto, 1 serata = 1 evento. Più serate possono

@@ -321,6 +321,14 @@ async function vetoMovie(id, title) {
   loadMovies();
 }
 
+// Toglie il veto: nessuna conferma (azione reversibile, come il voto).
+async function unvetoMovie(id) {
+  const v = vetoForMovieThisWeek(id);
+  if (!v || v.person !== currentUser) return;
+  await removeVeto(currentUser, id); // 0 righe o errore => nothing to do (già rimosso)
+  loadMovies();
+}
+
 // ---- Correggi titolo non trovato e ricerca di nuovo (TMDb/OMDb) ----
 function retryMatch(id, currentTitle) {
   document.getElementById('retryMovieId').value = id;
