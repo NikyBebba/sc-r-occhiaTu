@@ -47,7 +47,7 @@ NON introdurre framework/bundler/backend senza autorizzazione.
 Flusso di caricamento dei moduli (ordine in `index.html`):
 
 ```
-config → genres → format → api(omdb+tmdb → index) → store → match → filters → wheel → ui(modals+navigation+actions+render+calendar+match) → main
+config → format → api(omdb+tmdb → index) → store → match → filters → wheel → ui(modals+navigation+actions+render+calendar+match) → main
 ```
 
 - `js/config.js` — chiavi runtime (TMDb/OMDb/Supabase) + `PEOPLE` (label + PIN).
@@ -86,8 +86,7 @@ config → genres → format → api(omdb+tmdb → index) → store → match �
     idempotente se entrambi premono insieme.
 - `js/wheel.js` — ruota canvas: pool, draw, spin animato, confetti.
 - `js/ui/modals.js` — `openModal`/`closeModal`/`showConfirmModal` + helper
-  anti-XSS `escapeHtml`/`jsAttrEscape` + costanti visuali (`MOOD_LABELS`,
-  `personBadge`).
+  anti-XSS `escapeHtml`/`jsAttrEscape` + costanti visuali (`personBadge`).
 - `js/ui/navigation.js` — tab (state + switch).
 - `js/ui/actions.js` — azioni sui film: aggiunta singola (picker TMDb), import
   bulk, aggiusta/retry con metadati, programma/annulla serata, voto, veto,

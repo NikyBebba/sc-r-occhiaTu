@@ -5,7 +5,7 @@
 //   node scripts/backfill-genres.js            → collect + scritture in burst
 //   node scripts/backfill-genres.js --dry-run  → solo report, nessuna scrittura
 //   node scripts/backfill-genres.js --limit 10 → primi 10 film (dry o reale)
-//   node scripts/backfill-genres.js --force    → sovrascrive il mood (genre)
+//   node scripts/backfill-genres.js --force    → sovrascrive i generi anche se pieni
 //   node scripts/backfill-genres.js --fix-duration → corregge SOLO il
 //     segnaposto duration '120 min' quando TMDb ha un runtime reale
 //
@@ -18,9 +18,8 @@
 //     poi scrive gli update RAVVICINATI alla fine (burst). Così il debounce
 //     Realtime (un timer, resync solo se il dato cambia) assorbe l'esplosione
 //     in un solo render sull'altro telefono;
-//   - regole (vincolo step 4):
-//       genres si riempie solo se vuoto;
-//       genre (mood) si riempie solo se null, o sempre con --force;
+//   - regole:
+//       genres si riempie solo se vuoto, o sempre con --force;
 //       duration si tocca SOLO con --fix-duration E solo se vale
 //       esattamente '120 min' (il vecchio segnaposto finto);
 //     niente altri campi, niente DELETE.
@@ -55,17 +54,6 @@ const PACE_MS = 380; // ~2,6 req/s: sotto il limite TMDb (40 req / 10s)
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// ---- js/genres.js condiviso: mappa + derivazione mood (stessa dell'app) ----
-const genresSrc = fs.readFileSync(path.join(REPO, 'js', 'genres.js'), 'utf8');
-let TMDB_GENRE_MOOD, moodFromGenres, moodFromGenreNames;
-try {
-  const load = new Function(genresSrc + '\n;return { TMDB_GENRE_MOOD, moodFromGenres, moodFromGenreNames };');
-  ({ TMDB_GENRE_MOOD, moodFromGenres, moodFromGenreNames } = load());
-} catch (e) {
-  console.error('ERRORE: impossibile caricare js/genres.js (' + e.message + ').');
-  process.exit(1);
-}
-
 // ---------- Supabase (REST, stesse policy aperte dell'app) ----------
 const sb = (seg) => `${SUPABASE_URL}/rest/v1/${seg}`;
 async function sbGet(seg) {
@@ -99,24 +87,12 @@ async function tmdbDetail(id) {
 
 const hasGenres = row => Array.isArray(row.genres) && row.genres.length > 0;
 
-// Mood del film: preferisce gli id TMDb (stabile tra lingue), altrimenti i
-// nomi (OMDb EN o TMDb it-IT) già presenti in riga/colonna.
-const derivedFor = (row, data) => {
-  if (data && data.genreIds && data.genreIds.length) return moodFromGenres(data.genreIds);
-  return moodFromGenreNames(data && data.genreNames ? data.genreNames : row.genres);
-};
-
-// Patch non distruttiva (vincoli step 4):
-//   genres → solo se colonna vuota;
-//   genre  → solo se null, o sempre con --force;
+// Patch non distruttiva:
+//   genres → solo se colonna vuota, o sempre con --force;
 //   duration → solo con --fix-duration E segnaposto esatto '120 min'.
 const buildPatch = (row, data) => {
   const patch = {};
-  if (!hasGenres(row) && data && data.genreNames && data.genreNames.length) patch.genres = data.genreNames;
-  if (!row.genre || FORCE) {
-    const hasAnyGenre = (data && data.genreIds && data.genreIds.length) || hasGenres(row);
-    if (hasAnyGenre) patch.genre = derivedFor(row, data);
-  }
+  if ((!hasGenres(row) || FORCE) && data && data.genreNames && data.genreNames.length) patch.genres = data.genreNames;
   if (FIX_DURATION && row.duration === '120 min' && data && data.runtime) {
     patch.duration = `${data.runtime} min`;
   }
@@ -127,14 +103,14 @@ const buildPatch = (row, data) => {
 (async () => {
   console.log('sc(r)occhiaTu — Backfill generi' +
     (DRY ? ' (DRY-RUN, nessuna scrittura)' : '') +
-    (FORCE ? ' + --force (mood sovrascritto)' : '') +
+    (FORCE ? ' + --force (generi sovrascritti)' : '') +
     (FIX_DURATION ? ' + --fix-duration (solo segnaposto 120 min)' : ''));
 
   // stato DB attuale
   let rows = [];
   try {
     await sleep(200);
-    rows = await sbGet('movies?select=id,title,genre,genres,duration,tmdb_id&order=title.asc');
+    rows = await sbGet('movies?select=id,title,genres,duration,tmdb_id&order=title.asc');
   } catch (e) {
     console.error('ERRORE: impossibile leggere Supabase (' + e.message + '). Backfill interrotto per sicurezza.');
     process.exit(1);
@@ -160,22 +136,16 @@ const buildPatch = (row, data) => {
 
   // ---------- FASE 1: raccolta metadati TMDb (pace 380 ms) ----------
   // Chi richiede la chiamata: generi da prendere da TMDb, oppure --force
-  // (mood fresco), oppure --fix-duration su segnaposto.
+  // (generi freschi), oppure --fix-duration su segnaposto.
   const candidates = withTmdb.filter(r =>
     FORCE || !hasGenres(r) || (FIX_DURATION && r.duration === '120 min')
-  );
-  // Chi NON serve che chiami TMDb ma ha genre nullo e generi già in colonna:
-  // derivazione locale, nessuna richiesta di rete.
-  const localDerive = withTmdb.filter(r =>
-    !candidates.includes(r) && !r.genre && hasGenres(r)
   );
 
   const bucket = candidates.slice(0, LIMIT);
   if (bucket.length === 0) console.log('\nNessun candidato alla raccolta (tutti già a posto).');
   else console.log(`\nFase 1 — raccolta metadati TMDb (${bucket.length} film, pace ${PACE_MS} ms)...`);
 
-  const fetched = new Map(); // film id -> { genreIds, genreNames, runtime } | null
-  const nonMappedGenres = new Map(); // nome di id non coperto dalla mappa -> count
+  const fetched = new Map(); // film id -> { genreNames, runtime } | null
   let fetchFailed = 0;
   for (let i = 0; i < bucket.length; i++) {
     const r = bucket[i];
@@ -183,12 +153,9 @@ const buildPatch = (row, data) => {
       await sleep(PACE_MS);
       const d = await tmdbDetail(r.tmdb_id);
       if (!d) { fetched.set(r.id, null); fetchFailed++; console.log(`  [${i + 1}/${bucket.length}] · fetch fallito · ${r.title}`); continue; }
-      const ids = [], names = [];
-      (d.genres || []).forEach(x => {
-        if (!(x.id in TMDB_GENRE_MOOD)) nonMappedGenres.set(x.name, (nonMappedGenres.get(x.name) || 0) + 1);
-        ids.push(x.id); names.push(x.name);
-      });
-      fetched.set(r.id, { genreIds: ids, genreNames: names, runtime: d.runtime || null });
+      const names = [];
+      (d.genres || []).forEach(x => names.push(x.name));
+      fetched.set(r.id, { genreNames: names, runtime: d.runtime || null });
     } catch (e) {
       fetched.set(r.id, null); fetchFailed++;
       console.log(`  [${i + 1}/${bucket.length}] · errore fetch · ${r.title} (${e.message})`);
@@ -202,8 +169,8 @@ const buildPatch = (row, data) => {
 
   console.log('\nFase 2 — scritture' + (DRY ? ' (solo report)' : ' (burst ravvicinato)'));
 
-  // Tutti i film da (ri)valutare: candidati (con dati TMDb) + derivazione locale.
-  const processed = localDerive.concat(bucket);
+  // Film da (ri)valutare: i candidati con dati TMDb.
+  const processed = bucket;
 
   for (const r of processed) {
     const data = fetched.get(r.id); // undefined se non era candidato
@@ -244,13 +211,6 @@ const buildPatch = (row, data) => {
   console.log(`${'Fetch falliti:'}       ${fetchFailed}`);
   console.log(`${'Scritture fallite:'}   ${stats.failed}`);
   console.log(`${'Senza tmdb_id:'}       ${noTmdb.length}`);
-
-  if (nonMappedGenres.size) {
-    console.log('\nGeneri con id NON coperti dalla mappa (mood → \'altro\'):');
-    for (const [name, count] of nonMappedGenres) console.log(`  - ${name} (${count})`);
-  } else if (bucket.length) {
-    console.log('\nTutti gli id genere incontrati sono coperti dalla mappa.');
-  }
 
   if (DRY) console.log('\n(dry-run: nessuna modifica applicata — esegui senza --dry-run per scrivere)');
   if (LIMIT !== Infinity) console.log(`(eseguito con --limit=${LIMIT}, non tutti i candidati)`);

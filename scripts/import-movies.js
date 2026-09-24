@@ -40,17 +40,6 @@ if (!TMDB_KEY || !SUPABASE_URL || !SUPABASE_ANON) {
   process.exit(1);
 }
 
-// ---- js/genres.js condiviso: derivazione mood (stessa dell'app) ----
-const genresSrc = fs.readFileSync(path.join(REPO, 'js', 'genres.js'), 'utf8');
-let moodFromGenres, moodFromGenreNames;
-try {
-  const load = new Function(genresSrc + '\n;return { moodFromGenres, moodFromGenreNames };');
-  ({ moodFromGenres, moodFromGenreNames } = load());
-} catch (e) {
-  console.error('ERRORE: impossibile caricare js/genres.js (' + e.message + ').');
-  process.exit(1);
-}
-
 const PACE_MS = 380;   // ~2,6 req/s: sotto il limite TMDb (40 req / 10s)
 const OMDb_PACE_MS = 300;
 
@@ -161,9 +150,6 @@ function buildDetails(detail) {
     collection_id: detail.belongs_to_collection?.id ?? null,
     collection_name: detail.belongs_to_collection?.name || null,
     genres: (detail.genres || []).map(g => g.name),
-    genre: (detail.genres && detail.genres.length)
-      ? moodFromGenres(detail.genres.map(g => g.id))
-      : null,
     duration: detail.runtime ? `${detail.runtime} min` : null,
     platform,
     poster: detail.poster_path ? `https://image.tmdb.org/t/p/w500${detail.poster_path}` : '',
@@ -206,7 +192,6 @@ function omdbToDetails(omdbData, fallbackTitle) {
     collection_id: null,
     collection_name: null,
     genres: genreNames,
-    genre: genreNames.length ? moodFromGenreNames(genreNames) : null,
     duration: omdbData.Runtime && omdbData.Runtime !== 'N/A' ? omdbData.Runtime : null,
     platform: 'Streaming',
     poster: omdbData.Poster && omdbData.Poster !== 'N/A' ? omdbData.Poster : '',
@@ -423,7 +408,7 @@ function metadataPatch(row, details) {
       const meta = {
         title: entry.title, added_by: tag, status: 'watchlist', duration: null,
         platform: 'Streaming', poster: '', trailer_url: '', matched: false, rating: 0,
-        genre: null, genres: [],
+        genres: [],
         imdb_rating: '', rt_rating: '', metacritic_rating: '',
         tmdb_id: null, collection_id: null, collection_name: null
       };
@@ -441,7 +426,7 @@ function metadataPatch(row, details) {
       duration: details.duration, platform: details.platform,
       poster: details.poster, trailer_url: details.trailerUrl,
       matched: true, rating: 0,
-      genre: details.genre ?? null, genres: details.genres || [],
+      genres: details.genres || [],
       imdb_rating: details.imdbRating || '', rt_rating: details.rtRating || '', metacritic_rating: details.metacriticRating || '',
       tmdb_id: details.tmdb_id ?? null, collection_id: details.collection_id ?? null, collection_name: details.collection_name || null
     };

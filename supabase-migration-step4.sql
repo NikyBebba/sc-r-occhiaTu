@@ -5,11 +5,11 @@
 -- Idempotente: può essere eseguito più volte senza errori.
 --
 -- Aggiunge movies.genres text[] (generi REALI TMDb it-IT / OMDb).
--- movies.genre resta il mirror MOOD derivato (badge/stats/ruota),
--- alimentato dalla STESSA derivazione di js/genres.js.
+-- movies.genre resta la colonna legacy del vecchio sistema mood: oggi non
+-- viene più scritta né letta dai flussi (UI/CLI usano solo genres).
 -- ============================================================
 ALTER TABLE public.movies
   ADD COLUMN IF NOT EXISTS genres text[];
 
 COMMENT ON COLUMN public.movies.genres IS
-  'Generi reali del film (nomi TMDb it-IT / OMDb). Fonte per filtri, ricerca e raccomandazioni future. movies.genre resta il mirror mood derivato (js/genres.js) per compatibilità UI.';
+  'Generi reali del film (nomi TMDb it-IT / OMDb). Fonte per filtri, ruota, ricerca e raccomandazioni future. movies.genre è la colonna legacy del mood, oggi non più scritta né letta.';
