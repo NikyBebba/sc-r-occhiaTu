@@ -4,7 +4,6 @@
 
 let wheelRotation = 0; // rotazione corrente in radianti, persiste tra i redraw
 let wheelSpinning = false;
-let moodFilter = 'all'; // 'all' oppure uno dei tag mood
 let durationFilter = 'all'; // 'all' | short | medium | long | epic
 let genreFilter = 'all'; // 'all' oppure un genere reale da movies.genres
 
@@ -21,12 +20,11 @@ function durationBucket(mins) {
 }
 
 // Film disponibili per la ruota: in watchlist, non vietati questa
-// settimana, ed eventualmente filtrati per mood, durata e genere reali.
+// settimana, ed eventualmente filtrati per durata e genere reali.
 function wheelPool() {
   const vetoed = vetoedMovieIdsThisWeek();
   return movies.filter(m => {
     if (m.status !== 'watchlist' || vetoed.includes(m.id)) return false;
-    if (moodFilter !== 'all' && m.genre !== moodFilter) return false;
     if (durationFilter !== 'all') {
       const bucket = durationBucket(parseDurationMinutes(m.duration));
       if (bucket === null || bucket !== durationFilter) return false;
@@ -36,11 +34,6 @@ function wheelPool() {
     }
     return true;
   });
-}
-
-function setMoodFilter(value) {
-  moodFilter = value;
-  drawWheel();
 }
 
 function setDurationFilter(value) {

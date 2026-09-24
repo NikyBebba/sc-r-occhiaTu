@@ -214,10 +214,10 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 
 Login PIN per persone, watchlist + aggiunta singola con picker TMDb + import
 bulk + dedup titolo normalizzato, voto like/dislike + "Match %", ruota
-(canvas + confetti + filtro mood), veto settimanale ISO-week (esclusione dalla
-ruota), serata: "Stasera" / programmazione data-ora-snack / proposta-conferma
-rifiuto-annullamento / countdown box "Prossimo Film", recensioni, sorpresa,
-statistiche + timeline, fix anti-XSS su campi utente.
+(canvas + confetti + filtri durata e genere reale), veto settimanale ISO-week
+(esclusione dalla ruota), serata: "Stasera" / programmazione data-ora-snack /
+proposta-conferma rifiuto-annullamento / countdown box "Prossimo Film",
+recensioni, sorpresa, statistiche + timeline, fix anti-XSS su campi utente.
 
 **Step 2 — fondazione dati condivisa**: verifica live database Supabase,
 metadati TMDb persistiti (`tmdb_id`, `collection_id`, `collection_name`),

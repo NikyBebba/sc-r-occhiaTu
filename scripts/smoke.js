@@ -467,7 +467,7 @@ async function okA(name, fn) {
     const box = document.getElementById('wheelWinner');
     box.classList.add('hidden');
     wheelSpinning = false;
-    moodFilter = 'all';
+    durationFilter = 'all'; genreFilter = 'all';
     if (wheelPool().length === 0) return false; // servono film in watchlist
     const origRaf = requestAnimationFrame;
     const origPerf = performance;
@@ -506,7 +506,7 @@ async function okA(name, fn) {
       { id: 'w-epic', title: 'Epico', status: 'watchlist', duration: '160 min', genres: ['Dramma'] },
       { id: 'w-nodur', title: 'NoDur', status: 'watchlist', duration: null, genres: ['Azione'] }
     ];
-    moodFilter = 'all'; genreFilter = 'all';
+    durationFilter = 'all'; genreFilter = 'all';
     durationFilter = 'short';
     let ids = wheelPool().map(m => m.id).sort();
     const okShort = ids.join() === 'w-short';
@@ -520,30 +520,27 @@ async function okA(name, fn) {
     movies = saved;
     return okShort && okMed && okEpic;
   }));
-  ok('wheelPool: mood + durata + genere combinati; film senza generi solo in "tutti"', run(() => {
+  ok('wheelPool: durata + genere combinati; film senza generi solo in "tutti"', run(() => {
     const saved = movies;
     movies = [
       { id: 'c-short', title: 'AzioneCorta', status: 'watchlist', duration: '95 min', genre: 'azione', genres: ['Azione', 'Thriller'] },
       { id: 'c-med', title: 'CommediaMedia', status: 'watchlist', duration: '110 min', genre: 'risata', genres: ['Commedia'] },
       { id: 'c-nogen', title: 'Nostalgico', status: 'watchlist', duration: '95 min', genre: 'nostalgia', genres: null }
     ];
-    durationFilter = 'all'; moodFilter = 'all'; genreFilter = 'Azione';
+    durationFilter = 'all'; genreFilter = 'Azione';
     let ids = wheelPool().map(m => m.id).sort();
     const okAzione = ids.join() === 'c-short';
-    genreFilter = 'all'; moodFilter = 'risata';
-    ids = wheelPool().map(m => m.id).sort();
-    const okMood = ids.join() === 'c-med';
-    moodFilter = 'all'; durationFilter = 'short'; genreFilter = 'all';
+    genreFilter = 'all'; durationFilter = 'short';
     ids = wheelPool().map(m => m.id).sort();
     const okShortNoGenInAll = ids.join() === 'c-nogen,c-short';
     durationFilter = 'medium'; genreFilter = 'Commedia';
     ids = wheelPool().map(m => m.id).sort();
     const okCommedia = ids.join() === 'c-med';
-    genreFilter = 'Dramma';
-    const noDramma = wheelPool().length === 0;
+    durationFilter = 'short'; genreFilter = 'Dramma';
+    const noMatch = wheelPool().length === 0;
     genreFilter = 'all'; durationFilter = 'all';
     movies = saved;
-    return okAzione && okMood && okShortNoGenInAll && okCommedia && noDramma;
+    return okAzione && okShortNoGenInAll && okCommedia && noMatch;
   }));
   ok('syncGenreFilterOptions: conteggio/ordine/escape → selezione preservata o azzerata', run(() => {
     const saved = movies;

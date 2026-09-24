@@ -2,7 +2,7 @@
 // FILTERS — logica pura di ricerca, filtri e sort della pagina
 // principale (step 5a). DOM-free: testata da scripts/smoke.js con
 // oggetti canned. Lo STATO dei filtri vive QUI in variabili globali
-// (come moodFilter/durationFilter/genreFilter in wheel.js) e NON viene
+// (come durationFilter/genreFilter in wheel.js) e NON viene
 // toccato da render(): così sopravvive ai resync realtime.
 //
 // Regole:
