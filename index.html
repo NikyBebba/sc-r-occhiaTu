@@ -129,11 +129,17 @@
 
       <!-- COLONNA DESTRA -->
       <div class="md:col-span-2 space-y-6">
-        <div class="flex bg-slate-900/60 p-1 rounded-xl border border-slate-800 text-sm">
-          <button onclick="setTab('watchlist')" id="tabWatchlist" class="flex-1 py-2 rounded-lg font-medium transition bg-indigo-600 text-white">Da Vedere</button>
-          <button onclick="setTab('tonight')" id="tabTonight" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white">Stasera</button>
-          <button onclick="setTab('watched')" id="tabWatched" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white">Visti e Recensioni</button>
-          <button onclick="setTab('calendar')" id="tabCalendar" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white">Calendario</button>
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+          <input id="movieSearchInput" type="text" placeholder="Cerca titolo o genere…" autocomplete="off" oninput="onSearchInput()"
+            class="w-full bg-slate-900/70 border border-slate-800 rounded-xl pl-9 pr-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+        </div>
+        <div class="flex bg-slate-900/60 p-1 rounded-xl border border-slate-800 text-sm gap-1 overflow-x-auto">
+          <button onclick="setTab('all')" id="tabAll" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Tutti <span id="pillCountAll" class="text-[10px] opacity-80">0</span></button>
+          <button onclick="setTab('watchlist')" id="tabWatchlist" class="flex-1 py-2 rounded-lg font-medium transition bg-indigo-600 text-white whitespace-nowrap">Da Vedere <span id="pillCountWatchlist" class="text-[10px] opacity-80">0</span></button>
+          <button onclick="setTab('tonight')" id="tabTonight" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Stasera <span id="pillCountTonight" class="text-[10px] opacity-80">0</span></button>
+          <button onclick="setTab('watched')" id="tabWatched" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Visti e Recensioni <span id="pillCountWatched" class="text-[10px] opacity-80">0</span></button>
+          <button onclick="setTab('calendar')" id="tabCalendar" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Calendario</button>
         </div>
         <div id="movieGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
       </div>

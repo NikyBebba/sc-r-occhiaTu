@@ -139,9 +139,64 @@ function renderStats() {
   }
 }
 
+// ---- Ricerca: input statico FUORI da #movieGrid, MAI ricreato da render().
+// Il debounce (~250ms) evita un render ad ogni tasto; il valore del campo
+// resta intatto su render/resync realtime. ----
+let searchDebounceTimer = null;
+function onSearchInput() {
+  const input = document.getElementById('movieSearchInput');
+  listQuery = (input && input.value) || '';
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => { searchDebounceTimer = null; render(); }, 250);
+}
+
+// Contatori delle pill di stato, calcolati con i FILTRI ATTIVI: coerenti con
+// ciò che la griglia mostrerebbe in ogni sezione (stesso predicato di
+// filterMovies senza il vincolo di status).
+function renderPillCounters() {
+  const counts = statusCountsFor(movies);
+  [['all', 'pillCountAll'], ['watchlist', 'pillCountWatchlist'], ['tonight', 'pillCountTonight'], ['watched', 'pillCountWatched']]
+    .forEach(([key, id]) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = counts[key];
+    });
+}
+
+// Empty state della griglia. Senza filtri: il messaggio storico. Con filtri
+// attivi: elenca quelli in gioco (la query SEMPRE escapata) e "Azzera filtri".
+function emptyListStateHtml() {
+  const state = listFilterState();
+  if (!hasActiveListFilters(state)) {
+    return `<div class="col-span-full py-12 text-center text-slate-500 text-sm">Nessun film in questa sezione.</div>`;
+  }
+  const parts = [];
+  if (state.query && String(state.query).trim()) parts.push(`"${escapeHtml(state.query)}"`);
+  if (state.genre) parts.push(`genere ${escapeHtml(state.genre)}`);
+  if (state.platform) parts.push(`piattaforma ${escapeHtml(state.platform)}`);
+  if (state.proposer) parts.push(`proposto da ${escapeHtml(state.proposer)}`);
+  return `
+    <div class="col-span-full py-12 text-center text-slate-500 text-sm space-y-3">
+      <p>Nessun film corrisponde ai filtri.</p>
+      <p class="text-slate-400 text-xs">${parts.join(' · ')}</p>
+      <button onclick="resetListFiltersUI()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition">Azzera filtri</button>
+    </div>`;
+}
+
+// Azzera i filtri (stato + DOM) e ri-render. I dropdown di genere/piattaforma/
+// e il sort arrivano nello step (c): qui il reset copre la ricerca.
+function resetListFiltersUI() {
+  resetListFilters();
+  const input = document.getElementById('movieSearchInput');
+  if (input) input.value = '';
+  render();
+}
+
 // ---- Render principale ----
 function render() {
-  // Vista Calendario: il mese occupa la colonna destra, colonna sinistra invariata.
+  renderPillCounters();
+  // Vista Calendario: il mese occupa la colonna destra, colonna sinistra
+  // invariata. I filtri della LISTA sono ignorati (il calendario ha il suo
+  // stato), ma le pill continuano a mostrare i contatori coi filtri attivi.
   if (currentTab === 'calendar') {
     renderCalendar();
     renderScheduled();
@@ -157,10 +212,12 @@ function render() {
   const grid = document.getElementById('movieGrid');
   grid.innerHTML = '';
 
-  const statusFilter = currentTab;
-  const filtered = movies.filter(m => m.status === statusFilter);
+  // currentTab: 'all' = nessun vincolo di status; altrimenti mappa 1:1 sul
+  // valore di movies.status. Pipeline: filtri puri (filters.js) + sort null-last.
+  const statusFilter = currentTab === 'all' ? null : currentTab;
+  const filtered = sortMovies(filterMoviesByState(movies, statusFilter), listSortKey, listSortDir);
   if (filtered.length === 0) {
-    grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500 text-sm">Nessun film in questa sezione.</div>`;
+    grid.innerHTML = emptyListStateHtml();
   }
 
   const vetoedIds = vetoedMovieIdsThisWeek();
@@ -214,6 +271,7 @@ function render() {
           </div>
           <div class="flex items-center gap-2 mt-1 flex-wrap">
             ${m.genre ? `<span class="text-[10px] text-slate-400">${escapeHtml(MOOD_LABELS[m.genre] || m.genre)}</span>` : ''}
+            ${m.status === 'tonight' && currentTab === 'all' ? `<span class="badge bg-sky-500/90">stasera</span>` : ''}
             ${matchHtml}
             ${(m.review_by && m.review_by !== 'both' && m.status !== 'watched') ? `<span class="text-[10px] text-amber-400"><i class="fa-solid fa-eye"></i> già visto da ${CONFIG.PEOPLE[m.review_by]?.label || m.review_by} — rewatch insieme?</span>` : ''}
           </div>
@@ -235,21 +293,21 @@ function render() {
           ` : ''}
         </div>
         <div class="flex flex-col gap-2 pt-2 border-t border-slate-800/80 text-xs">
-          ${(currentTab === 'watchlist' || currentTab === 'tonight') ? `
+          ${(m.status === 'watchlist' || m.status === 'tonight') ? `
             <div class="flex items-center gap-2">
               <button onclick="voteMovie('${m.id}', true)" class="px-2 py-1 rounded ${votesObj[currentUser] === true ? 'bg-emerald-600/60 text-white' : 'bg-slate-800 text-slate-400 hover:text-emerald-300'}"><i class="fa-solid fa-thumbs-up"></i></button>
               <button onclick="voteMovie('${m.id}', false)" class="px-2 py-1 rounded ${votesObj[currentUser] === false ? 'bg-rose-600/60 text-white' : 'bg-slate-800 text-slate-400 hover:text-rose-300'}"><i class="fa-solid fa-thumbs-down"></i></button>
               <span class="text-[10px] text-slate-500">voto tuo</span>
             </div>
           ` : ''}
-          ${currentTab === 'watchlist' ? `
+          ${m.status === 'watchlist' ? `
             <div class="flex gap-2">
               <button onclick="quickTonightUI('${m.id}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded font-medium">Stasera</button>
               <button onclick="scheduleMovie('${m.id}')" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded"><i class="fa-solid fa-calendar"></i></button>
               ${!isVetoed ? `<button onclick="vetoMovie('${m.id}', '${jsAttrEscape(m.title)}')" class="px-2 py-1.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 rounded" title="Vieta questa settimana"><i class="fa-solid fa-ban"></i></button>` : ''}
             </div>
           ` : ''}
-          ${currentTab === 'tonight' ? `
+          ${m.status === 'tonight' ? `
             <button onclick="addReview('${m.id}')" class="flex-1 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">Visto & Recensione</button>
           ` : ''}
         </div>

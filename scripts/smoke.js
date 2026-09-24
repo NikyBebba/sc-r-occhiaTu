@@ -913,6 +913,146 @@ async function okA(name, fn) {
       && counts.all === 1 && counts.watchlist === 1 && counts.tonight === 0 && counts.watched === 0;
   }));
 
+  // --- 7b) pagina: ricerca + pill con contatori + azioni per status ---
+  console.log('\n[pagina — ricerca + pill + azioni per status]');
+  ok('setTab: ogni valore senza eccezioni (guardia id inesistenti)', run(() => {
+    const prevUser = currentUser; currentUser = 'N';
+    ['all', 'watchlist', 'tonight', 'watched', 'calendar'].forEach(t => setTab(t));
+    const last = currentTab;
+    currentUser = prevUser;
+    return last === 'calendar';
+  }));
+  ok('pill: contatori calcolati coi filtri attivi, "Tutti" = tutti i match', run(() => {
+    const saved = movies;
+    const prevQ = listQuery, prevP = listProposer, prevG = listGenre, prevPl = listPlatform;
+    movies = [
+      { id: 'p1', title: 'Dracula', status: 'watchlist', added_by: 'N', genres: ['Horror'], platform: 'Netflix' },
+      { id: 'p2', title: 'Dracula Night', status: 'tonight', added_by: 'V', genres: ['Horror'], platform: 'Prima' },
+      { id: 'p3', title: 'Riso', status: 'watched', added_by: 'N', genres: ['Commedia'], platform: 'Netflix' }
+    ];
+    listQuery = 'dracula'; listProposer = ''; listGenre = ''; listPlatform = '';
+    renderPillCounters();
+    const okFiltered = document.getElementById('pillCountAll').textContent === '2'
+      && document.getElementById('pillCountWatchlist').textContent === '1'
+      && document.getElementById('pillCountTonight').textContent === '1'
+      && document.getElementById('pillCountWatched').textContent === '0';
+    listQuery = '';
+    renderPillCounters();
+    const okAll = document.getElementById('pillCountAll').textContent === '3';
+    movies = saved;
+    listQuery = prevQ; listProposer = prevP; listGenre = prevG; listPlatform = prevPl;
+    return okFiltered && okAll;
+  }));
+  ok('render non tocca l\'input di ricerca (valore e stato persisti)', run(() => {
+    const input = document.getElementById('movieSearchInput');
+    const prevQ = listQuery; const prevTab = currentTab; const prevUser = currentUser;
+    input.value = 'Interstellar';
+    currentUser = 'N';
+    currentTab = 'all';
+    render(); // render/rendere realtime NON deve scrivere l'input
+    const afterRender = input.value === 'Interstellar' && listQuery === prevQ;
+    currentTab = prevTab; listQuery = prevQ; currentUser = prevUser; input.value = '';
+    return afterRender;
+  }));
+  ok('empty state: senza filtri messaggio storico; con filtri cita i filtri (query escapata) + Azzera', run(() => {
+    const saved = movies;
+    const prevQ = listQuery; const prevTab = currentTab;
+    const input = document.getElementById('movieSearchInput');
+    movies = [];
+    currentTab = 'all';
+    listQuery = '';
+    render();
+    const plain = document.getElementById('movieGrid').innerHTML.includes('Nessun film in questa sezione.');
+    listQuery = '<script>zed';
+    render();
+    const html = document.getElementById('movieGrid').innerHTML;
+    const withFilters = html.includes('Nessun film corrisponde ai filtri')
+      && html.includes('&lt;script&gt;zed') && html.indexOf('<script>zed') === -1
+      && html.includes('resetListFiltersUI');
+    resetListFiltersUI();
+    const afterReset = listQuery === '' && input.value === '';
+    movies = saved;
+    listQuery = prevQ; currentTab = prevTab;
+    return plain && withFilters && afterReset;
+  }));
+  await okA('onSearchInput: aggiorna subito listQuery e ri-render dopo il debounce (~250ms)', runA(async () => {
+    const saved = movies;
+    const prevQ = listQuery; const prevTab = currentTab; const prevUser = currentUser;
+    const input = document.getElementById('movieSearchInput');
+    movies = [{ id: 'db1', title: 'Dracula di Bram Stoker', status: 'watchlist', added_by: 'N', poster: '', platform: '', genre: 'azione', genres: ['Horror'] }];
+    currentTab = 'all'; currentUser = 'N';
+    input.value = 'bram';
+    onSearchInput();
+    const immediate = listQuery === 'bram';
+    await new Promise(r => setTimeout(r, 300));
+    const rerendered = document.getElementById('movieGrid').innerHTML.includes('Dracula di Bram Stoker');
+    movies = saved;
+    listQuery = prevQ; currentTab = prevTab; currentUser = prevUser; input.value = '';
+    return immediate && rerendered;
+  }));
+  ok('azioni card: stesse di oggi per ogni status con la tab specifica', run(() => {
+    const saved = movies;
+    const prevUser = currentUser; const prevTab = currentTab;
+    currentUser = 'N';
+    currentTab = 'watchlist';
+    movies = [
+      { id: 'A', title: 'Alpha Watch', status: 'watchlist', added_by: 'N', poster: '', platform: '', genre: 'azione' },
+      { id: 'B', title: 'Beta Tonight', status: 'tonight', added_by: 'V', poster: '', platform: '', genre: 'azione' },
+      { id: 'C', title: 'Gamma Watched', status: 'watched', added_by: 'N', poster: '', platform: '', review_text: '', rating: 0 },
+      { id: 'D', title: 'Delta Proposal', status: 'proposal', added_by: 'V', poster: '', platform: '' }
+    ];
+    const cnt = (h, s) => h.split(s).length - 1;
+    let okAll = true;
+    render();
+    let html = document.getElementById('movieGrid').innerHTML;
+    okAll = okAll && html.includes('Alpha Watch') && html.indexOf('Beta Tonight') === -1
+      && html.indexOf('Gamma Watched') === -1 && html.indexOf('Delta Proposal') === -1
+      && cnt(html, 'voteMovie') === 2 && cnt(html, 'quickTonightUI') === 1
+      && cnt(html, 'scheduleMovie') === 1 && cnt(html, 'vetoMovie') === 1 && cnt(html, 'addReview') === 0;
+    currentTab = 'tonight';
+    render();
+    html = document.getElementById('movieGrid').innerHTML;
+    okAll = okAll && html.includes('Beta Tonight') && html.indexOf('Gamma Watched') === -1
+      && cnt(html, 'voteMovie') === 2 && cnt(html, 'addReview') === 1
+      && cnt(html, 'quickTonightUI') === 0 && cnt(html, 'vetoMovie') === 0 && cnt(html, 'scheduleMovie') === 0;
+    currentTab = 'watched';
+    render();
+    html = document.getElementById('movieGrid').innerHTML;
+    okAll = okAll && html.includes('Gamma Watched') && html.indexOf('Beta Tonight') === -1
+      && cnt(html, 'voteMovie') === 0 && cnt(html, 'addReview') === 0
+      && cnt(html, 'quickTonightUI') === 0 && cnt(html, 'scheduleMovie') === 0 && cnt(html, 'vetoMovie') === 0;
+    currentTab = prevTab;
+    currentUser = prevUser;
+    movies = saved;
+    return okAll;
+  }));
+  ok('azioni card: stesse di oggi con currentTab="all" (status misti) + badge stasera', run(() => {
+    const saved = movies;
+    const prevUser = currentUser; const prevTab = currentTab;
+    currentUser = 'N';
+    currentTab = 'all';
+    movies = [
+      { id: 'A', title: 'Alpha Watch', status: 'watchlist', added_by: 'N', poster: '', platform: '', genre: 'azione' },
+      { id: 'B', title: 'Beta Tonight', status: 'tonight', added_by: 'V', poster: '', platform: '', genre: 'azione' },
+      { id: 'C', title: 'Gamma Watched', status: 'watched', added_by: 'N', poster: '', platform: '', review_text: '', rating: 0 },
+      { id: 'D', title: 'Delta Proposal', status: 'proposal', added_by: 'V', poster: '', platform: '' }
+    ];
+    const cnt = (h, s) => h.split(s).length - 1;
+    render();
+    const html = document.getElementById('movieGrid').innerHTML;
+    const ok = html.includes('Alpha Watch') && html.includes('Beta Tonight')
+      && html.includes('Gamma Watched') && html.includes('Delta Proposal')
+      && cnt(html, 'voteMovie') === 4 // watchlist + tonight
+      && cnt(html, 'quickTonightUI') === 1 && cnt(html, 'scheduleMovie') === 1 && cnt(html, 'vetoMovie') === 1
+      && cnt(html, 'addReview') === 1
+      && cnt(html, 'bg-sky-500/90') === 1 // badge "stasera" solo per il film tonight
+      && cnt(html, 'deleteMovieConfirm') === 4; // ogni card ha comunque il cestino (nessun errore per status ignoto)
+    currentTab = prevTab;
+    currentUser = prevUser;
+    movies = saved;
+    return ok;
+  }));
+
   console.log(`\n=== RISULTATO: ${pass}/${pass + fail} PASS ===`);
   if (fails.length) { console.log('FAIL:', fails.join('\n  ')); process.exit(1); }
   process.exit(0);
