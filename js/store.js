@@ -472,9 +472,13 @@ function nextMoviePick() {
   }
 
   // Dati legacy (creati prima di movie_nights): state/flag sul film.
+  // I film già visti (status 'watched') non sono mai una serata da programmare:
+  // il mirror scheduled_date/night_confirmed sopravvive alla recensione, quindi
+  // vanno esclusi esplicitamente (il percorso principale da activeNights() è già
+  // coperto perché completeNight chiude le righe movie_nights).
   const candidates = movies.filter(m =>
-    m.status === 'tonight' ||
-    (m.scheduled_date && (m.night_confirmed || m.proposed_by))
+    m.status !== 'watched' &&
+    (m.status === 'tonight' || (m.scheduled_date && (m.night_confirmed || m.proposed_by)))
   );
   if (candidates.length === 0) return null;
 

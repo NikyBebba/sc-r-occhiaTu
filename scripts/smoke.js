@@ -1469,6 +1469,46 @@ async function okA(name, fn) {
     return ok1 && ok2;
   }));
 
+  console.log('\n[nextMoviePick — fallback legacy: watched esclusi]');
+  ok('nextMoviePick: film watched con scheduled_date + night_confirmed NON restituito', run(() => {
+    const savedM = movies, savedN = movieNights;
+    movies = [{ id: 'w1', title: 'W Seen', status: 'watched', scheduled_date: '2026-10-20', night_confirmed: true, proposed_by: 'N' }];
+    movieNights = [];
+    const pick = nextMoviePick();
+    movies = savedM; movieNights = savedN;
+    return pick === null;
+  }));
+  ok('nextMoviePick: film in watchlist con serata → sì', run(() => {
+    const savedM = movies, savedN = movieNights;
+    movies = [{ id: 'wl1', title: 'Planned', status: 'watchlist', scheduled_date: '2026-10-22', night_confirmed: true, proposed_by: 'V' }];
+    movieNights = [];
+    const pick = nextMoviePick();
+    movies = savedM; movieNights = savedN;
+    return pick !== null && pick.id === 'wl1';
+  }));
+  ok('nextMoviePick: film "tonight" → sì', run(() => {
+    const savedM = movies, savedN = movieNights;
+    movies = [{ id: 'tn1', title: 'Tonight', status: 'tonight' }];
+    movieNights = [];
+    const pick = nextMoviePick();
+    movies = savedM; movieNights = savedN;
+    return pick !== null && pick.id === 'tn1';
+  }));
+  ok('nextMoviePick: nessun altro caso cambia (serata attiva batte watched; quick legacy ok)', run(() => {
+    const savedM = movies, savedN = movieNights;
+    movies = [
+      { id: 'ma', title: 'M A', status: 'tonight' },
+      { id: 'w2', title: 'W Seen', status: 'watched', scheduled_date: '2026-10-20', night_confirmed: true, proposed_by: 'N' }
+    ];
+    movieNights = [{ id: 'n1', movie_id: 'ma', date: '2026-10-24', time: '21:30', status: 'confirmed', proposed_by: 'N' }];
+    const pick1 = nextMoviePick();                       // percorso principale (movie_nights)
+    movies = [{ id: 'lq', title: 'LegacyQ', status: 'tonight' }];
+    movieNights = [];
+    const pick2 = nextMoviePick();                       // fallback legacy quick
+    movies = savedM; movieNights = savedN;
+    return pick1 !== null && pick1.id === 'ma' && pick2 !== null && pick2.id === 'lq';
+  }));
+
   ok('collapse: toggle mobile + render/resync non tocca lo stato del pannello', run(() => {
     const panel = document.getElementById('listFiltersPanel');
     const savedOpen = listFiltersOpen;
