@@ -22,6 +22,7 @@ function setTab(tab) {
       btn.className = k === tab
         ? "flex-1 py-2 rounded-lg font-medium transition bg-indigo-600 text-white whitespace-nowrap"
         : "flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap";
+      btn.setAttribute('aria-selected', String(k === tab));
     });
     // Entra: sonda (se serve), sessione attiva e canale dedicato. Async: la
     // vista mostra "Connessione…" finché il canale non è subscribed. Se
@@ -46,6 +47,7 @@ function setTab(tab) {
     btn.className = k === tab
       ? "flex-1 py-2 rounded-lg font-medium transition bg-indigo-600 text-white whitespace-nowrap"
       : "flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap";
+    btn.setAttribute('aria-selected', String(k === tab));
   });
   render();
 }

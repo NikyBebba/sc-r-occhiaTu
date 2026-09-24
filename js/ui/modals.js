@@ -12,6 +12,14 @@ function openModal(id) {
   el.classList.remove('hidden');
   if (!modalStack.includes(id)) modalStack.push(id);
   wireBackdropClose(el, id);
+  // ARIA (Phase 31): ogni modale è un dialog col suo titolo come referente.
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  const heading = el.querySelector('h2, h3');
+  if (heading) {
+    if (!heading.id) heading.id = id + 'Title';
+    el.setAttribute('aria-labelledby', heading.id);
+  }
 }
 
 function closeModal(id) {

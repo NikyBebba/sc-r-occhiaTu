@@ -380,3 +380,35 @@ body {
   --bordo-vetro: rgba(255, 255, 255, 0.08);
   --overlay-modal: rgba(0, 0, 0, 0.75);
 }
+
+/* ---- STEP 1 · Phase 31 — Accessibility baseline.
+   Focus ring coerente su TUTTI gli elementi interattivi (token indigo-400:
+   contrasto ~9:1 sul Nero Sala). I `focus:outline-none` storici di
+   index.html sono stati rimossi: pointer focus = bordo (focus:border),
+   tastiera focus = anello qui sotto.
+   prefers-reduced-motion: azzera animazioni/transition non essenziali e
+   nasconde i confetti (non informativi). ---- */
+:focus-visible {
+  outline: 2px solid var(--color-dettaglio);
+  outline-offset: 2px;
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-dettaglio);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .confetti-piece {
+    display: none;
+  }
+}

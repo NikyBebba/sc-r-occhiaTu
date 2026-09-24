@@ -100,8 +100,8 @@
     <div class="glass-panel p-8 rounded-2xl max-w-xs w-full mx-4 text-center space-y-4 border border-slate-800">
       <i class="fa-solid fa-lock text-3xl text-indigo-400"></i>
       <p id="pinGateLabel" class="text-sm text-slate-300 font-medium">Inserisci il PIN</p>
-      <input id="pinInput" type="password" inputmode="numeric" maxlength="8"
-        class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-100 focus:outline-none focus:border-indigo-500"
+      <input id="pinInput" aria-label="PIN segreto" type="password" inputmode="numeric" maxlength="8"
+        class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-100 focus:border-indigo-500"
         onkeydown="if(event.key==='Enter') submitPin()">
       <p id="pinError" class="hidden text-xs text-rose-400">PIN errato, riprova.</p>
       <button onclick="submitPin()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm">Entra</button>
@@ -119,19 +119,19 @@
       <div class="flex items-center gap-2 sm:gap-3">
         <span id="syncBadge" class="hidden text-[10px] px-2 py-1 bg-amber-500/15 text-amber-300 rounded-md border border-amber-500/30" title="Supabase non raggiungibile: sto usando i dati salvati sul telefono"></span>
         <span id="currentUserBadge"></span>
-        <button onclick="openModal('statsModal'); renderStats();" class="px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm transition flex items-center gap-2" title="Il Nostro Cinema">
+        <button aria-label="Il Nostro Cinema" onclick="openModal('statsModal'); renderStats();" class="px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm transition flex items-center gap-2" title="Il Nostro Cinema">
           <i class="fa-solid fa-chart-pie"></i>
         </button>
-        <button onclick="openSurprisePicker()" class="px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm transition flex items-center gap-2" title="Scegli a sorpresa">
+        <button aria-label="Scegli a sorpresa" onclick="openSurprisePicker()" class="px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm transition flex items-center gap-2" title="Scegli a sorpresa">
           <i class="fa-solid fa-gift"></i>
         </button>
-        <button onclick="openModal('importModal')" class="px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm transition flex items-center gap-2">
+        <button aria-label="Importa film" onclick="openModal('importModal')" class="px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm transition flex items-center gap-2">
           <i class="fa-solid fa-file-import"></i><span class="hidden sm:inline"> Importa</span>
         </button>
         <button onclick="openAddModal()" class="px-3 sm:px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm shadow-lg shadow-indigo-500/20 transition flex items-center gap-2">
           <i class="fa-solid fa-plus"></i><span class="hidden sm:inline"> Aggiungi</span>
         </button>
-        <button onclick="logout()" class="px-2 py-2 text-slate-400 hover:text-rose-400 transition" title="Cambia utente">
+        <button aria-label="Cambia utente" onclick="logout()" class="px-2 py-2 text-slate-400 hover:text-rose-400 transition" title="Cambia utente">
           <i class="fa-solid fa-right-from-bracket"></i>
         </button>
       </div>
@@ -147,14 +147,14 @@
           </h2>
           <p class="text-xs text-slate-400 mb-3">Non sapete cosa guardare? Fate girare la ruota!</p>
           <div class="space-y-2 mb-3">
-            <select id="durationFilterSelect" onchange="setDurationFilter(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+            <select id="durationFilterSelect" onchange="setDurationFilter(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:border-indigo-500">
               <option value="all">⏱️ Qualsiasi durata</option>
               <option value="short">Corta (&lt; 100 min)</option>
               <option value="medium">Media (100–119 min)</option>
               <option value="long">Lunga (120–149 min)</option>
               <option value="epic">Epica (≥ 150 min)</option>
             </select>
-            <select id="genreFilterSelect" onchange="setGenreFilter(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+            <select id="genreFilterSelect" onchange="setGenreFilter(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:border-indigo-500">
               <option value="all">🎞️ Qualsiasi genere</option>
             </select>
           </div>
@@ -185,7 +185,7 @@
         <div class="relative">
           <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
           <input id="movieSearchInput" type="text" placeholder="Cerca titolo o genere…" autocomplete="off" oninput="onSearchInput()"
-            class="w-full bg-slate-900/70 border border-slate-800 rounded-xl pl-9 pr-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+            class="w-full bg-slate-900/70 border border-slate-800 rounded-xl pl-9 pr-3 py-2.5 text-sm text-slate-100 focus:border-indigo-500">
         </div>
         <div class="space-y-2" id="listFiltersBlock">
           <button id="filtersToggleBtn" onclick="toggleListFiltersPanel()" class="md:hidden w-full flex items-center justify-between px-3 py-2 bg-slate-800/70 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium transition">
@@ -193,17 +193,17 @@
             <i id="filtersToggleChevron" class="fa-solid fa-chevron-down transition-transform"></i>
           </button>
           <div id="listFiltersPanel" class="hidden md:flex flex-col md:flex-row md:flex-wrap gap-2">
-            <select id="proposerFilterSelect" onchange="setProposerFilter(this.value)" class="w-full md:w-44 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+            <select id="proposerFilterSelect" onchange="setProposerFilter(this.value)" class="w-full md:w-44 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:border-indigo-500">
               <option value="all">👤 Tutti i propositori</option>
             </select>
-            <select id="genreListFilterSelect" onchange="setGenreListFilter(this.value)" class="w-full md:w-48 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+            <select id="genreListFilterSelect" onchange="setGenreListFilter(this.value)" class="w-full md:w-48 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:border-indigo-500">
               <option value="all">🎞️ Tutti i generi</option>
             </select>
-            <select id="platformFilterSelect" onchange="setPlatformFilter(this.value)" class="w-full md:w-52 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+            <select id="platformFilterSelect" onchange="setPlatformFilter(this.value)" class="w-full md:w-52 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:border-indigo-500">
               <option value="all">📺 Tutte le piattaforme</option>
             </select>
             <div class="flex gap-2 w-full md:w-auto">
-              <select id="sortKeySelect" onchange="setListSortKey(this.value)" class="flex-1 md:w-44 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+              <select id="sortKeySelect" onchange="setListSortKey(this.value)" class="flex-1 md:w-44 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 focus:border-indigo-500">
                 <option value="added">⬇️ Data di aggiunta</option>
                 <option value="title">🔤 Titolo</option>
                 <option value="duration">⏱️ Durata</option>
@@ -212,19 +212,19 @@
                 <option value="imdb">🎯 Voto IMDb</option>
                 <option value="proposer">👤 Da chi</option>
               </select>
-              <button id="sortDirBtn" onclick="toggleListSortDir()" title="Decrescente" class="px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs">
+              <button id="sortDirBtn" aria-label="Inverti ordinamento" onclick="toggleListSortDir()" title="Decrescente" class="px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs">
                 <i id="sortDirIcon" class="fa-solid fa-arrow-down-a-z"></i>
               </button>
             </div>
           </div>
         </div>
-        <div class="flex bg-slate-900/60 p-1 rounded-xl border border-slate-800 text-sm gap-1 overflow-x-auto">
-          <button onclick="setTab('all')" id="tabAll" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Tutti <span id="pillCountAll" class="text-[10px] opacity-80">0</span></button>
-          <button onclick="setTab('watchlist')" id="tabWatchlist" class="flex-1 py-2 rounded-lg font-medium transition bg-indigo-600 text-white whitespace-nowrap">Da Vedere <span id="pillCountWatchlist" class="text-[10px] opacity-80">0</span></button>
-          <button onclick="setTab('tonight')" id="tabTonight" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">In programma <span id="pillCountTonight" class="text-[10px] opacity-80">0</span></button>
-          <button onclick="setTab('watched')" id="tabWatched" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Visti e Recensioni <span id="pillCountWatched" class="text-[10px] opacity-80">0</span></button>
-          <button onclick="setTab('calendar')" id="tabCalendar" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Calendario</button>
-          <button onclick="setTab('match')" id="tabMatch" class="hidden flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Match</button>
+        <div role="tablist" aria-label="Viste" class="flex bg-slate-900/60 p-1 rounded-xl border border-slate-800 text-sm gap-1 overflow-x-auto">
+          <button onclick="setTab('all')" id="tabAll" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Tutti <span id="pillCountAll" class="text-[10px] opacity-80">0</span></button>
+          <button onclick="setTab('watchlist')" id="tabWatchlist" role="tab" aria-selected="true" class="flex-1 py-2 rounded-lg font-medium transition bg-indigo-600 text-white whitespace-nowrap">Da Vedere <span id="pillCountWatchlist" class="text-[10px] opacity-80">0</span></button>
+          <button onclick="setTab('tonight')" id="tabTonight" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">In programma <span id="pillCountTonight" class="text-[10px] opacity-80">0</span></button>
+          <button onclick="setTab('watched')" id="tabWatched" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Visti e Recensioni <span id="pillCountWatched" class="text-[10px] opacity-80">0</span></button>
+          <button onclick="setTab('calendar')" id="tabCalendar" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Calendario</button>
+          <button onclick="setTab('match')" id="tabMatch" role="tab" aria-selected="false" class="hidden flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Match</button>
         </div>
         <div id="movieGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
       </div>
@@ -235,16 +235,16 @@
   <div id="addModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass-panel p-6 rounded-2xl max-w-md w-full border border-slate-800 space-y-4">
       <div class="flex items-center justify-between gap-2">
-        <h3 class="text-lg font-bold text-slate-100">Aggiungi un Film</h3>
+        <h3 id="addModalTitle" class="text-lg font-bold text-slate-100">Aggiungi un Film</h3>
         <button onclick="closeModal('addModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-400 mb-1">Titolo del Film</label>
-        <input type="text" id="addTitle" placeholder="es. Inception" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+        <input type="text" id="addTitle" placeholder="es. Inception" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-400 mb-1">Proposto da</label>
-        <select id="addBy" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+        <select id="addBy" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
           <option value="N">N</option>
           <option value="V">V</option>
         </select>
@@ -261,14 +261,14 @@
   <div id="importModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass-panel p-6 rounded-2xl max-w-lg w-full border border-slate-800 space-y-4">
       <div class="flex items-center justify-between gap-2">
-        <h3 class="text-lg font-bold text-slate-100">Importa Lista Titoli</h3>
+        <h3 id="importModalTitle" class="text-lg font-bold text-slate-100">Importa Lista Titoli</h3>
         <button onclick="closeModal('importModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <p class="text-xs text-slate-400">Incolla qui la tua lista JustWatch o i titoli messaggiati (un titolo per riga):</p>
-      <textarea id="importText" rows="6" placeholder="Interstellar&#10;Pulp Fiction&#10;La Citta Incantata" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"></textarea>
+      <textarea id="importText" rows="6" placeholder="Interstellar&#10;Pulp Fiction&#10;La Citta Incantata" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-100 focus:border-indigo-500"></textarea>
       <div>
         <label class="block text-xs font-medium text-slate-400 mb-1">Chi ha proposto questi film?</label>
-        <select id="importAddedBy" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+        <select id="importAddedBy" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
           <option value="N">N (da JustWatch)</option>
           <option value="V">V (da Messaggi)</option>
         </select>
@@ -285,22 +285,22 @@
   <div id="scheduleModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass-panel p-6 rounded-2xl max-w-sm w-full border border-slate-800 space-y-4">
       <div class="flex items-center justify-between gap-2">
-        <h3 class="text-lg font-bold text-slate-100">Programma la serata</h3>
+        <h3 id="scheduleModalTitle" class="text-lg font-bold text-slate-100">Programma la serata</h3>
         <button onclick="closeModal('scheduleModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <input type="hidden" id="scheduleMovieId">
       <div>
         <label class="block text-xs font-medium text-slate-400 mb-1">Data</label>
-        <input type="date" id="scheduleDate" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+        <input type="date" id="scheduleDate" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-400 mb-1">Ora</label>
-        <input type="time" id="scheduleTime" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+        <input type="time" id="scheduleTime" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-400 mb-1">Snack della serata</label>
         <div class="flex gap-2">
-          <select id="scheduleSnack" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+          <select id="scheduleSnack" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
             <option value="🍿 Popcorn dolce">🍿 Popcorn dolce</option>
             <option value="🍿 Popcorn salato">🍿 Popcorn salato</option>
             <option value="🍫 Cioccolato">🍫 Cioccolato</option>
@@ -322,18 +322,18 @@
   <div id="reviewModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass-panel p-6 rounded-2xl max-w-md w-full border border-slate-800 space-y-4">
       <div class="flex items-center justify-between gap-2">
-        <h3 class="text-lg font-bold text-slate-100">Visto & Recensione</h3>
+        <h3 id="reviewModalTitle" class="text-lg font-bold text-slate-100">Visto & Recensione</h3>
         <button onclick="closeModal('reviewModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <input type="hidden" id="reviewMovieId">
       <div>
         <label class="block text-xs font-medium text-slate-400 mb-1">Recensione</label>
-        <textarea id="reviewText" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"></textarea>
+        <textarea id="reviewText" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500"></textarea>
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="block text-xs font-medium text-slate-400 mb-1">Chi l'ha visto</label>
-          <select id="reviewBy" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+          <select id="reviewBy" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
             <option value="N">N</option>
             <option value="V">V</option>
             <option value="both" selected>Insieme</option>
@@ -341,7 +341,7 @@
         </div>
         <div>
           <label class="block text-xs font-medium text-slate-400 mb-1">Voto (1-5)</label>
-          <select id="reviewStars" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+          <select id="reviewStars" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
             <option value="1">⭐</option>
             <option value="2">⭐⭐</option>
             <option value="3">⭐⭐⭐</option>
@@ -362,7 +362,7 @@
   <div id="pickerModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass-panel p-6 rounded-2xl max-w-2xl w-full border border-slate-800 space-y-4 max-h-[85vh] overflow-y-auto">
       <div class="flex items-center justify-between gap-2">
-        <h3 class="text-lg font-bold text-slate-100">Quale intendevi?</h3>
+        <h3 id="pickerModalTitle" class="text-lg font-bold text-slate-100">Quale intendevi?</h3>
         <button onclick="closeModal('pickerModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <p class="text-xs text-slate-400">Scegli il film giusto tra i risultati trovati.</p>
@@ -378,12 +378,12 @@
   <div id="retryModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass-panel p-6 rounded-2xl max-w-sm w-full border border-slate-800 space-y-4">
       <div class="flex items-center justify-between gap-2">
-        <h3 class="text-lg font-bold text-slate-100">Correggi il titolo</h3>
+        <h3 id="retryModalTitle" class="text-lg font-bold text-slate-100">Correggi il titolo</h3>
         <button onclick="closeModal('retryModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <p class="text-xs text-slate-400">Nessun riscontro trovato. Prova con il titolo originale (es. in inglese) o con l'anno di uscita.</p>
       <input type="hidden" id="retryMovieId">
-      <input type="text" id="retryTitle" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+      <input type="text" id="retryTitle" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
       <div class="flex justify-end gap-2 pt-2">
         <button onclick="closeModal('retryModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
         <button id="retrySearchBtn" onclick="confirmRetryMatch()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">Cerca</button>
@@ -410,7 +410,7 @@
   <div id="statsModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass-panel p-6 rounded-2xl max-w-lg w-full border border-slate-800 space-y-4 max-h-[85vh] overflow-y-auto">
       <div class="flex items-center justify-between gap-2">
-        <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-indigo-400"></i> Il Nostro Cinema</h3>
+        <h3 id="statsModalTitle" class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-indigo-400"></i> Il Nostro Cinema</h3>
         <button onclick="closeModal('statsModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div id="statsGrid" class="grid grid-cols-2 gap-3"></div>
@@ -428,7 +428,7 @@
   <div id="surpriseModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass-panel p-6 rounded-2xl max-w-md w-full border border-slate-800 space-y-4 max-h-[85vh] overflow-y-auto">
       <div class="flex items-center justify-between gap-2">
-        <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa-solid fa-gift text-indigo-400"></i> Scegli a sorpresa</h3>
+        <h3 id="surpriseModalTitle" class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa-solid fa-gift text-indigo-400"></i> Scegli a sorpresa</h3>
         <button onclick="closeModal('surpriseModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <p class="text-xs text-slate-400">Scegli in segreto un film dalla watchlist: il poster resterà sfocato per l'altra persona finché non deciderà di rivelarlo.</p>

@@ -108,7 +108,7 @@ function matchMovieMeta(movie) {
 }
 
 function matchPoster(movie) {
-  return `<img src="${movie.poster || 'https://via.placeholder.com/300x450/1e293b/64748b?text=No+Cover'}" class="w-full h-full object-cover">`;
+  return `<img src="${movie.poster || 'https://via.placeholder.com/300x450/1e293b/64748b?text=No+Cover'}" alt="${escapeHtml(movie.title)}" class="w-full h-full object-cover">`;
 }
 
 // SWIPE: card del film corrente + Nope/Like grandi. Bottoni e gesto usano la

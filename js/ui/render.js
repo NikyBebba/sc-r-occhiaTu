@@ -76,7 +76,7 @@ function renderNextMovieBox() {
   box.innerHTML = `
     <div class="p-3 bg-slate-900/80 rounded-xl border ${pending ? 'border-amber-500/40' : 'border-indigo-500/40'}">
       <div class="flex gap-3">
-        <img src="${pick.poster || 'https://via.placeholder.com/60x90/1e293b/64748b?text=?'}" class="w-12 h-16 object-cover rounded">
+        <img src="${pick.poster || 'https://via.placeholder.com/60x90/1e293b/64748b?text=?'}" alt="${escapeHtml(pick.title)}" class="w-12 h-16 object-cover rounded">
         <div class="flex-1">
           <div class="font-bold text-slate-100 text-sm">${escapeHtml(pick.title)}</div>
           <div class="text-[11px] text-slate-400">${countdownHtml}${pick.snack ? ' • ' + escapeHtml(pick.snack) : ''}</div>
@@ -389,7 +389,7 @@ function render() {
 
     card.innerHTML = `
       <div class="relative h-48 bg-slate-900 overflow-hidden">
-        <img src="${poster}" class="w-full h-full object-cover ${isSurpriseHidden ? 'surprise-blur' : ''}">
+        <img src="${poster}" alt="${escapeHtml(m.title)}" class="w-full h-full object-cover ${isSurpriseHidden ? 'surprise-blur' : ''}">
         ${isSurpriseHidden ? `
           <div class="surprise-overlay bg-black/40">
             <div class="text-2xl">🎁</div>
@@ -447,19 +447,19 @@ function render() {
         <div class="flex flex-col gap-2 pt-2 border-t border-slate-800/80 text-xs">
           ${(m.status === 'watchlist' || m.status === 'tonight') ? `
             <div class="flex items-center gap-2">
-              <button onclick="voteMovie('${m.id}', true)" class="px-2 py-1 rounded ${votesObj[currentUser] === true ? 'bg-emerald-600/60 text-white' : 'bg-slate-800 text-slate-400 hover:text-emerald-300'}"><i class="fa-solid fa-thumbs-up"></i></button>
-              <button onclick="voteMovie('${m.id}', false)" class="px-2 py-1 rounded ${votesObj[currentUser] === false ? 'bg-rose-600/60 text-white' : 'bg-slate-800 text-slate-400 hover:text-rose-300'}"><i class="fa-solid fa-thumbs-down"></i></button>
+              <button onclick="voteMovie('${m.id}', true)" aria-label="Mi piace" class="px-2 py-1 rounded ${votesObj[currentUser] === true ? 'bg-emerald-600/60 text-white' : 'bg-slate-800 text-slate-400 hover:text-emerald-300'}"><i class="fa-solid fa-thumbs-up"></i></button>
+              <button onclick="voteMovie('${m.id}', false)" aria-label="Non mi piace" class="px-2 py-1 rounded ${votesObj[currentUser] === false ? 'bg-rose-600/60 text-white' : 'bg-slate-800 text-slate-400 hover:text-rose-300'}"><i class="fa-solid fa-thumbs-down"></i></button>
               <span class="text-[10px] text-slate-400">voto tuo</span>
             </div>
           ` : ''}
           ${m.status === 'watchlist' ? `
             <div class="flex gap-2">
               <button onclick="quickTonightUI('${m.id}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded font-medium">Stasera</button>
-              <button onclick="scheduleMovie('${m.id}')" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded"><i class="fa-solid fa-calendar"></i></button>
+              <button onclick="scheduleMovie('${m.id}')" aria-label="Programma la serata" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded"><i class="fa-solid fa-calendar"></i></button>
               ${!isVetoed
-                ? `<button onclick="vetoMovie('${m.id}', '${jsAttrEscape(m.title)}')" class="px-2 py-1.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 rounded" title="Vieta questa settimana"><i class="fa-solid fa-ban"></i></button>`
+                ? `<button onclick="vetoMovie('${m.id}', '${jsAttrEscape(m.title)}')" aria-label="Vieta questa settimana" class="px-2 py-1.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 rounded" title="Vieta questa settimana"><i class="fa-solid fa-ban"></i></button>`
                 : (vetoForMovieThisWeek(m.id) && vetoForMovieThisWeek(m.id).person === currentUser
-                  ? `<button onclick="unvetoMovie('${m.id}')" class="px-2 py-1.5 bg-rose-900/50 hover:bg-rose-900/80 text-rose-300 rounded" title="Togli il veto"><i class="fa-solid fa-rotate-left"></i></button>`
+                  ? `<button onclick="unvetoMovie('${m.id}')" aria-label="Togli il veto" class="px-2 py-1.5 bg-rose-900/50 hover:bg-rose-900/80 text-rose-300 rounded" title="Togli il veto"><i class="fa-solid fa-rotate-left"></i></button>`
                   : '')}
             </div>
           ` : ''}

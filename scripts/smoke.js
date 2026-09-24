@@ -35,6 +35,7 @@ function makeEl(id) {
     },
     _children: [],
     appendChild(c) { this._children.push(c); }, remove() {}, focus() {}, scrollIntoView() {},
+    querySelector() { return makeEl('q'); }, querySelectorAll() { return []; },
     setAttribute(k, v) { this[k] = v; }, getAttribute(k) { return this[k]; },
     set innerHTML(v) { this._innerHTML = String(v); this._children = []; }, get innerHTML() { return this._innerHTML + this._children.map(c => (c._innerHTML || '')).join(''); },
     set textContent(v) { this._text = String(v); }, get textContent() { return this._text; }

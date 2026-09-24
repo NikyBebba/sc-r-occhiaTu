@@ -52,7 +52,7 @@ async function runTmdbSearchAndOpenPicker(title) {
   document.getElementById('pickerResults').innerHTML = candidates.map(c => `
     <button onclick="selectPickerCandidate(${c.id})" class="glass-card rounded-lg overflow-hidden border border-slate-800 hover:border-indigo-500 transition text-left">
       <div class="h-40 bg-slate-900">
-        ${c.poster ? `<img src="${c.poster}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-400 text-xs">Nessun poster</div>`}
+        ${c.poster ? `<img src="${c.poster}" alt="${escapeHtml(c.title)}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-400 text-xs">Nessun poster</div>`}
       </div>
       <div class="p-2">
         <div class="text-xs font-semibold text-slate-100 leading-snug">${escapeHtml(c.title)}</div>
