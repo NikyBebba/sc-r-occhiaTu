@@ -1,7 +1,20 @@
+/* ---- STEP 1 · Phase 0 — Typography (Plus Jakarta Sans, scala responsive) ---- */
+:root {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Scala tipografica responsive (coerente con fontSize in tailwind.config):
+     min = dimensione storica già in uso, max = crescita su schermi larghi. */
+  --fs-xs: clamp(0.75rem, 0.72rem + 0.12vw, 0.8125rem);
+  --fs-sm: clamp(0.875rem, 0.84rem + 0.15vw, 0.9375rem);
+  --fs-base: clamp(1rem, 0.96rem + 0.15vw, 1.0625rem);
+  --fs-lg: clamp(1.125rem, 1.08rem + 0.2vw, 1.25rem);
+  --fs-xl: clamp(1.25rem, 1.18rem + 0.3vw, 1.5rem);
+  --fs-hero: clamp(1.875rem, 1.5rem + 1.6vw, 2.5rem);
+}
+
 body {
   background-color: #0f172a;
   color: #f8fafc;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .glass {

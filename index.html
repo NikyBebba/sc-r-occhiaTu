@@ -4,7 +4,28 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>sc(r)occhiaTu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif']
+          },
+          fontSize: {
+            'xs': 'clamp(0.75rem, 0.72rem + 0.12vw, 0.8125rem)',
+            'sm': 'clamp(0.875rem, 0.84rem + 0.15vw, 0.9375rem)',
+            'base': 'clamp(1rem, 0.96rem + 0.15vw, 1.0625rem)',
+            'lg': 'clamp(1.125rem, 1.08rem + 0.2vw, 1.25rem)',
+            'xl': 'clamp(1.25rem, 1.18rem + 0.3vw, 1.5rem)'
+          }
+        }
+      }
+    };
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link href="css/style.css" rel="stylesheet">
