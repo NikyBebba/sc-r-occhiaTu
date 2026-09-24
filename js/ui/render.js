@@ -38,7 +38,7 @@ function renderNextMovieBox() {
   const pick = nextMoviePick();
 
   if (!pick) {
-    box.innerHTML = `<p class="text-xs text-slate-500 italic">Nessun film scelto per la prossima serata: gira la ruota, fate match o proponete una sera.</p>`;
+    box.innerHTML = `<p class="text-xs text-slate-400 italic">Nessun film scelto per la prossima serata: gira la ruota, fate match o proponete una sera.</p>`;
     return;
   }
 
@@ -138,7 +138,7 @@ function renderStats() {
     <div class="p-4 bg-slate-900/80 rounded-xl border border-slate-800 text-center">
       <div class="text-2xl ${c.iconClass}"><i class="fa-solid ${c.icon}"></i></div>
       <div class="text-xl font-bold text-slate-100 mt-1">${escapeHtml(c.value)}</div>
-      <div class="text-[10px] text-slate-500 mt-1">${c.label}</div>
+      <div class="text-[10px] text-slate-400 mt-1">${c.label}</div>
     </div>
   `).join('');
 
@@ -146,12 +146,12 @@ function renderStats() {
     .sort((a, b) => new Date(b.scheduled_date || b.created_at) - new Date(a.scheduled_date || a.created_at));
   const timeline = document.getElementById('reviewTimeline');
   if (reviewed.length === 0) {
-    timeline.innerHTML = `<p class="text-xs text-slate-500 italic">Ancora nessuna recensione.</p>`;
+    timeline.innerHTML = `<p class="text-xs text-slate-400 italic">Ancora nessuna recensione.</p>`;
   } else {
     timeline.innerHTML = reviewed.map(m => `
       <div class="timeline-item">
         <div class="text-sm font-bold text-slate-100">${escapeHtml(m.title)}</div>
-        <div class="text-[10px] text-slate-500">${m.scheduled_date || ''} • ${'⭐'.repeat(m.rating || 0)} • ${m.review_by === 'both' ? 'Insieme' : (CONFIG.PEOPLE[m.review_by]?.label || m.review_by)}</div>
+        <div class="text-[10px] text-slate-400">${m.scheduled_date || ''} • ${'⭐'.repeat(m.rating || 0)} • ${m.review_by === 'both' ? 'Insieme' : (CONFIG.PEOPLE[m.review_by]?.label || m.review_by)}</div>
         <div class="text-xs text-slate-300 italic mt-1">"${escapeHtml(m.review_text)}"</div>
       </div>
     `).join('');
@@ -186,7 +186,7 @@ function renderPillCounters() {
 function emptyListStateHtml() {
   const state = listFilterState();
   if (!hasActiveListFilters(state)) {
-    return `<div class="col-span-full py-12 text-center text-slate-500 text-sm">Nessun film in questa sezione.</div>`;
+    return `<div class="col-span-full py-12 text-center text-slate-400 text-sm">Nessun film in questa sezione.</div>`;
   }
   const parts = [];
   if (state.query && String(state.query).trim()) parts.push(`"${escapeHtml(state.query)}"`);
@@ -194,7 +194,7 @@ function emptyListStateHtml() {
   if (state.platform) parts.push(`piattaforma ${escapeHtml(state.platform)}`);
   if (state.proposer) parts.push(`proposto da ${escapeHtml(state.proposer)}`);
   return `
-    <div class="col-span-full py-12 text-center text-slate-500 text-sm space-y-3">
+    <div class="col-span-full py-12 text-center text-slate-400 text-sm space-y-3">
       <p>Nessun film corrisponde ai filtri.</p>
       <p class="text-slate-400 text-xs">${parts.join(' · ')}</p>
       <button onclick="resetListFiltersUI()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition">Azzera filtri</button>
@@ -394,17 +394,17 @@ function render() {
           <div class="surprise-overlay bg-black/40">
             <div class="text-2xl">🎁</div>
             <div class="text-xs text-slate-100 font-semibold">Sorpresa di ${CONFIG.PEOPLE[m.surprise_by]?.label || m.surprise_by}</div>
-            <button onclick="revealSurpriseUI('${m.id}')" class="mt-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-medium">Rivela</button>
+            <button onclick="revealSurpriseUI('${m.id}')" class="mt-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-medium">Rivela</button>
           </div>
         ` : ''}
         <div class="absolute top-2 right-2 flex flex-col gap-1 items-end">
           ${personBadge(m.added_by)}
-          ${m.matched === false ? `<span class="badge bg-amber-500/90" title="Nessun riscontro trovato su TMDb/OMDb, titolo forse errato"><i class="fa-solid fa-triangle-exclamation"></i> verifica</span>` : ''}
+          ${m.matched === false ? `<span class="badge bg-amber-700/90" title="Nessun riscontro trovato su TMDb/OMDb, titolo forse errato"><i class="fa-solid fa-triangle-exclamation"></i> verifica</span>` : ''}
           ${m.surprise_by === currentUser ? `<div class="flex items-center gap-1">
-            <span class="badge bg-indigo-500/90">🎁 tua sorpresa</span>
+            <span class="badge bg-indigo-600/90">🎁 tua sorpresa</span>
             <button onclick="revealSurpriseUI('${m.id}')" class="px-1.5 py-0.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 rounded text-[10px] transition" title="Annulla la sorpresa">Annulla sorpresa</button>
           </div>` : ''}
-          ${isVetoed ? `<span class="badge bg-rose-500/90">vietato</span>` : ''}
+          ${isVetoed ? `<span class="badge bg-rose-700/90">vietato</span>` : ''}
         </div>
         ${!isSurpriseHidden ? `<div class="absolute bottom-2 left-2 px-2 py-1 bg-black/60 rounded text-[10px] text-slate-300 backdrop-blur">
           <i class="fa-solid fa-tv text-indigo-400"></i> ${metaParts.map(escapeHtml).join(' • ')}
@@ -415,15 +415,15 @@ function render() {
         <div>
           <div class="flex items-start justify-between gap-2">
             <h3 class="font-bold text-slate-100 text-base leading-snug">${isSurpriseHidden ? '???' : escapeHtml(m.title)}</h3>
-            <button onclick="deleteMovieConfirm('${m.id}', '${jsAttrEscape(m.title)}')" class="text-slate-600 hover:text-rose-400 transition shrink-0" title="Rimuovi">
+            <button onclick="deleteMovieConfirm('${m.id}', '${jsAttrEscape(m.title)}')" class="text-slate-400 hover:text-rose-400 transition shrink-0" title="Rimuovi">
               <i class="fa-solid fa-trash text-xs"></i>
             </button>
           </div>
-          ${m.director ? `<div class="mt-1 text-[10px] text-slate-500 truncate" title="${escapeHtml(m.director)}"><i class="fa-solid fa-user mr-1"></i>${escapeHtml(m.director)}</div>` : ''}
+          ${m.director ? `<div class="mt-1 text-[10px] text-slate-400 truncate" title="${escapeHtml(m.director)}"><i class="fa-solid fa-user mr-1"></i>${escapeHtml(m.director)}</div>` : ''}
           <div class="flex items-center gap-2 mt-1 flex-wrap">
             ${genreChips(m)}
-            ${m.status === 'tonight' && currentTab === 'all' ? `<span class="badge bg-sky-500/90">in programma</span>` : ''}
-            ${m.status === 'tonight' && currentTab === 'tonight' ? `<span class="badge bg-indigo-500/90"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatNightDate(m.scheduled_date, m.scheduled_time))}</span>` : ''}
+            ${m.status === 'tonight' && currentTab === 'all' ? `<span class="badge bg-sky-700/90">in programma</span>` : ''}
+            ${m.status === 'tonight' && currentTab === 'tonight' ? `<span class="badge bg-indigo-600/90"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatNightDate(m.scheduled_date, m.scheduled_time))}</span>` : ''}
             ${matchHtml}
             ${(m.review_by && m.review_by !== 'both' && m.status !== 'watched') ? `<span class="text-[10px] text-amber-400"><i class="fa-solid fa-eye"></i> già visto da ${CONFIG.PEOPLE[m.review_by]?.label || m.review_by} — rewatch insieme?</span>` : ''}
           </div>
@@ -449,7 +449,7 @@ function render() {
             <div class="flex items-center gap-2">
               <button onclick="voteMovie('${m.id}', true)" class="px-2 py-1 rounded ${votesObj[currentUser] === true ? 'bg-emerald-600/60 text-white' : 'bg-slate-800 text-slate-400 hover:text-emerald-300'}"><i class="fa-solid fa-thumbs-up"></i></button>
               <button onclick="voteMovie('${m.id}', false)" class="px-2 py-1 rounded ${votesObj[currentUser] === false ? 'bg-rose-600/60 text-white' : 'bg-slate-800 text-slate-400 hover:text-rose-300'}"><i class="fa-solid fa-thumbs-down"></i></button>
-              <span class="text-[10px] text-slate-500">voto tuo</span>
+              <span class="text-[10px] text-slate-400">voto tuo</span>
             </div>
           ` : ''}
           ${m.status === 'watchlist' ? `
@@ -494,7 +494,7 @@ function renderScheduled() {
   const scheduled = movies.filter(m => m.scheduled_date && m.status !== 'watched' && m.id !== pickId);
   if (scheduled.length === 0) {
     const anyDated = movies.some(m => m.scheduled_date && m.status !== 'watched');
-    container.innerHTML = anyDated ? '' : `<p class="text-xs text-slate-500 italic">Nessun film programmato.</p>`;
+    container.innerHTML = anyDated ? '' : `<p class="text-xs text-slate-400 italic">Nessun film programmato.</p>`;
     return;
   }
   scheduled.forEach(m => {

@@ -52,11 +52,11 @@ async function runTmdbSearchAndOpenPicker(title) {
   document.getElementById('pickerResults').innerHTML = candidates.map(c => `
     <button onclick="selectPickerCandidate(${c.id})" class="glass rounded-lg overflow-hidden border border-slate-800 hover:border-indigo-500 transition text-left">
       <div class="h-40 bg-slate-900">
-        ${c.poster ? `<img src="${c.poster}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-600 text-xs">Nessun poster</div>`}
+        ${c.poster ? `<img src="${c.poster}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-400 text-xs">Nessun poster</div>`}
       </div>
       <div class="p-2">
         <div class="text-xs font-semibold text-slate-100 leading-snug">${escapeHtml(c.title)}</div>
-        <div class="text-[10px] text-slate-500">${escapeHtml(c.year)}</div>
+        <div class="text-[10px] text-slate-400">${escapeHtml(c.year)}</div>
       </div>
     </button>
   `).join('');
@@ -271,7 +271,7 @@ function openSurprisePicker() {
   const list = movies.filter(m => m.status === 'watchlist' && !m.surprise_by);
   const container = document.getElementById('surpriseList');
   if (list.length === 0) {
-    container.innerHTML = `<p class="text-xs text-slate-500 italic">Nessun film disponibile da scegliere a sorpresa.</p>`;
+    container.innerHTML = `<p class="text-xs text-slate-400 italic">Nessun film disponibile da scegliere a sorpresa.</p>`;
   } else {
     container.innerHTML = list.map(m => `
       <button onclick="pickSurprise('${m.id}')" class="w-full text-left p-3 bg-slate-900/80 rounded-lg border border-slate-800 hover:border-indigo-500 transition text-sm text-slate-200">

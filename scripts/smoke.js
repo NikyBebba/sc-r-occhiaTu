@@ -894,7 +894,7 @@ async function okA(name, fn) {
     render();
     const html = document.getElementById('movieGrid').innerHTML;
     const okMeta = html.indexOf('P-FULL • 1972 • 148 min') !== -1 && html.indexOf('• •') === -1;
-    const okDir = html.indexOf('class="mt-1 text-[10px] text-slate-500 truncate"') !== -1
+    const okDir = html.indexOf('class="mt-1 text-[10px] text-slate-400 truncate"') !== -1
       && html.indexOf('title="Sergio Leone, Tonino Valerii"') !== -1
       && html.indexOf('<i class="fa-solid fa-user mr-1"></i>Sergio Leone, Tonino Valerii</div>') !== -1;
     movies = saved; currentUser = prevUser; currentTab = prevTab;
@@ -1455,7 +1455,7 @@ async function okA(name, fn) {
       && cnt(html, 'voteMovie') === 4 // watchlist + tonight
       && cnt(html, 'quickTonightUI') === 1 && cnt(html, 'scheduleMovie') === 1 && cnt(html, 'vetoMovie') === 1
       && cnt(html, 'addReview') === 1
-      && cnt(html, 'bg-sky-500/90') === 1 // badge "stasera" solo per il film tonight
+      && cnt(html, 'bg-sky-700/90') === 1 // badge "stasera" solo per il film tonight
       && cnt(html, 'deleteMovieConfirm') === 4; // ogni card ha comunque il cestino (nessun errore per status ignoto)
     currentTab = prevTab;
     currentUser = prevUser;

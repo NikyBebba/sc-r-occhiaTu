@@ -106,8 +106,8 @@ function dayCellClass(cell, hasNights, selected) {
 
 function dayNumClass(cell) {
   if (cell.isToday) return 'w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold bg-indigo-600 text-white mx-auto';
-  if (!cell.inMonth) return 'w-6 h-6 flex items-center justify-center text-[10px] text-slate-600/70 mx-auto';
-  if (cell.key < todayKey()) return 'w-6 h-6 flex items-center justify-center text-[10px] text-slate-500/80 mx-auto';
+  if (!cell.inMonth) return 'w-6 h-6 flex items-center justify-center text-[10px] text-slate-400/70 mx-auto';
+  if (cell.key < todayKey()) return 'w-6 h-6 flex items-center justify-center text-[10px] text-slate-400/80 mx-auto';
   return 'w-6 h-6 flex items-center justify-center text-[10px] text-slate-200 mx-auto';
 }
 
@@ -176,7 +176,7 @@ function renderCalendar() {
     </div>`;
 
   const weekdayRow = `
-    <div class="grid grid-cols-7 text-center text-[10px] uppercase tracking-wider text-slate-500 mb-1">
+    <div class="grid grid-cols-7 text-center text-[10px] uppercase tracking-wider text-slate-400 mb-1">
       ${WEEKDAY_LABELS.map(d => `<div>${d}</div>`).join('')}
     </div>`;
 
@@ -189,7 +189,7 @@ function renderCalendar() {
 
   const summary = calendarSelectedKey ? `
     <div class="mt-3 p-3 bg-slate-900/80 rounded-xl border border-slate-800">
-      <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">${formatDayLabel(calendarSelectedKey)}</div>
+      <div class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">${formatDayLabel(calendarSelectedKey)}</div>
       ${byDay[calendarSelectedKey].map(nightRowHtml).join('')}
     </div>` : '';
 
@@ -197,12 +197,12 @@ function renderCalendar() {
   const activeUndated = undated.filter(e => e.night.status === 'proposed' || e.night.status === 'confirmed');
   const undatedHtml = activeUndated.length ? `
     <div class="mt-4 pt-3 border-t border-slate-800">
-      <div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Senza data (Stasera)</div>
+      <div class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Senza data (Stasera)</div>
       ${activeUndated.map(nightRowHtml).join('')}
     </div>` : '';
 
   const emptyHint = (Object.keys(byDay).length === 0 && activeUndated.length === 0)
-    ? `<p class="mt-4 text-xs text-slate-500 italic text-center">Nessuna serata in questo mese.</p>`
+    ? `<p class="mt-4 text-xs text-slate-400 italic text-center">Nessuna serata in questo mese.</p>`
     : '';
 
   const legend = `

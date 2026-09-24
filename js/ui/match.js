@@ -44,9 +44,9 @@ function clearMatchState() {
 // ---- Viste ----
 function matchUnavailableHtml() {
   const tech = matchEnterErrorMsg
-    ? `<p class="text-slate-600 text-[10px] break-all">${escapeHtml(matchEnterErrorMsg)}</p>`
+    ? `<p class="text-slate-400 text-[10px] break-all">${escapeHtml(matchEnterErrorMsg)}</p>`
     : '';
-  return `<div class="col-span-full py-12 text-center text-slate-500 text-sm space-y-3">
+  return `<div class="col-span-full py-12 text-center text-slate-400 text-sm space-y-3">
       <div class="text-3xl">🌀</div>
       <p>Match non disponibile in questo momento.</p>
       ${tech}
@@ -55,7 +55,7 @@ function matchUnavailableHtml() {
 }
 
 function matchConnectingHtml() {
-  return `<div class="col-span-full py-12 text-center text-slate-500 text-sm">
+  return `<div class="col-span-full py-12 text-center text-slate-400 text-sm">
       <div class="text-2xl mb-2"><i class="fa-solid fa-spinner fa-pulse"></i></div>
       <p>Connessione…</p>
     </div>`;
@@ -70,7 +70,7 @@ function matchNightCreatedHtml() {
   return `<div class="col-span-full py-12 text-center text-emerald-400 text-sm space-y-3">
       <div class="text-3xl">🎉</div>
       <p class="font-semibold text-base">Serata creata ✓</p>
-      ${title ? `<p class="text-slate-500 text-xs">${escapeHtml(title)}</p>` : ''}
+      ${title ? `<p class="text-slate-400 text-xs">${escapeHtml(title)}</p>` : ''}
     </div>`;
 }
 
@@ -83,7 +83,7 @@ function matchLobbyHtml(state) {
   const present = matchPresentUsers();
   const chips = present.length
     ? present.map(p => personBadge(p)).join(' ')
-    : '<span class="text-slate-600 text-xs">Nessuno online</span>';
+    : '<span class="text-slate-400 text-xs">Nessuno online</span>';
   const missing = VALID_PERSONS.filter(p => !present.includes(p));
   const waiting = missing.length > 0
     ? `In attesa di ${missing.map(m => (CONFIG.PEOPLE[m] ? CONFIG.PEOPLE[m].label : escapeHtml(m))).join(' e ')}`
@@ -93,7 +93,7 @@ function matchLobbyHtml(state) {
       <div class="text-3xl">👀</div>
       <p class="font-semibold text-slate-100 text-base">Chi c'è?</p>
       <div class="flex items-center justify-center gap-2">${chips}</div>
-      <p class="text-slate-500 text-xs">${waiting}${sessionStarted ? '' : ' per iniziare lo swipe insieme.'}</p>
+      <p class="text-slate-400 text-xs">${waiting}${sessionStarted ? '' : ' per iniziare lo swipe insieme.'}</p>
       <div class="flex justify-center gap-2">${matchNewSessionBtn()}</div>
     </div>`;
 }
@@ -118,7 +118,7 @@ function matchPoster(movie) {
 function matchSwipeHtml(state) {
   const movie = resolveDeckMovie(movies, state.movieId);
   if (!movie) {
-    return `<div class="col-span-full py-12 text-center text-slate-500 text-sm">Film rimosso dalla lista.</div>`;
+    return `<div class="col-span-full py-12 text-center text-slate-400 text-sm">Film rimosso dalla lista.</div>`;
   }
   const answers = swipesForCard(swipes, state.movieId);
   const iAnswered = answers[currentUser] !== undefined;
@@ -141,13 +141,13 @@ function matchSwipeHtml(state) {
   }
 
   return `<div class="col-span-full max-w-sm mx-auto space-y-3">
-      <div class="text-center text-[10px] uppercase tracking-wider text-slate-500">Swipe a due — card ${state.index + 1} di ${deckLength}</div>
+      <div class="text-center text-[10px] uppercase tracking-wider text-slate-400">Swipe a due — card ${state.index + 1} di ${deckLength}</div>
       <div id="matchCard" class="swipe-card glass rounded-2xl border border-slate-800 overflow-hidden">
         <div class="aspect-[2/3] bg-slate-900">${matchPoster(movie)}</div>
         <div class="p-4 space-y-1">
           <div class="font-bold text-slate-100 text-lg leading-snug">${escapeHtml(movie.title)}</div>
           ${meta ? `<div class="text-xs text-slate-400">${escapeHtml(meta)}</div>` : ''}
-          ${genres ? `<div class="text-xs text-slate-500"><i class="fa-solid fa-tags mr-1"></i>${escapeHtml(genres)}</div>` : ''}
+          ${genres ? `<div class="text-xs text-slate-400"><i class="fa-solid fa-tags mr-1"></i>${escapeHtml(genres)}</div>` : ''}
         </div>
       </div>
       ${actionsHtml}
@@ -165,9 +165,9 @@ function matchMatchHtml(state) {
       <div class="text-5xl">💘</div>
       <p class="text-xl font-bold text-slate-100">Match!</p>
       <p class="text-sm text-slate-400">Volete vedere <span class="font-semibold text-slate-100">${escapeHtml(title)}</span> insieme.</p>
-      <p class="text-xs text-slate-500">Il riconoscimento sincronizza lo stato tra i telefoni: il partner vedrà sparire la celebrazione al prossimo riallineamento (o premendo "Continua a swipare").</p>
+      <p class="text-xs text-slate-400">Il riconoscimento sincronizza lo stato tra i telefoni: il partner vedrà sparire la celebrazione al prossimo riallineamento (o premendo "Continua a swipare").</p>
       <div class="flex gap-2">
-        <button onclick="createMatchNight('${movie ? jsAttrEscape(movie.id) : ''}', 'tonight')" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-medium transition">Stasera</button>
+        <button onclick="createMatchNight('${movie ? jsAttrEscape(movie.id) : ''}', 'tonight')" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition">Stasera</button>
         <button onclick="createMatchNight('${movie ? jsAttrEscape(movie.id) : ''}', 'schedule')" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-sm font-medium transition">Programma</button>
       </div>
       <div class="flex gap-2">
