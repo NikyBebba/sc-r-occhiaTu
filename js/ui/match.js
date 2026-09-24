@@ -124,9 +124,9 @@ function matchSwipeHtml(state) {
   const iAnswered = answers[currentUser] !== undefined;
   const missing = VALID_PERSONS.find(p => answers[p] === undefined);
   const meta = matchMovieMeta(movie);
-  const genres = (movie.genres && movie.genres.length)
+  const genres = (Array.isArray(movie.genres) && movie.genres.length)
     ? movie.genres.join(', ')
-    : (movie.genre ? (MOOD_LABELS[movie.genre] || movie.genre) : '');
+    : '';
   const deckLength = Array.isArray(swipeSessions[0] && swipeSessions[0].deck) ? swipeSessions[0].deck.length : 0;
 
   let actionsHtml;

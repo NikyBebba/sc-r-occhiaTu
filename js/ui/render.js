@@ -87,6 +87,17 @@ function renderNextMovieBox() {
   `;
 }
 
+// Chip generi reali della card: massimo 3, dedup, null-safe, sempre escapati.
+// Un film senza generi (o con value corrotto) non mostra chip: mai "undefined".
+function genreChips(m) {
+  const gs = Array.isArray(m && m.genres) ? m.genres : [];
+  const uniq = [];
+  gs.forEach(g => { if (g && typeof g === 'string' && uniq.indexOf(g) === -1) uniq.push(g); });
+  return uniq.slice(0, 3).map(g =>
+    `<span class="px-1.5 py-0.5 bg-slate-800/80 border border-slate-700/60 rounded text-[10px] text-slate-300">${escapeHtml(g)}</span>`
+  ).join('');
+}
+
 // ---- Il Nostro Cinema — statistiche + timeline recensioni ----
 function renderStats() {
   const watched = movies.filter(m => m.status === 'watched');
@@ -95,9 +106,17 @@ function renderStats() {
     ? (watched.reduce((s, m) => s + (m.rating || 0), 0) / totalWatched).toFixed(1)
     : '—';
 
+  // Genere "più amato": conta le occorrenze dei generi REALI su tutti i film.
+  // Un film multi-genere contribuisce a ogni genere (come i dropdown filtri);
+  // il valore mostrato è il COUNT del genere in testa, mai una somma di film.
   const genreCounts = {};
-  movies.forEach(m => { if (m.genre) genreCounts[m.genre] = (genreCounts[m.genre] || 0) + 1; });
-  const topGenre = Object.keys(genreCounts).sort((a, b) => genreCounts[b] - genreCounts[a])[0];
+  movies.forEach(m => (m.genres || []).forEach(g => {
+    if (g && typeof g === 'string') genreCounts[g] = (genreCounts[g] || 0) + 1;
+  }));
+  const topGenres = Object.keys(genreCounts)
+    .sort((a, b) => genreCounts[b] - genreCounts[a] || a.localeCompare(b));
+  const topGenre = topGenres[0];
+  const topGenreValue = topGenre ? `${topGenre} (${genreCounts[topGenre]})` : '—';
 
   const matchable = movies.filter(m => {
     const v = getVotesForMovie(m.id);
@@ -112,7 +131,7 @@ function renderStats() {
   const cards = [
     { icon: 'fa-clapperboard', iconClass: 'text-rose-400', label: 'Film visti insieme', value: totalWatched },
     { icon: 'fa-star', iconClass: 'text-amber-400', label: 'Voto medio', value: avgRating === '—' ? '—' : `⭐ ${avgRating}` },
-    { icon: 'fa-face-smile-beam', iconClass: 'text-sky-400', label: 'Mood preferito', value: topGenre ? (MOOD_LABELS[topGenre] || topGenre) : '—' },
+    { icon: 'fa-tags', iconClass: 'text-sky-400', label: 'Genere più amato', value: topGenreValue },
     { icon: 'fa-heart', iconClass: 'text-emerald-400', label: 'Match sui gusti', value: matchPct === null ? '—' : `${matchPct}%` }
   ];
   document.getElementById('statsGrid').innerHTML = cards.map(c => `
@@ -402,7 +421,7 @@ function render() {
           </div>
           ${m.director ? `<div class="mt-1 text-[10px] text-slate-500 truncate" title="${escapeHtml(m.director)}"><i class="fa-solid fa-user mr-1"></i>${escapeHtml(m.director)}</div>` : ''}
           <div class="flex items-center gap-2 mt-1 flex-wrap">
-            ${m.genre ? `<span class="text-[10px] text-slate-400">${escapeHtml(MOOD_LABELS[m.genre] || m.genre)}</span>` : ''}
+            ${genreChips(m)}
             ${m.status === 'tonight' && currentTab === 'all' ? `<span class="badge bg-sky-500/90">in programma</span>` : ''}
             ${m.status === 'tonight' && currentTab === 'tonight' ? `<span class="badge bg-indigo-500/90"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatNightDate(m.scheduled_date, m.scheduled_time))}</span>` : ''}
             ${matchHtml}

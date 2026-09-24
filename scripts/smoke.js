@@ -600,51 +600,34 @@ async function okA(name, fn) {
   }));
 
   console.log('\n[ui — generi + durata in aggiunta/retry]');
-  await okA('add salva genres + mood derivato; duration null senza runtime', runA(async () => {
+  await okA('add salva genres; duration null senza runtime', runA(async () => {
     pickerMode = 'add'; pendingAddedBy = 'N';
-    await applyResolvedDetails({ title: 'Con Generi', tmdb_id: 991, genres: ['Dramma'], genre: 'nostalgia', duration: null, platform: 'P', poster: '', trailerUrl: '', matched: true });
+    await applyResolvedDetails({ title: 'Con Generi', tmdb_id: 991, genres: ['Dramma'], duration: null, platform: 'P', poster: '', trailerUrl: '', matched: true });
     const m = movies.find(x => x.tmdb_id === 991);
     movies = movies.filter(x => x.tmdb_id !== 991);
-    return Boolean(m) && m.genres.join() === 'Dramma' && m.genre === 'nostalgia' && m.duration === null;
+    return Boolean(m) && m.genres.join() === 'Dramma' && m.duration === null;
   }));
-  await okA('add senza generi → genre null, genres [], nessun "120 min"', runA(async () => {
+  await okA('add senza generi → genres [], nessun "120 min"', runA(async () => {
     pickerMode = 'add'; pendingAddedBy = 'N';
-    await applyResolvedDetails({ title: 'Senza Generi', tmdb_id: 992, genres: [], genre: null, duration: null, platform: 'P', poster: '', trailerUrl: '', matched: true });
+    await applyResolvedDetails({ title: 'Senza Generi', tmdb_id: 992, genres: [], duration: null, platform: 'P', poster: '', trailerUrl: '', matched: true });
     const m = movies.find(x => x.tmdb_id === 992);
     movies = movies.filter(x => x.tmdb_id !== 992);
-    return m !== undefined && m.genre === null && Array.isArray(m.genres) && m.genres.length === 0 && m.duration === null;
+    return m !== undefined && Array.isArray(m.genres) && m.genres.length === 0 && m.duration === null;
   }));
-  await okA('add: mood scelto a mano vince su quello derivato', runA(async () => {
-    pickerMode = 'add'; pendingAddedBy = 'N'; pendingGenre = 'paura';
-    await applyResolvedDetails({ title: 'Mood Manuale', tmdb_id: 993, genres: ['Commedia'], genre: 'risata', duration: '90 min', platform: 'P', poster: '', trailerUrl: '', matched: true });
-    pendingGenre = '';
-    const m = movies.find(x => x.tmdb_id === 993);
-    movies = movies.filter(x => x.tmdb_id !== 993);
-    return m.genre === 'paura' && m.genres.join() === 'Commedia';
-  }));
-  await okA('retry: preserva mood manuale ma aggiorna i generi', runA(async () => {
-    const manual = { id: 'manualretry', title: 'M Retry', added_by: 'N', status: 'watchlist', genre: 'romantico', genres: [], duration: null, platform: 'P', poster: '' };
-    movies.push(manual);
-    pickerMode = 'retry'; pickerTargetId = manual.id;
-    await applyResolvedDetails({ title: 'M Retry', genres: ['Fantascienza'], genre: 'altro', duration: '131 min', platform: 'S', poster: '', trailerUrl: '', matched: true });
-    const m = movies.find(x => x.id === manual.id);
-    movies = movies.filter(x => x.id !== manual.id);
-    return m.genre === 'romantico' && m.genres.join() === 'Fantascienza' && m.duration === '131 min';
-  }));
-  await okA('retry: genre null → deriva il mood dai generi', runA(async () => {
-    const emptyMood = { id: 'retrynull', title: 'R Null', added_by: 'N', status: 'watchlist', genre: null, genres: [], duration: null, platform: 'P', poster: '' };
-    movies.push(emptyMood);
-    pickerMode = 'retry'; pickerTargetId = emptyMood.id;
-    await applyResolvedDetails({ title: 'R Null', genres: ['Horror'], genre: 'paura', duration: '95 min', platform: 'S', poster: '', trailerUrl: '', matched: true });
-    const m = movies.find(x => x.id === emptyMood.id);
-    movies = movies.filter(x => x.id !== emptyMood.id);
-    return m.genre === 'paura' && m.duration === '95 min';
+  await okA('retry aggiorna i generi senza toccare il resto', runA(async () => {
+    const target = { id: 'retrygen', title: 'R Gen', added_by: 'N', status: 'watchlist', genres: ['Vecchio'], duration: null, platform: 'P', poster: '' };
+    movies.push(target);
+    pickerMode = 'retry'; pickerTargetId = target.id;
+    await applyResolvedDetails({ title: 'R Gen', genres: ['Fantascienza', 'Azione'], duration: '131 min', platform: 'S', poster: '', trailerUrl: '', matched: true });
+    const m = movies.find(x => x.id === target.id);
+    movies = movies.filter(x => x.id !== target.id);
+    return m.genres.join() === 'Fantascienza,Azione' && m.duration === '131 min';
   }));
   // ripristino: togli i ghost di test (array + mirror localStorage) per non
   // inquinare statistiche/render dei test successivi
   run(() => {
-    movies = movies.filter(x => x.tmdb_id !== 991 && x.tmdb_id !== 992 && x.tmdb_id !== 993);
-    const ghostTitles = ['Con Generi', 'Senza Generi', 'Mood Manuale'];
+    movies = movies.filter(x => x.tmdb_id !== 991 && x.tmdb_id !== 992);
+    const ghostTitles = ['Con Generi', 'Senza Generi'];
     const mirror = JSON.parse(localStorage.getItem('scorochiatu_movies') || '[]');
     if (Array.isArray(mirror) && mirror.some(x => ghostTitles.includes(x.title))) {
       localStorage.setItem('scorochiatu_movies', JSON.stringify(mirror.filter(x => !ghostTitles.includes(x.title))));
@@ -963,17 +946,45 @@ async function okA(name, fn) {
 
   // --- 5b) statistiche ---
   console.log('\n[statistiche — icone card + genere escapato]');
-  ok('renderStats: 4 card con icona, genere non mappato escaped, mai "undefined"', run(() => {
-    movies.push({ id: 'stats-ghost', title: 'x', status: 'watched', genre: 'a<b', rating: 5, review_text: '', review_by: 'both' });
+  ok('renderStats: 4 card con icona, top genere escapato, mai "undefined"', run(() => {
+    movies.push({ id: 'stats-ghost', title: 'x', status: 'watched', genres: ['a<b'], rating: 5, review_text: '', review_by: 'both' });
     renderStats();
     const html = document.getElementById('statsGrid').innerHTML;
     return html.indexOf('fa-clapperboard') !== -1
       && html.indexOf('fa-star') !== -1
-      && html.indexOf('fa-face-smile-beam') !== -1
+      && html.indexOf('fa-tags') !== -1
       && html.indexOf('fa-heart') !== -1
-      && html.indexOf('a&lt;b') !== -1
-      && html.indexOf('a<b') === -1
+      && html.indexOf('a&lt;b (1)') !== -1
+      && html.indexOf('a<b (1)') === -1
+      && html.indexOf('a<b)') === -1
       && html.indexOf('undefined') === -1;
+  }));
+  ok('renderStats: "Genere più amato" conta il genere vincente, non la somma dei film/generi', run(() => {
+    const saved = movies;
+    movies = [
+      { id: 'gs1', title: 'S1', status: 'watched', genres: ['Azione'], rating: 0, review_text: '', review_by: 'both' },
+      { id: 'gs2', title: 'S2', status: 'watched', genres: ['Azione'], rating: 0, review_text: '', review_by: 'both' },
+      { id: 'gs3', title: 'S3', status: 'watched', genres: ['Azione'], rating: 0, review_text: '', review_by: 'both' },
+      { id: 'gs4', title: 'S4', status: 'watched', genres: ['Commedia', 'Dramma'], rating: 0, review_text: '', review_by: 'both' }
+    ];
+    renderStats();
+    const html = document.getElementById('statsGrid').innerHTML;
+    movies = saved;
+    return html.indexOf('>Azione (3)<') !== -1    // conta le occorrenze del genere in testa (3)
+      && html.indexOf('Azione (4)') === -1        // NON il numero totale di film (4)
+      && html.indexOf('Azione (5)') === -1        // NON la somma delle occorrenze (5)
+      && html.indexOf('undefined') === -1;
+  }));
+  ok('card: chip generi reali max 3, dedup, null-safe, escapati', run(() => {
+    const full = genreChips({ genres: ['Azione', 'Commedia', 'Dramma', 'Horror'] });
+    const dedup = genreChips({ genres: ['Azione', 'Azione'] });
+    const nullSafe = genreChips(null) + '|' + genreChips({ genres: null }) + '|' + genreChips({ genres: 'Azione' });
+    const xss = genreChips({ genres: ['a<b'] });
+    return full.indexOf('>Azione<') !== -1 && full.indexOf('>Commedia<') !== -1
+      && full.indexOf('>Dramma<') !== -1 && full.indexOf('>Horror<') === -1
+      && dedup.split('Azione').length === 2
+      && nullSafe === '||' // tre blocchi vuoti: mai "undefined"
+      && xss.indexOf('a&lt;b') !== -1 && xss.indexOf('a<b') === -1;
   }));
 
   // --- 5c) generi: mappa + derivazione mood (oggetti canned, nessuna rete) ---

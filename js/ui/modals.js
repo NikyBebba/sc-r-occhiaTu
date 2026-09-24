@@ -78,11 +78,6 @@ function jsAttrEscape(s) {
   return String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 }
 
-const MOOD_LABELS = {
-  romantico: '💕 Romantico', risata: '😂 Risata', paura: '👻 Paura',
-  nostalgia: '🕰️ Nostalgia', azione: '💥 Azione', altro: '🎞️ Altro'
-};
-
 function personBadge(code) {
   const p = CONFIG.PEOPLE[code] || { label: code || '?', badgeClass: 'badge-n' };
   return `<span class="badge ${p.badgeClass}">${p.label}</span>`;
