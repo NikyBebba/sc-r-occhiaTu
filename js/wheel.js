@@ -8,13 +8,7 @@ let moodFilter = 'all'; // 'all' oppure uno dei tag mood
 let durationFilter = 'all'; // 'all' | short | medium | long | epic
 let genreFilter = 'all'; // 'all' oppure un genere reale da movies.genres
 
-// Durata stringa → minuti interi (null se non ricavabile).
-// Supporta '126 min' (TMDb/OMDb), 'N/A' assente, numeri nudi.
-function parseDurationMinutes(d) {
-  if (d === null || d === undefined || d === '') return null;
-  const n = parseInt(String(d), 10);
-  return Number.isInteger(n) && n > 0 ? n : null;
-}
+// parseDurationMinutes è condivisa con filters.js (sort della pagina).
 
 // Bucket di durata per il filtro ruota. null = durata sconosciuta
 // (esclusa da ogni bucket specifico, inclusa solo in 'all').

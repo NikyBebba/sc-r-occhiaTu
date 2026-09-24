@@ -100,7 +100,7 @@ async function okA(name, fn) {
     'js/config.js',
     'js/genres.js',
     'js/api/omdb.js', 'js/api/tmdb.js', 'js/api/index.js',
-    'js/store.js', 'js/wheel.js',
+    'js/store.js', 'js/filters.js', 'js/wheel.js',
     'js/ui/modals.js', 'js/ui/navigation.js', 'js/ui/actions.js', 'js/ui/render.js', 'js/ui/calendar.js',
     'js/main.js'
   ].map(f => read(f) + '\n;');
@@ -732,6 +732,185 @@ async function okA(name, fn) {
       && first[1].key === '2026-09-29' && first[1].inMonth === false
       && first[2].key === '2026-09-30' && first[2].inMonth === false
       && first[3].key === '2026-10-01' && first[3].inMonth === true;
+  }));
+
+  // --- 7) page filtri/ricerca/sort: logica pura (canned, nessuna rete) ---
+  console.log('\n[pagina — ricerca/status/dropdown/sort]');
+  ok('normalizeSearch: accenti + maiuscole + spazi → "piu sfumato"', run(() =>
+    normalizeSearch('  Pïù SFUMÀTO ') === 'piu sfumato' && normalizeSearch('SCI-FI') === 'sci-fi'));
+  ok('normalizeSearch: null/undefined/vuoto → ""', run(() =>
+    normalizeSearch(null) === '' && normalizeSearch(undefined) === '' && normalizeSearch('') === ''
+    && normalizeSearch('  ') === ''));
+  ok('movieSearchText: titolo + generi (niente doppi spazi)', run(() =>
+    movieSearchText({ title: 'Hamnet', genres: ['Dramma', 'Storia'] }) === 'Hamnet Dramma Storia'
+    && movieSearchText({ title: 'T' }) === 'T'
+    && movieSearchText({ title: 'X', genres: null }) === 'X'));
+  ok('filterMovies: ricerca su titolo E su genere, token AND, accenti', run(() => {
+    const list = [
+      { id: 'f1', title: 'Più sfumato', status: 'watchlist', genres: ['Dramma'] },
+      { id: 'f2', title: 'Dracula', status: 'watchlist', genres: ['Horror', 'Thriller'] },
+      { id: 'f3', title: 'Via col vento', status: 'watched', genres: ['Dramma', 'Romance'] }
+    ];
+    const byTitle = filterMovies(list, { query: 'sfumato' });
+    const byGenre = filterMovies(list, { query: 'horror' });
+    const byTwoTokens = filterMovies(list, { query: 'col vento' });
+    const noMatch = filterMovies(list, { query: 'alieni' });
+    return byTitle.length === 1 && byTitle[0].id === 'f1'
+      && byGenre.length === 1 && byGenre[0].id === 'f2'
+      && byTwoTokens.length === 1 && byTwoTokens[0].id === 'f3'
+      && noMatch.length === 0;
+  }));
+  ok('filterMovies: combinazione query + proposer + genere + piattaforma + status', run(() => {
+    const list = [
+      { id: 'c1', title: 'Inception', added_by: 'N', status: 'watchlist', genres: ['Azione', 'Fantascienza'], platform: 'Netflix' },
+      { id: 'c2', title: 'Inception 2', added_by: 'V', status: 'watchlist', genres: ['Azione'], platform: 'Prima' },
+      { id: 'c3', title: 'Other', added_by: 'N', status: 'watched', genres: ['Azione'], platform: 'Netflix' }
+    ];
+    const one = filterMovies(list, { query: 'inception', proposer: 'N', genre: 'Azione', platform: 'Netflix', status: 'watchlist' });
+    const statusOnly = filterMovies(list, { status: 'watched' });
+    return one.length === 1 && one[0].id === 'c1'
+      && statusOnly.length === 1 && statusOnly[0].id === 'c3';
+  }));
+  ok('filterMovies: nessun filtro → passa tutto (status null o omesso)', run(() => {
+    const list = [
+      { id: 'a1', title: 'X', status: 'watchlist' },
+      { id: 'a2', title: 'Y', status: 'tonight' }
+    ];
+    const all = filterMovies(list, {});
+    const noStatus = filterMovies(list, { query: '' });
+    return all.length === 2 && noStatus.length === 2 && filterMovies(list).length === 2;
+  }));
+  ok('statusCounts: coerenti con filterMovies quando i filtri sono attivi', run(() => {
+    const list = [
+      { id: 's1', title: 'Dracula', status: 'watchlist', genres: ['Horror'], added_by: 'N', platform: 'P1' },
+      { id: 's2', title: 'Bram Dracula', status: 'tonight', genres: ['Horror'], added_by: 'V', platform: 'P2' },
+      { id: 's3', title: 'Dracula DX', status: 'watched', genres: ['Horror'], added_by: 'N', platform: 'P3' },
+      { id: 's4', title: 'Altro', status: 'watchlist', genres: ['Commedia'], added_by: 'N', platform: 'P1' }
+    ];
+    const f = { query: 'dracula', proposer: '', genre: 'Horror', platform: '' };
+    const counts = statusCounts(list, f);
+    return counts.all === 3 && counts.watchlist === 1 && counts.tonight === 1 && counts.watched === 1
+      && filterMovies(list, { ...f, status: 'watchlist' }).length === counts.watchlist
+      && filterMovies(list, { ...f, status: 'watched' }).length === counts.watched;
+  }));
+  ok('statusCounts: senza filtri "all" = tutti i match, i parziali = i tre status', run(() => {
+    const list = [
+      { id: 't1', title: 'a', status: 'watchlist' },
+      { id: 't2', title: 'b', status: 'tonight' },
+      { id: 't3', title: 'c', status: 'watched' },
+      { id: 't4', title: 'd', status: 'proposal' }
+    ];
+    const c = statusCounts(list, {});
+    const all = filterMovies(list, {}).length;
+    return c.all === 4 && c.watchlist + c.tonight + c.watched === 3 && c.all === all;
+  }));
+  ok('sortMovies: durata null-last in entrambe le direzioni', run(() => {
+    const list = [
+      { id: 'd1', title: 'a', duration: '95 min' },
+      { id: 'd2', title: 'b', duration: null },
+      { id: 'd3', title: 'c', duration: '150 min' }
+    ];
+    const asc = sortMovies(list, 'duration', 'asc').map(x => x.id).join();
+    const desc = sortMovies(list, 'duration', 'desc').map(x => x.id).join();
+    return asc === 'd1,d3,d2' && desc === 'd3,d1,d2';
+  }));
+  ok('sortMovies: rating → non recensiti (null/0) in fondo, desc = migliore primo', run(() => {
+    const list = [
+      { id: 'r1', title: 'cinque', rating: 5 },
+      { id: 'r2', title: 'niente', rating: 0 },
+      { id: 'r3', title: 'tre', rating: 3 },
+      { id: 'r4', title: 'assente' }
+    ];
+    const desc = sortMovies(list, 'rating', 'desc').map(x => x.id).join();
+    const asc = sortMovies(list, 'rating', 'asc').map(x => x.id).join();
+    return desc === 'r1,r3,r2,r4' && asc === 'r3,r1,r2,r4';
+  }));
+  ok('sortMovies: titolo case-insensitive asc/desc', run(() => {
+    const list = [
+      { id: 'z', title: 'Zeta' },
+      { id: 'al', title: 'alfa' },
+      { id: 'B', title: 'Bravo' }
+    ];
+    const asc = sortMovies(list, 'title', 'asc').map(x => x.title).join();
+    const desc = sortMovies(list, 'title', 'desc').map(x => x.title).join();
+    return asc === 'alfa,Bravo,Zeta' && desc === 'Zeta,Bravo,alfa';
+  }));
+  ok('sortMovies: added (created_at ISO) cronologico + null-last', run(() => {
+    const list = [
+      { id: 'c1', title: 'a', created_at: '2026-01-01T10:00:00Z' },
+      { id: 'c2', title: 'b', created_at: '2026-03-01T10:00:00Z' },
+      { id: 'c3', title: 'c' }
+    ];
+    const desc = sortMovies(list, 'added', 'desc').map(x => x.id).join();
+    const asc = sortMovies(list, 'added', 'asc').map(x => x.id).join();
+    return desc === 'c2,c1,c3' && asc === 'c1,c2,c3';
+  }));
+  ok('sortMovies: imdb parse virgola/punto, "N/A" → null in fondo', run(() => {
+    const list = [
+      { id: 'i1', title: 'a', imdb_rating: '7.3' },
+      { id: 'i2', title: 'b', imdb_rating: '8,5' },
+      { id: 'i3', title: 'c', imdb_rating: 'N/A' },
+      { id: 'i4', title: 'd', imdb_rating: '' }
+    ];
+    const desc = sortMovies(list, 'imdb', 'desc').map(x => x.id).join();
+    return desc === 'i2,i1,i3,i4';
+  }));
+  ok('sortMovies: proposer (added_by) + default key non noto → ordine stabile', run(() => {
+    const list = [
+      { id: 'p1', title: 'a', added_by: 'N' },
+      { id: 'p2', title: 'b', added_by: 'V' },
+      { id: 'p3', title: 'c' }
+    ];
+    const asc = sortMovies(list, 'proposer', 'asc').map(x => x.id).join();
+    const unknown = sortMovies(list, 'zzz', 'desc').length === 3;
+    return asc === 'p1,p2,p3' && unknown;
+  }));
+  ok('deriveFilterOptions: conteggi + ordine (count desc, poi nome) + ignora vuoti', run(() => {
+    const list = [
+      { id: 'o1', title: 'a', added_by: 'V', genres: ['Azione', 'Thriller'], platform: 'Netflix' },
+      { id: 'o2', title: 'b', added_by: 'N', genres: ['Azione'], platform: 'Prima' },
+      { id: 'o3', title: 'c', added_by: 'N', genres: [], platform: null },
+      { id: 'o4', title: 'd', added_by: 'N', genres: ['Commedia'], platform: 'Netflix' }
+    ];
+    const { proposers, genres, platforms } = deriveFilterOptions(list);
+    const props = proposers.map(p => p.value + ':' + p.count).join();
+    const gs = genres.map(g => g.value + ':' + g.count).join();
+    const plats = platforms.map(p => p.value + ':' + p.count).join();
+    return props === 'N:3,V:1'
+      && gs === 'Azione:2,Commedia:1,Thriller:1'
+      && plats === 'Netflix:2,Prima:1'
+      && genres.some(g => g.value === '' || g.count === 0 || g.count == null) === false;
+  }));
+  ok('hasActiveListFilters + resetListFilters: stato coerente e azzerato', run(() => {
+    const before = hasActiveListFilters(listFilterState());
+    const prevQ = listQuery, prevP = listProposer, prevG = listGenre, prevPl = listPlatform;
+    const prevSK = listSortKey, prevSD = listSortDir;
+    listQuery = 'x'; listProposer = 'N'; listGenre = 'Azione'; listPlatform = 'Netflix';
+    listSortKey = 'title'; listSortDir = 'asc';
+    const active = hasActiveListFilters(listFilterState()) === true;
+    const clean = !hasActiveListFilters({ query: '  ', proposer: '', genre: '', platform: '' });
+    resetListFilters();
+    const resetted = listQuery === '' && listProposer === '' && listGenre === ''
+      && listPlatform === '' && listSortKey === 'added' && listSortDir === 'desc'
+      && hasActiveListFilters(listFilterState()) === false;
+    listQuery = prevQ; listProposer = prevP; listGenre = prevG; listPlatform = prevPl;
+    listSortKey = prevSK; listSortDir = prevSD;
+    return before === false && active && clean && resetted;
+  }));
+  ok('filterMoviesByState/statusCountsFor: usano lo stato globale', run(() => {
+    const saved = movies;
+    const prevQ = listQuery, prevP = listProposer, prevG = listGenre, prevPl = listPlatform;
+    movies = [
+      { id: 'g1', title: 'Dracula', status: 'watchlist', added_by: 'N', genres: ['Horror'], platform: 'Netflix' },
+      { id: 'g2', title: 'Comedy', status: 'tonight', added_by: 'V', genres: ['Commedia'], platform: 'Prima' }
+    ];
+    listQuery = 'dracula'; listProposer = 'N'; listGenre = 'Horror'; listPlatform = 'Netflix';
+    const list = filterMoviesByState(movies, null);
+    const counts = statusCountsFor(movies);
+    movies = saved;
+    listQuery = prevQ; listProposer = prevP; listGenre = prevG; listPlatform = prevPl;
+    return list.length === 1 && list[0].id === 'g1'
+      && counts.all === 1 && counts.watchlist === 1 && counts.tonight === 0 && counts.watched === 0;
   }));
 
   console.log(`\n=== RISULTATO: ${pass}/${pass + fail} PASS ===`);
