@@ -1019,6 +1019,67 @@ async function okA(name, fn) {
       && counts.all === 1 && counts.watchlist === 1 && counts.tonight === 0 && counts.watched === 0;
   }));
 
+  // --- 7c) pagina — ricerca per regista + sort per anno (step 5b, canned) ---
+  console.log('\n[pagina — regista + anno]');
+  ok('movieSearchText: include il regista (niente doppi spazi)', run(() => {
+    const t = movieSearchText({ title: 'Hamnet', genres: ['Dramma'], director: 'Chloé Zhao' });
+    return t === 'Hamnet Dramma Chloé Zhao'
+      && movieSearchText({ title: 'T', director: null }) === 'T'
+      && movieSearchText({ title: 'X', genres: null }) === 'X';
+  }));
+  ok('filterMovies: ricerca per regista — accenti/maiuscole; apostrofo conservato da normalizeSearch', run(() => {
+    const list = [
+      { id: 'r1', title: 'Titolo', status: 'watchlist', genres: [], director: "D'Angelo Ñúñez" },
+      { id: 'r2', title: 'Altro', status: 'watchlist', genres: [], director: 'Jane Doe' },
+      { id: 'r3', title: 'Altro2', status: 'watchlist', genres: [], director: null }
+    ];
+    const upper = filterMovies(list, { query: 'D\'ANGELO' });
+    const accents = filterMovies(list, { query: 'nunez' });           // ñ → n
+    const apostrophe = filterMovies(list, { query: "d'angelo" });     // ' conservato
+    const noDir = filterMovies(list, { query: 'doe' });
+    const miss = filterMovies(list, { query: 'kubrick' });
+    return upper.length === 1 && upper[0].id === 'r1'
+      && accents.length === 1 && accents[0].id === 'r1'
+      && apostrophe.length === 1 && apostrophe[0].id === 'r1'
+      && noDir.length === 1 && noDir[0].id === 'r2'
+      && miss.length === 0;
+  }));
+  ok('filterMovies: più registi → match con qualsiasi token; director null non matcha la query regista', run(() => {
+    const list = [
+      { id: 'm1', title: 'Per Qualche Dollaro in Più', status: 'watchlist', genres: [], director: 'Sergio Leone, Tonino Valerii' },
+      { id: 'm2', title: 'Senza Regista', status: 'watchlist', genres: [], director: null }
+    ];
+    const byFirst = filterMovies(list, { query: 'sergio' });
+    const byLast = filterMovies(list, { query: 'valerii' });
+    const tokenAnd = filterMovies(list, { query: 'leone dollaro' }); // regista + titolo, token AND
+    const noDir = filterMovies(list, { query: 'regista' });          // solo il titolo di m2, non il director null
+    return byFirst.length === 1 && byFirst[0].id === 'm1'
+      && byLast.length === 1 && byLast[0].id === 'm1'
+      && tokenAnd.length === 1 && tokenAnd[0].id === 'm1'
+      && noDir.length === 1 && noDir[0].id === 'm2';
+  }));
+  ok('sortMovies: anno null-last asc e desc (null/0/assente in fondo)', run(() => {
+    const list = [
+      { id: 'y1', title: 'a', release_year: 1994 },
+      { id: 'y2', title: 'b', release_year: null },
+      { id: 'y3', title: 'c', release_year: 1972 },
+      { id: 'y4', title: 'd', release_year: 0 },
+      { id: 'y5', title: 'e' }
+    ];
+    const asc = sortMovies(list, 'year', 'asc').map(x => x.id).join();
+    const desc = sortMovies(list, 'year', 'desc').map(x => x.id).join();
+    return asc === 'y3,y1,y2,y4,y5' && desc === 'y1,y3,y2,y4,y5';
+  }));
+  ok('sortMovies: anno con valore testuale (es. "1994") → numero; non-numerico → null in fondo', run(() => {
+    const list = [
+      { id: 't1', title: 'a', release_year: '1994' },
+      { id: 't2', title: 'b', release_year: 'abc' },
+      { id: 't3', title: 'c', release_year: 1989 }
+    ];
+    const asc = sortMovies(list, 'year', 'asc').map(x => x.id).join();
+    return asc === 't3,t1,t2';
+  }));
+
   // --- 7b) pagina: ricerca + pill con contatori + azioni per status ---
   console.log('\n[pagina — ricerca + pill + azioni per status]');
   ok('setTab: ogni valore senza eccezioni (guardia id inesistenti)', run(() => {

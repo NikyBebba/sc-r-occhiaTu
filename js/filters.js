@@ -6,10 +6,11 @@
 // toccato da render(): così sopravvive ai resync realtime.
 //
 // Regole:
-// - ricerca: titolo + generi reali (movies.genres), case/accent-insensitive,
-//   token AND; l'eventuale titolo originale NON è in movies (non ricercato).
-// - sort: null-last sempre (indipendente dalla direzione); l'anno NON è in
-//   movies (colonna + backfill nello step 5b), quindi nessuna opzione 'anno'.
+// - ricerca: titolo + generi reali (movies.genres) + regista (movies.director),
+//   case/accent-insensitive, token AND; l'eventuale titolo originale NON è in
+//   movies (non ricercato).
+// - sort: null-last sempre (indipendente dalla direzione); 'year' usa
+//   movies.release_year (step 5b): 0/assente/corrotto trattato come null.
 // - opzioni dropdown: derivate dai dati (added_by, genres, platform) con
 //   conteggio, ordinate per conteggio poi nome.
 // ============================================
@@ -28,7 +29,7 @@ let listQuery = '';       // testo ricerca (title + genres)
 let listProposer = '';    // '' = tutti, altrimenti 'N' | 'V' (movies.added_by)
 let listGenre = '';       // '' = tutti, altrimenti un genere reale da movies.genres
 let listPlatform = '';    // '' = tutti, altrimenti movies.platform
-let listSortKey = 'added'; // title | duration | rating | imdb | added | proposer
+let listSortKey = 'added'; // title | year | duration | rating | imdb | added | proposer
 let listSortDir = 'desc';  // asc | desc
 
 function listFilterState() {
@@ -57,9 +58,9 @@ function normalizeSearch(s) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
-// Testo ricercabile di un film: titolo + generi reali.
+// Testo ricercabile di un film: titolo + generi reali + regista.
 function movieSearchText(m) {
-  return [m && m.title, (m.genres || []).join(' ')].filter(Boolean).join(' ');
+  return [m && m.title, (m.genres || []).join(' '), m && m.director].filter(Boolean).join(' ');
 }
 
 // Predicato singolo: applica ricerca (token AND) + proposer + genere + piattaforma.
@@ -111,6 +112,10 @@ function sortKeyValue(m, key) {
     }
     case 'added': return m.created_at || null; // ISO → confronto stringhe cronologico
     case 'proposer': return m.added_by || null;
+    case 'year': {
+      const n = Number(m && m.release_year);
+      return Number.isFinite(n) && n > 0 ? n : null; // 0/assente/corrotto → null
+    }
     default: return null;
   }
 }
