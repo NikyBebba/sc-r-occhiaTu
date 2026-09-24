@@ -159,7 +159,7 @@
         <div class="flex bg-slate-900/60 p-1 rounded-xl border border-slate-800 text-sm gap-1 overflow-x-auto">
           <button onclick="setTab('all')" id="tabAll" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Tutti <span id="pillCountAll" class="text-[10px] opacity-80">0</span></button>
           <button onclick="setTab('watchlist')" id="tabWatchlist" class="flex-1 py-2 rounded-lg font-medium transition bg-indigo-600 text-white whitespace-nowrap">Da Vedere <span id="pillCountWatchlist" class="text-[10px] opacity-80">0</span></button>
-          <button onclick="setTab('tonight')" id="tabTonight" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Stasera <span id="pillCountTonight" class="text-[10px] opacity-80">0</span></button>
+          <button onclick="setTab('tonight')" id="tabTonight" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">In programma <span id="pillCountTonight" class="text-[10px] opacity-80">0</span></button>
           <button onclick="setTab('watched')" id="tabWatched" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Visti e Recensioni <span id="pillCountWatched" class="text-[10px] opacity-80">0</span></button>
           <button onclick="setTab('calendar')" id="tabCalendar" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Calendario</button>
           <button onclick="setTab('match')" id="tabMatch" class="hidden flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Match</button>
@@ -391,6 +391,7 @@
 
   <script src="js/config.js"></script>
   <script src="js/genres.js"></script>
+  <script src="js/format.js"></script>
   <script src="js/api/omdb.js"></script>
   <script src="js/api/tmdb.js"></script>
   <script src="js/api/index.js"></script>

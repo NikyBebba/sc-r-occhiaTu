@@ -157,7 +157,7 @@ async function okA(name, fn) {
 (async () => {
   const sources = [
     'js/config.js',
-    'js/genres.js',
+    'js/genres.js', 'js/format.js',
     'js/api/omdb.js', 'js/api/tmdb.js', 'js/api/index.js',
     'js/store.js', 'js/match.js', 'js/filters.js', 'js/wheel.js',
     'js/ui/modals.js', 'js/ui/navigation.js', 'js/ui/actions.js', 'js/ui/render.js', 'js/ui/calendar.js',
@@ -186,6 +186,28 @@ async function okA(name, fn) {
   ok('unsubscribeRealtime no-crash', run(() => { unsubscribeRealtime(); return true; }));
   await okA('loadMovies (locale vuoto) non crasha', runA(async () => { await loadMovies(); return true; }));
   ok('render() non crasha su stato vuoto', run(() => { render(); return true; }));
+
+  // --- 0b) formatNightDate (helper DOM-free) ---
+  console.log('\n[formatNightDate]');
+  ok('date null → "Stasera" (con/senza time, stringa vuota)', run(() =>
+    formatNightDate(null, '21:30') === 'Stasera' && formatNightDate(null, null) === 'Stasera'
+    && formatNightDate('', '21:30') === 'Stasera' && formatNightDate(undefined, '21:30') === 'Stasera'));
+  ok('data valida + orario semplice e con secondi', run(() =>
+    formatNightDate('2026-10-24', '21:30') === '24 ott · 21:30'
+    && formatNightDate('2026-10-24', '21:30:00') === '24 ott · 21:30'));
+  ok('orario assente o vuoto → solo data, mai orario inventato', run(() =>
+    formatNightDate('2026-10-24', null) === '24 ott' && formatNightDate('2026-10-24', '') === '24 ott'));
+  ok('leading zeros normalizzati (giorno + ora)', run(() =>
+    formatNightDate('2026-10-05', '9:05:00') === '5 ott · 09:05'
+    && formatNightDate('2026-1-3', '21:30') === '3 gen · 21:30'));
+  ok('formato non valido / mese fuori range / orario non time → fallback al dato grezzo o solo data', run(() =>
+    formatNightDate('banana', '21:30') === 'banana'
+    && formatNightDate('2026-13-01', '21:30') === '2026-13-01'
+    && formatNightDate('2026-00-01', '21:30') === '2026-00-01'
+    && formatNightDate('24/10/2026', '21:30') === '24/10/2026'
+    && formatNightDate('2026-10', '21:30') === '2026-10'
+    && formatNightDate('2026-10-24', 'banana') === '24 ott'
+    && formatNightDate('2026-10-24', '12') === '24 ott'));
 
   // --- 1) store locale: film + serate su movie_nights ---
   console.log('\n[store locale — film]');

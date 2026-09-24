@@ -47,10 +47,13 @@ NON introdurre framework/bundler/backend senza autorizzazione.
 Flusso di caricamento dei moduli (ordine in `index.html`):
 
 ```
-config → api(omdb+tmdb → index) → store → wheel → ui(modals+navigation+actions+render) → main
+config → genres → format → api(omdb+tmdb → index) → store → match → filters → wheel → ui(modals+navigation+actions+render+calendar+match) → main
 ```
 
 - `js/config.js` — chiavi runtime (TMDb/OMDb/Supabase) + `PEOPLE` (label + PIN).
+- `js/format.js` — helper DOM-free: `formatNightDate(date, time)` (data serata
+  leggibile "24 ott · 21:30", senza `new Date('YYYY-MM-DD')`, fallback al dato
+  grezzo, mai orari inventati, `date NULL` → "Stasera").
 - `js/api/omdb.js` — OMDb: `omdbConfigured`, `extractRatings`, `fetchOmdbByTitle`,
   `fetchOmdbByImdbId`, `omdbToDetails`, `emptyRatings`.
 - `js/api/tmdb.js` — TMDb: `tmdbConfigured`, `searchTmdbCandidates`,
@@ -172,6 +175,7 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 │   └── smoke.js
 ├── js/
 │   ├── config.js
+│   ├── format.js
 │   ├── store.js
 │   ├── wheel.js
 │   ├── main.js

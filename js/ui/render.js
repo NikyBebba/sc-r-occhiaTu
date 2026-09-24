@@ -53,7 +53,7 @@ function renderNextMovieBox() {
       const mins = Math.floor((diff % 3600000) / 60000);
       countdownHtml = `⏳ tra ${days > 0 ? days + 'g ' : ''}${hours}h ${mins}m`;
     } else {
-      countdownHtml = `📅 ${pick.scheduled_date} ore ${pick.scheduled_time || '21:30'}`;
+      countdownHtml = '📅 ' + escapeHtml(formatNightDate(pick.scheduled_date, pick.scheduled_time));
     }
   } else {
     countdownHtml = '🎬 stasera';
@@ -403,7 +403,8 @@ function render() {
           ${m.director ? `<div class="mt-1 text-[10px] text-slate-500 truncate" title="${escapeHtml(m.director)}"><i class="fa-solid fa-user mr-1"></i>${escapeHtml(m.director)}</div>` : ''}
           <div class="flex items-center gap-2 mt-1 flex-wrap">
             ${m.genre ? `<span class="text-[10px] text-slate-400">${escapeHtml(MOOD_LABELS[m.genre] || m.genre)}</span>` : ''}
-            ${m.status === 'tonight' && currentTab === 'all' ? `<span class="badge bg-sky-500/90">stasera</span>` : ''}
+            ${m.status === 'tonight' && currentTab === 'all' ? `<span class="badge bg-sky-500/90">in programma</span>` : ''}
+            ${m.status === 'tonight' && currentTab === 'tonight' ? `<span class="badge bg-indigo-500/90"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatNightDate(m.scheduled_date, m.scheduled_time))}</span>` : ''}
             ${matchHtml}
             ${(m.review_by && m.review_by !== 'both' && m.status !== 'watched') ? `<span class="text-[10px] text-amber-400"><i class="fa-solid fa-eye"></i> già visto da ${CONFIG.PEOPLE[m.review_by]?.label || m.review_by} — rewatch insieme?</span>` : ''}
           </div>
@@ -471,7 +472,7 @@ function renderScheduled() {
       <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-xs flex justify-between items-center">
         <div>
           <div class="font-bold text-slate-200">${escapeHtml(m.title)}</div>
-          <div class="text-slate-400 text-[10px]"><i class="fa-regular fa-clock"></i> ${m.scheduled_date} ore ${m.scheduled_time || '21:30'} ${m.snack ? '• ' + escapeHtml(m.snack) : ''}</div>
+          <div class="text-slate-400 text-[10px]"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatNightDate(m.scheduled_date, m.scheduled_time))} ${m.snack ? '• ' + escapeHtml(m.snack) : ''}</div>
         </div>
         <span class="px-2 py-1 bg-indigo-500/20 text-indigo-300 rounded text-[10px] font-medium">${escapeHtml(m.platform || '')}</span>
       </div>
