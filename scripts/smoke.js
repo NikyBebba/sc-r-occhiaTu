@@ -1361,6 +1361,74 @@ async function okA(name, fn) {
     return ok;
   }));
 
+  console.log('\n[renderScheduled — dedup next night]');
+  ok('scheduledList: una serata con pick → niente doppione (lista vuota)', run(() => {
+    const savedM = movies, savedN = movieNights;
+    movies = [{ id: 'ma', title: 'M A', status: 'tonight', scheduled_date: '2026-10-24', scheduled_time: '21:30', added_by: 'N', platform: 'P', poster: '' }];
+    movieNights = [{ id: 'n1', movie_id: 'ma', date: '2026-10-24', time: '21:30', status: 'confirmed', proposed_by: 'N' }];
+    renderScheduled();
+    const html = document.getElementById('scheduledList').innerHTML;
+    const okR = html.indexOf('M A') === -1;
+    movies = savedM; movieNights = savedN;
+    return okR;
+  }));
+  ok('scheduledList: pick + altra serata → l\'altra compare, il pick no', run(() => {
+    const savedM = movies, savedN = movieNights;
+    movies = [
+      { id: 'ma', title: 'M A', status: 'tonight', scheduled_date: '2026-10-24', scheduled_time: '21:30', added_by: 'N', platform: 'P', poster: '' },
+      { id: 'mb', title: 'M B', status: 'tonight', scheduled_date: '2026-10-30', scheduled_time: '20:00', added_by: 'V', platform: 'Q', poster: '' }
+    ];
+    movieNights = [
+      { id: 'n1', movie_id: 'ma', date: '2026-10-24', time: '21:30', status: 'confirmed', proposed_by: 'N' },
+      { id: 'n2', movie_id: 'mb', date: '2026-10-30', time: '20:00', status: 'proposed', proposed_by: 'V' }
+    ];
+    renderScheduled();
+    const html = document.getElementById('scheduledList').innerHTML;
+    const okR = html.indexOf('M B') !== -1 && html.indexOf('M A') === -1;
+    movies = savedM; movieNights = savedN;
+    return okR;
+  }));
+  ok('scheduledList: unica serata datata = pick → contenitore svuotato (nessun residuo)', run(() => {
+    const savedM = movies, savedN = movieNights;
+    movies = [
+      { id: 'ma', title: 'M A', status: 'tonight', scheduled_date: '2026-10-24', scheduled_time: '21:30', added_by: 'N', platform: 'P', poster: '' },
+      { id: 'mb', title: 'M B', status: 'tonight', scheduled_date: '2026-10-30', scheduled_time: '20:00', added_by: 'V', platform: 'Q', poster: '' }
+    ];
+    movieNights = [
+      { id: 'n1', movie_id: 'ma', date: '2026-10-24', time: '21:30', status: 'confirmed', proposed_by: 'N' },
+      { id: 'n2', movie_id: 'mb', date: '2026-10-30', time: '20:00', status: 'proposed', proposed_by: 'V' }
+    ];
+    renderScheduled();                         // primo render: 1 riga (M B)
+    const before = document.getElementById('scheduledList').innerHTML;
+    movies = [{ id: 'ma', title: 'M A', status: 'tonight', scheduled_date: '2026-10-24', scheduled_time: '21:30', added_by: 'N', platform: 'P', poster: '' }];
+    movieNights = [{ id: 'n1', movie_id: 'ma', date: '2026-10-24', time: '21:30', status: 'confirmed', proposed_by: 'N' }];
+    renderScheduled();                         // secondo render: solo pick → vuoto
+    const after = document.getElementById('scheduledList').innerHTML;
+    const okR = before.indexOf('M B') !== -1 && after === '';
+    movies = savedM; movieNights = savedN;
+    return okR;
+  }));
+  ok('scheduledList: nulla di datato → "Nessun film programmato."', run(() => {
+    const savedM = movies, savedN = movieNights;
+    movies = [{ id: 'ma', title: 'M A', status: 'tonight', scheduled_date: null, added_by: 'N', platform: 'P', poster: '' }];
+    movieNights = [{ id: 'n1', movie_id: 'ma', date: null, time: null, status: 'confirmed', proposed_by: 'N' }];
+    renderScheduled();
+    const html = document.getElementById('scheduledList').innerHTML;
+    const okR = html.indexOf('Nessun film programmato.') !== -1;
+    movies = savedM; movieNights = savedN;
+    return okR;
+  }));
+  ok('scheduledList: legacy (scheduled_date senza movie_nights) resta in lista', run(() => {
+    const savedM = movies, savedN = movieNights;
+    movies = [{ id: 'lg', title: 'Legacy', status: 'tonight', scheduled_date: '2026-11-01', scheduled_time: '20:00', added_by: 'N', platform: 'PL', poster: '' }];
+    movieNights = [];
+    renderScheduled();
+    const html = document.getElementById('scheduledList').innerHTML;
+    const okR = html.indexOf('Legacy') !== -1;
+    movies = savedM; movieNights = savedN;
+    return okR;
+  }));
+
   ok('collapse: toggle mobile + render/resync non tocca lo stato del pannello', run(() => {
     const panel = document.getElementById('listFiltersPanel');
     const savedOpen = listFiltersOpen;
