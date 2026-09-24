@@ -322,6 +322,11 @@ function render() {
     const isSurpriseHidden = m.surprise_by && m.surprise_by !== currentUser;
     const poster = m.poster || 'https://via.placeholder.com/300x450/1e293b/64748b?text=No+Cover';
     const isVetoed = vetoedIds.includes(m.id);
+    // Meta-blocco "{anno} • {durata}" (step 5b): anno e durata includono
+    // SOLO valori non-null, mai un "•" isolato.
+    const metaParts = [m.platform || 'Streaming'];
+    if (m.release_year) metaParts.push(String(m.release_year));
+    if (m.duration) metaParts.push(m.duration);
     const card = document.createElement('div');
     card.className = "glass rounded-xl overflow-hidden border border-slate-800 flex flex-col justify-between" + (isVetoed ? ' card-vetoed' : '');
 
@@ -353,7 +358,7 @@ function render() {
           ${isVetoed ? `<span class="badge bg-rose-500/90">vietato</span>` : ''}
         </div>
         ${!isSurpriseHidden ? `<div class="absolute bottom-2 left-2 px-2 py-1 bg-black/60 rounded text-[10px] text-slate-300 backdrop-blur">
-          <i class="fa-solid fa-tv text-indigo-400"></i> ${escapeHtml(m.platform || 'Streaming')}${m.duration ? ' • ' + escapeHtml(m.duration) : ''}
+          <i class="fa-solid fa-tv text-indigo-400"></i> ${metaParts.map(escapeHtml).join(' • ')}
         </div>` : ''}
         ${(m.trailer_url && !isSurpriseHidden) ? `<a href="${m.trailer_url}" target="_blank" rel="noopener" class="absolute bottom-2 right-2 px-2 py-1 bg-red-600/80 hover:bg-red-500 rounded text-[10px] text-white backdrop-blur"><i class="fa-solid fa-play"></i> Trailer</a>` : ''}
       </div>
@@ -365,6 +370,7 @@ function render() {
               <i class="fa-solid fa-trash text-xs"></i>
             </button>
           </div>
+          ${m.director ? `<div class="mt-1 text-[10px] text-slate-500 truncate" title="${escapeHtml(m.director)}"><i class="fa-solid fa-user mr-1"></i>${escapeHtml(m.director)}</div>` : ''}
           <div class="flex items-center gap-2 mt-1 flex-wrap">
             ${m.genre ? `<span class="text-[10px] text-slate-400">${escapeHtml(MOOD_LABELS[m.genre] || m.genre)}</span>` : ''}
             ${m.status === 'tonight' && currentTab === 'all' ? `<span class="badge bg-sky-500/90">stasera</span>` : ''}

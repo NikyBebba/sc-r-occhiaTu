@@ -705,6 +705,65 @@ async function okA(name, fn) {
     currentUser = prevUser;
     return okNull && okDur;
   }));
+  ok('render card: meta "P • anno • durata" + regista su riga propria (title escapato, truncate)', run(() => {
+    const prevUser = currentUser; currentUser = 'N';
+    const prevTab = currentTab; currentTab = 'watchlist';
+    const saved = movies;
+    movies = [
+      { id: 'c-full', title: 'Full', status: 'watchlist', release_year: 1972, duration: '148 min', platform: 'P-FULL', poster: '', added_by: 'N', genre: 'azione', director: 'Sergio Leone, Tonino Valerii' }
+    ];
+    render();
+    const html = document.getElementById('movieGrid').innerHTML;
+    const okMeta = html.indexOf('P-FULL • 1972 • 148 min') !== -1 && html.indexOf('• •') === -1;
+    const okDir = html.indexOf('class="mt-1 text-[10px] text-slate-500 truncate"') !== -1
+      && html.indexOf('title="Sergio Leone, Tonino Valerii"') !== -1
+      && html.indexOf('<i class="fa-solid fa-user mr-1"></i>Sergio Leone, Tonino Valerii</div>') !== -1;
+    movies = saved; currentUser = prevUser; currentTab = prevTab;
+    return okMeta && okDir;
+  }));
+  ok('render card: regista con caratteri speciali escapato in title e testo (niente injection)', run(() => {
+    const prevUser = currentUser; currentUser = 'N';
+    const prevTab = currentTab; currentTab = 'watchlist';
+    const saved = movies;
+    movies = [
+      { id: 'c-xss', title: 'Xss', status: 'watchlist', release_year: 2000, duration: null, platform: 'P', poster: '', added_by: 'N', genre: 'azione', director: 'A, B & "C" <D>' }
+    ];
+    render();
+    const html = document.getElementById('movieGrid').innerHTML;
+    const okEsc = html.indexOf('title="A, B &amp; &quot;C&quot; &lt;D&gt;"') !== -1
+      && html.indexOf('&gt;D&lt;</div>') === -1 // il testo va escapato, nessun tag reale
+      && html.indexOf('>A, B &amp; &quot;C&quot; &lt;D&gt;</div>') !== -1
+      && html.indexOf('&lt;D&gt;') !== -1
+      && html.indexOf('<D>') === -1;
+    movies = saved; currentUser = prevUser; currentTab = prevTab;
+    return okEsc;
+  }));
+  ok('render card: meta-blocco null-aware — solo durata, solo anno, entrambi null (mai "•" isolato né null/undefined)', run(() => {
+    const prevUser = currentUser; currentUser = 'N';
+    const prevTab = currentTab; currentTab = 'watchlist';
+    const saved = movies;
+    const grid = () => document.getElementById('movieGrid').innerHTML;
+    const badTokens = ['null', 'undefined', '• •'];
+    const scan = (m, expect, absent) => {
+      movies = [m];
+      render();
+      const html = grid();
+      return expect.every(e => html.indexOf(e) !== -1)
+        && badTokens.every(t => html.indexOf(t) === -1)
+        && (absent || []).every(a => html.indexOf(a) === -1);
+    };
+    const durOk = scan(
+      { id: 'm-dur', title: 'D', status: 'watchlist', release_year: null, duration: '148 min', platform: 'P-D', genre: 'azione' },
+      ['P-D • 148 min'], []);
+    const yearOk = scan(
+      { id: 'm-year', title: 'Y', status: 'watchlist', release_year: 1972, duration: null, platform: 'P-A', genre: 'azione' },
+      ['P-A • 1972'], []);
+    const noneOk = scan(
+      { id: 'm-none', title: 'N', status: 'watchlist', release_year: null, duration: null, platform: 'P-N', genre: 'azione' },
+      ['P-N'], ['P-N •']); // solo platform, nessun bullet appeso
+    movies = saved; currentUser = prevUser; currentTab = prevTab;
+    return durOk && yearOk && noneOk;
+  }));
 
   // --- 5b) statistiche ---
   console.log('\n[statistiche — icone card + genere escapato]');
