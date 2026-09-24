@@ -43,9 +43,13 @@ function clearMatchState() {
 
 // ---- Viste ----
 function matchUnavailableHtml() {
+  const tech = matchEnterErrorMsg
+    ? `<p class="text-slate-600 text-[10px] break-all">${escapeHtml(matchEnterErrorMsg)}</p>`
+    : '';
   return `<div class="col-span-full py-12 text-center text-slate-500 text-sm space-y-3">
       <div class="text-3xl">🌀</div>
       <p>Match non disponibile in questo momento.</p>
+      ${tech}
       <button onclick="tryMatchAgain()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition">Riprova</button>
     </div>`;
 }
@@ -320,7 +324,7 @@ function matchNightDone(movieId) {
 function tryMatchAgain() {
   matchProbeDone = false;
   matchAvailable = false;
-  enterMatch().catch(() => {});
+  enterMatch().catch(e => reportMatchEnterError(e));
 }
 
 // Esci = pausa: chiude il canale (via setTab → leaveMatch), la sessione resta

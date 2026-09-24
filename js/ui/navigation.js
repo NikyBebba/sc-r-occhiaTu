@@ -24,8 +24,11 @@ function setTab(tab) {
         : "flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap";
     });
     // Entra: sonda (se serve), sessione attiva e canale dedicato. Async: la
-    // vista mostra "Connessione…" finché il canale non è subscribed.
-    enterMatch().catch(() => {});
+    // vista mostra "Connessione…" finché il canale non è subscribed. Se
+    // l'ingresso fallisce per un errore reale, enterMatch gestisce tutto da
+    // sé; questo catch resta come rete NON silenziosa (mai ReferenceError
+    // non gestito: console.error + vista "Match non disponibile").
+    enterMatch().catch(e => reportMatchEnterError(e));
     render();
     return;
   }

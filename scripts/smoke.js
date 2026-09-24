@@ -71,6 +71,58 @@ const storageStub = map => ({
   clear: () => map.clear()
 });
 
+// Mock sb MINIMALE per il test "ordine dei <script> di index.html": servono le
+// letture di fetchLatestMatchState (select/order/limit/eq) e l'insert di
+// startNewSession. Host-side: iniettato SOLO nel contesto vm isolato come
+// `mockSb` (mai nel contesto principale, dove c'è mockMatchSb).
+function buildBrowserOrderMockSb(seed) {
+  const root = {
+    swipe_sessions: (seed && seed.sessions ? seed.sessions : []).map(s => Object.assign({}, s)),
+    swipes: (seed && seed.swipes ? seed.swipes : []).map(s => Object.assign({}, s)),
+    movies: (seed && seed.movies ? seed.movies : []).map(s => Object.assign({}, s))
+  };
+  const rowsOf = name => (root[name] || (root[name] = []));
+  return {
+    from(name) {
+      const b = { _eq: null, _order: null, _limit: null };
+      b.select = function () { return b; };
+      b.order = function (c) { b._order = c; return b; };
+      b.limit = function (n) { b._limit = n; return b; };
+      b.eq = function (c, v) { b._eq = { c, v }; return b; };
+      b.in = function () { return b; };
+      b.insert = function (rows) {
+        return { select: async () => ({
+          data: rows.map((r, i) => Object.assign({ id: name + '-' + (rowsOf(name).length + i + 1), created_at: new Date().toISOString() }, r)),
+          error: null
+        }) };
+      };
+      b.update = function (patch) {
+        return {
+          eq(c, v) { b._eq = { c, v }; return this; },
+          in() { return this; },
+          select: async () => {
+            let rows = rowsOf(name).slice();
+            if (b._eq) rows = rows.filter(r => r[b._eq.c] === b._eq.v);
+            rows.forEach(r => Object.assign(r, patch));
+            return { data: rows.map(r => Object.assign({}, r)), error: null };
+          }
+        };
+      };
+      b.then = function (resolve) {
+        let rows = rowsOf(name).slice();
+        if (b._eq) rows = rows.filter(r => r[b._eq.c] === b._eq.v);
+        if (b._order) rows = rows.slice().sort((x, y) => String(x[b._order] || '').localeCompare(String(y[b._order] || '')));
+        if (b._limit != null) rows = rows.slice(0, b._limit);
+        return Promise.resolve(resolve({ data: rows.map(r => Object.assign({}, r)), error: null }));
+      };
+      return b;
+    },
+    channel() { throw new Error('canale non usato nel test browser-order'); },
+    removeChannel() { return Promise.resolve(); },
+    getChannels() { return []; }
+  };
+}
+
 const sandbox = {
   window: { addEventListener() {}, supabase: undefined, performance: Date.now },
   document: documentStub,
@@ -1804,7 +1856,8 @@ async function okA(name, fn) {
         matchProbeDone, matchChannelSeq, matchLeaving, matchUnavailableWarnedAt,
         matchProbeTimeoutMs, lobbyPresenceState, realtimeChannel,
         matchChannelStatus, currentTab, matchPrevTab, matchDragging,
-        matchPendingRender, matchNightCreated, matchPendingSchedule, matchExitTimer };
+        matchPendingRender, matchNightCreated, matchPendingSchedule, matchExitTimer,
+        matchEnterErrorMsg, matchEnterErrorLogged };
     }
     function __matchRestore(p) {
       sb = p.sb; dbMode = p.dbMode; currentUser = p.currentUser; movies = p.movies;
@@ -1819,6 +1872,7 @@ async function okA(name, fn) {
       matchPrevTab = p.matchPrevTab; matchDragging = p.matchDragging;
       matchPendingRender = p.matchPendingRender; matchNightCreated = p.matchNightCreated;
       matchPendingSchedule = p.matchPendingSchedule; matchExitTimer = p.matchExitTimer;
+      matchEnterErrorMsg = p.matchEnterErrorMsg; matchEnterErrorLogged = p.matchEnterErrorLogged;
     }
     // Riallinea lo stato minimo delle viste Match (niente canale reale: la
     // vista "completa" dei casi si testa impostando direttamente lo stato).
@@ -2534,6 +2588,135 @@ async function okA(name, fn) {
         && matchChannel === null && matchChannelStatus === null
         && mock.__calls().removed.indexOf('scorochiatu-match-1') !== -1;
     } finally { __matchRestore(p); }
+  }));
+
+  // --- 8d) caricamento BROWSER: ordine dei <script> di index.html ----
+  // REGRESSIONE: js/match.js (logica pura) mancava da index.html → nel browser
+  // filterSwipes/buildDeck/pendingMatch erano undefined e enterMatch lanciava
+  // ReferenceError. Lo smoke restava verde perché caricava i file in ordine
+  // diretto in Node. Qui si legge index.html, si estraggono i <script src>
+  // nell'ordine reale del browser e si caricano in un contesto vm ISOLATO.
+  console.log('\n[match — caricamento browser (ordine script di index.html)]');
+
+  ok('index.html: js/match.js presente, subito dopo js/store.js e prima di js/ui/match.js', (() => {
+    const scripts = [...read('index.html').matchAll(/<script src="([^"]+)"><\/script>/g)].map(m => m[1]).filter(s => !/^https?:\/\//.test(s));
+    const iStore = scripts.indexOf('js/store.js');
+    const iMatch = scripts.indexOf('js/match.js');
+    const iUIMatch = scripts.indexOf('js/ui/match.js');
+    return iStore !== -1 && iMatch === iStore + 1 && iUIMatch > iMatch && scripts.indexOf('js/main.js') === scripts.length - 1;
+  })());
+
+  await okA('ordine index.html: load isolato (vm, senza DOM reale) — funzioni cross-file tutte definite', async () => {
+    const scripts = [...read('index.html').matchAll(/<script src="([^"]+)"><\/script>/g)].map(m => m[1]).filter(s => !/^https?:\/\//.test(s));
+    const ordEls = {};
+    const ordById = id => (ordEls[id] || (ordEls[id] = makeEl(id)));
+    ordById('wheelCanvas').getContext = () => canvasCtx;
+    const ctx = {
+      window: { addEventListener() {}, supabase: undefined, performance: Date.now },
+      document: { getElementById: ordById, createElement: () => makeEl('el-' + Math.random().toString(36).slice(2)), addEventListener() {}, querySelector() { return makeEl('q'); } },
+      localStorage: storageStub(new Map()), sessionStorage: storageStub(new Map()),
+      location: { reload() {} }, console,
+      fetch: undefined, AbortController: undefined,
+      requestAnimationFrame(cb) { return setTimeout(cb, 0); }, performance: Date.now,
+      setTimeout, clearTimeout, setInterval, clearInterval,
+      Date, Math, JSON, String, Number, Boolean, Array, Object, Promise,
+      encodeURIComponent, decodeURIComponent, URLSearchParams,
+      isFinite: Number.isFinite, isNaN: Number.isNaN
+    };
+    ctx.globalThis = ctx;
+    vm.createContext(ctx);
+    for (const f of scripts) vm.runInContext(read(f) + '\n;', ctx, { filename: f });
+    const fn = n => vm.runInContext(`typeof ${n} === 'function'`, ctx) === true;
+    const decl = n => vm.runInContext(`typeof ${n} !== 'undefined'`, ctx) === true;
+    const funcs = [
+      // match.js — usate cross-file (store.js e ui/match.js)
+      'filterSwipes', 'activeSession', 'isExpired', 'buildDeck', 'pendingMatch', 'currentIndex',
+      'resolveDeckMovie', 'evaluateSession', 'swipesForCard', 'countAllMatches', 'seededShuffle', 'newSeed',
+      // store.js — usate da ui/** e navigation
+      'enterMatch', 'leaveMatch', 'ensureActiveSession', 'closeSession', 'recordSwipe', 'continueMatch',
+      'setQuickTonight', 'activeNightForMovie', 'applyMatchState', 'renderMatchArea', 'openMatchChannel',
+      'startNewSession', 'proposeNight', 'reportMatchEnterError', 'warnMatch', 'probeMatchTables',
+      // ui/match.js — usate da store/render/actions/modals
+      'renderMatch', 'matchScheduleModalClosed', 'matchNightDone', 'clearMatchState', 'createMatchNight',
+      'swipeCard', 'newMatchSession', 'exitMatchView', 'tryMatchAgain', 'matchUnavailableHtml',
+      'matchNightCreatedHtml'
+    ].every(fn);
+    return funcs && decl('VALID_PERSONS');
+  });
+
+  await okA('ordine index.html: applyMatchState + ensureActiveSession + startNewSession con mock nel contesto isolato', async () => {
+    const scripts = [...read('index.html').matchAll(/<script src="([^"]+)"><\/script>/g)].map(m => m[1]).filter(s => !/^https?:\/\//.test(s));
+    const ordEls = {};
+    const ordById = id => (ordEls[id] || (ordEls[id] = makeEl(id)));
+    ordById('wheelCanvas').getContext = () => canvasCtx;
+    const seed = {
+      sessions: [{ id: 'x1', status: 'open', created_at: new Date(Date.now() - 60000).toISOString(), deck: ['m1', 'm2'] }],
+      swipes: [
+        { id: 'w1', session_id: 'x1', movie_id: 'm1', person: 'N', liked: true },
+        { id: 'w2', session_id: 'x1', movie_id: 'm1', person: 'X', liked: false }
+      ],
+      movies: [{ id: 'm1', title: 'M1', status: 'watchlist' }, { id: 'm2', title: 'M2', status: 'watchlist' }]
+    };
+    const ctx = {
+      window: { addEventListener() {}, supabase: undefined, performance: Date.now },
+      document: { getElementById: ordById, createElement: () => makeEl('el-' + Math.random().toString(36).slice(2)), addEventListener() {}, querySelector() { return makeEl('q'); } },
+      localStorage: storageStub(new Map()), sessionStorage: storageStub(new Map()),
+      location: { reload() {} }, console,
+      fetch: undefined, AbortController: undefined,
+      requestAnimationFrame(cb) { return setTimeout(cb, 0); }, performance: Date.now,
+      setTimeout, clearTimeout, setInterval, clearInterval,
+      Date, Math, JSON, String, Number, Boolean, Array, Object, Promise,
+      encodeURIComponent, decodeURIComponent, URLSearchParams,
+      isFinite: Number.isFinite, isNaN: Number.isNaN,
+      mockSb: buildBrowserOrderMockSb(seed), sbSeed: seed.movies.map(m => Object.assign({}, m))
+    };
+    ctx.globalThis = ctx;
+    vm.createContext(ctx);
+    for (const f of scripts) vm.runInContext(read(f) + '\n;', ctx, { filename: f });
+    const r = await vm.runInContext(`
+      (async () => {
+        sb = mockSb; dbMode = 'supabase'; matchAvailable = true; matchProbeDone = true; matchProbeTimeoutMs = 3000;
+        currentUser = 'N'; movies = sbSeed;
+        applyMatchState({ session: { id: 'd1', status: 'open', deck: ['m1', 'm2'] }, swipes: [{ movie_id: 'm1', person: 'V', liked: true }] });
+        const direct = swipeSessions.length === 1 && swipes.length === 1;
+        const s = await ensureActiveSession();
+        const ensured = !!s && s.id === 'x1' && swipes.length === 1;   // swipe X scartato da filterSwipes
+        await closeSession('x1');
+        const fresh = await startNewSession();
+        const built = !!fresh && fresh.status === 'open' && Array.isArray(fresh.deck) && fresh.deck.length === 2;
+        return { direct, ensured, built };
+      })()
+    `, ctx);
+    return r && r.direct === true && r.ensured === true && r.built === true;
+  });
+
+  await okA('ingresso con errore reale: console.error UNA volta per entrata + vista col messaggio tecnico', runA(async () => {
+    const p = __matchSnap();
+    const mock = mockMatchSb({ sessions: [{ id: 'sE', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }], movies: [{ id: 'ma', title: 'M' }] });
+    sb = mock; dbMode = 'supabase'; matchAvailable = false; matchProbeDone = false;
+    currentUser = 'N'; currentTab = 'match';
+    const origFilter = filterSwipes;
+    const origErr = console.error;
+    const errs = [];
+    console.error = (...a) => errs.push(a.map(String).join(' '));
+    filterSwipes = function () { throw new Error('F91-KABOOM'); };
+    try {
+      await enterMatch();
+      return errs.length === 1
+        && errs[0].indexOf('F91-KABOOM') !== -1
+        && matchAvailable === false
+        && matchEnterErrorMsg && matchEnterErrorMsg.indexOf('F91-KABOOM') !== -1
+        && document.getElementById('movieGrid').innerHTML.indexOf('F91-KABOOM') !== -1;
+    } finally { filterSwipes = origFilter; console.error = origErr; __matchRestore(p); }
+  }));
+
+  ok('matchUnavailableHtml: messaggio tecnico in piccolo ed escappato', run(() => {
+    matchEnterErrorMsg = '<b>ERR & co</b>';
+    const html = matchUnavailableHtml();
+    matchEnterErrorMsg = null;
+    return html.indexOf('&lt;b&gt;ERR &amp; co&lt;/b&gt;') !== -1
+      && html.indexOf('<b>ERR ') === -1
+      && html.indexOf('text-[10px]') !== -1;
   }));
 
   console.log(`\n=== RISULTATO: ${pass}/${pass + fail} PASS ===`);

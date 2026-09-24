@@ -522,6 +522,8 @@ let matchLeaving = false;            // chiusura intenzionale (leave/logout)
 let matchUnavailableWarnedAt = 0;    // warning "Match non disponibile" una tantum (60s)
 let matchProbeTimeoutMs = 3000;      // cap della sonda cold-start
 let matchChannelStatus = null;       // 'connecting' | 'subscribed' | 'error' | null
+let matchEnterErrorMsg = null;       // ultimo errore reale dell'ingresso → vista "Match non disponibile"
+let matchEnterErrorLogged = false;   // deduplica il console.error (UNA volta per entrata)
 
 function saveMatchLocal() {
   localStorage.setItem('scorochiatu_swipe_sessions', JSON.stringify(swipeSessions));
@@ -546,6 +548,21 @@ function warnMatch(msg) {
     console.warn('[sc(r)occhiaTu] Match: ' + msg);
     matchUnavailableWarnedAt = Date.now();
   }
+}
+
+// Ingresso Match finito male: MAI silenzioso. Espone l'errore reale — una
+// console.error per ENTRATA, la vista "Match non disponibile" con il
+// messaggio tecnico in piccolo. Va chiamato dal catch interno di enterMatch
+// e dai catch esterni dei chiamanti (setTab/tryMatchAgain) come rete.
+function reportMatchEnterError(e) {
+  const msg = e && e.message ? String(e.message) : String(e);
+  matchAvailable = false;
+  matchEnterErrorMsg = msg;
+  if (!matchEnterErrorLogged) {
+    matchEnterErrorLogged = true;
+    console.error('[sc(r)occhiaTu] Match non disponibile — enterMatch: ' + msg, e);
+  }
+  renderMatchArea();
 }
 
 // Sonda cold-start (alla prima entrata nel Match): verifica che swipe_sessions
@@ -870,26 +887,35 @@ function leaveMatch() {
 
 // Ingresso nel Match: sonda una volta (prima entrata), poi sessione attiva e
 // canale. dbMode 'local' o sonda fallita → matchAvailable = false, niente
-// canale, il core resta intatto.
+// canale, il core resta intatto. Qualunque errore reale (es. una funzione di
+// match.js non caricata nel browser) viene CATTURATO qui: mai ReferenceError
+// non gestito, sempre console.error (una volta per entrata) + vista
+// "Match non disponibile" col messaggio tecnico.
 async function enterMatch() {
-  if (!sb || dbMode === 'local' || !currentUser) {
-    matchAvailable = false;
-    renderMatchArea();
-    return;
-  }
-  if (!matchProbeDone) {
-    matchProbeDone = true;
-    const ok = await probeMatchTables();
-    if (!ok) {
+  matchEnterErrorMsg = null;
+  matchEnterErrorLogged = false;
+  try {
+    if (!sb || dbMode === 'local' || !currentUser) {
       matchAvailable = false;
-      warnMatch('non disponibile: tabelle swipe non raggiungibili (sonda fallita).');
       renderMatchArea();
       return;
     }
-    matchAvailable = true;
+    if (!matchProbeDone) {
+      matchProbeDone = true;
+      const ok = await probeMatchTables();
+      if (!ok) {
+        matchAvailable = false;
+        warnMatch('non disponibile: tabelle swipe non raggiungibili (sonda fallita).');
+        renderMatchArea();
+        return;
+      }
+      matchAvailable = true;
+    }
+    if (!matchAvailable) { renderMatchArea(); return; }
+    await ensureActiveSession();
+    openMatchChannel();
+    renderMatchArea();
+  } catch (e) {
+    reportMatchEnterError(e);
   }
-  if (!matchAvailable) { renderMatchArea(); return; }
-  await ensureActiveSession();
-  openMatchChannel();
-  renderMatchArea();
 }
