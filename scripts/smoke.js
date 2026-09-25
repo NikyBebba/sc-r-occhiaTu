@@ -954,7 +954,9 @@ async function okA(name, fn) {
     return html.indexOf('fa-clapperboard') !== -1
       && html.indexOf('fa-star') !== -1
       && html.indexOf('fa-tags') !== -1
-      && html.indexOf('fa-heart') !== -1
+      && html.indexOf('fa-users') !== -1
+      && html.indexOf('fa-heart') === -1
+      && html.indexOf('Proposti da') !== -1
       && html.indexOf('a&lt;b (1)') !== -1
       && html.indexOf('a<b (1)') === -1
       && html.indexOf('a<b)') === -1

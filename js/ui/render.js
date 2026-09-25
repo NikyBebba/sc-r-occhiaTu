@@ -118,21 +118,24 @@ function renderStats() {
   const topGenre = topGenres[0];
   const topGenreValue = topGenre ? `${topGenre} (${genreCounts[topGenre]})` : '—';
 
-  const matchable = movies.filter(m => {
-    const v = getVotesForMovie(m.id);
-    return v.N !== undefined && v.V !== undefined;
-  });
-  const matches = matchable.filter(m => {
-    const v = getVotesForMovie(m.id);
-    return v.N === v.V;
-  });
-  const matchPct = matchable.length ? Math.round((matches.length / matchable.length) * 100) : null;
+  // "Proposti da N / V": conta i film per persona che li ha AGGIUNTI
+  // (movies.added_by). NON è un giudizio sui gusti — il Match % è la sessione
+  // swipe N↔V nel tab Match e la card resta la fonte per i gusti a coppia.
+  const proposers = Object.keys(CONFIG.PEOPLE || {})
+    .map(p => {
+      const n = movies.filter(m => m.added_by === p).length;
+      const label = CONFIG.PEOPLE[p]?.label || p;
+      return n ? `${label} ${n}` : null;
+    })
+    .filter(Boolean)
+    .join(' · ');
+  const proposersValue = movies.length ? (proposers || '—') : '—';
 
   const cards = [
     { icon: 'fa-clapperboard', iconClass: 'text-rose-400', label: 'Film visti insieme', value: totalWatched },
     { icon: 'fa-star', iconClass: 'text-amber-400', label: 'Voto medio', value: avgRating === '—' ? '—' : `⭐ ${avgRating}` },
     { icon: 'fa-tags', iconClass: 'text-sky-400', label: 'Genere più amato', value: topGenreValue },
-    { icon: 'fa-heart', iconClass: 'text-emerald-400', label: 'Match sui gusti', value: matchPct === null ? '—' : `${matchPct}%` }
+    { icon: 'fa-users', iconClass: 'text-indigo-400', label: 'Proposti da', value: proposersValue }
   ];
   document.getElementById('statsGrid').innerHTML = cards.map(c => `
     <div class="p-4 bg-slate-900/80 rounded-xl border border-slate-800 text-center">
