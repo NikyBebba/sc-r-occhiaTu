@@ -447,3 +447,27 @@ textarea:focus-visible {
   box-shadow: 0 0 18px rgba(56, 189, 248, 0.4);
   animation: match-glow 2.2s var(--ease-out) infinite;
 }
+
+/* ---- STEP 2 · Phase 5 — Form controls (ricerca + filtri + sort).
+   Unica resa per input/select: token Foundation (sfondo sala con alpha, bordo,
+   raggio, font-size, transizione). `.field-xl` alza il raggio per la barra di
+   ricerca. Il ring dell'outline resta quello globale `:focus-visible` (a11y
+   tastiera, Phase 31); qui il focus cambia solo il bordo (pointer focus).
+   Padding/larghezze/flex restano classi Tailwind sui singoli elementi. ---- */
+.field {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid var(--color-bordo);
+  border-radius: var(--radius-lg);
+  color: var(--color-testo-1);
+  font-size: var(--fs-sm);
+  transition: border-color var(--duration-fast) var(--ease-default);
+}
+.field:hover {
+  border-color: var(--color-bordo-forte);
+}
+.field:focus {
+  border-color: var(--color-dettaglio);
+}
+.field-xl {
+  border-radius: var(--radius-xl);
+}
