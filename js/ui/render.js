@@ -73,6 +73,15 @@ function renderNextMovieBox() {
     actionsHtml = `<button onclick="cancelNightUI('${pick.id}', '${jsAttrEscape(pick.title)}')" class="mt-2 w-full py-1.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 rounded text-xs">Annulla</button>`;
   }
 
+  // Step4 phase18 — ticket per la proposta DIRETTA: il bottone appare SOLO se
+  // l'origine è stata marcata in-memory come 'manual' in QUESTA sessione di
+  // navigazione (markTicketOrigin in quickTonightUI/confirmSchedule della
+  // card). Match Live e Ruota hanno il proprio bottone Ticket nelle loro viste
+  // (% o timbro dedicato); qui mai un'% inventata.
+  if (typeof ticketOriginOf === 'function' && ticketOriginOf(pick.id) === 'manual') {
+    actionsHtml += `<button onclick="downloadTicket('${pick.id}', 'manual')" class="mt-2 w-full py-1.5 bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-indigo-300 rounded text-xs">🎟️ Ticket</button>`;
+  }
+
   box.innerHTML = `
     <div class="p-3 bg-slate-900/80 rounded-xl border ${pending ? 'border-amber-500/40' : 'border-indigo-500/40'}">
       <div class="flex gap-3">

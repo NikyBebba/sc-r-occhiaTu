@@ -164,8 +164,11 @@ function spinWheel() {
           <button onclick="closeWheelWinner()" class="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-slate-400 hover:text-white transition shrink-0" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark text-[10px]"></i></button>
         </div>
         <div class="flex items-center gap-2 mt-2">
-          <button onclick="quickTonightUI('${jsAttrEscape(winner.id)}'); closeWheelWinner()" class="flex-1 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded-lg text-sm font-medium transition">Stasera</button>
-          <button onclick="scheduleMovie('${jsAttrEscape(winner.id)}')" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition">Programma</button>
+          <button onclick="quickTonightUI('${jsAttrEscape(winner.id)}', 'wheel'); closeWheelWinner()" class="flex-1 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded-lg text-sm font-medium transition">Stasera</button>
+          <button onclick="wheelScheduleFor='${jsAttrEscape(winner.id)}'; scheduleMovie('${jsAttrEscape(winner.id)}')" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition">Programma</button>
+        </div>
+        <div class="flex items-center gap-2 mt-1">
+          <button onclick="downloadTicket('${jsAttrEscape(winner.id)}', 'wheel')" class="flex-1 py-2 bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-indigo-300 rounded-lg text-sm font-medium transition">🎟️ Ticket</button>
         </div>`;
       fireConfetti();
     }

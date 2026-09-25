@@ -163,6 +163,7 @@ async function okA(name, fn) {
     'js/store.js', 'js/match.js', 'js/filters.js', 'js/wheel.js',
     'js/ui/modals.js', 'js/ui/navigation.js', 'js/ui/actions.js', 'js/ui/render.js', 'js/ui/calendar.js',
     'js/ui/match.js',
+    'js/ui/ticket.js',
     'js/main.js'
   ].map(f => read(f) + '\n;');
 
@@ -780,7 +781,7 @@ async function okA(name, fn) {
       && box.innerHTML.indexOf('fa-xmark') !== -1
       && box.innerHTML.indexOf('closeWheelWinner') !== -1;
   }));
-  await okA('phase15: il vincitore ha Stasera/Programma (flussi card, nessun aggancio automatico)', runA(async () => {
+  await okA('phase15/18: il vincitore ha Stasera/Programma + Ticket (flussi card, nessun aggancio automatico)', runA(async () => {
     const box = document.getElementById('wheelWinner');
     box.classList.add('hidden');
     wheelSpinning = false;
@@ -801,7 +802,12 @@ async function okA(name, fn) {
     return !box.classList.contains('hidden')
       && box.innerHTML.indexOf("onclick=\"quickTonightUI('") !== -1
       && box.innerHTML.indexOf('closeWheelWinner') !== -1
-      && box.innerHTML.indexOf("onclick=\"scheduleMovie('") !== -1;
+      // phase15: Programma dal vincitore usa markTicketOrigin 'wheel' + scheduleMovie
+      && box.innerHTML.indexOf('wheelScheduleFor=\'') !== -1
+      && box.innerHTML.indexOf('scheduleMovie(\'') !== -1
+      // phase18: bottone ticket con origine 'wheel' (timbro ruota, mai %)
+      && box.innerHTML.indexOf("onclick=\"downloadTicket('") !== -1
+      && box.innerHTML.indexOf("', 'wheel')") !== -1;
   }));
   await okA('phase15: confirmSchedule chiude il box ruota SOLO se visibile (flusso card intatto)', runA(async () => {
     const box = document.getElementById('wheelWinner');
@@ -3347,6 +3353,115 @@ async function okA(name, fn) {
         && document.getElementById('movieGrid').innerHTML.indexOf('Match!') !== -1
         && matchRevealedKey === 'sR5:ma';   // la key resta: un render non riapre l'overlay
     } finally { __matchRestore(p); }
+  }));
+
+  // --- Step4 phase18 — Final Ticket Generator ---
+  console.log('\n[step4 phase18 — ticket generator]');
+  ok('phase18: ticketStampText puro — match→%, wheel→timbro, manual→proposto', run(() => {
+    const m100 = ticketStampText('match', 100);
+    const w = ticketStampText('wheel', null);
+    const man = ticketStampText('manual', null);
+    return m100.main === '100%' && m100.sub === "d'accordo"
+      && w.main === 'Scelto con la Ruota' && w.sub === ''
+      && man.main === 'Proposto da N/V' && man.sub === ''
+      // match SENZA pct condiviso (total 0) cade sul timbro placeholder
+      && ticketStampText('match', null).main === 'Proposto da N/V';
+  }));
+  ok('phase18: markTicketOrigin/ticketOriginOf — flag in-memory, mai URL/persistenza', run(() => {
+    markTicketOrigin('t1', 'match'); markTicketOrigin('t2', 'wheel'); markTicketOrigin('t3', 'manual');
+    const okSet = ticketOriginOf('t1') === 'match' && ticketOriginOf('t2') === 'wheel' && ticketOriginOf('t3') === 'manual';
+    const okNull = ticketOriginOf('zzz') === null;
+    markTicketOrigin('t3', null);
+    const okDel = ticketOriginOf('t3') === null;
+    return okSet && okNull && okDel;
+  }));
+  await okA('phase18: confirmSchedule marca manual per la card e wheel per il vincitore ruota', runA(async () => {
+    const prev = { pSb: sb, pUser: currentUser, pTab: currentTab, pMovies: movies, pNights: movieNights };
+    try {
+      // (a) da card (Stasera quickTonightUI+confirm senza fromMatch) → manual
+      currentUser = 'N'; currentTab = 'watchlist'; movies = [{ id: 'a', title: 'A' }]; movieNights = []; sb = null; dbMode = 'local';
+      markTicketOrigin('a', null);
+      document.getElementById('scheduleMovieId').value = 'a';
+      document.getElementById('scheduleDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('scheduleTime').value = '21:30';
+      document.getElementById('scheduleSnack').value = '';
+      wheelScheduleFor = null;
+      await confirmSchedule();
+      // Note: confirmSchedule usa proposeNight → in local mode il film 'a' diventa tonight/scheduled
+      const afterCard = ticketOriginOf('a') === 'manual';
+      // (b) da ruota (Programma setta wheelScheduleFor) → wheel
+      markTicketOrigin('a', null); wheelScheduleFor = 'a';
+      await confirmSchedule();
+      const afterWheel = ticketOriginOf('a') === 'wheel' && wheelScheduleFor === null;
+      return afterCard && afterWheel;
+    } finally {
+      sb = prev.pSb; currentUser = prev.pUser; currentTab = prev.pTab; movies = prev.pMovies; movieNights = prev.pNights;
+    }
+  }));
+  await okA('phase18: quickTonightUI marca manual (default) e wheel esplicito', runA(async () => {
+    const prev = { pSb: sb, pUser: currentUser, pTab: currentTab, pMovies: movies, pNights: movieNights };
+    try {
+      currentUser = 'N'; currentTab = 'watchlist'; movies = [{ id: 'q1', title: 'Q1' }]; movieNights = []; sb = null; dbMode = 'local';
+      markTicketOrigin('q1', null);
+      await quickTonightUI('q1');
+      const dfl = ticketOriginOf('q1') === 'manual';
+      await quickTonightUI('q1', 'wheel');
+      const wl = ticketOriginOf('q1') === 'wheel';
+      await quickTonightUI('q1', 'match');
+      const ml = ticketOriginOf('q1') === 'match';
+      return dfl && wl && ml;
+    } finally {
+      sb = prev.pSb; currentUser = prev.pUser; currentTab = prev.pTab; movies = prev.pMovies; movieNights = prev.pNights;
+    }
+  }));
+  ok('phase18: renderNextMovieBox mostra Ticket SOLO per il flusso manual (in-memory non persistito)', run(() => {
+    const prev = { pMovies: movies, pNights: movieNights };
+    try {
+      movies = [{ id: 'n1', title: 'N1', status: 'tonight', poster: 'https://ex/n1.jpg', added_by: 'N', duration: 111, platform: 'P' }];
+      movieNights = [{ id: 'nn', movie_id: 'n1', date: null, time: null, snack: null, proposed_by: 'N', status: 'proposed', confirmed_by: null }];
+      const el = document.getElementById('nextMovieBox');
+      // senza flag → niente bottone
+      markTicketOrigin('n1', null);
+      renderNextMovieBox();
+      const noBtn = el.innerHTML.indexOf('downloadTicket') === -1;
+      // flag manual → bottone compare col flusso corretto
+      markTicketOrigin('n1', 'manual');
+      renderNextMovieBox();
+      const yesBtn = el.innerHTML.indexOf("downloadTicket('n1', 'manual')") !== -1;
+      // flag wheel (da ruota) → NESSUN bottone qui (wheel ha il suo bottone)
+      markTicketOrigin('n1', 'wheel');
+      renderNextMovieBox();
+      const noWheel = el.innerHTML.indexOf('downloadTicket') === -1;
+      return noBtn && yesBtn && noWheel;
+    } finally { movies = prev.pMovies; movieNights = prev.pNights; }
+  }));
+  ok('phase18: matchMatchHtml/matchRevealHtml hanno il bottone Ticket con full percentuale dalla sessione', run(() => {
+    const prev = { pSwipes: swipes, pMovies: movies };
+    try {
+      swipes = [{ id: 's1', movie_id: 'x1', person: 'N', liked: true }, { id: 's2', movie_id: 'x1', person: 'V', liked: true }];
+      movies = [{ id: 'x1', title: 'X1', poster: 'https://ex/x1.jpg', added_by: 'N', duration: 90, platform: '' }];
+      const match = matchMatchHtml({ agreed: true, sessionId: 'sx', movieId: 'x1' });
+      const reveal = matchRevealHtml({ movieId: 'x1', sessionId: 'sx' });
+      return match.indexOf("onclick=\"downloadTicket('x1', 'match')") !== -1
+        && reveal.indexOf("onclick=\"downloadTicket('x1', 'match')") !== -1
+        && match.indexOf('🎟️ Ticket') !== -1
+        && reveal.indexOf('🎟️ Ticket') !== -1;
+    } finally { swipes = prev.pSwipes; movies = prev.pMovies; }
+  }));
+  await okA('phase18: downloadTicket con poster CORS-fallito/mancante NON lancia errori (canvas stub, immagine assente)', runA(async () => {
+    const prev = { pMovies: movies };
+    try {
+      // Il sandbox ha document.createElement con canvas senza getContext → drawTicketCanvas ritorna
+      // centralmente senza throw. Poster vuoto o URL rotto → loadTicketPoster → null (js protetto).
+      movies = [{
+        id: 'z1', title: 'Z1', poster: '', status: 'watchlist',
+        added_by: 'N', duration: 90, platform: ''
+      }];
+      await downloadTicket('z1', 'manual');   // deve completare senza crash
+      movies[0].poster = 'https://invalid.invalid/img.jpg';
+      await downloadTicket('z1', 'wheel');    // CORS/onerror → null, disegno con gradiente
+      return true;
+    } finally { movies = prev.pMovies; }
   }));
 
   await okA('gesto touch (soglia ~80px) e bottoni convergono su swipeCard; sotto soglia nessuno swipe', runA(async () => {

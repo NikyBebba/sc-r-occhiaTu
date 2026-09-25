@@ -218,6 +218,10 @@ async function confirmSchedule() {
   // serata È stata davvero creata (controllo a posteriori, mai all'apertura).
   const pending = typeof matchPendingSchedule !== 'undefined' ? matchPendingSchedule : null;
   const fromMatch = !!(pending && pending.movieId === id && currentTab === 'match');
+  // Step4 phase18 — origine "Programma": se il winner della ruota ha messo
+  // wheelScheduleFor = id (phase15) è un pick dalla Ruota, altrimenti è una
+  // proposta diretta dalla card. Flags in-memory (ticketOrigin), MAI persistiti.
+  const fromWheel = typeof wheelScheduleFor !== 'undefined' && wheelScheduleFor === id;
   await proposeNight(id, currentUser, date, time, snack);
   closeModal('scheduleModal');
   // Step4 phase15 — ruota programmabile: "Programma" dal vincitore chiude il
@@ -225,9 +229,14 @@ async function confirmSchedule() {
   // (flusso normale da card/modale) non succede nulla, nessun effetto.
   const wheelBox = document.getElementById('wheelWinner');
   if (wheelBox && !wheelBox.classList.contains('hidden')) wheelBox.classList.add('hidden');
+  if (!fromMatch && typeof markTicketOrigin === 'function') {
+    if (fromWheel) wheelScheduleFor = null;
+    markTicketOrigin(id, fromWheel ? 'wheel' : 'manual');
+  }
   if (fromMatch && activeNightForMovie(id)) {
     await closeSession(pending.sessionId);
     if (typeof matchNightDone === 'function') matchNightDone(id);
+    if (typeof markTicketOrigin === 'function') markTicketOrigin(id, 'match');
   }
   loadMovies();
 }
@@ -248,8 +257,12 @@ async function cancelNightUI(id, title) {
   loadMovies();
 }
 
-async function quickTonightUI(id) {
+// "Stasera" — pick veloce senza data. origin: 'manual' (default, dalla card)
+// o 'wheel' (winner della ruota, phase18): decide se il ticket mostrerà
+// "Proposto da N/V" o "Scelto con la Ruota".
+async function quickTonightUI(id, origin) {
   await setQuickTonight(id);
+  if (typeof markTicketOrigin === 'function') markTicketOrigin(id, origin || 'manual');
   loadMovies();
 }
 
