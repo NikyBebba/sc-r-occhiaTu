@@ -1466,7 +1466,7 @@ async function okA(name, fn) {
     return ok;
   }));
 
-  console.log('\n[step2 phase8 — card biglietto cinema]');
+  console.log('\n[step2 phase8/6 — card biglietto + home cta]');
   ok('card: container "movie-ticket" + linea strappo "ticket-seam" + scrim poster', run(() => {
     const prevUser = currentUser, prevTab = currentTab, saved = movies;
     currentUser = 'N'; currentTab = 'all';
@@ -1525,6 +1525,29 @@ async function okA(name, fn) {
   ok('card: personBadge → person-pill con pallino persona (paternità riconoscibile)', run(() => {
     const b = personBadge('N');
     return b.indexOf('badge badge-n person-pill') !== -1 && b.indexOf('fa-circle') !== -1;
+  }));
+  ok('HOME CTA: visibile nei tab di lista, nascosta in calendario (via render)', run(() => {
+    const prevTab = currentTab, prevMode = dbMode;
+    dbMode = 'local';
+    currentTab = 'watchlist'; render();
+    const cta = document.getElementById('sceltaCta');
+    const visibleOnList = !cta.classList.contains('hidden');
+    currentTab = 'calendar'; render();
+    const hiddenOnCalendar = cta.classList.contains('hidden');
+    currentTab = 'watchlist'; render();
+    const visibleAgain = !cta.classList.contains('hidden');
+    currentTab = prevTab; dbMode = prevMode;
+    return visibleOnList && hiddenOnCalendar && visibleAgain;
+  }));
+  ok('HOME CTA: bottone Match Live nascosto offline (local), visibile con Supabase', run(() => {
+    const prevTab = currentTab, prevMode = dbMode;
+    dbMode = 'local'; currentTab = 'watchlist'; render();
+    const ctaMatch = document.getElementById('ctaMatch');
+    const hiddenLocal = ctaMatch.classList.contains('hidden');
+    dbMode = 'supabase'; render();
+    const visibleSup = !ctaMatch.classList.contains('hidden');
+    currentTab = prevTab; dbMode = prevMode;
+    return hiddenLocal && visibleSup;
   }));
 
   console.log('\n[render — pulsante "Togli veto"]');

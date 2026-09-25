@@ -186,6 +186,21 @@
 
       <!-- COLONNA DESTRA -->
       <div class="md:col-span-2 space-y-6">
+        <!-- HOME CTA "Cosa Guardiamo?": tre ingressi alla scelta (Ruota, Match
+             Live, lista). Nessuno stato nuovo: onclick su funzioni già globali.
+             Visibilità per tab gestita in render(). -->
+        <section id="sceltaCta" aria-label="Cosa guardiamo" class="glass-panel p-4 rounded-2xl border border-slate-800 space-y-3">
+          <div class="flex items-baseline justify-between gap-2">
+            <h2 class="text-sm font-bold text-cinema-testo-1">Cosa guardiamo?</h2>
+            <span class="text-[10px] text-slate-400">tre modi per scegliere stasera</span>
+          </div>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <button onclick="spinWheel()" class="cta-btn cta-ruota" aria-label="Scegli a caso con la ruota"><i class="fa-solid fa-rotate"></i> Ruota</button>
+            <button id="ctaMatch" onclick="setTab('match')" class="cta-btn cta-match hidden" aria-label="Trova il match tra i gusti"><i class="fa-solid fa-heart"></i> Match Live</button>
+            <button onclick="(() => { const i = document.getElementById('movieSearchInput'); if (i) { i.focus(); i.scrollIntoView({ behavior: 'smooth', block: 'center' }); } })()" class="cta-btn cta-lista" aria-label="Sfoglia la lista e proponi"><i class="fa-solid fa-magnifying-glass"></i> Sfoglia la lista</button>
+          </div>
+        </section>
+
         <!-- FILTRI (LIBRARY): ricerca + ordinamento -->
         <div class="space-y-2" aria-label="Filtri e ricerca">
         <div class="relative">

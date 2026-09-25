@@ -316,6 +316,13 @@ function render() {
   // La pill "Match" è visibile SOLO in modalità Supabase (nessun counter).
   const tabMatch = document.getElementById('tabMatch');
   if (tabMatch) tabMatch.classList.toggle('hidden', dbMode !== 'supabase');
+  // Home CTA "Cosa Guardiamo?": visibile nelle viste di lista, nascosta in
+  // Calendario e Match (dove la scelta ha già la sua UI dedicata).
+  const sceltaCta = document.getElementById('sceltaCta');
+  if (sceltaCta) sceltaCta.classList.toggle('hidden', currentTab === 'match' || currentTab === 'calendar');
+  // Bottone "Match Live" della CTA: stessa regola della pill (solo Supabase).
+  const ctaMatch = document.getElementById('ctaMatch');
+  if (ctaMatch) ctaMatch.classList.toggle('hidden', dbMode !== 'supabase');
   // Stato live della pill (idle/online/live): leggere matchChannelStatus e
   // lobbyPresenceState, mai introdurre un secondo stato.
   renderMatchCta();

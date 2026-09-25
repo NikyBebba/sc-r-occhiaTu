@@ -549,3 +549,52 @@ textarea:focus-visible {
   0% { background-position: 0% 50%; }
   100% { background-position: 200% 50%; }
 }
+
+/* ---- STEP 2 · Phase 6 — Home CTA "Cosa Guardiamo?".
+   Strip di scelta rapida in cima alla colonna destra: tre ingressi verso le
+   sorgenti già esistenti (Ruota, Match Live, lista), zero nuovi stati.
+   Visibilità per tab gestita in render() al pari della pill Match. ---- */
+#sceltaCta .cta-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border-radius: var(--radius-lg);
+  font-size: 12px;
+  font-weight: 600;
+  transition: background-color var(--duration-fast) var(--ease-default),
+              border-color var(--duration-fast) var(--ease-default),
+              color var(--duration-fast) var(--ease-default);
+}
+#sceltaCta .cta-ruota {
+  background: rgba(99, 102, 241, 0.18);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  color: var(--color-cielo);
+}
+#sceltaCta .cta-ruota:hover {
+  background: rgba(99, 102, 241, 0.3);
+  border-color: rgba(99, 102, 241, 0.6);
+  color: #fff;
+}
+#sceltaCta .cta-match {
+  background: rgba(236, 72, 153, 0.14);
+  border: 1px solid rgba(236, 72, 153, 0.3);
+  color: #f9a8d4;
+}
+#sceltaCta .cta-match:hover {
+  background: rgba(236, 72, 153, 0.26);
+  border-color: rgba(236, 72, 153, 0.55);
+  color: #fff;
+}
+#sceltaCta .cta-lista {
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: var(--color-testo-2);
+}
+#sceltaCta .cta-lista:hover {
+  background: rgba(148, 163, 184, 0.22);
+  border-color: rgba(148, 163, 184, 0.5);
+  color: #fff;
+}
