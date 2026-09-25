@@ -311,6 +311,9 @@ function render() {
   // La pill "Match" è visibile SOLO in modalità Supabase (nessun counter).
   const tabMatch = document.getElementById('tabMatch');
   if (tabMatch) tabMatch.classList.toggle('hidden', dbMode !== 'supabase');
+  // Stato live della pill (idle/online/live): leggere matchChannelStatus e
+  // lobbyPresenceState, mai introdurre un secondo stato.
+  renderMatchCta();
 
   // Nel tab Match il pannello filtri/ricerca della LISTA è un input inerte
   // (la vista Match non lo usa): lo nascondiamo con ...!hidden che vince su

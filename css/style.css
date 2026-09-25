@@ -412,3 +412,21 @@ textarea:focus-visible {
     display: none;
   }
 }
+
+/* ---- STEP 2 · Phase 3 — Pill "Match" con stato live.
+   La CTA NON crea dato: legge solo matchChannelStatus + lobbyPresenceState (via
+   renderMatchCta in js/ui/match.js) e cambia solo aspetto. Selettori id-based
+   per vincere su Tailwind (stile generato dopo css/style.css nel DOM). Lo stato
+   'match-cta-live' respira col keyframe match-glow; prefers-reduced-motion lo
+   azzera già (blocco baseline sopra). ---- */
+#tabMatch.match-cta-idle { color: #94a3b8; }
+#tabMatch.match-cta-idle:hover { color: #fff; }
+#tabMatch.match-cta-online { color: #818cf8; box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.35); }
+#tabMatch.match-cta-live {
+  color: #fff;
+  animation: match-glow 2.2s var(--ease-out) infinite;
+}
+@keyframes match-glow {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.25), 0 0 6px rgba(56, 189, 248, 0.25); }
+  50% { box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.55), 0 0 20px rgba(56, 189, 248, 0.6); }
+}

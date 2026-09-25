@@ -41,6 +41,23 @@ function clearMatchState() {
   matchDragging = false;
 }
 
+// ---- Pill "Match" nello segmented control: segnale stato live (N↔V) ----
+// La CTA NON crea un secondo stato: legge SOLO le fonti già esistenti
+// (matchChannelStatus + lobbyPresenceState tramite matchPresentUsers) e cambia
+// solo classi di aspetto. La visibilità resta a render() (classList 'hidden'),
+// mai toccata qui. Limite noto accettato: lo stato si aggiorna a ogni render —
+// il riallineo live mentre si naviga altrove richiederebbe un listener presence
+// in più (NON aggiunto: toccare store.js è fuori scope dello step).
+function renderMatchCta() {
+  const btn = document.getElementById('tabMatch');
+  if (!btn) return;
+  const on = dbMode === 'supabase' && matchChannel && matchChannelStatus === 'subscribed';
+  const present = matchPresentUsers();
+  const state = on && present.includes('N') && present.includes('V') ? 'live' : on ? 'online' : 'idle';
+  btn.classList.remove('match-cta-idle', 'match-cta-online', 'match-cta-live');
+  btn.classList.add('match-cta-' + state);
+}
+
 // ---- Viste ----
 function matchUnavailableHtml() {
   const tech = matchEnterErrorMsg
