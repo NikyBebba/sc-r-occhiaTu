@@ -1466,6 +1466,67 @@ async function okA(name, fn) {
     return ok;
   }));
 
+  console.log('\n[step2 phase8 — card biglietto cinema]');
+  ok('card: container "movie-ticket" + linea strappo "ticket-seam" + scrim poster', run(() => {
+    const prevUser = currentUser, prevTab = currentTab, saved = movies;
+    currentUser = 'N'; currentTab = 'all';
+    movies = [
+      { id: 't-w', title: 'T Watch', status: 'watchlist', added_by: 'N', poster: '', platform: 'P', genre: 'azione' },
+      { id: 't-t', title: 'T Tonight', status: 'tonight', added_by: 'V', poster: '', platform: '', genre: 'azione' },
+      { id: 't-d', title: 'T Watched', status: 'watched', added_by: 'N', poster: '', platform: '', review_text: '', rating: 0 }
+    ];
+    render();
+    const grid = document.getElementById('movieGrid');
+    const html = grid.innerHTML;
+    const ticketClass = grid._children.length === 3
+      && grid._children.every(c => c.className.indexOf('movie-ticket') !== -1)
+      && grid._children.every(c => c.className.indexOf('glass-card') === -1);
+    const okTicket = ticketClass
+      && html.indexOf('ticket-seam') !== -1
+      && html.indexOf('bg-gradient-to-t from-black/70') !== -1;
+    movies = saved; currentUser = prevUser; currentTab = prevTab;
+    return okTicket;
+  }));
+  ok('card: BUGFIX footer — watched/status ignoto NON renderizza il footer azioni vuoto; watchlist/tonight sì', run(() => {
+    const prevUser = currentUser, prevTab = currentTab, saved = movies;
+    currentUser = 'N'; currentTab = 'all';
+    movies = [
+      { id: 'f-w', title: 'FW', status: 'watchlist', added_by: 'N', poster: '', platform: '', genre: 'azione' },
+      { id: 'f-d', title: 'FD', status: 'watched', added_by: 'N', poster: '', platform: '', review_text: '', rating: 0 }
+    ];
+    render();
+    const grid = document.getElementById('movieGrid');
+    const watchedCard = grid._children.find(c => c._innerHTML.indexOf('FD') !== -1);
+    const watchCard = grid._children.find(c => c._innerHTML.indexOf('FW') !== -1);
+    const watchedNoFooter = watchedCard && watchedCard._innerHTML.indexOf('pt-2 border-t border-slate-800/80') === -1
+      && watchedCard._innerHTML.indexOf('voteMovie') === -1;
+    const watchHasFooter = watchCard && watchCard._innerHTML.indexOf('pt-2 border-t border-slate-800/80') !== -1
+      && watchCard._innerHTML.indexOf('voteMovie') !== -1;
+    movies = saved; currentUser = prevUser; currentTab = prevTab;
+    return !!watchedNoFooter && !!watchHasFooter;
+  }));
+  ok('card: rating assente → niente rating-holo; presente → container holo con testi piattaforma', run(() => {
+    const prevUser = currentUser, prevTab = currentTab, saved = movies;
+    currentUser = 'N'; currentTab = 'all';
+    movies = [
+      { id: 'h-none', title: 'H0', status: 'watchlist', added_by: 'N', poster: '', platform: '', genre: 'azione' },
+      { id: 'h-ok', title: 'H1', status: 'watchlist', added_by: 'N', poster: '', platform: '', genre: 'azione', imdb_rating: '8.1', rt_rating: '92%' }
+    ];
+    render();
+    const grid = document.getElementById('movieGrid');
+    const h0 = grid._children.find(c => c._innerHTML.indexOf('H0<') !== -1);
+    const h1 = grid._children.find(c => c._innerHTML.indexOf('H1<') !== -1);
+    const noneHolo = h0 && h0._innerHTML.indexOf('rating-holo') === -1;
+    const holo = h1 && h1._innerHTML.indexOf('rating-holo flex gap-2') !== -1
+      && h1._innerHTML.indexOf('IMDb 8.1') !== -1 && h1._innerHTML.indexOf('RT 92%') !== -1;
+    movies = saved; currentUser = prevUser; currentTab = prevTab;
+    return !!noneHolo && !!holo;
+  }));
+  ok('card: personBadge → person-pill con pallino persona (paternità riconoscibile)', run(() => {
+    const b = personBadge('N');
+    return b.indexOf('badge badge-n person-pill') !== -1 && b.indexOf('fa-circle') !== -1;
+  }));
+
   console.log('\n[render — pulsante "Togli veto"]');
   ok('unveto: solo sul veto PROPRIO (veto altrui e assente → nessun bottone)', run(() => {
     const saved = movies;

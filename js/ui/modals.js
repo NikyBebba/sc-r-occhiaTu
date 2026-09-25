@@ -88,7 +88,7 @@ function jsAttrEscape(s) {
 
 function personBadge(code) {
   const p = CONFIG.PEOPLE[code] || { label: code || '?', badgeClass: 'badge-n' };
-  return `<span class="badge ${p.badgeClass}">${p.label}</span>`;
+  return `<span class="badge ${p.badgeClass} person-pill" title="${escapeHtml(p.label)}"><i class="fa-solid fa-circle"></i> ${p.label}</span>`;
 }
 
 // ---- Modale conferma generica (sostituisce confirm()) ----

@@ -388,7 +388,7 @@ function render() {
     if (m.release_year) metaParts.push(String(m.release_year));
     if (m.duration) metaParts.push(m.duration);
     const card = document.createElement('div');
-    card.className = "glass-card rounded-xl overflow-hidden border border-slate-800 flex flex-col justify-between" + (isVetoed ? ' card-vetoed' : '');
+    card.className = "movie-ticket flex flex-col justify-between" + (isVetoed ? ' card-vetoed' : '');
 
     const votesObj = getVotesForMovie(m.id);
     const bothVoted = votesObj.N !== undefined && votesObj.V !== undefined;
@@ -401,6 +401,7 @@ function render() {
     card.innerHTML = `
       <div class="relative h-48 bg-slate-900 overflow-hidden">
         <img src="${poster}" alt="${escapeHtml(m.title)}" class="w-full h-full object-cover ${isSurpriseHidden ? 'surprise-blur' : ''}">
+        ${!isSurpriseHidden ? `<div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" aria-hidden="true"></div>` : ''}
         ${isSurpriseHidden ? `
           <div class="surprise-overlay bg-black/40">
             <div class="text-2xl">🎁</div>
@@ -417,12 +418,12 @@ function render() {
           </div>` : ''}
           ${isVetoed ? `<span class="badge bg-rose-700/90">vietato</span>` : ''}
         </div>
-        ${!isSurpriseHidden ? `<div class="absolute bottom-2 left-2 px-2 py-1 bg-black/60 rounded text-[10px] text-slate-300 backdrop-blur">
+        ${!isSurpriseHidden ? `<div class="absolute bottom-4 left-2 px-2 py-1 bg-black/60 rounded text-[10px] text-slate-300 backdrop-blur">
           <i class="fa-solid fa-tv text-indigo-400"></i> ${metaParts.map(escapeHtml).join(' • ')}
         </div>` : ''}
-        ${(m.trailer_url && !isSurpriseHidden) ? `<a href="${m.trailer_url}" target="_blank" rel="noopener" class="absolute bottom-2 right-2 px-2 py-1 bg-red-600/80 hover:bg-red-500 rounded text-[10px] text-white backdrop-blur"><i class="fa-solid fa-play"></i> Trailer</a>` : ''}
+        ${(m.trailer_url && !isSurpriseHidden) ? `<a href="${m.trailer_url}" target="_blank" rel="noopener" class="absolute bottom-4 right-2 px-2 py-1 bg-red-600/80 hover:bg-red-500 rounded text-[10px] text-white backdrop-blur"><i class="fa-solid fa-play"></i> Trailer</a>` : ''}
       </div>
-      <div class="p-4 flex-1 flex flex-col justify-between space-y-3">
+      <div class="p-4 flex-1 flex flex-col justify-between space-y-3 ticket-seam">
         <div>
           <div class="flex items-start justify-between gap-2">
             <h3 class="font-bold text-slate-100 text-base leading-snug">${isSurpriseHidden ? '???' : escapeHtml(m.title)}</h3>
@@ -440,7 +441,7 @@ function render() {
           </div>
           ${m.matched === false ? `<button onclick="retryMatch('${m.id}', '${jsAttrEscape(m.title)}')" class="mt-1 text-[10px] text-amber-400 hover:text-amber-300 underline">Correggi titolo e ricerca di nuovo</button>` : ''}
           ${(m.imdb_rating || m.rt_rating || m.metacritic_rating) ? `
-            <div class="flex gap-2 mt-1 text-[10px] text-slate-400">
+            <div class="rating-holo flex gap-2 mt-1 px-2 py-1 rounded text-[10px] text-slate-400">
               ${m.imdb_rating ? `<span><i class="fa-solid fa-star text-amber-400"></i> IMDb ${m.imdb_rating}</span>` : ''}
               ${m.rt_rating ? `<span class="text-rose-400">RT ${m.rt_rating}</span>` : ''}
               ${m.metacritic_rating ? `<span class="text-emerald-400">MC ${m.metacritic_rating}</span>` : ''}
@@ -455,6 +456,7 @@ function render() {
             </div>
           ` : ''}
         </div>
+        ${(m.status === 'watchlist' || m.status === 'tonight') ? `
         <div class="flex flex-col gap-2 pt-2 border-t border-slate-800/80 text-xs">
           ${(m.status === 'watchlist' || m.status === 'tonight') ? `
             <div class="flex items-center gap-2">
@@ -478,6 +480,7 @@ function render() {
             <button onclick="addReview('${m.id}')" class="flex-1 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">Visto & Recensione</button>
           ` : ''}
         </div>
+        ` : ''}
       </div>
     `;
     grid.appendChild(card);

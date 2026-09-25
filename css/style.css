@@ -471,3 +471,81 @@ textarea:focus-visible {
 .field-xl {
   border-radius: var(--radius-xl);
 }
+
+/* ---- STEP 2 · Phase 8 — Movie Card "Biglietto cinema".
+   La card diventa un biglietto: stessi token di .glass-card (vetro, bordo,
+   ombra) ma con i "morsi" a coupon sul bordo tra poster e contenuto.
+   I fori (::before/::after) usano il colore SOLIDO della pagina (--color-sala)
+   per simulare il buco: la pagina fa da sfondo dietro la card, quindi il
+   cerchio "mostra la pagina" = finto taglino. ---- */
+.movie-ticket {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  background: var(--color-vetro);
+  backdrop-filter: blur(var(--blur-vetro));
+  -webkit-backdrop-filter: blur(var(--blur-vetro));
+  border: 1px solid var(--bordo-vetro);
+  box-shadow: var(--shadow-card);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .movie-ticket {
+    background: var(--color-sala);
+  }
+}
+
+/* Perforazioni "biglietto": due semicerchi (clipati da overflow:hidden) sugli
+   estremi della cucitura tra poster e contenuto.
+   ATTENZIONE: `calc(192px - 11px)` dipende dall'altezza FISSA del poster
+   (h-48 = 192px, vedi template card in js/ui/render.js). I cerchi da 22px sono
+   centrati esattamente sulla linea di strappo (bordo superiore del contenuto).
+   Se in futuro si cambia l'altezza del poster, aggiornare questo valore. */
+.movie-ticket::before,
+.movie-ticket::after {
+  content: '';
+  position: absolute;
+  top: calc(192px - 11px);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-sala);
+  z-index: 2;
+}
+.movie-ticket::before { left: -11px; }
+.movie-ticket::after { right: -11px; }
+
+/* Linea di strappo orizzontale: bordo superiore del contenuto, sotto i fori. */
+.ticket-seam {
+  border-top: 2px dashed var(--color-bordo-forte);
+}
+
+/* Badge paternità (personBadge): pill più riconoscibile con pallino persona
+   e ring scuro. Vale anche nel camerino Match (stesso helper). */
+.badge.person-pill {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.35);
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.badge.person-pill i {
+  font-size: 6px;
+}
+
+/* Rating "holographic": luce che scorre sul blocco voti. Lo shimmer è
+   puramente decorativo e viene azzerato dal blocco prefers-reduced-motion
+   globale (baseline sopra). Testi per piattaforma intatti. */
+.rating-holo {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(100deg, rgba(99, 102, 241, 0.28), rgba(56, 189, 248, 0.38), rgba(99, 102, 241, 0.28));
+  background-size: 200% 100%;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  animation: holo-flow 3.5s ease infinite;
+}
+@keyframes holo-flow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
