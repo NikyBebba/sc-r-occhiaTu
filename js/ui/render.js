@@ -598,4 +598,15 @@ function renderMovieDetail(m) {
     </div>
     ${trailerHtml}
   `;
+
+  // Step3 phase9.1 — ambient (poster sfocato come sfondo del modale).
+  setDetailAmbient(m.poster);
+}
+
+// Step3 phase9.1 — ambiente visivo del modale dettaglio: usa il poster come
+// sfondo sfocato. Poster assente/non valido → solo overlay scuro (fallback).
+function setDetailAmbient(posterUrl) {
+  const ambient = document.getElementById('detailAmbient');
+  if (!ambient) return;
+  ambient.style.setProperty('background-image', posterUrl ? `url("${posterUrl.replace(/"/g, '\\"')}")` : 'none');
 }

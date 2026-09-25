@@ -1598,6 +1598,17 @@ async function okA(name, fn) {
     movies = saved; currentUser = prevUser; currentTab = prevTab;
     return inertForOther && opensForOwner;
   }));
+  ok('dettaglio ambient: setDetailAmbient applica url con/senza poster senza crash (fallback)', run(() => {
+    const ambient = document.getElementById('detailAmbient');
+    const prevBg = { u: null };
+    ambient.style.setProperty = (k, v) => { prevBg[k.replace(/-/g, '_')] = v; };
+    setDetailAmbient('https://image.tmdb.org/x/poster.jpg');
+    const withPoster = !!prevBg.background_image && prevBg.background_image.indexOf('url("https://image.tmdb.org/x/poster.jpg")') !== -1;
+    setDetailAmbient(null);
+    const fallback = prevBg.background_image === 'none';
+    setDetailAmbient('');
+    return withPoster && fallback && prevBg.background_image === 'none';
+  }));
   ok('HOME CTA: visibile nei tab di lista, nascosta in calendario (via render)', run(() => {
     const prevTab = currentTab, prevMode = dbMode;
     dbMode = 'local';

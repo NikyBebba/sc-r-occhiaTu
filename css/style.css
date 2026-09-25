@@ -188,6 +188,20 @@ body {
   padding: 8px;
 }
 
+/* Step3 phase9.1 — ambient poster nel modale dettaglio: il poster diventa lo
+   sfondo sfocato+ingrandito; l'overlay scurisce per la leggibilità del testo.
+   Nessun effetto se il poster manca (fallback: solo overlay gradiente). */
+.ambient-bg {
+  background-size: cover;
+  background-position: center;
+  filter: blur(18px) brightness(0.45) saturate(1.2) contrast(1.05);
+  transform: scale(1.12);
+  background-color: #0f172a;
+}
+.ambient-overlay {
+  background: linear-gradient(160deg, rgba(2, 6, 23, 0.72) 0%, rgba(15, 23, 42, 0.88) 100%);
+}
+
 /* Veto: card leggermente sbiadita ma ancora visibile in griglia */
 .card-vetoed {
   opacity: 0.45;
