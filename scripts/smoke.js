@@ -529,6 +529,10 @@ async function okA(name, fn) {
       && d.overview === 'Trama it.'
       && Array.isArray(d.cast_names) && d.cast_names.length === 8 && d.cast_names.join() === 'Att0,Att1,Att2,Att3,Att4,Att5,Att6,Att7';
   }));
+  await okA('buildTmdbDetails (canned) overview assente e cast vuoto → entrambi null', runA(async () => {
+    const d = await buildTmdbDetails({ id: 13, title: 'T4', runtime: 100, overview: '', credits: { cast: [] }, 'watch/providers': { results: {} }, videos: { results: [] } }, 'T4');
+    return d.overview === null && d.cast_names === null;
+  }));
   await okA('buildTmdbDetails (canned) senza runtime → duration null, genres []', runA(async () => {
     const d = await buildTmdbDetails({ id: 12, title: 'T2', runtime: null, genres: [] }, 'T2');
     return d.duration === null && Array.isArray(d.genres) && d.genres.length === 0;
