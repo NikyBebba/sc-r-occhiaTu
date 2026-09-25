@@ -97,7 +97,7 @@ body {
   .glass,
   .glass-panel,
   .glass-card {
-    background: rgba(15, 23, 42, 0.97);
+    background: var(--color-sala);
   }
 }
 
