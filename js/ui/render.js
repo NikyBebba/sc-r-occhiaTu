@@ -314,6 +314,9 @@ function render() {
   // Stato live della pill (idle/online/live): leggere matchChannelStatus e
   // lobbyPresenceState, mai introdurre un secondo stato.
   renderMatchCta();
+  // Pillola animata: riposiziona l'indicatore sotto il tab attivo ad ogni
+  // render (copre anche il primo render post-login e i resync Realtime).
+  updateTabIndicator();
 
   // Nel tab Match il pannello filtri/ricerca della LISTA è un input inerte
   // (la vista Match non lo usa): lo nascondiamo con ...!hidden che vince su

@@ -430,3 +430,20 @@ textarea:focus-visible {
   0%, 100% { box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.25), 0 0 6px rgba(56, 189, 248, 0.25); }
   50% { box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.55), 0 0 20px rgba(56, 189, 248, 0.6); }
 }
+
+/* ---- STEP 2 · Phase 4 — Segmented control: pillola animata.
+   L'indicatore vive dentro #segControl (relative), trasla left/width via
+   updateTabIndicator() (js/ui/navigation.js) con transition CSS; i pulsanti
+   attivi perdono il bg (resta solo testo bianco, z-10 sopra la pillola).
+   Variante 'seg-active-match' = gradiente cielo→indigo (tema Match), respiro
+   col keyframe match-glow (già azzerato da prefers-reduced-motion). ---- */
+#tabIndicator {
+  background: linear-gradient(135deg, var(--color-accento), var(--color-accento-alto));
+  box-shadow: 0 4px 14px -4px rgba(79, 70, 229, 0.55);
+  transition: left var(--duration-medio) var(--ease-out), width var(--duration-medio) var(--ease-out);
+}
+#tabIndicator.seg-active-match {
+  background: var(--gradiente-logo);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.4);
+  animation: match-glow 2.2s var(--ease-out) infinite;
+}
