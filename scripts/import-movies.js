@@ -125,7 +125,7 @@ const bigRound = x => Math.round(x * 100) / 100;
 
 async function tmdbDetail(id) {
   const res = await fetch(
-    `https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_KEY}&append_to_response=watch/providers,videos&language=it-IT`
+    `https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_KEY}&append_to_response=watch/providers,videos,credits&language=it-IT`
   );
   const d = await res.json();
   if (d.status_code) return null; // 34 = resource not found
@@ -144,6 +144,12 @@ function buildDetails(detail) {
     || videos.find(v => v.site === 'YouTube');
   if (trailer) trailerUrl = `https://www.youtube.com/watch?v=${trailer.key}`;
 
+  // Step 7 — overview (trama it-IT) + primi 8 nomi del cast in billing order
+  // (credits ora in append_to_response). overview vuota → null; cast vuoto → null.
+  const overview = detail.overview && detail.overview.trim() ? detail.overview : null;
+  const castNames = ((detail.credits && detail.credits.cast) || [])
+    .map(p => p.name).filter(Boolean).slice(0, 8);
+
   return {
     title: detail.title,
     tmdb_id: detail.id,
@@ -155,7 +161,9 @@ function buildDetails(detail) {
     poster: detail.poster_path ? `https://image.tmdb.org/t/p/w500${detail.poster_path}` : '',
     trailerUrl,
     matched: true,
-    imdb_id: detail.imdb_id || null
+    imdb_id: detail.imdb_id || null,
+    overview,
+    cast_names: castNames.length ? castNames : null
   };
 }
 
@@ -306,7 +314,7 @@ async function resolveTitle(entry) {
 }
 
 // ---------- metadata update non distruttivo ----------
-const METADATA_KEYS = ['duration', 'platform', 'poster', 'trailer_url', 'imdb_rating', 'rt_rating', 'metacritic_rating', 'tmdb_id', 'collection_id', 'collection_name', 'genres'];
+const METADATA_KEYS = ['duration', 'platform', 'poster', 'trailer_url', 'imdb_rating', 'rt_rating', 'metacritic_rating', 'tmdb_id', 'collection_id', 'collection_name', 'genres', 'overview', 'cast_names'];
 
 function metadataPatch(row, details) {
   const patch = {};
@@ -410,7 +418,8 @@ function metadataPatch(row, details) {
         platform: 'Streaming', poster: '', trailer_url: '', matched: false, rating: 0,
         genres: [],
         imdb_rating: '', rt_rating: '', metacritic_rating: '',
-        tmdb_id: null, collection_id: null, collection_name: null
+        tmdb_id: null, collection_id: null, collection_name: null,
+        overview: null, cast_names: null
       };
       if (!DRY) {
         try { await sbInsert(meta); stats.inserted++; } catch (e) { console.error(`  ! insert "${shown}" fallita: ${e.message}`); }
@@ -428,7 +437,8 @@ function metadataPatch(row, details) {
       matched: true, rating: 0,
       genres: details.genres || [],
       imdb_rating: details.imdbRating || '', rt_rating: details.rtRating || '', metacritic_rating: details.metacriticRating || '',
-      tmdb_id: details.tmdb_id ?? null, collection_id: details.collection_id ?? null, collection_name: details.collection_name || null
+      tmdb_id: details.tmdb_id ?? null, collection_id: details.collection_id ?? null, collection_name: details.collection_name || null,
+      overview: details.overview || null, cast_names: details.cast_names || null
     };
     if (!DRY) {
       try { await sbInsert(meta); stats.inserted++; } catch (e) { console.error(`  ! insert "${shown}" fallita: ${e.message}`); }

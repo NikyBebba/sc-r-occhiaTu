@@ -523,9 +523,11 @@ async function okA(name, fn) {
 
   // --- 3b) api generi/durata: oggetti canned, nessuna rete ---
   console.log('\n[api — generi + durata (canned)]');
-  await okA('buildTmdbDetails (canned, niente imdb_id → nessuna rete) espone genres + duration', runA(async () => {
-    const d = await buildTmdbDetails({ id: 11, title: 'T', runtime: 92, genres: [{ id: 35, name: 'Commedia' }, { id: 18, name: 'Dramma' }], 'watch/providers': { results: {} }, videos: { results: [] } }, 'T');
-    return d.genres.join() === 'Commedia,Dramma' && d.duration === '92 min';
+  await okA('buildTmdbDetails (canned, niente imdb_id → nessuna rete) espone genres + duration + overview + cast', runA(async () => {
+    const d = await buildTmdbDetails({ id: 11, title: 'T', runtime: 92, overview: 'Trama it.', genres: [{ id: 35, name: 'Commedia' }, { id: 18, name: 'Dramma' }], credits: { cast: Array.from({ length: 10 }, (_, i) => ({ name: 'Att' + i, order: i })) }, 'watch/providers': { results: {} }, videos: { results: [] } }, 'T');
+    return d.genres.join() === 'Commedia,Dramma' && d.duration === '92 min'
+      && d.overview === 'Trama it.'
+      && Array.isArray(d.cast_names) && d.cast_names.length === 8 && d.cast_names.join() === 'Att0,Att1,Att2,Att3,Att4,Att5,Att6,Att7';
   }));
   await okA('buildTmdbDetails (canned) senza runtime → duration null, genres []', runA(async () => {
     const d = await buildTmdbDetails({ id: 12, title: 'T2', runtime: null, genres: [] }, 'T2');

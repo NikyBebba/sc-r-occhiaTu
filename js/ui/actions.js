@@ -91,6 +91,11 @@ async function applyResolvedDetails(details) {
     release_year: details.release_year ?? null,
     director: details.director || null
   };
+  // Step 7 — overview + cast (trama it-IT e primi 8 nomi del cast) per il detail film.
+  const detailFields = {
+    overview: details.overview || null,
+    cast_names: details.cast_names || null
+  };
   if (pickerMode === 'retry') {
     const patch = {
       title: details.title, duration: details.duration, platform: details.platform,
@@ -101,6 +106,11 @@ async function applyResolvedDetails(details) {
     // mai sovrascrivere un dato esistente con null.
     if (details.release_year != null) patch.release_year = details.release_year;
     if (details.director) patch.director = details.director;
+    // Step 7: stessa regola — overview/cast scritti SOLO se non-null
+    // (in retry la sorgente è TMDb, quindi raramente null; comunque mai
+    // sovrascrivere un dato esistente con null).
+    if (details.overview) patch.overview = details.overview;
+    if (details.cast_names && details.cast_names.length) patch.cast_names = details.cast_names;
     await updateMovie(pickerTargetId, patch);
   } else {
     const newMovie = {
@@ -108,7 +118,7 @@ async function applyResolvedDetails(details) {
       duration: details.duration, platform: details.platform,
       poster: details.poster, trailer_url: details.trailerUrl,
       matched: details.matched, rating: 0,
-      ...genreFields, ...tmdbFields, ...ratingFields, ...metaFields
+      ...genreFields, ...tmdbFields, ...ratingFields, ...metaFields, ...detailFields
     };
     await insertMovie(newMovie);
     document.getElementById('addTitle').value = '';
@@ -145,6 +155,7 @@ async function bulkImportMovies() {
       genres: details.genres || [],
       tmdb_id: details.tmdb_id ?? null, collection_id: details.collection_id ?? null, collection_name: details.collection_name || null,
       release_year: details.release_year ?? null, director: details.director || null,
+      overview: details.overview || null, cast_names: details.cast_names || null,
       imdb_rating: details.imdbRating || '', rt_rating: details.rtRating || '', metacritic_rating: details.metacriticRating || ''
     };
     await insertMovie(newMovie);

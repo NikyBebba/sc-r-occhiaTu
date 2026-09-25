@@ -58,6 +58,14 @@ async function buildTmdbDetails(detail, fallbackTitle) {
   const yMatch = String(detail.release_date || '').match(/^\d{4}/);
   const releaseYear = yMatch && parseInt(yMatch[0], 10) > 0 ? parseInt(yMatch[0], 10) : null;
 
+  // Step 7 — overview + cast (per il detail film): trama it-IT e primi 8 nomi
+  // del cast in billing order (credits già in append_to_response). overview
+  // vuoto/assente → null (mai stringhe vuote); cast senza membri → null (per
+  // distinguere "non ricavato" da "nessun cast", mai array vuoti).
+  const overview = detail.overview && detail.overview.trim() ? detail.overview : null;
+  const castNames = ((detail.credits && detail.credits.cast) || [])
+    .map(p => p.name).filter(Boolean).slice(0, 8);
+
   return {
     tmdb_id: detail.id,
     title: detail.title || fallbackTitle,
@@ -67,6 +75,8 @@ async function buildTmdbDetails(detail, fallbackTitle) {
     duration: detail.runtime ? `${detail.runtime} min` : null,
     release_year: releaseYear,
     director: directors.length ? directors.join(', ') : null,
+    overview,
+    cast_names: castNames.length ? castNames : null,
     platform,
     poster: detail.poster_path ? `https://image.tmdb.org/t/p/w500${detail.poster_path}` : '',
     trailerUrl,
