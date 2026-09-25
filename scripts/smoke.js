@@ -1609,6 +1609,29 @@ async function okA(name, fn) {
     setDetailAmbient('');
     return withPoster && fallback && prevBg.background_image === 'none';
   }));
+  ok('dettaglio accent: dominantColorFromData — bucket più popolato (maggioranza rossa vince)', run(() => {
+    const data = new Uint8ClampedArray(64 * 96 * 4);
+    for (let i = 0; i < data.length; i += 4) { data[i] = 200; data[i + 1] = 30; data[i + 2] = 30; data[i + 3] = 255; } // base rossa
+    for (let i = 0; i < data.length; i += 4) {
+      if (((i / 4) % 64) === 0) { data[i] = 10; data[i + 1] = 20; data[i + 2] = 40; data[i + 3] = 255; } // colonna scura 1/64
+    }
+    const c = dominantColorFromData(data);
+    return c && c.r >= 192 && c.r <= 208 && c.g >= 24 && c.g <= 40 && c.b >= 24 && c.b <= 40;
+  }));
+  ok('dettaglio accent: dominantColorFromData — dati vuoti/tutto trasparente/null → null (no crash)', run(() => {
+    const empty = dominantColorFromData(new Uint8ClampedArray(0));
+    const alpha = new Uint8ClampedArray(64 * 96 * 4);
+    for (let i = 0; i < alpha.length; i += 4) alpha[i + 3] = 0;
+    return empty === null && dominantColorFromData(alpha) === null && dominantColorFromData(null) === null;
+  }));
+  ok('dettaglio accent: applyPosterAccent — senza poster fallback indigo (classe rimossa, accento vuoto, no crash)', run(() => {
+    const panel = document.getElementById('detailPanel');
+    const prev = { accent: '' };
+    panel.style.setProperty = (k, v) => { if (k.indexOf('detail-accent') !== -1) prev.accent = v; };
+    panel.classList.add('detail-accent');
+    applyPosterAccent('');
+    return !panel.classList.contains('detail-accent') && prev.accent === '';
+  }));
   ok('HOME CTA: visibile nei tab di lista, nascosta in calendario (via render)', run(() => {
     const prevTab = currentTab, prevMode = dbMode;
     dbMode = 'local';

@@ -601,6 +601,8 @@ function renderMovieDetail(m) {
 
   // Step3 phase9.1 — ambient (poster sfocato come sfondo del modale).
   setDetailAmbient(m.poster);
+  // Step3 phase9.2 — accento perimetrale dal colore dominante del poster.
+  applyPosterAccent(m.poster);
 }
 
 // Step3 phase9.1 — ambiente visivo del modale dettaglio: usa il poster come
@@ -609,4 +611,55 @@ function setDetailAmbient(posterUrl) {
   const ambient = document.getElementById('detailAmbient');
   if (!ambient) return;
   ambient.style.setProperty('background-image', posterUrl ? `url("${posterUrl.replace(/"/g, '\\"')}")` : 'none');
+}
+
+// Step3 phase9.2 — colore dominante del poster (quantizzazione 4 bit/canale).
+// Pura e testabile fuori dal DOM: prende i pixel RGBA e ritorna il colore del
+// bucket più popolato ({r,g,b}) o null se vuoto/tutto trasparente.
+function dominantColorFromData(data) {
+  if (!data || !data.length) return null;
+  const buckets = new Map();
+  for (let i = 0; i + 4 <= data.length; i += 4) {
+    const a = data[i + 3] === undefined ? 255 : data[i + 3];
+    if (a < 128) continue; // salta pixel trasparenti
+    const key = ((data[i] >> 4) << 8) | ((data[i + 1] >> 4) << 4) | (data[i + 2] >> 4);
+    buckets.set(key, (buckets.get(key) || 0) + 1);
+  }
+  let best = null, bestCount = 0;
+  buckets.forEach((count, key) => { if (count > bestCount) { bestCount = count; best = key; } });
+  if (best === null) return null;
+  const r = ((best >> 8) & 15) << 4, g = ((best >> 4) & 15) << 4, b = (best & 15) << 4;
+  return { r: r + 8, g: g + 8, b: b + 8 };
+}
+
+// Applica l'accento perimetrale (bordo/glow) da un poster. L'immagine è
+// caricata con crossOrigin="anonymous" (TMDb/OMDb rispondono ACAO:*: il canvas
+// non viene tainted). Ogni fallimento è SILENZIOSO: si resta sul bordo indigo
+// standard, mai un errore in console, mai un crash.
+function applyPosterAccent(posterUrl) {
+  const panel = document.getElementById('detailPanel');
+  if (!panel) return;
+  const clear = () => {
+    panel.classList.remove('detail-accent');
+    panel.style.setProperty('--detail-accent', '');
+  };
+  if (!posterUrl || typeof Image === 'undefined') { clear(); return; }
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64; canvas.height = 96;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { clear(); return; }
+      ctx.drawImage(img, 0, 0, 64, 96);
+      const data = ctx.getImageData(0, 0, 64, 96).data;
+      const rgb = dominantColorFromData(data);
+      if (!rgb) { clear(); return; }
+      panel.style.setProperty('--detail-accent', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+      panel.classList.add('detail-accent');
+    } catch (e) { clear(); }
+  };
+  img.onerror = clear;
+  img.src = posterUrl;
 }
