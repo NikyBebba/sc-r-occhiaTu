@@ -493,6 +493,56 @@ textarea:focus-visible {
   border-radius: var(--radius-xl);
 }
 
+/* ---- STEP 4 · Phase 17 — Match Reveal: poster "tear" a due lembi.
+   Il poster netto è lo sfondo del palco; sopra due lembi (metà sinistra e
+   destra, con lo STESSO poster come background) che all'apertura si
+   "strappano" a libro (rotate + translate, ease-out) rivelando il poster
+   sotto. prefers-reduced-motion già le azzera (blocco globale dei confetti).
+   Puro CSS: nessuna libreria esterna, mai crash se il poster manca (il palco
+   mostra solo lo sfondo senza lembi). */
+.match-tear-stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+.match-tear-backdrop {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+}
+.match-tear-leaf {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  background-size: cover;
+  background-position: center;
+  animation: match-tear-open 0.9s var(--ease-out) 0.12s both;
+}
+.match-tear-leaf--l {
+  left: 0;
+  background-position: left top;
+  transform-origin: left center;
+}
+.match-tear-leaf--r {
+  right: 0;
+  background-position: right top;
+  transform-origin: right center;
+}
+@keyframes match-tear-open {
+  0% { transform: translateX(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateX(-130%) rotate(-9deg); opacity: 0; }
+}
+.match-tear-leaf--r {
+  animation-name: match-tear-open-r;
+}
+@keyframes match-tear-open-r {
+  0% { transform: translateX(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateX(130%) rotate(9deg); opacity: 0; }
+}
+
 /* ---- STEP 2 · Phase 8 — Movie Card "Biglietto cinema".
    La card diventa un biglietto: stessi token di .glass-card (vetro, bordo,
    ombra) ma con i "morsi" a coupon sul bordo tra poster e contenuto.

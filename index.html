@@ -473,6 +473,14 @@
     </div>
   </div>
 
+  <!-- Step4 phase17 — Match Reveal: overlay full-screen quando una sessione
+       di swipe produce un match (doppio like). Trigger/chiusura in
+       js/ui/match.js (openMatchReveal/closeMatchReveal), tear CSS-only +
+       coriandoli riusati (fireConfetti). NON è un modale generico: NON passa
+       da openModal/closeModal (l'overlay va in coppia col re-render della
+       grid). Stesso pattern visivo degli altri modali. -->
+  <div id="matchReveal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Match trovato"></div>
+
   <script src="js/config.js"></script>
   <script src="js/format.js"></script>
   <script src="js/api/omdb.js"></script>

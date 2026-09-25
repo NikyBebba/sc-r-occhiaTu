@@ -2491,7 +2491,8 @@ async function okA(name, fn) {
         matchProbeTimeoutMs, lobbyPresenceState, realtimeChannel,
         matchChannelStatus, currentTab, matchPrevTab, matchDragging,
         matchPendingRender, matchNightCreated, matchPendingSchedule, matchExitTimer,
-        matchEnterErrorMsg, matchEnterErrorLogged, matchContinueErrLoggedAt };
+        matchEnterErrorMsg, matchEnterErrorLogged, matchContinueErrLoggedAt,
+        matchRevealedKey };
     }
     function __matchRestore(p) {
       sb = p.sb; dbMode = p.dbMode; currentUser = p.currentUser; movies = p.movies;
@@ -2508,6 +2509,7 @@ async function okA(name, fn) {
       matchPendingSchedule = p.matchPendingSchedule; matchExitTimer = p.matchExitTimer;
       matchEnterErrorMsg = p.matchEnterErrorMsg; matchEnterErrorLogged = p.matchEnterErrorLogged;
       matchContinueErrLoggedAt = p.matchContinueErrLoggedAt;
+      matchRevealedKey = p.matchRevealedKey;
     }
     // Riallinea lo stato minimo delle viste Match (niente canale reale: la
     // vista "completa" dei casi si testa impostando direttamente lo stato).
@@ -3283,6 +3285,67 @@ async function okA(name, fn) {
       return html.indexOf('match in questa sessione') !== -1
         && html.indexOf('Mazzo finito!') !== -1
         && html.indexOf('Nuova sessione') !== -1 && html.indexOf('Esci') !== -1;
+    } finally { __matchRestore(p); }
+  }));
+
+  // --- Step4 phase17 — Match Reveal (overlay full-screen, tear, coriandoli) ---
+  ok('phase17: renderMatch apre il reveal UNA volta per match; re-render non riapre (key sessionId:movieId)', run(() => {
+    const p = __matchSnap();
+    try {
+      const box = document.getElementById('matchReveal');
+      box.classList.add('hidden');
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sR', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }], swipes: [{ movie_id: 'ma', person: 'N', liked: true }, { movie_id: 'ma', person: 'V', liked: true }], movies: [{ id: 'ma', title: 'Reveal A', poster: 'https://ex/a.jpg' }] });
+      matchRevealedKey = null;
+      renderMatch();
+      const opened = !box.classList.contains('hidden')
+        && box.innerHTML.indexOf('Match!') !== -1
+        && box.innerHTML.indexOf('match-tear-stage') !== -1
+        && box.innerHTML.indexOf('person-pill') !== -1
+        && box.innerHTML.indexOf('d\'accordo') !== -1
+        && matchRevealedKey === 'sR:ma';
+      renderMatch();   // re-render/resync: la STESSA celebrate non deve riaprire
+      const stillClosed = box.classList.contains('hidden') === false
+        && matchRevealedKey === 'sR:ma';
+      return opened && stillClosed;
+    } finally { __matchRestore(p); }
+  }));
+  ok('phase17: un secondo match nella stessa sessione (altra card) riapre il reveal', run(() => {
+    const p = __matchSnap();
+    try {
+      const box = document.getElementById('matchReveal');
+      box.classList.add('hidden');
+      matchRevealedKey = 'sR2:ma';   // già rivelato il primo match
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sR2', status: 'open', created_at: new Date().toISOString(), deck: ['ma', 'mb'] }], swipes: [{ movie_id: 'ma', person: 'N', liked: true }, { movie_id: 'ma', person: 'V', liked: true }, { movie_id: 'mb', person: 'N', liked: true }, { movie_id: 'mb', person: 'V', liked: true }], movies: [{ id: 'ma', title: 'A' }, { id: 'mb', title: 'B' }] });
+      renderMatch();
+      return !box.classList.contains('hidden') && matchRevealedKey === 'sR2:mb';
+    } finally { __matchRestore(p); }
+  }));
+  ok('phase17: nuova sessione (id diverso) sullo STESSO film riapre il reveal; clearMatchState resetta la key', run(() => {
+    const p = __matchSnap();
+    try {
+      const box = document.getElementById('matchReveal');
+      box.classList.add('hidden');
+      matchRevealedKey = 'sR3:ma';   // vecchia sessione rivelata
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sR4', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }], swipes: [{ movie_id: 'ma', person: 'N', liked: true }, { movie_id: 'ma', person: 'V', liked: true }], movies: [{ id: 'ma', title: 'A' }] });
+      renderMatch();
+      const reopened = !box.classList.contains('hidden') && matchRevealedKey === 'sR4:ma';
+      clearMatchState();   // percorso "Esci": la key si resetta per la prossima entrata
+      return reopened && matchRevealedKey === null;
+    } finally { __matchRestore(p); }
+  }));
+  ok('phase17: closeMatchReveal nasconde l overlay e torna alla celebrazione inline (hemetic), niente auto-timer', run(() => {
+    const p = __matchSnap();
+    try {
+      const box = document.getElementById('matchReveal');
+      box.classList.remove('hidden');
+      box.innerHTML = '<button onclick="closeMatchReveal()">Continua</button>';
+      document.getElementById('movieGrid').innerHTML = '';
+      matchRevealedKey = 'sR5:ma';
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sR5', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }], swipes: [{ movie_id: 'ma', person: 'N', liked: true }, { movie_id: 'ma', person: 'V', liked: true }], movies: [{ id: 'ma', title: 'A' }] });
+      closeMatchReveal();
+      return box.classList.contains('hidden')
+        && document.getElementById('movieGrid').innerHTML.indexOf('Match!') !== -1
+        && matchRevealedKey === 'sR5:ma';   // la key resta: un render non riapre l'overlay
     } finally { __matchRestore(p); }
   }));
 

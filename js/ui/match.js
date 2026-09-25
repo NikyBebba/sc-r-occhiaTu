@@ -19,6 +19,13 @@ const matchSwipeThreshold = 80;
 let matchPendingSchedule = null; // { sessionId, movieId }
 let matchNightCreated = null;    // { movieId, title } → vista "Serata creata ✓"
 let matchExitTimer = null;       // auto-exit dopo la creazione
+// Step4 phase17 — Match Reveal. Key `${sessionId}:${movieId}` del match già
+// rivelato: EVITA la riapertura dell'overlay a ogni re-render/resync della
+// STESSA celebrazione, ma permette il reveal di un match NUOVO (l'id sessione
+// cambia con newMatchSession, il movieId con un doppio like su altro card).
+// Reset esplicito in clearMatchState (percorso "Esci"); "Nuova" è coperto dal
+// cambio di session id nel key.
+let matchRevealedKey = null;
 
 function matchViewSession() {
   return swipeSessions[0] || null;
@@ -39,6 +46,7 @@ function clearMatchState() {
   matchNightCreated = null;
   matchPendingRender = false;
   matchDragging = false;
+  matchRevealedKey = null;
 }
 
 // ---- Pill "Match" nello segmented control: segnale stato live (N↔V) ----
@@ -256,6 +264,21 @@ function renderMatch() {
     const card = document.getElementById('matchCard');
     if (card) matchBindSwipe(card, matchCurrentMovieId());
   }
+  // Step4 phase17 — Match Reveal: quando la sessione produce un match
+  // (view 'match'), apri l'overlay full-screen UNA volta per quel match
+  // (key sessionId:movieId). Niente auto-timer: resta finché l'utente non
+  // preme "Continua" o tocca il backdrop (closeMatchReveal → re-render).
+  // Gating uguale a matchViewHtml (match disponibile + canale attivo): con
+  // matchAvailable=false o canale non pronto qui NON si valuta la sessione.
+  if (matchAvailable && matchNightCreated === null
+    && matchChannelStatus === 'subscribed' && matchChannel) {
+    const session = matchViewSession();
+    const state = session ? evaluateSession(session, swipes, movies) : null;
+    if (state && state.view === 'match') {
+      const key = session.id + ':' + state.movieId;
+      if (matchRevealedKey !== key) openMatchReveal(state, key);
+    }
+  }
 }
 
 // Il film del card corrente (per agganciare il gesto touch alla card).
@@ -359,6 +382,73 @@ function matchNightDone(movieId) {
   const movie = resolveDeckMovie(movies, movieId);
   matchNightCreated = { movieId, title: movie ? movie.title : '' };
   matchPendingSchedule = null;
+  renderMatch();
+}
+
+// ---- Step4 phase17 — Match Reveal (overlay full-screen) ----
+// Il poster "tear" è reso da .match-tear-stage: img nitida sotto + due lembi
+// (metà con lo stesso poster) che si strappano a libro via CSS. Coriandoli:
+// fireConfetti() riusato (già vanilla DOM/CSS, #confettiLayer z-200). Tutti i
+// dati sono in scope dalle globali (movies/swipes) — nessun fetch, nessuna
+// libreria esterna.
+function matchRevealHtml(state) {
+  const movie = resolveDeckMovie(movies, state.movieId);
+  const title = movie ? movie.title : 'Film rimosso';
+  const poster = movie && movie.poster ? movie.poster : '';
+  const agreement = sessionAgreement(swipes, movies);
+  const pctLine = agreement.total === 0
+    ? '<p class="text-xs text-slate-500">…% d\'accordo · in attesa di N/V</p>'
+    : `<p class="text-xs text-slate-400">${agreement.pct}% d'accordo finora${agreement.total < 3 ? ' · poche risposte per un dato attendibile' : ''}</p>`;
+  const partners = [personBadge('N'), personBadge('V')].join(' ');
+  // Poster: sfondo netto + due lembi col medesimo poster per il tear. Se il
+  // poster manca (fallback OMDb senza cover), niente lembi: palco con gradiente.
+  const stage = poster
+    ? `<div class="match-tear-stage aspect-[2/3] w-full">
+        <img class="match-tear-backdrop" src="${jsAttrEscape(poster)}" alt="${escapeHtml(title)}">
+        <div class="match-tear-leaf match-tear-leaf--l" style="background-image:url('${jsAttrEscape(poster)}')"></div>
+        <div class="match-tear-leaf match-tear-leaf--r" style="background-image:url('${jsAttrEscape(poster)}')"></div>
+      </div>`
+    : `<div class="aspect-[2/3] w-full bg-gradient-to-br from-indigo-900/60 to-slate-900 rounded-2xl border border-slate-800 flex items-center justify-center text-slate-400 text-2xl">🎬</div>`;
+  return `<div class="glass-panel p-6 rounded-2xl max-w-sm w-full border border-slate-800 text-center space-y-4">
+      <div class="flex items-center justify-end">
+        <button onclick="closeMatchReveal()" class="-mt-1 p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="text-4xl">💘</div>
+      <p class="text-xl font-bold text-slate-100">Match!</p>
+      <div class="w-40 mx-auto">${stage}</div>
+      <div class="flex items-center justify-center gap-2 text-xs">${partners}</div>
+      <p class="text-sm text-slate-300 font-semibold">${escapeHtml(title)}</p>
+      ${pctLine}
+      <p class="text-xs text-slate-500">Volete vedere <span class="text-slate-300 font-semibold">${escapeHtml(title)}</span> insieme.</p>
+      <button onclick="closeMatchReveal()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition">Continua</button>
+    </div>`;
+}
+
+function openMatchReveal(state, key) {
+  const el = document.getElementById('matchReveal');
+  if (!el) return;
+  matchRevealedKey = key;
+  el.innerHTML = matchRevealHtml(state);
+  el.classList.remove('hidden');
+  // Backdrop: chiude SOLO se mousedown+click partono entrambi dall'overlay
+  // (stesso pattern di wireBackdropClose in modals.js: nessuna chiusura
+  // accidentale selezionando testo e rilasciando fuori dal pannello).
+  let downOnOverlay = false;
+  el.onmousedown = e => { downOnOverlay = !!(e && e.target === el); };
+  el.onclick = e => {
+    if (e && e.target === el && downOnOverlay) closeMatchReveal();
+  };
+  fireConfetti();
+  setTimeout(fireConfetti, 300);
+}
+
+// Chiusura SOLO esplicita (bottone/backdrop/X): nasconde l'overlay e ri-render
+// per tornare alla celebrazione inline di matchMatchHtml (con Stasera/
+// Programma/Continua). Niente auto-timer: il momento va goduto anche dal
+// partner (Realtime porta entrambi a view 'match').
+function closeMatchReveal() {
+  const el = document.getElementById('matchReveal');
+  if (el) el.classList.add('hidden');
   renderMatch();
 }
 
