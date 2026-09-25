@@ -138,10 +138,12 @@ function renderStats() {
     { icon: 'fa-users', iconClass: 'text-indigo-400', label: 'Proposti da', value: proposersValue }
   ];
   document.getElementById('statsGrid').innerHTML = cards.map(c => `
-    <div class="p-4 bg-slate-900/80 rounded-xl border border-slate-800 text-center">
-      <div class="text-2xl ${c.iconClass}"><i class="fa-solid ${c.icon}"></i></div>
-      <div class="text-xl font-bold text-slate-100 mt-1">${escapeHtml(c.value)}</div>
-      <div class="text-[10px] text-slate-400 mt-1">${c.label}</div>
+    <div class="glass-card rounded-xl p-4 text-center">
+      <div class="mx-auto w-11 h-11 flex items-center justify-center rounded-lg bg-slate-900/70 border border-slate-800 ${c.iconClass} text-lg">
+        <i class="fa-solid ${c.icon}"></i>
+      </div>
+      <div class="text-xl font-bold text-cinema-testo-1 mt-2">${escapeHtml(c.value)}</div>
+      <div class="text-[10px] text-cinema-testo-3 mt-0.5">${c.label}</div>
     </div>
   `).join('');
 
