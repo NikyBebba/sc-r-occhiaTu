@@ -1,19 +1,19 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.12
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.13
 
 Repo: `NikyBebba/sc-r-occhiaTu` · Deploy: `sc-r-occhia-tu.vercel.app` · Stack: HTML/Tailwind (Play CDN)/JS vanilla senza build step, Supabase (Postgres + realtime, fallback localStorage), TMDb (+OMDb opzionale), supabase-js v2 da CDN, Font Awesome CDN
 
-Changelog v2.12: Step 1 (Foundation), PWA, Step 2 (Core Layout, Phase 2-8) e Step 3 (Movie Detail, Phase 9/9.1/9.2) implementati e verificati in produzione. Aggiunte colonne `overview`/`cast_names`. Smoke passato da 230 a 245 test lungo il percorso. Nessuna decisione del v2.11 è stata ribaltata; qui si registra solo cosa è stato fatto e come.
+Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di sessione, Phase 17 Match Reveal, Phase 18 Final Ticket Generator). Nessun campo/migration nuovo: origine del Ticket tracciata solo in-memory (`markTicketOrigin`/`ticketOriginOf`), scelta esplicita per restare nei vincoli di questo giro — da rivalutare se in futuro servirà uno storico persistito dei ticket (vedi Note aperte). Smoke passato da 245 a 262 test lungo lo step.
 
 ---
 
 ## Glossario (usare sempre questi termini)
 
 - **Scelta**: il momento in cui si decide un film. Ha tre sorgenti: **Match Live**, **Ruota**, **Proposta diretta**.
-- **Match Live**: sessione sincrona N ↔ V a swipe. Solo qui esiste il concetto di "match" e la **Match %** (ancora da definire nella formula, vedi Note aperte).
+- **Match Live**: sessione sincrona N ↔ V a swipe. Solo qui esiste il concetto di "match" e la **Match %** (agreement% di sessione, formula definita e implementata in Phase 16: film con giudizio identico / film risolti da entrambi).
 - **In programma**: film con una serata (`movie_nights`) proposta/confermata. Key interna del tab: `tonight` (solo label cambiata).
 - **Serata "Stasera"**: quick pick, serata confermata con `date: null`.
 - **Prossimo Film**: la serata più vicina nel tempo (`nextMoviePick()`), con fallback sulle serate senza data.
-- **Ticket**: artefatto finale della Scelta (Phase 18, non ancora implementato). Mostrerà la Match % solo se l'origine è Match Live; altrimenti un timbro d'origine.
+- **Ticket**: artefatto finale della Scelta (Phase 18, implementato). Mostra la Match % se l'origine è Match Live, "Scelto con la Ruota" se da Ruota, "Proposto da N/V" se da proposta diretta. Origine tracciata solo in-memory per la sessione di navigazione corrente, non persistita.
 
 ---
 
@@ -30,6 +30,10 @@ Changelog v2.12: Step 1 (Foundation), PWA, Step 2 (Core Layout, Phase 2-8) e Ste
 - **Search & Filters** restyling su token (`.field`), stessa logica invariata (id/handler intatti)
 - **Stats** (modal "Il Nostro Cinema"): Film visti insieme, Voto medio, Genere più amato, **Proposti da N/V** (sostituisce "Match sui gusti", da `movies.added_by`) + timeline recensioni; badge card "Match!/Gusti diversi" **non ancora rinominato** (resta nel debito tecnico)
 - **Movie Detail** (Phase 9): modale con overview, cast (`cast_names`), meta, rating; apertura al click sull'area "morta" della card (guardia esplicita esclude bottoni/link interni); **Ambient Poster** (Phase 9.1: sfondo blur+overlay dal poster, fallback gradiente se poster assente); **Poster-adaptive colors** (Phase 9.2: colore dominante estratto via canvas nascosto con `crossOrigin="anonymous"`, verificato CORS ok su TMDb/OMDb, fallback silenzioso a bordo indigo standard se l'estrazione fallisce, mai un errore in console); sorpresa vista dall'altra persona → click sulla card resta inerte, nessuno spoiler
+- **Ruota → programmabile** (Phase 15): il vincitore mostra i bottoni "Stasera"/"Programma" (riuso di `quickTonightUI`/`scheduleMovie`, nessun aggancio automatico); `lockWheelWinner` risolto/rimosso in questo giro (dead code non più presente)
+- **Match % di sessione** (Phase 16): `sessionAgreement(swipes, moviesList)` in `match.js` — agreement% = film con giudizio identico (doppio-like O doppio-dislike) / film risolti da entrambi; soglia 3 risposte per un dato "attendibile" (sotto soglia mostrato comunque con nota), placeholder "…%" se denominatore 0, nessuna % su sessione `closed`; calcolo client-side, nessuna migration, nessuna modifica a `votes`
+- **Match Reveal** (Phase 17): celebrazione full-screen con tear CSS-only e coriandoli (`fireConfetti()`, già esistente), si riapre per sessione nuova sullo stesso film o per un secondo match nella stessa sessione, non si riapre su semplice re-render/resync; reset esplicito allo "Esci"
+- **Final Ticket Generator** (Phase 18): `js/ui/ticket.js`, export PNG 1080×1920 via canvas nativo (nessuna libreria), poster con `crossOrigin="anonymous"` (stesso pattern di Phase 9.2), fallback a gradiente se poster assente/CORS fallito; timbro per origine — Match Live → Match %, Ruota → "Scelto con la Ruota", proposta diretta → "Proposto da N/V"; **origine tracciata solo in-memory** per la sessione di navigazione corrente (`markTicketOrigin`/`ticketOriginOf`), nessun campo persistito su `movie_nights`
 - Box "Prossimo Film" (countdown se la data è futura, altrimenti stampa la data), annullabile
 - Serate come entità `movie_nights` (proposed → confirmed → completed/cancelled/skipped) con mirror legacy su `movies`
 - Conferma serata solo sulla data specifica, non sull'aggiunta del film; il quick pick "Stasera" crea una serata già confirmed (atto unilaterale, comportamento storico)
@@ -43,7 +47,7 @@ Changelog v2.12: Step 1 (Foundation), PWA, Step 2 (Core Layout, Phase 2-8) e Ste
 - Veto settimanale (1/persona/settimana), rimovibile solo dal proprietario, realtime su vetoes
 - Snack picker (salvato in `movie_nights.snack`)
 - Modalità sorpresa (bottone regalo in navbar, modale, `surprise_by`, blur CSS, badge "tua sorpresa")
-- Smoke test: **245/245 PASS** (partito da 230 a inizio v2.11, +15 asserzioni lungo Step 1/PWA/Step 2/dati/Step 3)
+- Smoke test: **262/262 PASS** (230 a inizio v2.11 → 245 dopo Step 3 → 262 dopo Step 4, +17 asserzioni lungo Phase 15-18)
 
 ---
 
@@ -58,9 +62,11 @@ Changelog v2.12: Step 1 (Foundation), PWA, Step 2 (Core Layout, Phase 2-8) e Ste
 ## Decisioni prese e già applicate
 
 1. **Match % solo per Match Live.** Il widget stats "Match sui gusti" è stato sostituito con "Proposti da N/V" (`movies.added_by`), fatto in Step 2. Il badge card "Match!/Gusti diversi" (da `votes`) **resta invariato per ora** — la rinomina in "Piace a entrambi/Gusti diversi" non è stata fatta, resta nel debito tecnico.
-2. **Ruota → programmabile.** Deciso, **non ancora implementato**: il vincitore della ruota dovrà mostrare le azioni "Stasera"/"Programma" (stesso flusso della card). In scope per Step 4 (Phase 15).
+2. **Ruota → programmabile.** Fatto (Phase 15): il vincitore mostra le azioni "Stasera"/"Programma", `lockWheelWinner` non più dead code.
 3. **Tonight Mode.** Deciso: si attiva solo con una serata di oggi (`date = oggi` o quick pick "Stasera" con `confirmed_at` di oggi). **Non ancora implementato** (Phase 20, Step 5).
 4. **Phase 24 fattibile**, dati pronti (`votes`), non ancora implementata (Step 5).
+9. **Match %: formula definita e implementata** (Phase 16): giudizio identico (like+like o dislike+dislike) / risolti da entrambi. Include volontariamente i doppio-dislike ("gusti in comune", non solo "cosa piace a entrambi") — scelta di prodotto esplicita, non solo tecnica.
+10. **Origine del Ticket: solo in-memory, Option A.** Nessun campo `origin` persistito su `movie_nights`: aggiungerlo sarebbe stato over-engineering per un bisogno non ancora dichiarato. Da rivalutare quando/se Phase 21 (storico ticket) diventerà una richiesta reale.
 5. **Overview/cast salvati come colonne** (non fetch on demand), per servire sia Phase 9 sia la futura Phase 36 (Poster Flip) senza rifare il lavoro. Fatto: migration step7 + backfill.
 6. **Detail come modale** (non drawer, non pagina a sé), coerente con gli altri modali esistenti. Fatto: Phase 9.
 7. **Sorpresa nel dettaglio**: per l'altra persona il click sulla card resta inerte, nessuna apertura del modale. Fatto.
@@ -97,11 +103,11 @@ Changelog v2.12: Step 1 (Foundation), PWA, Step 2 (Core Layout, Phase 2-8) e Ste
 - Phase 9.2 — Poster-adaptive colors ✅
 - Dati: `overview`/`cast_names` su `movies`, migration step7 + backfill completati ✅
 
-### 🔴 STEP 4 — Core Experience (PROSSIMO)
-- Phase 15 — Ruota della Fortuna (spin/fast/slow/stop/winner) — logica funzionale; **da fare: aggancio vincitore → serata** (bottoni Stasera/Programma sul vincitore, stesso flusso di card/Match Live; nessun aggancio automatico, `lockWheelWinner` da riusare o rimuovere)
-- Phase 16 — Match Live — funzionale; **da fare: definire e calcolare la Match % di sessione** (solo qui, non su `votes`), lato visivo
-- Phase 17 — Match Reveal (full-screen, tear, coriandoli, N+V, poster reveal) — solo Match Live
-- Phase 18 — Final Ticket Generator (export high-res, formato Stories) — Match % solo se origine Match Live, altrimenti timbro d'origine
+### ✅ STEP 4 — Core Experience (COMPLETO)
+- Phase 15 — Ruota → serata ✅ (bottoni Stasera/Programma sul vincitore, riuso funzioni esistenti, nessun aggancio automatico)
+- Phase 16 — Match % di sessione ✅ (`sessionAgreement()`, client-side, nessuna migration)
+- Phase 17 — Match Reveal ✅ (full-screen, tear CSS-only, coriandoli riusati, reset esplicito allo Esci)
+- Phase 18 — Final Ticket Generator ✅ (canvas nativo 1080×1920, tre timbri d'origine, origine solo in-memory)
 
 ### STEP 5 — Home Intelligence
 - Phase 19 — Hero "Prossimo Film / La nostra serata" — parziale: esiste il box "Prossimo Film". Può partire subito, non dipende da Ticket/Reveal
@@ -156,8 +162,9 @@ Changelog v2.12: Step 1 (Foundation), PWA, Step 2 (Core Layout, Phase 2-8) e Ste
                            │
                     IN PROGRAMMA (movie_nights)
                            │
-                      🎟️ TICKET  (Step 4, non ancora fatto)
-                  (Match % solo se origine Match Live)
+                      🎟️ TICKET
+          (Match % se Match Live · "Scelto con la Ruota" se Ruota
+                 · "Proposto da N/V" se diretta — origine in-memory)
                            │
                  ┌─────────┴─────────┐
                  │                   │
@@ -170,8 +177,8 @@ Changelog v2.12: Step 1 (Foundation), PWA, Step 2 (Core Layout, Phase 2-8) e Ste
 
 ## Debito tecnico / pulizia
 
-- `lockWheelWinner(id)` (`actions.js`): codice morto — **da risolvere in Step 4** (aggancio ruota→serata)
 - Badge card "Match!/Gusti diversi" non rinominato in "Piace a entrambi" — resta ambiguo rispetto a Match Live, valutare in un prossimo giro
+- Origine del Ticket (Match Live/Ruota/diretta) tracciata solo in-memory (`markTicketOrigin`/`ticketOriginOf`), persa al refresh/nuova sessione di navigazione — accettato per Phase 18, da rivedere se serve uno storico persistito (Phase 21)
 - Commento obsoleto in `navigation.js:2` (cita ancora "Stasera"); key interna `tonight` resta per compatibilità
 - Colonna `movies.watched_by` mai usata; colonna legacy `movies.genre` (ex mood) non più letta/scritta: valutare drop in una migration
 - Doppio livello `movie_nights` + mirror legacy su `movies` (`night_confirmed`, `scheduled_*`): tenere finché serve, poi dismettere
@@ -185,5 +192,6 @@ Changelog v2.12: Step 1 (Foundation), PWA, Step 2 (Core Layout, Phase 2-8) e Ste
 
 - Ruota (Phase 15): variante "skip animazione, output diretto" (non prioritaria)
 - Dati TMDb non salvati oggi: popolarità, vote_average, data uscita completa, piattaforme multiple (solo la prima flatrate IT) — servono per Phase 10 (Hot Picks)
-- **Definire la formula della Match % di sessione** del Match Live prima di Phase 16/17/18 (es. % di swipe in accordo sulla sessione corrente) — priorità per l'apertura di Step 4
 - Limite noto sul Match CTA: lo stato online/live si aggiorna a ogni render, non su ogni evento di presence in tempo reale se si resta fermi su un altro tab (accettato, non bloccante)
+- Se in futuro servirà uno storico dei ticket generati (per Phase 21 "Il nostro cinema"), rivalutare Option B: campo `origin` persistito su `movie_nights` (oggi scartata per over-engineering, vedi Decisioni #10)
+- Priorità per l'apertura di **Step 5**: Phase 19 (hero "Prossimo Film") può partire subito, non dipende da nulla di nuovo; Phase 20 (Tonight Mode) ha già la regola di attivazione decisa (serata di oggi)
