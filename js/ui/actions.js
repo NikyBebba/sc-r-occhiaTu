@@ -220,6 +220,11 @@ async function confirmSchedule() {
   const fromMatch = !!(pending && pending.movieId === id && currentTab === 'match');
   await proposeNight(id, currentUser, date, time, snack);
   closeModal('scheduleModal');
+  // Step4 phase15 — ruota programmabile: "Programma" dal vincitore chiude il
+  // box ruota al confirm. Guard sul classList: se il box è già nascosto
+  // (flusso normale da card/modale) non succede nulla, nessun effetto.
+  const wheelBox = document.getElementById('wheelWinner');
+  if (wheelBox && !wheelBox.classList.contains('hidden')) wheelBox.classList.add('hidden');
   if (fromMatch && activeNightForMovie(id)) {
     await closeSession(pending.sessionId);
     if (typeof matchNightDone === 'function') matchNightDone(id);
@@ -228,12 +233,9 @@ async function confirmSchedule() {
 }
 
 // ---- Box "Prossimo Film" — pick veloce, conferma o annullo proposta ----
-async function lockWheelWinner(id) {
-  await setQuickTonight(id);
-  document.getElementById('wheelWinner').classList.add('hidden');
-  loadMovies();
-}
-
+// (lockWheelWinner rimosso in Phase 15: dead code, lo stesso flusso è coperto
+// da quickTonightUI + closeWheelWinner per "Stasera" e dal confirm di
+// scheduleMovie per "Programma".)
 async function confirmNightUI(id) {
   await confirmNight(id);
   loadMovies();

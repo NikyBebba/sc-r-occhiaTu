@@ -780,6 +780,56 @@ async function okA(name, fn) {
       && box.innerHTML.indexOf('fa-xmark') !== -1
       && box.innerHTML.indexOf('closeWheelWinner') !== -1;
   }));
+  await okA('phase15: il vincitore ha Stasera/Programma (flussi card, nessun aggancio automatico)', runA(async () => {
+    const box = document.getElementById('wheelWinner');
+    box.classList.add('hidden');
+    wheelSpinning = false;
+    durationFilter = 'all'; genreFilter = 'all';
+    if (wheelPool().length === 0) return false;
+    const origRaf = requestAnimationFrame;
+    const origPerf = performance;
+    requestAnimationFrame = cb => setTimeout(() => cb(Date.now() + 5000), 0);
+    performance = { now: Date.now };
+    try {
+      spinWheel();
+      await new Promise(r => setTimeout(r, 30));
+    } finally {
+      requestAnimationFrame = origRaf;
+      performance = origPerf;
+    }
+    wheelSpinning = false;
+    return !box.classList.contains('hidden')
+      && box.innerHTML.indexOf("onclick=\"quickTonightUI('") !== -1
+      && box.innerHTML.indexOf('closeWheelWinner') !== -1
+      && box.innerHTML.indexOf("onclick=\"scheduleMovie('") !== -1;
+  }));
+  await okA('phase15: confirmSchedule chiude il box ruota SOLO se visibile (flusso card intatto)', runA(async () => {
+    const box = document.getElementById('wheelWinner');
+    const prev = {
+      mMovies: movies, mUser: currentUser, mTab: currentTab,
+      mSb: sb, mMode: dbMode, mNights: movieNights
+    };
+    // Box già nascosto (flusso normale da card): confirmSchedule non lo tocca.
+    box.classList.add('hidden');
+    document.getElementById('scheduleMovieId').value = 'x';
+    document.getElementById('scheduleDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('scheduleTime').value = '21:30';
+    document.getElementById('scheduleSnack').value = '🍿 Popcorn dolce';
+    movies = []; currentUser = 'N'; currentTab = 'watchlist';
+    sb = null; dbMode = 'local'; movieNights = [];
+    try {
+      await confirmSchedule();
+      const afterHidden = box.classList.contains('hidden');
+      // Box visibile (vincitore ruota): confermando il confirm si chiude.
+      box.classList.remove('hidden');
+      await confirmSchedule();
+      const afterConfirm = box.classList.contains('hidden');
+      return afterHidden && afterConfirm;
+    } finally {
+      movies = prev.mMovies; currentUser = prev.mUser; currentTab = prev.mTab;
+      sb = prev.mSb; dbMode = prev.mMode; movieNights = prev.mNights;
+    }
+  }));
 
   // --- 5d) ruota: filtri durata + genere reali ---
   console.log('\n[ruota — durata + genere]');

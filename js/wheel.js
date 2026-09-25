@@ -154,8 +154,19 @@ function spinWheel() {
     } else {
       wheelSpinning = false;
       resultDiv.classList.remove('hidden');
-      resultDiv.innerHTML = `🎉 Stasera si guarda: <span class="text-white font-bold">${escapeHtml(winner.title)}</span>!
-        <button onclick="closeWheelWinner()" class="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-slate-400 hover:text-white transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark text-[10px]"></i></button>`;
+      // Step4 phase15 — ruota programmabile: propone, l'utente crea la serata.
+      // Stesso flusso della card (quickTonightUI/scheduleMovie), nessun
+      // aggancio automatico. "Stasera" chiude subito il box; "Programma" apre
+      // la modale e il box si chiude al confirm (hook in confirmSchedule).
+      resultDiv.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          <span>🎉 Stasera si guarda: <span class="text-white font-bold">${escapeHtml(winner.title)}</span></span>
+          <button onclick="closeWheelWinner()" class="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-slate-400 hover:text-white transition shrink-0" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark text-[10px]"></i></button>
+        </div>
+        <div class="flex items-center gap-2 mt-2">
+          <button onclick="quickTonightUI('${jsAttrEscape(winner.id)}'); closeWheelWinner()" class="flex-1 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded-lg text-sm font-medium transition">Stasera</button>
+          <button onclick="scheduleMovie('${jsAttrEscape(winner.id)}')" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition">Programma</button>
+        </div>`;
       fireConfetti();
     }
   }
