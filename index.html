@@ -186,6 +186,8 @@
 
       <!-- COLONNA DESTRA -->
       <div class="md:col-span-2 space-y-6">
+        <!-- FILTRI (LIBRARY): ricerca + ordinamento -->
+        <div class="space-y-2" aria-label="Filtri e ricerca">
         <div class="relative">
           <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
           <input id="movieSearchInput" type="text" placeholder="Cerca titolo o genere…" autocomplete="off" oninput="onSearchInput()"
@@ -222,7 +224,10 @@
             </div>
           </div>
         </div>
-        <div role="tablist" aria-label="Viste" class="flex bg-slate-900/60 p-1 rounded-xl border border-slate-800 text-sm gap-1 overflow-x-auto">
+        </div>
+
+        <!-- AZIONI/VISTA: segmented control (header lista) -->
+        <div id="segControl" role="tablist" aria-label="Viste" class="relative flex bg-slate-900/60 p-1 rounded-xl border border-slate-800 text-sm gap-1 overflow-x-auto mt-3">
           <button onclick="setTab('all')" id="tabAll" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">Tutti <span id="pillCountAll" class="text-[10px] opacity-80">0</span></button>
           <button onclick="setTab('watchlist')" id="tabWatchlist" role="tab" aria-selected="true" class="flex-1 py-2 rounded-lg font-medium transition bg-indigo-600 text-white whitespace-nowrap">Da Vedere <span id="pillCountWatchlist" class="text-[10px] opacity-80">0</span></button>
           <button onclick="setTab('tonight')" id="tabTonight" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap">In programma <span id="pillCountTonight" class="text-[10px] opacity-80">0</span></button>
