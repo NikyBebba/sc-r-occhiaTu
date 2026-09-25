@@ -145,6 +145,18 @@ function matchSwipeHtml(state) {
     ? movie.genres.join(', ')
     : '';
   const deckLength = Array.isArray(swipeSessions[0] && swipeSessions[0].deck) ? swipeSessions[0].deck.length : 0;
+  const agreement = sessionAgreement(swipes, movies);
+  let agreementLine;
+  if (agreement.total === 0) {
+    const waiting = answers[currentUser] === undefined
+      ? (CONFIG.PEOPLE[currentUser === 'N' ? 'V' : 'N'] || {}).label || (currentUser === 'N' ? 'V' : 'N')
+      : (missing && CONFIG.PEOPLE[missing] ? CONFIG.PEOPLE[missing].label : missing);
+    agreementLine = `<div class="text-center text-[10px] text-slate-500">…% d'accordo · in attesa di ${escapeHtml(waiting)}</div>`;
+  } else {
+    agreementLine = `<div class="text-center text-[10px] text-slate-400">${agreement.pct}% d'accordo in questa sessione`
+      + (agreement.total < 3 ? ` <span class="text-slate-500">· poche risposte per un dato attendibile</span>` : '')
+      + `</div>`;
+  }
 
   let actionsHtml;
   if (iAnswered) {
@@ -159,6 +171,7 @@ function matchSwipeHtml(state) {
 
   return `<div class="col-span-full max-w-sm mx-auto space-y-3">
       <div class="text-center text-[10px] uppercase tracking-wider text-slate-400">Swipe a due — card ${state.index + 1} di ${deckLength}</div>
+      ${agreementLine}
       <div id="matchCard" class="swipe-card glass-card rounded-2xl border border-slate-800 overflow-hidden">
         <div class="aspect-[2/3] bg-slate-900">${matchPoster(movie)}</div>
         <div class="p-4 space-y-1">
@@ -178,10 +191,15 @@ function matchSwipeHtml(state) {
 function matchMatchHtml(state) {
   const movie = resolveDeckMovie(movies, state.movieId) || null;
   const title = movie ? movie.title : 'Film rimosso';
+  const agreement = sessionAgreement(swipes, movies);
+  const pctLine = agreement.total === 0
+    ? '<p class="text-xs text-slate-500">…% d\'accordo · in attesa di N/V</p>'
+    : `<p class="text-xs text-slate-400">${agreement.pct}% d'accordo finora${agreement.total < 3 ? ' · poche risposte per un dato attendibile' : ''}</p>`;
   return `<div class="col-span-full max-w-sm mx-auto text-center space-y-4">
       <div class="text-5xl">💘</div>
       <p class="text-xl font-bold text-slate-100">Match!</p>
       <p class="text-sm text-slate-400">Volete vedere <span class="font-semibold text-slate-100">${escapeHtml(title)}</span> insieme.</p>
+      ${pctLine}
       <p class="text-xs text-slate-400">Il riconoscimento sincronizza lo stato tra i telefoni: il partner vedrà sparire la celebrazione al prossimo riallineamento (o premendo "Continua a swipare").</p>
       <div class="flex gap-2">
         <button onclick="createMatchNight('${movie ? jsAttrEscape(movie.id) : ''}', 'tonight')" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition">Stasera</button>
@@ -195,12 +213,17 @@ function matchMatchHtml(state) {
     </div>`;
 }
 
-// DONE: riepilogo "X match" + Nuova sessione / Esci.
+// DONE: riepilogo "X match" + Match % definitiva + Nuova sessione / Esci.
 function matchDoneHtml(state) {
+  const agreement = sessionAgreement(swipes, movies);
+  const pctLine = agreement.total === 0
+    ? ''
+    : `<p class="text-sm text-slate-400">${agreement.pct}% di gusti in comune${agreement.total < 3 ? ' <span class="text-slate-500">· poche risposte per un dato attendibile</span>' : ''}</p>`;
   return `<div class="col-span-full max-w-sm mx-auto text-center space-y-4">
       <div class="text-5xl">🏁</div>
       <p class="text-xl font-bold text-slate-100">Mazzo finito!</p>
       <p class="text-sm text-slate-400">${state.matches} match in questa sessione.</p>
+      ${pctLine}
       <div class="flex gap-2 justify-center">
         ${matchNewSessionBtn()}
         <button onclick="exitMatchView()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-medium transition">Esci</button>

@@ -2192,6 +2192,41 @@ async function okA(name, fn) {
     ];
     return countAllMatches(swipes) === 1;
   }));
+  ok('sessionAgreement: accordo su giudizio identico (like E dislike); totale = risolti da entrambi', run(() => {
+    const swipes = [
+      { movie_id: 'a', person: 'N', liked: true }, { movie_id: 'a', person: 'V', liked: true },
+      { movie_id: 'b', person: 'N', liked: true }, { movie_id: 'b', person: 'V', liked: false },
+      { movie_id: 'c', person: 'N', liked: false }, { movie_id: 'c', person: 'V', liked: false },
+      { movie_id: 'd', person: 'N', liked: false }, { movie_id: 'd', person: 'V', liked: true },
+      { movie_id: 'e', person: 'N', liked: true }, { movie_id: 'e', person: 'V', liked: false }
+    ];
+    const r = sessionAgreement(swipes);
+    return r.total === 5 && r.agreed === 2 && r.pct === 40;
+  }));
+  ok('sessionAgreement: 0 risolti → pct null (mai 0%); 1-2 risolti → % contata comunque; 3+ → nota', run(() => {
+    const a0 = sessionAgreement([]);
+    const a1 = sessionAgreement([{ movie_id: 'x', person: 'N', liked: true }]); // solo N
+    const a2 = sessionAgreement([{ movie_id: 'x', person: 'N', liked: true }, { movie_id: 'x', person: 'V', liked: true }]);
+    const a3 = sessionAgreement([
+      { movie_id: 'x', person: 'N', liked: true }, { movie_id: 'x', person: 'V', liked: true },
+      { movie_id: 'y', person: 'N', liked: true }, { movie_id: 'y', person: 'V', liked: true },
+      { movie_id: 'z', person: 'N', liked: true }, { movie_id: 'z', person: 'V', liked: true }
+    ]);
+    return a0.total === 0 && a0.pct === null
+      && a1.total === 0 && a1.pct === null
+      && a2.total === 1 && a2.agreed === 1 && a2.pct === 100
+      && a3.total === 3 && a3.agreed === 3 && a3.pct === 100;
+  }));
+  ok('sessionAgreement: film cancellato ignorato; persona non valida ignorata; semirisolto escluso', run(() => {
+    const moviesList = [{ id: 'ok', status: 'watchlist' }];
+    const swipes = [
+      { movie_id: 'ghost', person: 'N', liked: true }, { movie_id: 'ghost', person: 'V', liked: true }, // cancellato
+      { movie_id: 'ok', person: 'Z', liked: true },                                                    // person invalida
+      { movie_id: 'ok', person: 'N', liked: true }                                                     // semirisolto
+    ];
+    const r = sessionAgreement(swipes, moviesList);
+    return r.total === 0 && r.agreed === 0 && r.pct === null;
+  }));
   ok('evaluateSession: swipe → card corrente; match → celebra; done → riepilogo', run(() => {
     const moviesList = [
       { id: 'a', title: 'A', status: 'watchlist' },
@@ -3131,6 +3166,30 @@ async function okA(name, fn) {
       const swipeHtml = matchViewHtml();
       const absentInSwipe = swipeHtml.indexOf('Nuova sessione') === -1 && swipeHtml.indexOf('Nope') !== -1;
       return inLobby && inMatch && inDone && absentInSwipe;
+    } finally { __matchRestore(p); }
+  }));
+
+  ok('match %: presente nelle 3 viste — swipe (…% in attesa), match (…% finora), done (X% in comune)', run(() => {
+    const p = __matchSnap();
+    try {
+      // SWIPE: nessun card risolto da entrambi → "…% · in attesa" (mai 0%)
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sP', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }], swipes: [], movies: [{ id: 'ma', title: 'M' }] });
+      const swipe = matchViewHtml();
+      const swipeOk = swipe.indexOf("…% d'accordo") !== -1 && swipe.indexOf('% d\'accordo in questa sessione') === -1;
+      // SWIPE: 1 card risolto in accordo → "100%" ma con nota "poche risposte" (soglia 3)
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sP', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }], swipes: [{ movie_id: 'ma', person: 'N', liked: true }, { movie_id: 'ma', person: 'V', liked: true }], movies: [{ id: 'ma', title: 'M' }] });
+      const swipePct = matchViewHtml();
+      const swipePctOk = swipePct.indexOf('100% d\'accordo') !== -1
+        && swipePct.indexOf('poche risposte per un dato attendibile') !== -1;
+      // MATCH: doppio like → celebrazione con "…% finora" o % piena
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sP', status: 'matched', created_at: new Date().toISOString(), deck: ['ma', 'mb'], matched_movie_id: null }], swipes: [{ movie_id: 'ma', person: 'N', liked: true }, { movie_id: 'ma', person: 'V', liked: true }, { movie_id: 'mb', person: 'N', liked: true }, { movie_id: 'mb', person: 'V', liked: false }], movies: [{ id: 'ma', title: 'M' }, { id: 'mb', title: 'B' }] });
+      const match = matchViewHtml();
+      const matchOk = match.indexOf('Match!') !== -1 && match.indexOf('50% d\'accordo finora') !== -1;
+      // DONE: mazzo esaurito, "X% di gusti in comune"
+      __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sP', status: 'open', created_at: new Date().toISOString(), deck: ['ma', 'mb'], matched_movie_id: 'ma' }], swipes: [{ movie_id: 'ma', person: 'N', liked: true }, { movie_id: 'ma', person: 'V', liked: true }, { movie_id: 'mb', person: 'N', liked: false }, { movie_id: 'mb', person: 'V', liked: false }], movies: [{ id: 'ma', title: 'M' }, { id: 'mb', title: 'B' }] });
+      const done = matchViewHtml();
+      const doneOk = done.indexOf('Mazzo finito!') !== -1 && done.indexOf('100% di gusti in comune') !== -1;
+      return swipeOk && swipePctOk && matchOk && doneOk;
     } finally { __matchRestore(p); }
   }));
 

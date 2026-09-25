@@ -183,6 +183,28 @@ function countAllMatches(swipes, moviesList) {
   return n;
 }
 
+// ---- Step4 phase16 — Match % di sessione ----
+// Agreement% = film con giudizio IDENTICO (doppio-like O doppio-dislike) /
+// film risolti da entrambi (sottoinsieme già comune: gestisce da solo il
+// match a metà mazzo). DOM-free e senza side-effect, testabile in smoke.
+// Ritorna { agreed, total, pct } con pct = % arrotondata o null se total 0.
+function sessionAgreement(swipes, moviesList) {
+  const byMovie = {};
+  for (const s of filterSwipes(swipes)) {
+    if (!byMovie[s.movie_id]) byMovie[s.movie_id] = {};
+    byMovie[s.movie_id][s.person] = s.liked === true;
+  }
+  let agreed = 0, total = 0;
+  for (const id in byMovie) {
+    if (moviesList && !resolveDeckMovie(moviesList, id)) continue;
+    const n = byMovie[id].N, v = byMovie[id].V;
+    if (n === undefined || v === undefined) continue; // non ancora comune
+    total++;
+    if (n === v) agreed++;
+  }
+  return { agreed, total, pct: total > 0 ? Math.round((agreed / total) * 100) : null };
+}
+
 // ---- Regola di celebrazione (ordine del DECK, mai timestamps) ----
 // Id del card con l'indice più alto del deck tra quelli con doppio like,
 // solo se session.matched_movie_id è diverso da quel film; altrimenti null
