@@ -35,7 +35,7 @@ async function searchTmdbCandidates(title) {
 // Trasforma una risposta /movie/{id} nell'oggetto dettagli dell'app, incluse
 // piattaforma IT, trailer e rating OMDb (più precisi per imdb_id).
 // imdb_id fa parte della risposta base di TMDb, non serve append_to_response.
-async function buildTmdbDetails(detail, fallbackTitle) {
+async function buildTmdbDetails(detail, fallbackTitle, options = {}) {
   let platform = 'Streaming';
   const providers = detail['watch/providers']?.results?.IT?.flatrate;
   if (providers && providers.length > 0) platform = providers[0].provider_name;
@@ -46,7 +46,11 @@ async function buildTmdbDetails(detail, fallbackTitle) {
     || videos.find(v => v.site === 'YouTube');
   if (trailer) trailerUrl = `https://www.youtube.com/watch?v=${trailer.key}`;
 
-  const omdbData = detail.imdb_id ? await fetchOmdbByImdbId(detail.imdb_id) : null;
+  const fetchOmdb = options.fetchOmdbByImdbId
+    || (typeof fetchOmdbByImdbId === 'function' ? fetchOmdbByImdbId : null);
+  const ratingsExtractor = options.extractRatings
+    || (typeof extractRatings === 'function' ? extractRatings : null);
+  const omdbData = detail.imdb_id && fetchOmdb ? await fetchOmdb(detail.imdb_id) : null;
   const genreNames = (detail.genres || []).map(g => g.name);
 
   // Step 5b — regista + anno: direttore/i dai credits (crew, job Director),
@@ -81,7 +85,7 @@ async function buildTmdbDetails(detail, fallbackTitle) {
     poster: detail.poster_path ? `https://image.tmdb.org/t/p/w500${detail.poster_path}` : '',
     trailerUrl,
     matched: true,
-    ...extractRatings(omdbData)
+    ...(ratingsExtractor ? ratingsExtractor(omdbData) : {})
   };
 }
 
@@ -129,4 +133,8 @@ async function fetchTmdbDetailsByTitle(title) {
     console.error('Errore TMDb:', err);
     return null;
   }
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { buildTmdbDetails };
 }
