@@ -60,6 +60,38 @@ function logout() {
   location.reload();
 }
 
+function registerServiceWorker() {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' })
+    .then(function (reg) {
+      reg.addEventListener('updatefound', function () {
+        const sw = reg.installing;
+        if (!sw) return;
+        sw.addEventListener('statechange', function () {
+          // Nuova versione pronta: prompt solo se esiste già un SW attivo
+          // (al primissimo install `controller` è null → niente toast).
+          if (sw.state === 'installed' && navigator.serviceWorker.controller) showSwToast();
+        });
+      });
+    })
+    .catch(function (err) { console.error('Service worker: registrazione fallita', err); });
+}
+
+function showSwToast() {
+  const t = document.getElementById('swUpdateToast');
+  if (t) t.classList.remove('hidden');
+}
+
+function dismissSwToast() {
+  const t = document.getElementById('swUpdateToast');
+  if (t) t.classList.add('hidden');
+}
+
+function applySwUpdate() {
+  dismissSwToast();
+  location.reload();
+}
+
 function showApp() {
   document.getElementById('appRoot').classList.remove('hidden');
   const badge = document.getElementById('currentUserBadge');
@@ -69,4 +101,7 @@ function showApp() {
   loadMovies();
 }
 
-document.addEventListener('DOMContentLoaded', checkLoginState);
+document.addEventListener('DOMContentLoaded', function () {
+  checkLoginState();
+  registerServiceWorker();
+});

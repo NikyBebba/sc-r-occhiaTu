@@ -459,5 +459,12 @@
   <script src="js/ui/calendar.js"></script>
   <script src="js/ui/match.js"></script>
   <script src="js/main.js"></script>
+
+  <!-- Toast aggiornamento PWA -->
+  <div id="swUpdateToast" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[210] glass-panel rounded-xl px-4 py-3 flex items-center gap-3 text-sm">
+    <span class="text-slate-200"><i class="fa-solid fa-arrow-up fa-fw text-indigo-400 mr-2"></i>Nuova versione disponibile</span>
+    <button onclick="applySwUpdate()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition">Aggiorna</button>
+    <button onclick="dismissSwToast()" class="p-1 -m-1 text-slate-400 hover:text-slate-200 transition" aria-label="Ignora" title="Ignora"><i class="fa-solid fa-xmark"></i></button>
+  </div>
 </body>
 </html>
