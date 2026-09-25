@@ -1532,6 +1532,72 @@ async function okA(name, fn) {
     const b = personBadge('N');
     return b.indexOf('badge badge-n person-pill') !== -1 && b.indexOf('fa-circle') !== -1;
   }));
+
+  console.log('\n[step3 phase9 — dettaglio film modale]');
+  ok('dettaglio: click card su area non-interattiva apre il modale col contenuto (titolo/overview/cast/rating/trailer)', run(() => {
+    const prevUser = currentUser, prevTab = currentTab, saved = movies;
+    currentUser = 'N'; currentTab = 'all';
+    movies = [
+      { id: 'd-1', title: 'Film Dettaglio', status: 'watchlist', added_by: 'N', poster: '', platform: 'Netflix', genre: 'azione',
+        overview: 'Una trama di prova col dettaglio.', cast_names: ['Attore Uno', 'Attrice Due'], imdb_rating: '7.7', release_year: 2020, duration: '2h 10m', trailer_url: 'https://youtu.be/xyz' }
+    ];
+    render();
+    const card = document.getElementById('movieGrid')._children[0];
+    closeModal('detailModal');
+    card._handlers.click[0]({ target: { closest: () => null } });
+    const hidden = document.getElementById('detailModal').classList.contains('hidden');
+    const body = document.getElementById('detailBody')._innerHTML;
+    const okOpen = !hidden
+      && body.indexOf('Film Dettaglio') !== -1
+      && body.indexOf('Una trama di prova col dettaglio.') !== -1
+      && body.indexOf('Attore Uno') !== -1
+      && body.indexOf('IMDb 7.7') !== -1
+      && body.indexOf('youtu.be') !== -1;
+    movies = saved; currentUser = prevUser; currentTab = prevTab;
+    return okOpen;
+  }));
+  ok('dettaglio: guardia — click su button/a/input/select/textarea NON apre il modale', run(() => {
+    const prevUser = currentUser, prevTab = currentTab, saved = movies;
+    currentUser = 'N'; currentTab = 'all';
+    movies = [{ id: 'd-2', title: 'Guardia', status: 'watchlist', added_by: 'N', poster: '', platform: '', genre: 'azione' }];
+    render();
+    const card = document.getElementById('movieGrid')._children[0];
+    closeModal('detailModal');
+    card._handlers.click[0]({ target: { closest: () => 'button' } });
+    const stillHidden = document.getElementById('detailModal').classList.contains('hidden');
+    movies = saved; currentUser = prevUser; currentTab = prevTab;
+    return stillHidden;
+  }));
+  ok('dettaglio: overview/cast/rating assenti → sezioni nascoste singolarmente (mai placeholder)', run(() => {
+    const prevUser = currentUser, prevTab = currentTab, saved = movies;
+    currentUser = 'N'; currentTab = 'all';
+    movies = [{ id: 'd-3', title: 'NienteMeta', status: 'watchlist', added_by: 'N', poster: '', platform: '', genre: '', release_year: null, duration: '' }];
+    render();
+    openMovieDetail('d-3');
+    const body = document.getElementById('detailBody')._innerHTML;
+    const noSections = body.indexOf('mask-theater') === -1
+      && body.indexOf('rating-holo') === -1
+      && body.indexOf('NienteMeta') !== -1;
+    movies = saved; currentUser = prevUser; currentTab = prevTab;
+    return noSections;
+  }));
+  ok('dettaglio: sorpresa vista dall\'altra persona → click inerte; propria sorpresa → apre', run(() => {
+    const prevUser = currentUser, prevTab = currentTab, saved = movies;
+    currentUser = 'N'; currentTab = 'all';
+    movies = [{ id: 's-1', title: 'Sorpresa Altrui', status: 'watchlist', added_by: 'V', poster: '', platform: '', surprise_by: 'V' }];
+    render();
+    const cardN = document.getElementById('movieGrid')._children[0];
+    closeModal('detailModal');
+    cardN._handlers.click[0]({ target: { closest: () => null } });
+    const inertForOther = document.getElementById('detailModal').classList.contains('hidden');
+    currentUser = 'V'; render();
+    const cardV = document.getElementById('movieGrid')._children[0];
+    closeModal('detailModal');
+    cardV._handlers.click[0]({ target: { closest: () => null } });
+    const opensForOwner = !document.getElementById('detailModal').classList.contains('hidden');
+    movies = saved; currentUser = prevUser; currentTab = prevTab;
+    return inertForOther && opensForOwner;
+  }));
   ok('HOME CTA: visibile nei tab di lista, nascosta in calendario (via render)', run(() => {
     const prevTab = currentTab, prevMode = dbMode;
     dbMode = 'local';

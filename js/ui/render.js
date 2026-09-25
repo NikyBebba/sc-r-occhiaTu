@@ -490,6 +490,15 @@ function render() {
         ` : ''}
       </div>
     `;
+    // Step3 phase9 — dettaglio film: il click sulla card apre il modale, ma
+    // mai dai controlli interni (voto/azioni/trailer/cestino/retry/sorpresa)
+    // né per una sorpresa vista dall'altra persona (click inerte).
+    card.addEventListener('click', e => {
+      if (isSurpriseHidden) return;
+      const t = e && e.target;
+      if (t && t.closest && t.closest('button, a, input, select, textarea')) return;
+      openMovieDetail(m.id);
+    });
     grid.appendChild(card);
   });
 
@@ -529,4 +538,64 @@ function renderScheduled() {
       </div>
     `;
   });
+}
+
+// ============================================
+// Step3 phase9 — dettaglio film (modale)
+// Apre il modale #detailModal e popola #detailBody con i metadati del film.
+// Nessuna fetch: usa i campi già in memoria (select('*') in store.js).
+// ============================================
+function openMovieDetail(id) {
+  const m = movies.find(x => x.id === id);
+  if (!m) return;
+  renderMovieDetail(m);
+  openModal('detailModal');
+}
+
+function renderMovieDetail(m) {
+  const body = document.getElementById('detailBody');
+  if (!body) return;
+
+  // Meta-blocco "{anno} • {durata}" su piattaforma (regola card: mai "•" isolato)
+  const metaParts = [m.platform || 'Streaming'];
+  if (m.release_year) metaParts.push(String(m.release_year));
+  if (m.duration) metaParts.push(m.duration);
+
+  const genreChipsHtml = genreChips(m);
+  const ratingsHtml = (m.imdb_rating || m.rt_rating || m.metacritic_rating) ? `
+    <div class="rating-holo flex gap-2 px-2 py-1 rounded text-[10px] text-slate-400">
+      ${m.imdb_rating ? `<span><i class="fa-solid fa-star text-amber-400"></i> IMDb ${escapeHtml(m.imdb_rating)}</span>` : ''}
+      ${m.rt_rating ? `<span class="text-rose-400">RT ${escapeHtml(m.rt_rating)}</span>` : ''}
+      ${m.metacritic_rating ? `<span class="text-emerald-400">MC ${escapeHtml(m.metacritic_rating)}</span>` : ''}
+    </div>
+  ` : '';
+  const overviewHtml = m.overview
+    ? `<p class="text-sm text-slate-300 leading-relaxed">${escapeHtml(m.overview)}</p>`
+    : '';
+  const castHtml = (m.cast_names && m.cast_names.length)
+    ? `<p class="text-xs text-slate-400 leading-relaxed"><i class="fa-solid fa-masks-theater text-indigo-400 mr-1"></i>${m.cast_names.map(escapeHtml).join(', ')}</p>`
+    : '';
+  const trailerHtml = m.trailer_url
+    ? `<a href="${m.trailer_url}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-3 py-1.5 bg-red-600/80 hover:bg-red-500 rounded-lg text-xs text-white font-medium"><i class="fa-solid fa-play"></i> Trailer</a>`
+    : '';
+
+  body.innerHTML = `
+    <div class="flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <h3 id="detailModalTitle" class="text-xl font-bold text-slate-100 leading-snug">${escapeHtml(m.title)}</h3>
+        <p class="text-[10px] text-slate-400 mt-1">${metaParts.map(escapeHtml).join(' • ')}</p>
+      </div>
+      <button onclick="closeModal('detailModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition shrink-0" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    ${genreChipsHtml}
+    ${ratingsHtml}
+    ${overviewHtml}
+    ${castHtml}
+    <div class="flex items-center gap-2 pt-1">
+      ${personBadge(m.added_by)}
+      ${m.surprise_by ? `<span class="badge bg-indigo-600/90">🎁 sorpresa di ${escapeHtml(CONFIG.PEOPLE[m.surprise_by]?.label || m.surprise_by)}</span>` : ''}
+      ${m.matched === false ? `<span class="badge bg-amber-700/90" title="Nessun riscontro trovato"><i class="fa-solid fa-triangle-exclamation"></i> verifica titolo</span>` : ''}
+    </div>
+    ${trailerHtml}
+  `;
 }
