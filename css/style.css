@@ -217,6 +217,47 @@ body {
 .match-yes { color: var(--color-match-si); }
 .match-no { color: var(--color-match-no); }
 
+/* Phase 8.1: stato di visione sempre leggibile sulle card, anche senza colore. */
+.viewing-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.viewing-label {
+  color: var(--color-testo-3);
+  font-size: 11px;
+  margin-right: 2px;
+}
+.viewing-person {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  border: 1px solid var(--color-bordo-forte);
+  border-radius: var(--radius-full);
+  color: var(--color-testo-3);
+  background: var(--color-chip);
+  font-size: 11px;
+  font-weight: 800;
+}
+.viewing-person-n.is-seen {
+  color: #fff;
+  background: var(--color-persona-n);
+  border-color: var(--color-persona-n);
+}
+.viewing-person-v.is-seen {
+  color: #fff;
+  background: var(--color-persona-v);
+  border-color: var(--color-persona-v);
+}
+.viewing-person.is-together {
+  color: #1c1917;
+  background: var(--color-oro);
+  border-color: var(--color-oro);
+}
+
 /* Timeline recensioni */
 .timeline-item {
   position: relative;

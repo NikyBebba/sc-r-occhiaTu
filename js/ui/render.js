@@ -107,6 +107,15 @@ function genreChips(m) {
   ).join('');
 }
 
+function viewingStatusHtml(movie) {
+  const seen = viewingState(movie);
+  const label = seen.together ? 'Visto insieme da N e V'
+    : seen.N && seen.V ? 'Visto separatamente da N e V'
+    : seen.N ? 'Visto da N' : seen.V ? 'Visto da V' : 'Non ancora visto';
+  const person = key => `<span class="viewing-person viewing-person-${key.toLowerCase()}${seen[key] ? ' is-seen' : ''}${seen.together ? ' is-together' : ''}" aria-label="${key}: ${seen[key] ? (seen.together ? 'visto insieme' : 'visto') : 'non visto'}">${key}</span>`;
+  return `<div class="viewing-status" role="group" aria-label="${label}"><span class="viewing-label" aria-hidden="true">Visto da</span>${person('N')}${person('V')}</div>`;
+}
+
 // ---- Il Nostro Cinema — statistiche + timeline recensioni ----
 function renderStats() {
   const watched = movies.filter(m => m.status === 'watched');
@@ -406,14 +415,6 @@ function render() {
     const card = document.createElement('div');
     card.className = "movie-ticket flex flex-col justify-between" + (isVetoed ? ' card-vetoed' : '');
 
-    const votesObj = getVotesForMovie(m.id);
-    const bothVoted = votesObj.N !== undefined && votesObj.V !== undefined;
-    const matchHtml = bothVoted
-      ? (votesObj.N === votesObj.V
-          ? `<span class="match-yes text-[10px] font-bold"><i class="fa-solid fa-heart"></i> Match!</span>`
-          : `<span class="match-no text-[10px] font-bold"><i class="fa-solid fa-heart-crack"></i> Gusti diversi</span>`)
-      : '';
-
     card.innerHTML = `
       <div class="relative h-48 bg-slate-900 overflow-hidden">
         <img src="${poster}" alt="${escapeHtml(m.title)}" class="w-full h-full object-cover ${isSurpriseHidden ? 'surprise-blur' : ''}">
@@ -452,9 +453,8 @@ function render() {
             ${genreChips(m)}
             ${m.status === 'tonight' && currentTab === 'all' ? `<span class="badge bg-sky-700/90">in programma</span>` : ''}
             ${m.status === 'tonight' && currentTab === 'tonight' ? `<span class="badge bg-indigo-600/90"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatNightDate(m.scheduled_date, m.scheduled_time))}</span>` : ''}
-            ${matchHtml}
-            ${(m.review_by && m.review_by !== 'both' && m.status !== 'watched') ? `<span class="text-[10px] text-amber-400"><i class="fa-solid fa-eye"></i> già visto da ${CONFIG.PEOPLE[m.review_by]?.label || m.review_by} — rewatch insieme?</span>` : ''}
           </div>
+          ${viewingStatusHtml(m)}
           ${m.matched === false ? `<button onclick="retryMatch('${m.id}', '${jsAttrEscape(m.title)}')" class="mt-1 text-[10px] text-amber-400 hover:text-amber-300 underline">Correggi titolo e ricerca di nuovo</button>` : ''}
           ${(m.imdb_rating || m.rt_rating || m.metacritic_rating) ? `
             <div class="rating-holo flex gap-2 mt-1 px-2 py-1 rounded text-[10px] text-slate-400">
@@ -474,13 +474,9 @@ function render() {
         </div>
         ${(m.status === 'watchlist' || m.status === 'tonight') ? `
         <div class="flex flex-col gap-2 pt-2 border-t border-slate-800/80 text-xs">
-          ${(m.status === 'watchlist' || m.status === 'tonight') ? `
-            <div class="flex items-center gap-2">
-              <button onclick="voteMovie('${m.id}', true)" aria-label="Mi piace" class="px-2 py-1 rounded ${votesObj[currentUser] === true ? 'bg-emerald-600/60 text-white' : 'bg-slate-800 text-slate-400 hover:text-emerald-300'}"><i class="fa-solid fa-thumbs-up"></i></button>
-              <button onclick="voteMovie('${m.id}', false)" aria-label="Non mi piace" class="px-2 py-1 rounded ${votesObj[currentUser] === false ? 'bg-rose-600/60 text-white' : 'bg-slate-800 text-slate-400 hover:text-rose-300'}"><i class="fa-solid fa-thumbs-down"></i></button>
-              <span class="text-[10px] text-slate-400">voto tuo</span>
-            </div>
-          ` : ''}
+          ${isSurpriseHidden ? '' : !viewingState(m)[currentUser]
+            ? `<button onclick="markSeenUI('${m.id}')" class="w-full min-h-9 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium text-left"><i class="fa-solid fa-eye mr-1.5" aria-hidden="true"></i>L'ho già visto</button>`
+            : `<span class="text-[11px] text-slate-400"><i class="fa-solid fa-check mr-1" aria-hidden="true"></i>Hai già visto questo film</span>`}
           ${m.status === 'watchlist' ? `
             <div class="flex gap-2">
               <button onclick="quickTonightUI('${m.id}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded font-medium">Stasera</button>
@@ -500,7 +496,7 @@ function render() {
       </div>
     `;
     // Step3 phase9 — dettaglio film: il click sulla card apre il modale, ma
-    // mai dai controlli interni (voto/azioni/trailer/cestino/retry/sorpresa)
+    // mai dai controlli interni (visione/azioni/trailer/cestino/retry/sorpresa)
     // né per una sorpresa vista dall'altra persona (click inerte).
     card.addEventListener('click', e => {
       if (isSurpriseHidden) return;

@@ -281,10 +281,16 @@ async function confirmReview() {
   const by = document.getElementById('reviewBy').value;
   const stars = parseInt(document.getElementById('reviewStars').value) || 5;
   if (!text) return;
+  const movie = movies.find(m => m.id === id);
+  if (!movie) return;
+  // Una recensione prova la visione. Salviamo prima l'unione N/V con la
+  // stessa protezione contro le scritture contemporanee del tasto personale.
+  if (by !== 'both' && !(await markMovieSeen(id, by))) return;
   // Visto insieme -> chiuso, finisce tra i Visti. Visto da uno solo -> torna
   // in watchlist, resta proponibile per un rewatch insieme (con badge).
   const newStatus = by === 'both' ? 'watched' : 'watchlist';
-  await updateMovie(id, { review_text: text, review_by: by, rating: stars, status: newStatus });
+  await updateMovie(id, { review_text: text, review_by: by,
+    ...(by === 'both' ? { watched_by: 'both' } : {}), rating: stars, status: newStatus });
   // Se l'abbiamo visto insieme, la serata (se c'era una serata attiva) è
   // avvenuta: la segnamo come completed nello storico.
   if (by === 'both') await completeNight(id);
@@ -319,10 +325,10 @@ async function revealSurpriseUI(id) {
   loadMovies();
 }
 
-// ---- Match % — voto indipendente like/dislike ----
-async function voteMovie(id, liked) {
-  await castVote(id, currentUser, liked);
-  loadMovies();
+// ---- Visione personale senza recensione ----
+async function markSeenUI(id) {
+  const saved = await markMovieSeen(id, currentUser);
+  if (saved) await loadMovies();
 }
 
 // ---- Veto settimanale ----

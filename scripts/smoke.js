@@ -1482,19 +1482,19 @@ async function okA(name, fn) {
     let html = document.getElementById('movieGrid').innerHTML;
     okAll = okAll && html.includes('Alpha Watch') && html.indexOf('Beta Tonight') === -1
       && html.indexOf('Gamma Watched') === -1 && html.indexOf('Delta Proposal') === -1
-      && cnt(html, 'voteMovie') === 2 && cnt(html, 'quickTonightUI') === 1
+      && cnt(html, 'markSeenUI') === 1 && cnt(html, 'voteMovie') === 0 && cnt(html, 'quickTonightUI') === 1
       && cnt(html, 'scheduleMovie') === 1 && cnt(html, 'vetoMovie') === 1 && cnt(html, 'addReview') === 0;
     currentTab = 'tonight';
     render();
     html = document.getElementById('movieGrid').innerHTML;
     okAll = okAll && html.includes('Beta Tonight') && html.indexOf('Gamma Watched') === -1
-      && cnt(html, 'voteMovie') === 2 && cnt(html, 'addReview') === 1
+      && cnt(html, 'markSeenUI') === 1 && cnt(html, 'voteMovie') === 0 && cnt(html, 'addReview') === 1
       && cnt(html, 'quickTonightUI') === 0 && cnt(html, 'vetoMovie') === 0 && cnt(html, 'scheduleMovie') === 0;
     currentTab = 'watched';
     render();
     html = document.getElementById('movieGrid').innerHTML;
     okAll = okAll && html.includes('Gamma Watched') && html.indexOf('Beta Tonight') === -1
-      && cnt(html, 'voteMovie') === 0 && cnt(html, 'addReview') === 0
+      && cnt(html, 'markSeenUI') === 0 && cnt(html, 'voteMovie') === 0 && cnt(html, 'addReview') === 0
       && cnt(html, 'quickTonightUI') === 0 && cnt(html, 'scheduleMovie') === 0 && cnt(html, 'vetoMovie') === 0;
     currentTab = prevTab;
     currentUser = prevUser;
@@ -1517,7 +1517,7 @@ async function okA(name, fn) {
     const html = document.getElementById('movieGrid').innerHTML;
     const ok = html.includes('Alpha Watch') && html.includes('Beta Tonight')
       && html.includes('Gamma Watched') && html.includes('Delta Proposal')
-      && cnt(html, 'voteMovie') === 4 // watchlist + tonight
+      && cnt(html, 'markSeenUI') === 2 && cnt(html, 'voteMovie') === 0 // watchlist + tonight
       && cnt(html, 'quickTonightUI') === 1 && cnt(html, 'scheduleMovie') === 1 && cnt(html, 'vetoMovie') === 1
       && cnt(html, 'addReview') === 1
       && cnt(html, 'bg-sky-700/90') === 1 // badge "stasera" solo per il film tonight
@@ -1561,9 +1561,9 @@ async function okA(name, fn) {
     const watchedCard = grid._children.find(c => c._innerHTML.indexOf('FD') !== -1);
     const watchCard = grid._children.find(c => c._innerHTML.indexOf('FW') !== -1);
     const watchedNoFooter = watchedCard && watchedCard._innerHTML.indexOf('pt-2 border-t border-slate-800/80') === -1
-      && watchedCard._innerHTML.indexOf('voteMovie') === -1;
+      && watchedCard._innerHTML.indexOf('markSeenUI') === -1;
     const watchHasFooter = watchCard && watchCard._innerHTML.indexOf('pt-2 border-t border-slate-800/80') !== -1
-      && watchCard._innerHTML.indexOf('voteMovie') !== -1;
+      && watchCard._innerHTML.indexOf('markSeenUI') !== -1;
     movies = saved; currentUser = prevUser; currentTab = prevTab;
     return !!watchedNoFooter && !!watchHasFooter;
   }));
@@ -1587,6 +1587,106 @@ async function okA(name, fn) {
   ok('card: personBadge → person-pill con pallino persona (paternità riconoscibile)', run(() => {
     const b = personBadge('N');
     return b.indexOf('badge badge-n person-pill') !== -1 && b.indexOf('fa-circle') !== -1;
+  }));
+
+  console.log('\n[phase8.1 — stato di visione sulle card]');
+  ok('indicatori: neutri, N blu, V rosa, N+V separati, insieme oro; fallback review legacy', run(() => {
+    const neutral = viewingStatusHtml({ status: 'watchlist' });
+    const n = viewingStatusHtml({ status: 'watchlist', review_by: 'N' });
+    const v = viewingStatusHtml({ status: 'watchlist', watched_by: 'V' });
+    const separate = viewingStatusHtml({ status: 'watchlist', watched_by: 'both', review_by: 'V' });
+    const together = viewingStatusHtml({ status: 'watched', review_by: 'both' });
+    return !neutral.includes('is-seen') && !neutral.includes('is-together')
+      && n.includes('viewing-person-n is-seen') && !n.includes('viewing-person-v is-seen')
+      && v.includes('viewing-person-v is-seen') && !v.includes('viewing-person-n is-seen')
+      && separate.includes('Visto separatamente da N e V')
+      && separate.includes('viewing-person-n is-seen') && separate.includes('viewing-person-v is-seen')
+      && !separate.includes('is-together')
+      && together.includes('viewing-person-n is-seen is-together')
+      && together.includes('viewing-person-v is-seen is-together');
+  }));
+  await okA('L’ho già visto: N poi V accumulano la visione, senza recensione o cambio serata', runA(async () => {
+    const saved = movies;
+    movies = [{ id: 'seen-local', title: 'Film', status: 'watchlist', review_by: null, watched_by: null }];
+    try {
+      const first = await markMovieSeen('seen-local', 'N');
+      const again = await markMovieSeen('seen-local', 'N');
+      const second = await markMovieSeen('seen-local', 'V');
+      const film = movies[0];
+      const persisted = JSON.parse(localStorage.getItem('scorochiatu_movies'))[0];
+      return first && again && second && film.watched_by === 'both'
+        && persisted.watched_by === 'both' && film.review_by === null && film.status === 'watchlist';
+    } finally { movies = saved; saveLocal(); }
+  }));
+  ok('recensione aggiunge la visione al precedente proprietario senza perdere N/V', run(() => {
+    const m = { status: 'watchlist', watched_by: 'N', review_by: 'N' };
+    return mergedWatchedBy(m, 'V') === 'both'
+      && mergedWatchedBy(m, 'both') === 'both'
+      && viewingState({ ...m, watched_by: mergedWatchedBy(m, 'V'), review_by: 'V' }).together === false;
+  }));
+  await okA('recensione V dopo visione N conserva entrambi; recensione insieme accende l’oro', runA(async () => {
+    const saved = movies;
+    movies = [{ id: 'seen-review', title: 'Film', status: 'watchlist', review_by: null, watched_by: 'N' }];
+    const el = id => document.getElementById(id);
+    el('reviewMovieId').value = 'seen-review'; el('reviewText').value = 'Bello';
+    el('reviewBy').value = 'V'; el('reviewStars').value = '4';
+    try {
+      await confirmReview();
+      const separate = JSON.parse(localStorage.getItem('scorochiatu_movies'))[0];
+      el('reviewText').value = 'Insieme'; el('reviewBy').value = 'both';
+      await confirmReview();
+      const together = JSON.parse(localStorage.getItem('scorochiatu_movies'))[0];
+      return separate.watched_by === 'both' && separate.review_by === 'V'
+        && separate.status === 'watchlist' && !viewingState(separate).together
+        && together.watched_by === 'both' && together.review_by === 'both'
+        && together.status === 'watched' && viewingState(together).together;
+    } finally { movies = saved; saveLocal(); }
+  }));
+  await okA('due telefoni: scrittura V concorrente non viene persa dal tasto N', runA(async () => {
+    const savedSb = sb, savedMovies = movies;
+    const row = { id: 'seen-race', status: 'watchlist', review_by: null, watched_by: null };
+    let updates = 0;
+    sb = { from(table) {
+      if (table !== 'movies') throw new Error('tabella imprevista');
+      return {
+        update(patch) {
+          const clauses = [];
+          const q = {
+            eq(k, v) { clauses.push([k, v]); return q; },
+            is(k, v) { clauses.push([k, v]); return q; },
+            async select() {
+              updates++;
+              if (updates === 1) { row.watched_by = 'V'; return { data: [], error: null }; }
+              if (clauses.every(([k, v]) => row[k] === v)) {
+                row.watched_by = patch.watched_by;
+                return { data: [{ id: row.id }], error: null };
+              }
+              return { data: [], error: null };
+            }
+          };
+          return q;
+        },
+        select() { return { eq() { return { async maybeSingle() { return { data: { ...row }, error: null }; } }; } }; }
+      };
+    } };
+    movies = [{ ...row }];
+    try { return await markMovieSeen('seen-race', 'N') && row.watched_by === 'both' && updates === 2; }
+    finally { sb = savedSb; movies = savedMovies; }
+  }));
+  ok('card: nessun voto legacy visibile; il tasto L’ho già visto compare solo per chi manca', run(() => {
+    const savedMovies = movies, savedVotes = votes, prevUser = currentUser, prevTab = currentTab;
+    currentTab = 'all'; currentUser = 'N';
+    movies = [{ id: 'seen-card', title: 'Film visione', status: 'watchlist', added_by: 'N', watched_by: 'V' }];
+    votes = [{ movie_id: 'seen-card', person: 'N', liked: true }, { movie_id: 'seen-card', person: 'V', liked: true }];
+    render();
+    const before = document.getElementById('movieGrid').innerHTML;
+    movies[0].watched_by = 'both';
+    render();
+    const after = document.getElementById('movieGrid').innerHTML;
+    movies = savedMovies; votes = savedVotes; currentUser = prevUser; currentTab = prevTab;
+    return before.includes('markSeenUI') && before.includes("L'ho già visto")
+      && !before.includes('voteMovie') && !before.includes('Match!')
+      && !after.includes('markSeenUI') && after.includes('Hai già visto questo film');
   }));
 
   console.log('\n[step3 phase9 — dettaglio film modale]');
