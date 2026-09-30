@@ -465,6 +465,15 @@
     </div>
   </div>
 
+  <!-- AVVISO FILM GIÀ PRESENTE -->
+  <div id="duplicateModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass-panel p-6 rounded-2xl max-w-sm w-full border border-slate-800 space-y-4 text-center">
+      <h3 id="duplicateModalTitle" class="text-lg font-bold text-slate-100">Film già presente</h3>
+      <p id="duplicateMessage" class="text-sm text-slate-300"></p>
+      <button onclick="closeModal('duplicateModal')" class="min-h-11 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium">Ho capito</button>
+    </div>
+  </div>
+
   <!-- MODALE IL NOSTRO CINEMA (serate, statistiche e recensioni) -->
   <div id="statsModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass-panel p-6 rounded-2xl max-w-2xl w-full border border-slate-800 space-y-5 max-h-[85vh] overflow-y-auto">

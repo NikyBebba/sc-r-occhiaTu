@@ -14,6 +14,14 @@ let pendingAddedBy = null; // 'N' o 'V', tenuto in memoria durante il picker
 let pickerMode = 'add';    // 'add' = nuovo film, 'retry' = correggi film esistente
 let pickerTargetId = null; // id del film da aggiornare, solo in modalità 'retry'
 
+function showDuplicateNotice(movie) {
+  const hidden = movie.surprise_by && movie.surprise_by !== currentUser;
+  document.getElementById('duplicateMessage').textContent = hidden
+    ? 'Questo film è già presente nella lista come sorpresa.'
+    : `“${movie.title}” è già presente nella lista. Non serve aggiungerlo di nuovo.`;
+  openModal('duplicateModal');
+}
+
 async function initiateAddMovie() {
   const title = document.getElementById('addTitle').value.trim();
   const added_by = document.getElementById('addBy').value;
@@ -21,11 +29,8 @@ async function initiateAddMovie() {
 
   const dup = findDuplicate(title);
   if (dup) {
-    const proceed = await showConfirmModal(
-      'Film già presente',
-      `"${dup.title}" è già in lista (${CONFIG.PEOPLE[dup.added_by]?.label || dup.added_by}). Vuoi aggiungerlo comunque?`
-    );
-    if (!proceed) return;
+    showDuplicateNotice(dup);
+    return;
   }
 
   pendingAddedBy = added_by;
@@ -57,6 +62,7 @@ async function runTmdbSearchAndOpenPicker(title) {
       <div class="p-2">
         <div class="text-xs font-semibold text-slate-100 leading-snug">${escapeHtml(c.title)}</div>
         <div class="text-[10px] text-slate-400">${escapeHtml(c.year)}</div>
+        ${findDuplicate(c.title, c.id, pickerMode === 'retry' ? pickerTargetId : null) ? '<div class="text-[10px] font-bold text-amber-300 mt-1">Già in lista</div>' : ''}
       </div>
     </button>
   `).join('');
@@ -77,6 +83,11 @@ async function selectPickerCandidate(tmdbId) {
 // Applica i dettagli risolti: inserisce un nuovo film (modalità 'add')
 // o aggiorna un film esistente (modalità 'retry', da "correggi titolo").
 async function applyResolvedDetails(details) {
+  const duplicate = findDuplicate(details.title, details.tmdb_id, pickerMode === 'retry' ? pickerTargetId : null);
+  if (duplicate) {
+    showDuplicateNotice(duplicate);
+    return false;
+  }
   const ratingFields = {
     imdb_rating: details.imdbRating || '', rt_rating: details.rtRating || '', metacritic_rating: details.metacriticRating || ''
   };
@@ -124,6 +135,7 @@ async function applyResolvedDetails(details) {
     document.getElementById('addTitle').value = '';
   }
   loadMovies();
+  return true;
 }
 
 // ---- Import massivo con contatore di progresso ----
@@ -147,6 +159,7 @@ async function bulkImportMovies() {
     if (findDuplicate(clean)) { skippedTitles.push(clean); continue; }
 
     const details = await fetchMovieDetails(clean);
+    if (findDuplicate(details.title, details.tmdb_id)) { skippedTitles.push(clean); continue; }
     const newMovie = {
       title: details.title, added_by, status: 'watchlist',
       duration: details.duration, platform: details.platform,

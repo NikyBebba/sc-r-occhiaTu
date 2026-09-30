@@ -594,6 +594,39 @@ async function okA(name, fn) {
 
   // --- 4) ui aggiunta film (locale) via applyResolvedDetails ---
   console.log('\n[ui — aggiunta con metadati]');
+  ok('duplicati: titolo con accenti e TMDb ID riconoscono lo stesso film', run(() => {
+    const oldMovies = movies;
+    try {
+      movies = [{ id: 'dup', title: 'La città incantata', tmdb_id: 129 }];
+      return findDuplicate('LA CITTA INCANTATA')?.id === 'dup'
+        && findDuplicate('Spirited Away', 129)?.id === 'dup'
+        && findDuplicate('Spirited Away', 129, 'dup') === null;
+    } finally { movies = oldMovies; }
+  }));
+  await okA('aggiunta: titolo già in lista mostra avviso e non avvia la ricerca', runA(async () => {
+    const oldMovies = movies;
+    try {
+      movies = [{ id: 'dup', title: 'Inception', added_by: 'N' }];
+      document.getElementById('addTitle').value = ' INCEPTION ';
+      document.getElementById('addBy').value = 'V';
+      const before = movies.length;
+      await initiateAddMovie();
+      const notice = document.getElementById('duplicateMessage').textContent;
+      return movies.length === before && notice.includes('Inception')
+        && !document.getElementById('duplicateModal').classList.contains('hidden')
+        && !document.getElementById('addSaveBtn').disabled;
+    } finally { closeModal('duplicateModal'); movies = oldMovies; }
+  }));
+  await okA('aggiunta: alias TMDb risolto già in lista blocca il salvataggio', runA(async () => {
+    const oldMovies = movies, oldMode = pickerMode;
+    try {
+      movies = [{ id: 'dup', title: 'Titolo italiano', tmdb_id: 456, added_by: 'N' }];
+      pickerMode = 'add'; pendingAddedBy = 'V';
+      const saved = await applyResolvedDetails({ title: 'Original title', tmdb_id: 456, matched: true });
+      return saved === false && movies.length === 1
+        && document.getElementById('duplicateMessage').textContent.includes('Titolo italiano');
+    } finally { closeModal('duplicateModal'); movies = oldMovies; pickerMode = oldMode; }
+  }));
   await okA('applyResolvedDetails (add) persiste tmdb_id', runA(async () => {
     pickerMode = 'add'; pendingAddedBy = 'N';
     await applyResolvedDetails({ title: 'Tenet', tmdb_id: 577922, collection_id: null, collection_name: null, duration: '150 min', platform: 'P', poster: '', trailerUrl: '', matched: true, imdbRating: '7.3', rtRating: '', metacriticRating: '' });

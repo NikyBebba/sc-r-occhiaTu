@@ -34,13 +34,16 @@ let resyncTimer = null;
 let movieNightsAvailable = true;
 
 function normalizeTitle(t) {
-  return t.trim().toLowerCase().replace(/\s+/g, ' ');
+  return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-// Ritorna il film esistente con titolo uguale (case-insensitive), o null
-function findDuplicate(title) {
+// Ritorna il film esistente con titolo equivalente oppure lo stesso TMDb ID.
+function findDuplicate(title, tmdbId = null, excludeId = null) {
   const norm = normalizeTitle(title);
-  return movies.find(m => normalizeTitle(m.title) === norm) || null;
+  const id = tmdbId == null ? null : String(tmdbId);
+  return movies.find(m => m.id !== excludeId && ((id !== null && m.tmdb_id != null && String(m.tmdb_id) === id)
+    || (norm && normalizeTitle(m.title) === norm))) || null;
 }
 
 // ---- Persistenza ----
