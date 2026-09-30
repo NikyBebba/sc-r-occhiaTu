@@ -3,10 +3,21 @@
 
 const fs = require('fs');
 const path = require('path');
+const { extractRatings } = require(path.join(__dirname, '..', 'js', 'api', 'omdb.js'));
 const { buildTmdbDetails } = require(path.join(__dirname, '..', 'js', 'api', 'tmdb.js'));
 
 const REPO = path.resolve(__dirname, '..');
-const FIELDS = ['poster', 'genres', 'duration', 'release_year', 'director'];
+const FIELDS = [
+  'poster', 'genres', 'duration', 'release_year', 'director',
+  'imdb_rating', 'rt_rating', 'metacritic_rating'
+];
+const RATING_FIELD_MAP = {
+  imdb_rating: 'imdbRating',
+  rt_rating: 'rtRating',
+  metacritic_rating: 'metacriticRating'
+};
+const OMDB_PACE_MS = 1100;
+let lastOmdbRequestAt = 0;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const USAGE = [
   'Uso:',
@@ -74,11 +85,12 @@ function readConfig() {
   };
   const config = {
     tmdbKey: valueOf('TMDB_API_KEY'),
+    omdbKey: valueOf('OMDB_API_KEY'),
     supabaseUrl: valueOf('SUPABASE_URL'),
     supabaseAnon: valueOf('SUPABASE_ANON_KEY')
   };
-  if (!config.tmdbKey || !config.supabaseUrl || !config.supabaseAnon) {
-    throw new Error('Config incompleta in js/config.js: servono TMDB_API_KEY, SUPABASE_URL e SUPABASE_ANON_KEY.');
+  if (!config.tmdbKey || !config.omdbKey || !config.supabaseUrl || !config.supabaseAnon) {
+    throw new Error('Config incompleta in js/config.js: servono TMDB_API_KEY, OMDB_API_KEY, SUPABASE_URL e SUPABASE_ANON_KEY.');
   }
   return config;
 }
@@ -148,6 +160,23 @@ async function fetchTmdbDetail(config, tmdbId) {
   return detail;
 }
 
+async function fetchOmdbForRefresh(config, imdbId) {
+  if (!imdbId) throw new Error('TMDb non ha indicato un imdb_id per il rating');
+  const wait = OMDB_PACE_MS - (Date.now() - lastOmdbRequestAt);
+  if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
+  lastOmdbRequestAt = Date.now();
+  const query = new URLSearchParams({ apikey: config.omdbKey, i: imdbId });
+  const response = await fetch(`https://www.omdbapi.com/?${query.toString()}`, {
+    headers: { Accept: 'application/json' }
+  });
+  if (!response.ok) throw new Error(`OMDb HTTP ${response.status}`);
+  const data = await response.json();
+  if (!data || typeof data !== 'object' || Array.isArray(data) || data.Response === 'False') {
+    throw new Error('risposta OMDb non valida');
+  }
+  return data;
+}
+
 function normalizeValue(value) {
   return value === undefined ? null : value;
 }
@@ -163,10 +192,13 @@ function formatValue(value) {
   return JSON.stringify(normalized);
 }
 
-function targetMetadata(details) {
+function targetMetadata(details, row = {}) {
   const target = {};
   for (const field of FIELDS) {
-    target[field] = normalizeValue(details[field]);
+    const value = normalizeValue(details[RATING_FIELD_MAP[field] || field]);
+    target[field] = RATING_FIELD_MAP[field] && (value === null || value === '')
+      ? normalizeValue(row[field])
+      : value;
   }
   return target;
 }
@@ -329,7 +361,7 @@ async function main() {
   const mode = options.dryRun ? 'DRY-RUN' : 'APPLY';
   console.log(`sc(r)occhiaTu — refresh metadata selettivi (${mode})`);
   console.log('Selettore:', options.ids ? `ID ${options.ids.join(', ')}` : `titoli esatti ${JSON.stringify(options.titlesInput)}`);
-  console.log('Campi: poster, genres, duration, release_year, director');
+  console.log(`Campi: ${FIELDS.join(', ')}`);
   if (options.dryRun) console.log('Nessuna scrittura verrà eseguita in dry-run.');
 
   let rows;
@@ -369,11 +401,12 @@ async function main() {
 
     try {
       const detail = await fetchTmdbDetail(config, tmdbId);
+      const omdbData = detail.imdb_id ? await fetchOmdbForRefresh(config, detail.imdb_id) : null;
       const details = await buildTmdbDetails(detail, row.title, {
-        fetchOmdbByImdbId: async () => null,
-        extractRatings: () => ({})
+        fetchOmdbByImdbId: async () => omdbData,
+        extractRatings
       });
-      const target = targetMetadata(details);
+      const target = targetMetadata(details, row);
       const patch = buildPatch(row, target);
       const changedFields = new Set(Object.keys(patch));
       printComparison(row, target, changedFields);
@@ -429,7 +462,17 @@ async function main() {
   if (failed) process.exitCode = 1;
 }
 
-main().catch(error => {
-  console.error(`Refresh metadata crash: ${error.message}`);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch(error => {
+    console.error(`Refresh metadata crash: ${error.message}`);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  parseArgs,
+  targetMetadata,
+  buildPatch,
+  fetchOmdbForRefresh,
+  resolveTitleInput
+};

@@ -79,3 +79,7 @@ function omdbToDetails(omdbData, fallbackTitle) {
     ...extractRatings(omdbData)
   };
 }
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { extractRatings };
+}

@@ -40,6 +40,8 @@ node scripts/verify-sw.js
 
 Ultima verifica locale documentata: **289/289** smoke test e **12/12** controlli del service worker. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni.
 
+Per aggiornare selettivamente i metadati di film già presenti, `scripts/refresh-movie-metadata.js` accetta `--ids=<uuid>` oppure `--titles=<titolo>`. Eseguire prima `--dry-run` per confrontare i valori; solo `--apply` scrive su Supabase. Include i rating OMDb e conserva quelli già salvati quando il servizio non ne fornisce di nuovi.
+
 ## File di database
 
 Database locali, dump e backup sono esclusi da Git tramite `.gitignore`. I file in [`database/`](database/) contengono solo lo schema e le migration necessarie a ricostruire la struttura del database; non sono esportazioni dei dati. Li teniamo versionati perché permettono di riprodurre e verificare le modifiche allo schema.
