@@ -6,7 +6,7 @@ Repo: `NikyBebba/sc-r-occhiaTu` · Deploy: `sc-r-occhia-tu.vercel.app` · Stack:
 
 Changelog v2.14: Phase 8.1 implementata — le Movie Card mostrano lo stato di visione N/V e il tasto personale "L'ho già visto"; la vecchia UI like/dislike è rimossa dalle card. Estensione: annullamento personale, voto 0–10 obbligatorio e recensione facoltativa al clic, tre recensioni distinte N/V/insieme; la migration `database/supabase-migration-step8.sql` è stata applicata e le cinque nuove colonne sono state verificate via REST (HTTP 200). Phase 8.2 implementata: CTA Match Live separata e prioritaria nella dashboard, navigazione libreria compatta su mobile, vista Match dedicata. Phase 19 implementata: la prossima serata è un hero in cima alla dashboard con poster, conto alla rovescia, snack e azioni esistenti. Snack personalizzato nel programma serata, riutilizzabile attraverso lo storico condiviso. Phase 20 implementata: Tonight Mode deriva dalle serate attive di oggi e valorizza il hero della serata con un'azione per la recensione insieme. Phase 21 implementata: "Il Nostro Cinema" mostra uno storico visuale delle serate concluse, una card per evento anche nei rewatch. Il flusso swipe resta invariato.
 
-Aggiornamento successivo: l'aggiunta di un film già presente mostra un avviso e si ferma. Il confronto avviene sul titolo normalizzato prima della ricerca e sul titolo risolto o `tmdb_id` prima del salvataggio; il bulk import salta i duplicati nel riepilogo.
+Aggiornamento successivo: la ricerca mostra anche film omonimi. Dopo la scelta della locandina, l'aggiunta mostra un avviso solo se l'ID TMDb è già presente; un altro film con lo stesso titolo può essere salvato. L'import dalla UI salta gli ID TMDb duplicati nel riepilogo. Per i risultati senza ID TMDb non è disponibile un identificativo persistito con cui fare un controllo affidabile. `database/supabase-migration-step9.sql` prepara un indice UNIQUE parziale per impedire anche i duplicati da inserimenti simultanei: **da applicare in Dashboard**. Preflight live in sola lettura: 93 ID TMDb, zero duplicati.
 
 ## Quadro rapido — dove siamo
 
@@ -17,7 +17,7 @@ Aggiornamento successivo: l'aggiunta di un film già presente mostra un avviso e
 | Film e recensioni | Indicatori N/V/insieme, voto personale 0–10, tre testi distinti, annullamento visione; aggiunta con avviso duplicati | `votes` e campi legacy restano per compatibilità |
 | Il Nostro Cinema | Una card per ogni serata completata, anche rewatch; statistiche e recensioni | I film visti prima dello storico restano nelle recensioni; nessun archivio dei PNG generati |
 
-Verifiche locali dell'ultima revisione funzionale: `node scripts/smoke.js` **289/289 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS senza errori. Migration Step 8 applicata e cinque nuove colonne `movies` verificate via REST; le fasi 8.2, 19–21, snack personalizzati e avviso duplicati non richiedono nuove migration. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
+Verifiche locali dell'ultima revisione funzionale: `node scripts/smoke.js` **291/291 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS senza errori. Migration Step 8 applicata e cinque nuove colonne `movies` verificate via REST; la nuova migration Step 9 è preparata ma non applicata. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
 
 Regola repository: database locali, dump e backup sono esclusi da Git. I file SQL in `database/` descrivono schema e migration, senza esportazioni dei dati.
 
@@ -46,8 +46,8 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 ## Stato attuale del codice (test locale; verificare il deploy separatamente)
 
 - Login differenziato N/V via PIN individuale, badge utente, logout
-- CRUD film, import bulk (JustWatch non ha export ufficiale → copia manuale); l'aggiunta singola blocca con avviso i film già presenti anche se TMDb restituisce un alias, l'import salta i duplicati nel riepilogo
-- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v9`, bump per l'avviso duplicati), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
+- CRUD film, import bulk (JustWatch non ha export ufficiale → copia manuale); l'aggiunta singola cerca anche titoli omonimi e blocca con avviso soltanto l'ID TMDb già presente, l'import dalla UI salta gli ID duplicati nel riepilogo
+- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v10`, bump per il controllo duplicati sulla locandina scelta), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
 - **Design system** (Foundation): token CSS (`--color-*`, `--radius-*`, `--shadow-*`, `--duration-*`, `--ease-*`, `--fs-*`), tipografia Plus Jakarta Sans, tema Cinema Classic (nero sala/rosso cinema/oro neon, accenti N blu/V rosa), temi stagionali definiti come token (non ancora applicati), `.glass-panel`/`.glass-card`, accessibilità baseline (contrasti AA, focus-visible, ARIA su modali/segmented, `prefers-reduced-motion` globale)
 - **Header/nav**: la dashboard ospita una CTA Match Live autonoma; la libreria ha cinque viste in un selettore nativo su mobile e nel segmented control su desktop. Match occupa la larghezza disponibile con ritorno alla vista precedente.
 - **Match CTA**: stati idle/online/live letti solo da `matchChannelStatus`/`lobbyPresenceState`/`dbMode`/`currentTab` (nessuno stato duplicato); si aggiorna a ogni render, non su ogni evento presence in tempo reale se si è fermi su un altro tab (limite noto, accettato)
@@ -73,7 +73,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Veto settimanale (1/persona/settimana), rimovibile solo dal proprietario, realtime su vetoes
 - Snack picker con opzione personalizzata (salvata in `movie_nights.snack`; gli snack già usati tornano fra le scelte su entrambi i telefoni, senza nuova tabella)
 - Modalità sorpresa (bottone regalo in navbar, modale, `surprise_by`, blur CSS, badge "tua sorpresa")
-- Smoke test locale: **289/289 PASS** (230 a inizio v2.11 → 245 dopo Step 3 → 262 dopo Step 4 → 268 dopo Phase 8.1 → 274 con annullamento, voti 0–10 e recensioni distinte → 277 con Phase 8.2 → 280 con Phase 19 → 282 con snack personalizzati → 284 con Tonight Mode → 286 con lo storico delle serate → 289 con l'avviso duplicati)
+- Smoke test locale: **291/291 PASS** (230 a inizio v2.11 → 245 dopo Step 3 → 262 dopo Step 4 → 268 dopo Phase 8.1 → 274 con annullamento, voti 0–10 e recensioni distinte → 277 con Phase 8.2 → 280 con Phase 19 → 282 con snack personalizzati → 284 con Tonight Mode → 286 con lo storico delle serate → 289 con l'avviso duplicati → 291 con controllo per ID TMDb)
 
 ---
 
@@ -111,7 +111,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 31 — Accessibility baseline ✅
 
 ### ✅ PWA (COMPLETA)
-- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v9` per aggiornare l'avviso duplicati), toast di aggiornamento ✅
+- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v10` per il controllo duplicati sulla locandina scelta), toast di aggiornamento ✅
 - Verificato: nessuna richiesta Supabase/TMDb/OMDb/poster/YouTube passa mai dalla cache (nessun `respondWith` su quei domini)
 
 ### STEP 2 — Core Layout (Phase 8.2 implementata)

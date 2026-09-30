@@ -234,7 +234,7 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 ## Feature implementate OGGI
 
 Login PIN per persone, watchlist + aggiunta singola con picker TMDb + import
-bulk + dedup titolo normalizzato, voto like/dislike + "Match %", ruota
+bulk + controllo duplicati per ID TMDb dopo la scelta della locandina nell'aggiunta singola, voto like/dislike + "Match %", ruota
 (canvas + confetti + filtri durata e genere reale), veto settimanale ISO-week
 (esclusione dalla ruota), serata: "Stasera" / programmazione data-ora-snack /
 proposta-conferma rifiuto-annullamento / countdown box "Prossimo Film",

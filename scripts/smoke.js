@@ -3,7 +3,7 @@
 // 1) nessun ReferenceError al load/render (struttura modulare)
 // 2) api: metadati TMDb (tmdb_id / collection) via chiamate LIVE (se la chiave c'è)
 // 3) store modalità LOCALE: serate su movie_nights (quick/propose/confirm/cancel/complete), nextMoviePick
-// 4) vote/veto/sorpresa/recensione, helper anti-XSS, findDuplicate
+// 4) vote/veto/sorpresa/recensione, helper anti-XSS, duplicati per TMDb ID
 // Uso: node scripts/smoke.js
 //
 // NOTA: le chiamate live TMDb/OMDb richiedono rete. I controlli di rete non
@@ -218,7 +218,16 @@ async function okA(name, fn) {
     return movies.length === 1 && JSON.parse(localStorage.getItem('scorochiatu_movies')).length === 1;
   }));
   await okA('insertMovie genera id', runA(async () => { await insertMovie({ title: 'Interstellar', added_by: 'V', status: 'watchlist' }); return movies.length === 2 && movies[1].id != null; }));
-  ok('findDuplicate normalizza il titolo', run(() => findDuplicate('  INCEPTION ')?.id === movies[0].id));
+  ok('findDuplicateByTmdbId senza ID non blocca la ricerca', run(() => findDuplicateByTmdbId(null) === null));
+  await okA('insertMovie: vincolo UNIQUE vinto da altro telefono non crea un film locale', runA(async () => {
+    const oldSb = sb, oldMovies = movies;
+    try {
+      sb = { from: () => ({ insert: () => ({ select: async () => ({ data: null, error: { code: '23505' } }) }) }) };
+      const before = movies.length;
+      const inserted = await insertMovie({ title: 'Inception', tmdb_id: 100, added_by: 'N' });
+      return inserted === null && movies.length === before;
+    } finally { sb = oldSb; movies = oldMovies; }
+  }));
 
   console.log('\n[store locale — serate movie_nights]');
   await okA('setQuickTonight crea serata confirmed (date null) + mirror', runA(async () => {
@@ -594,28 +603,38 @@ async function okA(name, fn) {
 
   // --- 4) ui aggiunta film (locale) via applyResolvedDetails ---
   console.log('\n[ui — aggiunta con metadati]');
-  ok('duplicati: titolo con accenti e TMDb ID riconoscono lo stesso film', run(() => {
+  ok('duplicati: stesso ID bloccato, stesso titolo con ID diverso ammesso', run(() => {
     const oldMovies = movies;
     try {
       movies = [{ id: 'dup', title: 'La città incantata', tmdb_id: 129 }];
-      return findDuplicate('LA CITTA INCANTATA')?.id === 'dup'
-        && findDuplicate('Spirited Away', 129)?.id === 'dup'
-        && findDuplicate('Spirited Away', 129, 'dup') === null;
+      return findDuplicateByTmdbId(129)?.id === 'dup'
+        && findDuplicateByTmdbId('129')?.id === 'dup'
+        && findDuplicateByTmdbId(130) === null
+        && findDuplicateByTmdbId(129, 'dup') === null;
     } finally { movies = oldMovies; }
   }));
-  await okA('aggiunta: titolo già in lista mostra avviso e non avvia la ricerca', runA(async () => {
-    const oldMovies = movies;
+  await okA('aggiunta: titolo già presente apre il picker e permette una locandina con altro ID', runA(async () => {
+    const oldMovies = movies, oldSearch = searchTmdbCandidates, oldDetails = fetchTmdbDetailsById;
     try {
-      movies = [{ id: 'dup', title: 'Inception', added_by: 'N' }];
-      document.getElementById('addTitle').value = ' INCEPTION ';
+      movies = [{ id: 'dup', title: 'Inception', tmdb_id: 100, added_by: 'N' }];
+      searchTmdbCandidates = async () => [
+        { id: 100, title: 'Inception', year: '2010', poster: '' },
+        { id: 200, title: 'Inception', year: '2026', poster: '' }
+      ];
+      fetchTmdbDetailsById = async id => ({ title: 'Inception', tmdb_id: id, matched: true });
+      document.getElementById('addTitle').value = 'Inception';
       document.getElementById('addBy').value = 'V';
-      const before = movies.length;
       await initiateAddMovie();
-      const notice = document.getElementById('duplicateMessage').textContent;
-      return movies.length === before && notice.includes('Inception')
-        && !document.getElementById('duplicateModal').classList.contains('hidden')
-        && !document.getElementById('addSaveBtn').disabled;
-    } finally { closeModal('duplicateModal'); movies = oldMovies; }
+      const picker = document.getElementById('pickerResults').innerHTML;
+      const opened = !document.getElementById('pickerModal').classList.contains('hidden');
+      await selectPickerCandidate(200);
+      return opened && (picker.match(/Già in lista/g) || []).length === 1
+        && movies.length === 2 && movies.some(m => m.tmdb_id === 200)
+        && document.getElementById('addSaveBtn').disabled === false;
+    } finally {
+      searchTmdbCandidates = oldSearch; fetchTmdbDetailsById = oldDetails;
+      closeModal('pickerModal'); movies = oldMovies; saveLocal();
+    }
   }));
   await okA('aggiunta: alias TMDb risolto già in lista blocca il salvataggio', runA(async () => {
     const oldMovies = movies, oldMode = pickerMode;
@@ -626,6 +645,19 @@ async function okA(name, fn) {
       return saved === false && movies.length === 1
         && document.getElementById('duplicateMessage').textContent.includes('Titolo italiano');
     } finally { closeModal('duplicateModal'); movies = oldMovies; pickerMode = oldMode; }
+  }));
+  await okA('aggiunta: vincolo UNIQUE segnala il duplicato senza mostrare una conferma falsa', runA(async () => {
+    const oldInsert = insertMovie, oldLoad = loadMovies, oldMode = pickerMode;
+    try {
+      pickerMode = 'add'; pendingAddedBy = 'N';
+      insertMovie = async () => null;
+      loadMovies = async () => {};
+      const saved = await applyResolvedDetails({ title: 'Inception', tmdb_id: 100, matched: true });
+      return saved === false && document.getElementById('duplicateMessage').textContent.includes('già presente');
+    } finally {
+      insertMovie = oldInsert; loadMovies = oldLoad; pickerMode = oldMode;
+      closeModal('duplicateModal');
+    }
   }));
   await okA('applyResolvedDetails (add) persiste tmdb_id', runA(async () => {
     pickerMode = 'add'; pendingAddedBy = 'N';

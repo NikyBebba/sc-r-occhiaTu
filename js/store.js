@@ -33,17 +33,12 @@ let resyncTimer = null;
 // evito di sottoscriverla: altrimenti supabase-js tenta join ripetuti.
 let movieNightsAvailable = true;
 
-function normalizeTitle(t) {
-  return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
-// Ritorna il film esistente con titolo equivalente oppure lo stesso TMDb ID.
-function findDuplicate(title, tmdbId = null, excludeId = null) {
-  const norm = normalizeTitle(title);
-  const id = tmdbId == null ? null : String(tmdbId);
-  return movies.find(m => m.id !== excludeId && ((id !== null && m.tmdb_id != null && String(m.tmdb_id) === id)
-    || (norm && normalizeTitle(m.title) === norm))) || null;
+// Il titolo non identifica un film: omonimi e capitoli di una saga possono
+// condividere il nome. Il controllo avviene sull'ID TMDb scelto nel picker.
+function findDuplicateByTmdbId(tmdbId, excludeId = null) {
+  if (tmdbId == null) return null;
+  const id = String(tmdbId);
+  return movies.find(m => m.id !== excludeId && m.tmdb_id != null && String(m.tmdb_id) === id) || null;
 }
 
 // ---- Persistenza ----
@@ -180,6 +175,9 @@ async function insertMovie(newMovie) {
   if (sb) {
     const { data, error } = await sb.from('movies').insert([newMovie]).select();
     if (error) {
+      // Il vincolo UNIQUE sull'ID TMDb può vincere la corsa fra due telefoni:
+      // in quel caso non creare una copia solo nel mirror locale.
+      if (error.code === '23505' && newMovie.tmdb_id != null) return null;
       console.error('[sc(r)occhiaTu] insertMovie fallita su Supabase:', error.message);
       dbMode = 'local';
       lastSupabaseFailAt = Date.now();

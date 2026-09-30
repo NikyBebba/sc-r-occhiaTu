@@ -33,7 +33,8 @@ create table movies (
   created_at timestamp with time zone default now()
 );
 
-create index if not exists idx_movies_tmdb_id on movies (tmdb_id);
+create unique index if not exists movies_tmdb_id_unique on movies (tmdb_id)
+  where tmdb_id is not null;
 
 alter table movies enable row level security;
 
