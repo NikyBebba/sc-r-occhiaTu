@@ -340,18 +340,22 @@
         <input type="time" id="scheduleTime" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
       </div>
       <div>
-        <label class="block text-xs font-medium text-slate-400 mb-1">Snack della serata</label>
+        <label for="scheduleSnack" class="block text-xs font-medium text-slate-400 mb-1">Snack della serata</label>
         <div class="flex gap-2">
-          <select id="scheduleSnack" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
+          <select id="scheduleSnack" onchange="toggleCustomSnack()" class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
             <option value="🍿 Popcorn dolce">🍿 Popcorn dolce</option>
             <option value="🍿 Popcorn salato">🍿 Popcorn salato</option>
             <option value="🍫 Cioccolato">🍫 Cioccolato</option>
             <option value="🍕 Pizza">🍕 Pizza</option>
             <option value="🍦 Gelato">🍦 Gelato</option>
             <option value="🍟 Patatine">🍟 Patatine</option>
+            <option value="__custom_snack__">＋ Aggiungi uno snack…</option>
           </select>
-          <button type="button" onclick="randomizeSnack()" class="px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg" title="Scegli a caso"><i class="fa-solid fa-shuffle"></i></button>
+          <button type="button" onclick="randomizeSnack()" class="min-w-11 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg" aria-label="Scegli uno snack a caso" title="Scegli a caso"><i class="fa-solid fa-shuffle"></i></button>
         </div>
+        <label for="scheduleCustomSnack" class="sr-only">Nuovo snack</label>
+        <input id="scheduleCustomSnack" type="text" maxlength="80" autocomplete="off" placeholder="Scrivi il tuo snack…" class="hidden field w-full mt-2" oninput="document.getElementById('scheduleSnackError').classList.add('hidden')">
+        <p id="scheduleSnackError" class="hidden text-xs text-rose-300 mt-1" role="alert">Scrivi uno snack prima di confermare.</p>
       </div>
       <div class="flex justify-end gap-2 pt-2">
         <button onclick="closeModal('scheduleModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>

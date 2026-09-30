@@ -195,13 +195,52 @@ function scheduleMovie(id) {
   document.getElementById('scheduleMovieId').value = id;
   document.getElementById('scheduleDate').value = new Date().toISOString().split('T')[0];
   document.getElementById('scheduleTime').value = '21:30';
+  document.getElementById('scheduleCustomSnack').value = '';
+  document.getElementById('scheduleSnackError').classList.add('hidden');
+  syncSnackOptions();
   randomizeSnack();
   openModal('scheduleModal');
 }
 
 const SNACKS = ['🍿 Popcorn dolce', '🍿 Popcorn salato', '🍫 Cioccolato', '🍕 Pizza', '🍦 Gelato', '🍟 Patatine'];
+const CUSTOM_SNACK = '__custom_snack__';
+
+// Gli snack già usati sono condivisi attraverso movie_nights (e il mirror
+// legacy movies.snack), senza aggiungere una tabella o uno storage separato.
+function snackChoices() {
+  const seen = new Set();
+  return [...SNACKS, ...movieNights.map(n => n.snack), ...movies.map(m => m.snack)]
+    .filter(value => typeof value === 'string' && value.trim() && value.trim() !== CUSTOM_SNACK)
+    .map(value => value.trim())
+    .filter(value => {
+      const key = value.toLocaleLowerCase('it');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function syncSnackOptions() {
+  const select = document.getElementById('scheduleSnack');
+  const selected = select.value;
+  select.innerHTML = snackChoices().map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('')
+    + `<option value="${CUSTOM_SNACK}">＋ Aggiungi uno snack…</option>`;
+  if (selected === CUSTOM_SNACK || snackChoices().includes(selected)) select.value = selected;
+  toggleCustomSnack(false);
+}
+
+function toggleCustomSnack(shouldFocus = true) {
+  const custom = document.getElementById('scheduleSnack').value === CUSTOM_SNACK;
+  const input = document.getElementById('scheduleCustomSnack');
+  input.classList.toggle('hidden', !custom);
+  document.getElementById('scheduleSnackError').classList.add('hidden');
+  if (custom && shouldFocus) input.focus();
+}
+
 function randomizeSnack() {
-  document.getElementById('scheduleSnack').value = SNACKS[Math.floor(Math.random() * SNACKS.length)];
+  const choices = snackChoices();
+  document.getElementById('scheduleSnack').value = choices[Math.floor(Math.random() * choices.length)];
+  toggleCustomSnack(false);
 }
 
 // Propone (non fissa direttamente) una sera precisa per il film: l'altra
@@ -210,8 +249,17 @@ async function confirmSchedule() {
   const id = document.getElementById('scheduleMovieId').value;
   const date = document.getElementById('scheduleDate').value;
   const time = document.getElementById('scheduleTime').value;
-  const snack = document.getElementById('scheduleSnack').value;
   if (!date) return;
+  const selectedSnack = document.getElementById('scheduleSnack').value;
+  const snack = selectedSnack === CUSTOM_SNACK
+    ? document.getElementById('scheduleCustomSnack').value.trim()
+    : selectedSnack;
+  if (selectedSnack === CUSTOM_SNACK && (!snack || snack.length > 80)) {
+    const error = document.getElementById('scheduleSnackError');
+    error.textContent = snack ? 'Lo snack può avere al massimo 80 caratteri.' : 'Scrivi uno snack prima di confermare.';
+    error.classList.remove('hidden');
+    return;
+  }
   // Match → serata: l'hook scatta solo se si viene dal tab Match con pending
   // attivo per QUESTO film. Il pending va letto PRIMA di closeModal (che lo
   // azzera sempre, anche su annullo), e la sessione si chiude solo se la

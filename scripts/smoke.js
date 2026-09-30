@@ -836,6 +836,44 @@ async function okA(name, fn) {
       sb = prev.mSb; dbMode = prev.mMode; movieNights = prev.mNights;
     }
   }));
+  ok('snack: scelte già usate condivise, deduplicate e renderizzate senza HTML utente', run(() => {
+    const oldNights = movieNights, oldMovies = movies;
+    try {
+      movieNights = [{ snack: '🥨 Bretzel' }, { snack: '🥨 bretzel' }, { snack: '<img src=x onerror=alert(1)>' }];
+      movies = [{ snack: '🍕 Pizza' }];
+      syncSnackOptions();
+      const options = document.getElementById('scheduleSnack').innerHTML;
+      return snackChoices().filter(s => s.toLowerCase().includes('bretzel')).length === 1
+        && options.includes('🥨 Bretzel') && options.includes('&lt;img')
+        && !options.includes('<img src=x');
+    } finally { movieNights = oldNights; movies = oldMovies; }
+  }));
+  await okA('snack personalizzato: vuoto bloccato, salvato nella serata e riutilizzabile', runA(async () => {
+    const old = { m: movies, n: movieNights, s: sb, mode: dbMode, user: currentUser, tab: currentTab,
+      localMovies: localStorage.getItem('scorochiatu_movies'), localNights: localStorage.getItem('scorochiatu_movie_nights') };
+    try {
+      sb = null; dbMode = 'local'; currentUser = 'N'; currentTab = 'watchlist';
+      movies = [{ id: 'snack-test', title: 'Snack Test', status: 'watchlist' }]; movieNights = [];
+      document.getElementById('scheduleMovieId').value = 'snack-test';
+      document.getElementById('scheduleDate').value = '2026-10-20';
+      document.getElementById('scheduleTime').value = '20:00';
+      document.getElementById('scheduleSnack').value = CUSTOM_SNACK;
+      document.getElementById('scheduleCustomSnack').value = '   ';
+      await confirmSchedule();
+      const blocked = movieNights.length === 0 && !document.getElementById('scheduleSnackError').classList.contains('hidden');
+      document.getElementById('scheduleCustomSnack').value = '  🥨 Bretzel  ';
+      await confirmSchedule();
+      syncSnackOptions();
+      return blocked && movieNights[0]?.snack === '🥨 Bretzel'
+        && document.getElementById('scheduleSnack').innerHTML.includes('🥨 Bretzel');
+    } finally {
+      movies = old.m; movieNights = old.n; sb = old.s; dbMode = old.mode; currentUser = old.user; currentTab = old.tab;
+      if (old.localMovies === null) localStorage.removeItem('scorochiatu_movies');
+      else localStorage.setItem('scorochiatu_movies', old.localMovies);
+      if (old.localNights === null) localStorage.removeItem('scorochiatu_movie_nights');
+      else localStorage.setItem('scorochiatu_movie_nights', old.localNights);
+    }
+  }));
 
   // --- 5d) ruota: filtri durata + genere reali ---
   console.log('\n[ruota — durata + genere]');
