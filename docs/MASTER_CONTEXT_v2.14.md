@@ -2,7 +2,7 @@
 
 Repo: `NikyBebba/sc-r-occhiaTu` · Deploy: `sc-r-occhia-tu.vercel.app` · Stack: HTML/Tailwind (Play CDN)/JS vanilla senza build step, Supabase (Postgres + realtime, fallback localStorage), TMDb (+OMDb opzionale), supabase-js v2 da CDN, Font Awesome CDN
 
-Changelog v2.14: Phase 8.1 implementata — le Movie Card mostrano lo stato di visione N/V e il tasto personale "L'ho già visto"; la vecchia UI like/dislike è rimossa dalle card. Estensione: annullamento personale, voto 0–10 obbligatorio e recensione facoltativa al clic, tre recensioni distinte N/V/insieme; la migration `supabase-migration-step8.sql` è stata applicata e le cinque nuove colonne sono state verificate via REST (HTTP 200). Phase 8.2 implementata localmente: CTA Match Live separata e prioritaria nella dashboard, navigazione libreria compatta su mobile, vista Match dedicata. Il flusso swipe resta invariato.
+Changelog v2.14: Phase 8.1 implementata — le Movie Card mostrano lo stato di visione N/V e il tasto personale "L'ho già visto"; la vecchia UI like/dislike è rimossa dalle card. Estensione: annullamento personale, voto 0–10 obbligatorio e recensione facoltativa al clic, tre recensioni distinte N/V/insieme; la migration `supabase-migration-step8.sql` è stata applicata e le cinque nuove colonne sono state verificate via REST (HTTP 200). Phase 8.2 implementata localmente: CTA Match Live separata e prioritaria nella dashboard, navigazione libreria compatta su mobile, vista Match dedicata. Phase 19 implementata localmente: la prossima serata è un hero in cima alla dashboard con poster, conto alla rovescia, snack e azioni esistenti. Il flusso swipe resta invariato.
 
 Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di sessione, Phase 17 Match Reveal, Phase 18 Final Ticket Generator). Nessun campo/migration nuovo: origine del Ticket tracciata solo in-memory (`markTicketOrigin`/`ticketOriginOf`), scelta esplicita per restare nei vincoli di questo giro — da rivalutare se in futuro servirà uno storico persistito dei ticket (vedi Note aperte). Smoke passato da 245 a 262 test lungo lo step.
 
@@ -23,7 +23,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 - Login differenziato N/V via PIN individuale, badge utente, logout
 - CRUD film, import bulk (JustWatch non ha export ufficiale → copia manuale)
-- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v4`, bump per Phase 8.2), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
+- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v5`, bump per Phase 19), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
 - **Design system** (Foundation): token CSS (`--color-*`, `--radius-*`, `--shadow-*`, `--duration-*`, `--ease-*`, `--fs-*`), tipografia Plus Jakarta Sans, tema Cinema Classic (nero sala/rosso cinema/oro neon, accenti N blu/V rosa), temi stagionali definiti come token (non ancora applicati), `.glass-panel`/`.glass-card`, accessibilità baseline (contrasti AA, focus-visible, ARIA su modali/segmented, `prefers-reduced-motion` globale)
 - **Header/nav**: la dashboard ospita una CTA Match Live autonoma; la libreria ha cinque viste in un selettore nativo su mobile e nel segmented control su desktop. Match occupa la larghezza disponibile con ritorno alla vista precedente.
 - **Match CTA**: stati idle/online/live letti solo da `matchChannelStatus`/`lobbyPresenceState`/`dbMode`/`currentTab` (nessuno stato duplicato); si aggiorna a ogni render, non su ogni evento presence in tempo reale se si è fermi su un altro tab (limite noto, accettato)
@@ -36,7 +36,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - **Match % di sessione** (Phase 16): `sessionAgreement(swipes, moviesList)` in `match.js` — agreement% = film con giudizio identico (doppio-like O doppio-dislike) / film risolti da entrambi; soglia 3 risposte per un dato "attendibile" (sotto soglia mostrato comunque con nota), placeholder "…%" se denominatore 0, nessuna % su sessione `closed`; calcolo client-side, nessuna migration, nessuna modifica a `votes`
 - **Match Reveal** (Phase 17): celebrazione full-screen con tear CSS-only e coriandoli (`fireConfetti()`, già esistente), si riapre per sessione nuova sullo stesso film o per un secondo match nella stessa sessione, non si riapre su semplice re-render/resync; reset esplicito allo "Esci"
 - **Final Ticket Generator** (Phase 18): `js/ui/ticket.js`, export PNG 1080×1920 via canvas nativo (nessuna libreria), poster con `crossOrigin="anonymous"` (stesso pattern di Phase 9.2), fallback a gradiente se poster assente/CORS fallito; timbro per origine — Match Live → Match %, Ruota → "Scelto con la Ruota", proposta diretta → "Proposto da N/V"; **origine tracciata solo in-memory** per la sessione di navigazione corrente (`markTicketOrigin`/`ticketOriginOf`), nessun campo persistito su `movie_nights`
-- Box "Prossimo Film" (countdown se la data è futura, altrimenti stampa la data), annullabile
+- Hero "La nostra serata" in cima alla dashboard (poster, countdown con ora valida, snack, conferma/rifiuto/annullamento secondo lo stato); nascosto se non c'è una serata o nelle viste Match/Calendario
 - Serate come entità `movie_nights` (proposed → confirmed → completed/cancelled/skipped) con mirror legacy su `movies`
 - Conferma serata solo sulla data specifica, non sull'aggiunta del film; il quick pick "Stasera" crea una serata già confirmed (atto unilaterale, comportamento storico)
 - Tracking visto N / V / insieme: `watched_by` e le recensioni storiche alimentano gli indicatori; la visione insieme porta il film a `watched` e completa la serata, mentre le visioni singole restano proponibili per rewatch
@@ -49,7 +49,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Veto settimanale (1/persona/settimana), rimovibile solo dal proprietario, realtime su vetoes
 - Snack picker (salvato in `movie_nights.snack`)
 - Modalità sorpresa (bottone regalo in navbar, modale, `surprise_by`, blur CSS, badge "tua sorpresa")
-- Smoke test locale: **277/277 PASS** (230 a inizio v2.11 → 245 dopo Step 3 → 262 dopo Step 4 → 268 dopo Phase 8.1 → 274 con annullamento, voti 0–10 e recensioni distinte → 277 con Phase 8.2)
+- Smoke test locale: **280/280 PASS** (230 a inizio v2.11 → 245 dopo Step 3 → 262 dopo Step 4 → 268 dopo Phase 8.1 → 274 con annullamento, voti 0–10 e recensioni distinte → 277 con Phase 8.2 → 280 con Phase 19)
 
 ---
 
@@ -87,7 +87,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 31 — Accessibility baseline ✅
 
 ### ✅ PWA (COMPLETA)
-- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v4` per aggiornare i file della Phase 8.2), toast di aggiornamento ✅
+- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v5` per aggiornare i file della Phase 19), toast di aggiornamento ✅
 - Verificato: nessuna richiesta Supabase/TMDb/OMDb/poster/YouTube passa mai dalla cache (nessun `respondWith` su quei domini)
 
 ### STEP 2 — Core Layout (Phase 8.2 implementata localmente)
@@ -114,7 +114,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 18 — Final Ticket Generator ✅ (canvas nativo 1080×1920, tre timbri d'origine, origine solo in-memory)
 
 ### STEP 5 — Home Intelligence
-- Phase 19 — Hero "Prossimo Film / La nostra serata" — parziale: esiste il box "Prossimo Film". Può partire subito, non dipende da Ticket/Reveal
+- Phase 19 — Hero "Prossimo Film / La nostra serata" ✅ nel codice: usa `nextMoviePick()` e le azioni serata già esistenti; nessuna nuova migration. La CTA di scelta resta il primo elemento quando non c'è una serata.
 - Phase 20 — Tonight Mode — attivazione con serata di oggi (decisione presa, da implementare)
 - Phase 21 — "Il nostro cinema" (storico visuale ticket) — oggi "Il Nostro Cinema" è il modal stats; definire il rapporto tra i due
 - Phase 22 — Movie Timeline (per mese) — embrionale: esiste timeline recensioni, non per mese

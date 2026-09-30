@@ -143,6 +143,10 @@
 
     <main id="dashboardLayout" class="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
 
+      <section id="nextMovieHero" class="hidden next-movie-hero md:col-span-3" aria-label="La nostra prossima serata">
+        <div id="nextMovieBox"></div>
+      </section>
+
       <section id="sceltaCta" aria-labelledby="sceltaTitle" class="dashboard-choice glass-panel rounded-2xl border border-slate-800 md:col-span-3">
         <div>
           <p class="dashboard-eyebrow">IL VOSTRO CINEMA</p>
@@ -190,9 +194,8 @@
 
         <div class="glass-panel p-5 rounded-2xl border border-slate-800">
           <h2 class="text-lg font-bold text-slate-100 mb-3 flex items-center gap-2">
-            <i class="fa-solid fa-calendar-day text-sky-400"></i> Prossimo Film
+            <i class="fa-solid fa-calendar-days text-sky-400"></i> Altre serate
           </h2>
-          <div id="nextMovieBox" class="mb-4"></div>
           <div id="scheduledList" class="space-y-3"></div>
         </div>
         <button onclick="openModal('statsModal'); renderStats();" class="glass-panel w-full p-4 rounded-2xl border border-slate-800 text-left flex items-center justify-between gap-3 hover:border-indigo-500 transition" aria-label="Apri Il Nostro Cinema e le statistiche">

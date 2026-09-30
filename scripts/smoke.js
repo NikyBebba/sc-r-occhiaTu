@@ -3648,6 +3648,42 @@ async function okA(name, fn) {
       return noBtn && yesBtn && noWheel;
     } finally { movies = prev.pMovies; movieNights = prev.pNights; }
   }));
+  ok('phase19: hero visibile solo con una serata nelle viste della libreria', run(() => {
+    const prev = { pMovies: movies, pNights: movieNights, pTab: currentTab };
+    try {
+      movies = []; movieNights = []; currentTab = 'watchlist'; renderNextMovieBox();
+      const hero = document.getElementById('nextMovieHero');
+      const noPick = hero.classList.contains('hidden');
+      movies = [{ id: 'h1', title: 'Film', status: 'tonight' }];
+      movieNights = [{ id: 'h-night', movie_id: 'h1', date: null, status: 'confirmed', proposed_by: 'N' }];
+      renderNextMovieBox();
+      const visible = !hero.classList.contains('hidden');
+      currentTab = 'match'; renderNextMovieBox();
+      const hiddenMatch = hero.classList.contains('hidden');
+      currentTab = 'calendar'; renderNextMovieBox();
+      return noPick && visible && hiddenMatch && hero.classList.contains('hidden');
+    } finally { movies = prev.pMovies; movieNights = prev.pNights; currentTab = prev.pTab; }
+  }));
+  ok('phase19: proposta mostra conferma a V e attesa a N senza cambiare la serata', run(() => {
+    const prev = { pMovies: movies, pNights: movieNights, pUser: currentUser, pTab: currentTab };
+    try {
+      currentTab = 'watchlist';
+      movies = [{ id: 'h2', title: '<Film>', status: 'tonight', poster: '' }];
+      movieNights = [{ id: 'h-night2', movie_id: 'h2', date: '2026-11-10', time: '20:00', status: 'proposed', proposed_by: 'N' }];
+      currentUser = 'N'; renderNextMovieBox();
+      const htmlN = document.getElementById('nextMovieBox').innerHTML;
+      currentUser = 'V'; renderNextMovieBox();
+      const htmlV = document.getElementById('nextMovieBox').innerHTML;
+      return htmlN.includes('In attesa') && htmlN.includes('Annulla proposta')
+        && !htmlN.includes('Conferma la serata') && htmlV.includes('Conferma la serata')
+        && htmlV.includes('Rifiuta') && htmlV.includes('&lt;Film&gt;')
+        && movieNights[0].status === 'proposed';
+    } finally { movies = prev.pMovies; movieNights = prev.pNights; currentUser = prev.pUser; currentTab = prev.pTab; }
+  }));
+  ok('phase19: senza ora il countdown non inventa 21:30', run(() => {
+    const label = nextMovieTimeLabel({ scheduled_date: '2026-11-10', scheduled_time: null }, Date.UTC(2026, 9, 1));
+    return label.includes('10 nov') && !label.includes('21:30') && !label.includes('⏳');
+  }));
   ok('phase18: matchMatchHtml/matchRevealHtml hanno il bottone Ticket con full percentuale dalla sessione', run(() => {
     const prev = { pSwipes: swipes, pMovies: movies };
     try {

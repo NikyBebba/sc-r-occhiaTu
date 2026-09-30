@@ -29,48 +29,48 @@ function renderSyncStatus() {
   }
 }
 
-// ---- Box "Prossimo Film" — il pick corrente (via ruota, match o proposta
-// con data), con countdown, conferma/annulla a seconda dello stato ----
+// ---- Hero "La nostra serata" — usa il pick corrente senza nuovi stati ----
 let countdownTimer = null;
+function nextMovieTimeLabel(pick, now = Date.now()) {
+  if (!pick.scheduled_date) return '🎬 Stasera';
+  const dateLabel = formatNightDate(pick.scheduled_date, pick.scheduled_time);
+  // Senza ora precisa non si può calcolare un countdown attendibile.
+  if (!/^\d{2}:\d{2}(?::\d{2})?$/.test(pick.scheduled_time || '')) return '📅 ' + dateLabel;
+  const when = new Date(`${pick.scheduled_date}T${pick.scheduled_time.slice(0, 5)}:00`);
+  const diff = when.getTime() - now;
+  if (!Number.isFinite(diff) || diff <= 0) return '📅 ' + dateLabel;
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  return `⏳ tra ${days > 0 ? days + 'g ' : ''}${hours}h ${mins}m`;
+}
+
 function renderNextMovieBox() {
   const box = document.getElementById('nextMovieBox');
   if (!box) return;
+  const hero = document.getElementById('nextMovieHero');
   const pick = nextMoviePick();
-
+  if (hero) hero.classList.toggle('hidden', !pick || currentTab === 'match' || currentTab === 'calendar');
   if (!pick) {
-    box.innerHTML = `<p class="text-xs text-slate-400 italic">Nessun film scelto per la prossima serata: gira la ruota, fate match o proponete una sera.</p>`;
+    box.innerHTML = '';
     return;
   }
 
   const pending = pick.proposed_by && !pick.night_confirmed;
-  let countdownHtml = '';
-  if (pick.scheduled_date) {
-    const when = new Date(`${pick.scheduled_date}T${pick.scheduled_time || '21:30'}:00`);
-    const diff = when.getTime() - Date.now();
-    if (diff > 0) {
-      const days = Math.floor(diff / 86400000);
-      const hours = Math.floor((diff % 86400000) / 3600000);
-      const mins = Math.floor((diff % 3600000) / 60000);
-      countdownHtml = `⏳ tra ${days > 0 ? days + 'g ' : ''}${hours}h ${mins}m`;
-    } else {
-      countdownHtml = '📅 ' + escapeHtml(formatNightDate(pick.scheduled_date, pick.scheduled_time));
-    }
-  } else {
-    countdownHtml = '🎬 stasera';
-  }
+  const countdownHtml = escapeHtml(nextMovieTimeLabel(pick));
+  const safeId = jsAttrEscape(pick.id);
+  const safeTitle = jsAttrEscape(pick.title);
 
   let actionsHtml = '';
   if (pending && pick.proposed_by === currentUser) {
-    actionsHtml = `<div class="text-[11px] text-amber-400 mt-2">In attesa che ${CONFIG.PEOPLE[pick.proposed_by === 'N' ? 'V' : 'N']?.label || '...'} confermi</div>
-      <button onclick="cancelNightUI('${pick.id}', '${jsAttrEscape(pick.title)}')" class="mt-2 w-full py-1.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 rounded text-xs">Annulla proposta</button>`;
+    actionsHtml = `<p class="text-sm text-amber-200">In attesa che ${escapeHtml(CONFIG.PEOPLE[pick.proposed_by === 'N' ? 'V' : 'N']?.label || '...')} confermi</p>
+      <button onclick="cancelNightUI('${safeId}', '${safeTitle}')" class="next-movie-action next-movie-secondary">Annulla proposta</button>`;
   } else if (pending && pick.proposed_by !== currentUser) {
-    actionsHtml = `<div class="text-[11px] text-indigo-300 mt-1">Proposto da ${CONFIG.PEOPLE[pick.proposed_by]?.label || pick.proposed_by}</div>
-      <div class="flex gap-2 mt-2">
-        <button onclick="cancelNightUI('${pick.id}', '${jsAttrEscape(pick.title)}')" class="flex-1 py-1.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 rounded text-xs">Rifiuta</button>
-        <button onclick="confirmNightUI('${pick.id}')" class="flex-1 py-1.5 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 rounded text-xs font-medium">Conferma</button>
-      </div>`;
+    actionsHtml = `<p class="text-sm text-sky-200">Proposto da ${escapeHtml(CONFIG.PEOPLE[pick.proposed_by]?.label || pick.proposed_by)}</p>
+      <button onclick="confirmNightUI('${safeId}')" class="next-movie-action next-movie-primary">Conferma la serata</button>
+      <button onclick="cancelNightUI('${safeId}', '${safeTitle}')" class="next-movie-action next-movie-secondary">Rifiuta</button>`;
   } else {
-    actionsHtml = `<button onclick="cancelNightUI('${pick.id}', '${jsAttrEscape(pick.title)}')" class="mt-2 w-full py-1.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 rounded text-xs">Annulla</button>`;
+    actionsHtml = `<button onclick="cancelNightUI('${safeId}', '${safeTitle}')" class="next-movie-action next-movie-secondary">Annulla serata</button>`;
   }
 
   // Step4 phase18 — ticket per la proposta DIRETTA: il bottone appare SOLO se
@@ -79,19 +79,21 @@ function renderNextMovieBox() {
   // card). Match Live e Ruota hanno il proprio bottone Ticket nelle loro viste
   // (% o timbro dedicato); qui mai un'% inventata.
   if (typeof ticketOriginOf === 'function' && ticketOriginOf(pick.id) === 'manual') {
-    actionsHtml += `<button onclick="downloadTicket('${pick.id}', 'manual')" class="mt-2 w-full py-1.5 bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-indigo-300 rounded text-xs">🎟️ Ticket</button>`;
+    actionsHtml += `<button onclick="downloadTicket('${safeId}', 'manual')" class="next-movie-action next-movie-secondary">🎟️ Ticket</button>`;
   }
 
   box.innerHTML = `
-    <div class="p-3 bg-slate-900/80 rounded-xl border ${pending ? 'border-amber-500/40' : 'border-indigo-500/40'}">
-      <div class="flex gap-3">
-        <img src="${pick.poster || 'https://via.placeholder.com/60x90/1e293b/64748b?text=?'}" alt="${escapeHtml(pick.title)}" class="w-12 h-16 object-cover rounded">
-        <div class="flex-1">
-          <div class="font-bold text-slate-100 text-sm">${escapeHtml(pick.title)}</div>
-          <div class="text-[11px] text-slate-400">${countdownHtml}${pick.snack ? ' • ' + escapeHtml(pick.snack) : ''}</div>
-        </div>
+    <div class="next-movie-content${pending ? ' is-pending' : ''}">
+      <div class="next-movie-poster">
+        ${pick.poster ? `<img src="${escapeHtml(pick.poster)}" alt="Locandina di ${escapeHtml(pick.title)}">` : '<i class="fa-solid fa-film" aria-hidden="true"></i>'}
       </div>
-      ${actionsHtml}
+      <div class="next-movie-info">
+        <p class="dashboard-eyebrow">${pending ? 'IN ATTESA DI CONFERMA' : 'LA NOSTRA SERATA'}</p>
+        <h2>${escapeHtml(pick.title)}</h2>
+        <p class="next-movie-date">${countdownHtml}</p>
+        ${pick.snack ? `<p class="next-movie-snack">🍿 ${escapeHtml(pick.snack)}</p>` : ''}
+        <div class="next-movie-actions">${actionsHtml}</div>
+      </div>
     </div>
   `;
 }
