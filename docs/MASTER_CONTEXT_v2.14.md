@@ -1,10 +1,32 @@
 # 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.14
 
+Ultimo aggiornamento: 1 ottobre 2026. Questo è il context corrente; `MASTER_CONTEXT.md` conserva la baseline v2.13.
+
 Repo: `NikyBebba/sc-r-occhiaTu` · Deploy: `sc-r-occhia-tu.vercel.app` · Stack: HTML/Tailwind (Play CDN)/JS vanilla senza build step, Supabase (Postgres + realtime, fallback localStorage), TMDb (+OMDb opzionale), supabase-js v2 da CDN, Font Awesome CDN
 
-Changelog v2.14: Phase 8.1 implementata — le Movie Card mostrano lo stato di visione N/V e il tasto personale "L'ho già visto"; la vecchia UI like/dislike è rimossa dalle card. Estensione: annullamento personale, voto 0–10 obbligatorio e recensione facoltativa al clic, tre recensioni distinte N/V/insieme; la migration `supabase-migration-step8.sql` è stata applicata e le cinque nuove colonne sono state verificate via REST (HTTP 200). Phase 8.2 implementata: CTA Match Live separata e prioritaria nella dashboard, navigazione libreria compatta su mobile, vista Match dedicata. Phase 19 implementata: la prossima serata è un hero in cima alla dashboard con poster, conto alla rovescia, snack e azioni esistenti. Snack personalizzato nel programma serata, riutilizzabile attraverso lo storico condiviso. Phase 20 implementata: Tonight Mode deriva dalle serate attive di oggi e valorizza il hero della serata con un'azione per la recensione insieme. Phase 21 implementata localmente: "Il Nostro Cinema" mostra uno storico visuale delle serate concluse, una card per evento anche nei rewatch. Il flusso swipe resta invariato.
+Changelog v2.14: Phase 8.1 implementata — le Movie Card mostrano lo stato di visione N/V e il tasto personale "L'ho già visto"; la vecchia UI like/dislike è rimossa dalle card. Estensione: annullamento personale, voto 0–10 obbligatorio e recensione facoltativa al clic, tre recensioni distinte N/V/insieme; la migration `supabase-migration-step8.sql` è stata applicata e le cinque nuove colonne sono state verificate via REST (HTTP 200). Phase 8.2 implementata: CTA Match Live separata e prioritaria nella dashboard, navigazione libreria compatta su mobile, vista Match dedicata. Phase 19 implementata: la prossima serata è un hero in cima alla dashboard con poster, conto alla rovescia, snack e azioni esistenti. Snack personalizzato nel programma serata, riutilizzabile attraverso lo storico condiviso. Phase 20 implementata: Tonight Mode deriva dalle serate attive di oggi e valorizza il hero della serata con un'azione per la recensione insieme. Phase 21 implementata: "Il Nostro Cinema" mostra uno storico visuale delle serate concluse, una card per evento anche nei rewatch. Il flusso swipe resta invariato.
 
 Aggiornamento successivo: l'aggiunta di un film già presente mostra un avviso e si ferma. Il confronto avviene sul titolo normalizzato prima della ricerca e sul titolo risolto o `tmdb_id` prima del salvataggio; il bulk import salta i duplicati nel riepilogo.
+
+## Quadro rapido — dove siamo
+
+| Area | Stato verificato nel codice | Limite attuale |
+| --- | --- | --- |
+| Scelta del film | Match Live a swipe, Ruota e proposta diretta; ticket PNG scaricabile | Origine del ticket solo in memoria, persa al refresh |
+| Serata | `movie_nights` separa film ed evento; proposte, conferme, Tonight Mode e snack personalizzati | Le scelte rapide precedenti a `confirmed_at` non attivano retroattivamente Tonight Mode |
+| Film e recensioni | Indicatori N/V/insieme, voto personale 0–10, tre testi distinti, annullamento visione; aggiunta con avviso duplicati | `votes` e campi legacy restano per compatibilità |
+| Il Nostro Cinema | Una card per ogni serata completata, anche rewatch; statistiche e recensioni | I film visti prima dello storico restano nelle recensioni; nessun archivio dei PNG generati |
+
+Verifiche locali dell'ultima revisione funzionale: `node scripts/smoke.js` **289/289 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS senza errori. Migration Step 8 applicata e cinque nuove colonne `movies` verificate via REST; le fasi 8.2, 19–21, snack personalizzati e avviso duplicati non richiedono nuove migration. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
+
+Nel workspace restano modifiche non committate in `js/api/omdb.js` e `scripts/refresh-movie-metadata.js`: sono precedenti a questo ciclo e non vanno incluse nei commit delle nuove feature senza revisione.
+
+## Prossimo lavoro
+
+1. **Phase 22 — Timeline per mese**: partire dagli eventi `movie_nights` completati (`date` o `completed_at`) e mantenere separate le recensioni personali prive di una data di pubblicazione. Definire la UX del raggruppamento prima di implementare.
+2. **Phase 23 — Movie Chemistry**: statistiche retrospettive solo di lettura su film, visioni e serate; nessuna nuova percentuale di compatibilità fuori da Match Live.
+3. **Phase 24 — Why this movie?**: ridefinire con N e V le motivazioni utili senza riattivare il vecchio sistema asincrono `votes`.
+4. **Fasi successive**: Hot Picks richiede dati TMDb aggiuntivi e una migration autorizzata; Dynamic Island, login, temi, microinterazioni e altre fasi restano pianificate sotto.
 
 Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di sessione, Phase 17 Match Reveal, Phase 18 Final Ticket Generator). Nessun campo/migration nuovo: origine del Ticket tracciata solo in-memory (`markTicketOrigin`/`ticketOriginOf`), scelta esplicita per restare nei vincoli di questo giro — da rivalutare se in futuro servirà uno storico persistito dei ticket (vedi Note aperte). Smoke passato da 245 a 262 test lungo lo step.
 
@@ -16,12 +38,12 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - **Match Live**: sessione sincrona N ↔ V a swipe Tinder-like. **Questa logica è già completa e non deve essere modificata dalle nuove fasi di redesign.** Solo qui esiste il concetto di "match" e la **Match %** (agreement% di sessione, formula definita e implementata in Phase 16: film con giudizio identico / film risolti da entrambi).
 - **In programma**: film con una serata (`movie_nights`) proposta/confermata. Key interna del tab: `tonight` (solo label cambiata).
 - **Serata "Stasera"**: quick pick, serata confermata con `date: null`.
-- **Prossimo Film**: la serata più vicina nel tempo (`nextMoviePick()`), con fallback sulle serate senza data.
+- **Prossimo Film**: il hero dà priorità alla serata attiva di oggi (`tonightPick()`), poi alla più vicina nel tempo (`nextMoviePick()`).
 - **Ticket**: artefatto finale della Scelta (Phase 18, implementato). Mostra la Match % se l'origine è Match Live, "Scelto con la Ruota" se da Ruota, "Proposto da N/V" se da proposta diretta. Origine tracciata solo in-memory per la sessione di navigazione corrente, non persistita.
 
 ---
 
-## Stato attuale (funzionale, in produzione — verificato online dopo ogni step)
+## Stato attuale del codice (test locale; verificare il deploy separatamente)
 
 - Login differenziato N/V via PIN individuale, badge utente, logout
 - CRUD film, import bulk (JustWatch non ha export ufficiale → copia manuale); l'aggiunta singola blocca con avviso i film già presenti anche se TMDb restituisce un alias, l'import salta i duplicati nel riepilogo
@@ -69,12 +91,12 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 2. **Ruota → programmabile.** Fatto (Phase 15): il vincitore mostra le azioni "Stasera"/"Programma", `lockWheelWinner` non più dead code.
 3. **Tonight Mode.** Implementato: si attiva solo con una serata attiva di oggi (`date = oggi` o quick pick "Stasera" con `confirmed_at` di oggi). I quick pick nuovi scrivono `confirmed_at` al momento della scelta.
 4. **Phase 24 da ridefinire**, senza dipendenza dalla vecchia logica `votes`/match asincrono.
-9. **Match %: formula definita e implementata** (Phase 16): giudizio identico (like+like o dislike+dislike) / risolti da entrambi. Include volontariamente i doppio-dislike ("gusti in comune", non solo "cosa piace a entrambi") — scelta di prodotto esplicita, non solo tecnica.
-10. **Origine del Ticket: solo in-memory, Option A.** Nessun campo `origin` persistito su `movie_nights`: lo storico Phase 21 rappresenta le serate concluse senza inventare l'origine dei PNG. Se in futuro servirà un archivio dei ticket generati, rivalutare persistenza di file e origine con una fase dedicata.
 5. **Overview/cast salvati come colonne** (non fetch on demand), per servire sia Phase 9 sia la futura Phase 36 (Poster Flip) senza rifare il lavoro. Fatto: migration step7 + backfill.
 6. **Detail come modale** (non drawer, non pagina a sé), coerente con gli altri modali esistenti. Fatto: Phase 9.
 7. **Sorpresa nel dettaglio**: per l'altra persona il click sulla card resta inerte, nessuna apertura del modale. Fatto.
 8. **Colore estratto dal poster (Phase 9.2) solo decorativo perimetrale** (bordo/glow); il testo resta sempre su `--color-testo-1`, mai colorato dinamicamente. Fatto.
+9. **Match %: formula definita e implementata** (Phase 16): giudizio identico (like+like o dislike+dislike) / risolti da entrambi. Include volontariamente i doppio-dislike ("gusti in comune", non solo "cosa piace a entrambi") — scelta di prodotto esplicita, non solo tecnica.
+10. **Origine del Ticket: solo in-memory, Option A.** Nessun campo `origin` persistito su `movie_nights`: lo storico Phase 21 rappresenta le serate concluse senza inventare l'origine dei PNG. Se in futuro servirà un archivio dei ticket generati, rivalutare persistenza di file e origine con una fase dedicata.
 
 ---
 
@@ -184,7 +206,6 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 ## Debito tecnico / pulizia
 
 - Origine del Ticket (Match Live/Ruota/diretta) tracciata solo in-memory (`markTicketOrigin`/`ticketOriginOf`), persa al refresh/nuova sessione di navigazione — lo storico Phase 21 mostra serate concluse senza attribuire un'origine non salvata
-- Commento obsoleto in `navigation.js:2` (cita ancora "Stasera"); key interna `tonight` resta per compatibilità
 - Colonna legacy `movies.genre` (ex mood) non più letta/scritta: valutare drop in una migration
 - Doppio livello `movie_nights` + mirror legacy su `movies` (`night_confirmed`, `scheduled_*`): tenere finché serve, poi dismettere
 - `AGENTS.md` obsoleto: non allineato a questo documento, da aggiornare insieme
