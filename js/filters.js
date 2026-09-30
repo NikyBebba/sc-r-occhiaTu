@@ -105,7 +105,11 @@ function sortKeyValue(m, key) {
   switch (key) {
     case 'title': return (m.title || '').toLowerCase();
     case 'duration': return parseDurationMinutes(m.duration);
-    case 'rating': return m.rating ? m.rating : null; // 0/assente = non recensito
+    case 'rating': {
+      const scores = ['N', 'V'].map(person => personalRating(m, person)).filter(value => value !== null);
+      if (scores.length) return scores.reduce((sum, value) => sum + value, 0) / scores.length;
+      return m.rating > 0 ? m.rating * 2 : null; // fallback recensione storica 1–5
+    }
     case 'imdb': {
       const n = parseFloat(String(m.imdb_rating || '').replace(',', '.'));
       return Number.isFinite(n) ? n : null;

@@ -2,7 +2,7 @@
 
 Repo: `NikyBebba/sc-r-occhiaTu` · Deploy: `sc-r-occhia-tu.vercel.app` · Stack: HTML/Tailwind (Play CDN)/JS vanilla senza build step, Supabase (Postgres + realtime, fallback localStorage), TMDb (+OMDb opzionale), supabase-js v2 da CDN, Font Awesome CDN
 
-Changelog v2.14: Phase 8.1 implementata — le Movie Card mostrano lo stato di visione N/V e il tasto personale "L'ho già visto"; la vecchia UI like/dislike è rimossa dalle card. Match Live resta Tinder-like a swipe e invariato. La Phase 8.2 (Dashboard/Navigation) è ancora da implementare.
+Changelog v2.14: Phase 8.1 implementata — le Movie Card mostrano lo stato di visione N/V e il tasto personale "L'ho già visto"; la vecchia UI like/dislike è rimossa dalle card. Estensione: annullamento personale, voto 0–10 obbligatorio e recensione facoltativa al clic, tre recensioni distinte N/V/insieme; la migration `supabase-migration-step8.sql` è stata applicata e le cinque nuove colonne sono state verificate via REST (HTTP 200). Match Live resta Tinder-like a swipe e invariato. La Phase 8.2 (Dashboard/Navigation) è ancora da implementare.
 
 Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di sessione, Phase 17 Match Reveal, Phase 18 Final Ticket Generator). Nessun campo/migration nuovo: origine del Ticket tracciata solo in-memory (`markTicketOrigin`/`ticketOriginOf`), scelta esplicita per restare nei vincoli di questo giro — da rivalutare se in futuro servirà uno storico persistito dei ticket (vedi Note aperte). Smoke passato da 245 a 262 test lungo lo step.
 
@@ -23,12 +23,12 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 - Login differenziato N/V via PIN individuale, badge utente, logout
 - CRUD film, import bulk (JustWatch non ha export ufficiale → copia manuale)
-- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v2`), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
+- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v3`, bump per l'estensione Phase 8.1), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
 - **Design system** (Foundation): token CSS (`--color-*`, `--radius-*`, `--shadow-*`, `--duration-*`, `--ease-*`, `--fs-*`), tipografia Plus Jakarta Sans, tema Cinema Classic (nero sala/rosso cinema/oro neon, accenti N blu/V rosa), temi stagionali definiti come token (non ancora applicati), `.glass-panel`/`.glass-card`, accessibilità baseline (contrasti AA, focus-visible, ARIA su modali/segmented, `prefers-reduced-motion` globale)
 - **Header/nav**: prima separazione tra filtri e azioni già applicata; il successivo redesign dovrà superare il segmented control orizzontale sovraccarico e separare definitivamente Library e Match Live
 - **Match CTA**: stati idle/online/live letti solo da `matchChannelStatus`/`lobbyPresenceState`/`dbMode`/`currentTab` (nessuno stato duplicato); si aggiorna a ogni render, non su ogni evento presence in tempo reale se si è fermi su un altro tab (limite noto, accettato)
 - **Home CTA "Cosa guardiamo?"**: tre azioni — Ruota, Match Live, Sfoglia la lista — richiamano le funzioni esistenti, nessuna logica nuova
-- **Movie Card "biglietto cinema"** (`.movie-ticket`): bordo con effetto perforato, scrim sul poster, badge paternità come person-pill, rating "holographic" quando presente; **bugfix incluso**: il footer azioni non viene renderizzato vuoto per status `watched`/ignoto (ora solo per `watchlist`/`tonight`). Phase 8.1: indicatori N/V neutri, blu/rosa per visioni singole o separate, oro per la visione insieme; tasto "L'ho già visto" per chi non ha ancora segnato la visione. Le recensioni continuano a segnare la visione; i voti 👍/👎 legacy non compaiono più sulle card.
+- **Movie Card "biglietto cinema"** (`.movie-ticket`): bordo con effetto perforato, scrim sul poster, badge paternità come person-pill, rating "holographic" quando presente; **bugfix incluso**: il footer azioni non viene renderizzato vuoto per status `watched`/ignoto (ora solo per `watchlist`/`tonight`). Phase 8.1: indicatori N/V neutri, blu/rosa per visioni singole o separate, oro per la visione insieme; tasto "L'ho già visto" per chi non ha ancora segnato la visione, con annullamento personale se premuto per errore. Le recensioni continuano a segnare la visione; i voti 👍/👎 legacy non compaiono più sulle card.
 - **Search & Filters** restyling su token (`.field`), stessa logica invariata (id/handler intatti)
 - **Stats** (modal "Il Nostro Cinema"): Film visti insieme, Voto medio, Genere più amato, **Proposti da N/V** (sostituisce "Match sui gusti", da `movies.added_by`) + timeline recensioni; il vecchio badge card "Match!/Gusti diversi" è stato rimosso nella Phase 8.1
 - **Movie Detail** (Phase 9): modale con overview, cast (`cast_names`), meta, rating; apertura al click sull'area "morta" della card (guardia esplicita esclude bottoni/link interni); **Ambient Poster** (Phase 9.1: sfondo blur+overlay dal poster, fallback gradiente se poster assente); **Poster-adaptive colors** (Phase 9.2: colore dominante estratto via canvas nascosto con `crossOrigin="anonymous"`, verificato CORS ok su TMDb/OMDb, fallback silenzioso a bordo indigo standard se l'estrazione fallisce, mai un errore in console); sorpresa vista dall'altra persona → click sulla card resta inerte, nessuno spoiler
@@ -39,8 +39,8 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Box "Prossimo Film" (countdown se la data è futura, altrimenti stampa la data), annullabile
 - Serate come entità `movie_nights` (proposed → confirmed → completed/cancelled/skipped) con mirror legacy su `movies`
 - Conferma serata solo sulla data specifica, non sull'aggiunta del film; il quick pick "Stasera" crea una serata già confirmed (atto unilaterale, comportamento storico)
-- Tracking visto N / V / insieme (`review_by`): 'both' ⇒ watched + serata completata; se visto da uno solo resta proponibile per rewatch
-- `votes` legacy: mantenuti temporaneamente per compatibilità/migrazione, ma non più rappresentati nella UI delle Movie Card e non usati per il nuovo modello di stato di visione. `movies.watched_by` accumula chi ha visto il film; `review_by` recupera le recensioni precedenti e distingue la visione insieme (`both`). Nessuna migration.
+- Tracking visto N / V / insieme: `watched_by` e le recensioni storiche alimentano gli indicatori; la visione insieme porta il film a `watched` e completa la serata, mentre le visioni singole restano proponibili per rewatch
+- `votes` legacy: mantenuti temporaneamente per compatibilità/migrazione, ma non più rappresentati nella UI delle Movie Card e non usati per il nuovo modello di stato di visione. `movies.watched_by` accumula chi ha visto il film; `review_by`/`review_text`/`rating` restano come fallback storico. L'estensione usa `seen_rating_n/v` (0–10, zero valido) e `review_text_n/v/together` (tre testi indipendenti), tutti nullable. Migration additiva Step 8 applicata in Dashboard; disponibilità delle nuove colonne verificata via REST.
 - Ricerca (titolo, regista, generi), filtri (proposto da, genere, piattaforma), sort per anno, anno/regista in card
 - Generi reali da TMDb in `movies.genres text[]`, nessun residuo di `genres.js`/mood picker
 - **`movies.overview` e `movies.cast_names text[]`** (migration step7, backfill completato: 131/131 film con `tmdb_id`, 129/131 con overview — 2 senza traduzione it-IT su TMDb — 131/131 con cast_names, 1 caso con solo 2 nomi); popolati anche per i nuovi inserimenti (app + import CLI)
@@ -49,7 +49,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Veto settimanale (1/persona/settimana), rimovibile solo dal proprietario, realtime su vetoes
 - Snack picker (salvato in `movie_nights.snack`)
 - Modalità sorpresa (bottone regalo in navbar, modale, `surprise_by`, blur CSS, badge "tua sorpresa")
-- Smoke test: **268/268 PASS** (230 a inizio v2.11 → 245 dopo Step 3 → 262 dopo Step 4 → 268 dopo Phase 8.1)
+- Smoke test locale: **274/274 PASS** (230 a inizio v2.11 → 245 dopo Step 3 → 262 dopo Step 4 → 268 dopo Phase 8.1 → 274 con annullamento, voti 0–10 e recensioni distinte)
 
 ---
 
@@ -87,7 +87,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 31 — Accessibility baseline ✅
 
 ### ✅ PWA (COMPLETA)
-- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v2` dopo bump), toast di aggiornamento ✅
+- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v3` per aggiornare i file della Phase 8.1), toast di aggiornamento ✅
 - Verificato: nessuna richiesta Supabase/TMDb/OMDb/poster/YouTube passa mai dalla cache (nessun `respondWith` su quei domini)
 
 ### STEP 2 — Core Layout (Phase 8.2 ancora da fare)
@@ -98,7 +98,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 6 — Home CTA "Cosa Guardiamo?" ✅
 - Phase 7 — Statistics Widgets ✅ (nuovo 4° widget "Proposti da N/V")
 - Phase 8 — Movie Card / Cinema Ticket ✅ (+ bugfix footer vuoto su watched/ignoto)
-- **Phase 8.1 — Movie Card Viewing Status** ✅: sostituiti 👍/👎 e i badge derivati dal vecchio voto asincrono con due indicatori N/V. N sempre a sinistra, V sempre a destra: neutri se nessuno ha visto; N blu se visto da N; V rosa se visto da V; blu+rosa se visti separatamente; entrambi oro se visto insieme. "L'ho già visto" registra la visione dell'utente attivo senza imporre una recensione. Match Live invariato.
+- **Phase 8.1 — Movie Card Viewing Status** ✅: sostituiti 👍/👎 e i badge derivati dal vecchio voto asincrono con due indicatori N/V. N sempre a sinistra, V sempre a destra: neutri se nessuno ha visto; N blu se visto da N; V rosa se visto da V; blu+rosa se visti separatamente; entrambi oro se visto insieme. "L'ho già visto" richiede un voto personale 0–10 e offre una recensione facoltativa; l'annullamento rimuove i dati personali segnati. Una recensione aggiunta dopo conserva il voto. N, V e insieme hanno tre testi distinti; la recensione insieme non chiede un secondo voto. Match Live invariato. Migration Step 8 applicata e nuove colonne verificate via REST.
 - **Phase 8.2 — Dashboard & Navigation Redesign** 🆕: ridisegnare la gestione della dashboard sulla nuova architettura. Eliminare il lungo menu orizzontale che tratta Match come un normale tab. La Library deve avere una navigazione compatta per Tutti / Da Vedere / In programma / Visti e Recensioni / Calendario; Match Live deve avere un entry point/CTA autonomo e chiaramente prioritario. La dashboard deve organizzare visivamente Home CTA "Cosa Guardiamo?", Match Live, Prossimo Film/statistiche e Library senza modificare la logica interna già funzionante di Ruota, Match Live, serate o tracking visto.
 
 ### ✅ STEP 3 — Movie Detail (COMPLETO)
@@ -183,7 +183,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 - Origine del Ticket (Match Live/Ruota/diretta) tracciata solo in-memory (`markTicketOrigin`/`ticketOriginOf`), persa al refresh/nuova sessione di navigazione — accettato per Phase 18, da rivedere se serve uno storico persistito (Phase 21)
 - Commento obsoleto in `navigation.js:2` (cita ancora "Stasera"); key interna `tonight` resta per compatibilità
-- Colonna `movies.watched_by` mai usata; colonna legacy `movies.genre` (ex mood) non più letta/scritta: valutare drop in una migration
+- Colonna legacy `movies.genre` (ex mood) non più letta/scritta: valutare drop in una migration
 - Doppio livello `movie_nights` + mirror legacy su `movies` (`night_confirmed`, `scheduled_*`): tenere finché serve, poi dismettere
 - `AGENTS.md` obsoleto: non allineato a questo documento, da aggiornare insieme
 - Icone PWA **provvisorie** (generate via script, non un asset di design reale) — da sostituire quando disponibile

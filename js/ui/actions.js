@@ -266,36 +266,55 @@ async function quickTonightUI(id, origin) {
   loadMovies();
 }
 
-// ---- Modale recensione (sostituisce prompt() x3) ----
-function addReview(id) {
+// ---- Visione e recensioni ----
+function openReviewFor(id, by) {
+  const movie = movies.find(m => m.id === id);
+  if (!movie) return;
   document.getElementById('reviewMovieId').value = id;
-  document.getElementById('reviewText').value = '';
-  document.getElementById('reviewBy').value = 'both';
-  document.getElementById('reviewStars').value = '5';
+  document.getElementById('reviewText').value = reviewTextFor(movie, by);
+  document.getElementById('reviewBy').value = by;
+  document.getElementById('reviewModalTitle').textContent = by === 'both' ? 'Recensione insieme' : 'La tua recensione';
   openModal('reviewModal');
+}
+
+function addReview(id) { openReviewFor(id, 'both'); }
+
+function addPersonalReview(id) {
+  const movie = movies.find(m => m.id === id);
+  if (!movie || (currentUser !== 'N' && currentUser !== 'V')) return;
+  if (personalRating(movie, currentUser) === null) {
+    markSeenUI(id);
+    return;
+  }
+  openReviewFor(id, currentUser);
 }
 
 async function confirmReview() {
   const id = document.getElementById('reviewMovieId').value;
   const text = document.getElementById('reviewText').value.trim();
   const by = document.getElementById('reviewBy').value;
-  const stars = parseInt(document.getElementById('reviewStars').value) || 5;
   if (!text) return;
   const movie = movies.find(m => m.id === id);
   if (!movie) return;
-  // Una recensione prova la visione. Salviamo prima l'unione N/V con la
-  // stessa protezione contro le scritture contemporanee del tasto personale.
-  if (by !== 'both' && !(await markMovieSeen(id, by))) return;
-  // Visto insieme -> chiuso, finisce tra i Visti. Visto da uno solo -> torna
-  // in watchlist, resta proponibile per un rewatch insieme (con badge).
-  const newStatus = by === 'both' ? 'watched' : 'watchlist';
-  await updateMovie(id, { review_text: text, review_by: by,
-    ...(by === 'both' ? { watched_by: 'both' } : {}), rating: stars, status: newStatus });
-  // Se l'abbiamo visto insieme, la serata (se c'era una serata attiva) è
-  // avvenuta: la segnamo come completed nello storico.
-  if (by === 'both') await completeNight(id);
+  if (by === 'both') {
+    const patch = { review_text_together: text, review_text: text,
+      review_by: 'both', watched_by: 'both', status: 'watched' };
+    // Prima di sostituire il mirror legacy, preserviamo l'eventuale recensione
+    // personale storica, che altrimenti non sarebbe più riconoscibile.
+    if (!sb && (movie.review_by === 'N' || movie.review_by === 'V')) {
+      const key = movie.review_by.toLowerCase();
+      if (!movie[`review_text_${key}`] && movie.review_text) patch[`review_text_${key}`] = movie.review_text;
+      if (movie[`seen_rating_${key}`] == null && Number.isInteger(movie.rating) && movie.rating >= 1 && movie.rating <= 5) {
+        patch[`seen_rating_${key}`] = movie.rating * 2;
+      }
+    }
+    if (!(await updateMovie(id, patch))) return;
+    await completeNight(id);
+  } else if ((by === 'N' || by === 'V') && by === currentUser && personalRating(movie, by) !== null) {
+    if (!(await updateMovie(id, { [`review_text_${by.toLowerCase()}`]: text }))) return;
+  } else return;
   closeModal('reviewModal');
-  loadMovies();
+  await loadMovies();
 }
 
 // ---- Modalità sorpresa ----
@@ -325,10 +344,46 @@ async function revealSurpriseUI(id) {
   loadMovies();
 }
 
-// ---- Visione personale senza recensione ----
-async function markSeenUI(id) {
-  const saved = await markMovieSeen(id, currentUser);
-  if (saved) await loadMovies();
+function markSeenUI(id) {
+  const movie = movies.find(m => m.id === id);
+  if (!movie || (currentUser !== 'N' && currentUser !== 'V')) return;
+  document.getElementById('seenMovieId').value = id;
+  const score = personalRating(movie, currentUser);
+  document.getElementById('seenRating').value = score === null ? '' : String(score);
+  document.getElementById('seenReview').value = reviewTextFor(movie, currentUser);
+  document.getElementById('seenRatingError').classList.add('hidden');
+  openModal('seenModal');
+}
+
+async function confirmSeen() {
+  const id = document.getElementById('seenMovieId').value;
+  const raw = document.getElementById('seenRating').value;
+  const rating = Number(raw);
+  const error = document.getElementById('seenRatingError');
+  if (raw === '' || !Number.isInteger(rating) || rating < 0 || rating > 10) {
+    error.textContent = 'Scegli un voto da 0 a 10.';
+    error.classList.remove('hidden');
+    return;
+  }
+  const reviewText = document.getElementById('seenReview').value.trim();
+  const saved = await markMovieSeen(id, currentUser, rating, reviewText);
+  if (!saved) {
+    error.textContent = 'Non siamo riusciti a salvare. Riprova.';
+    error.classList.remove('hidden');
+    return;
+  }
+  closeModal('seenModal');
+  await loadMovies();
+}
+
+async function undoSeenUI(id) {
+  const movie = movies.find(m => m.id === id);
+  if (movie && reviewTextFor(movie, currentUser)) {
+    const confirmed = await showConfirmModal('Annullare la visione?', 'Verranno rimossi anche il tuo voto e la tua recensione.');
+    if (!confirmed) return;
+  }
+  const undone = await undoMovieSeen(id, currentUser);
+  if (undone) await loadMovies();
 }
 
 // ---- Veto settimanale ----

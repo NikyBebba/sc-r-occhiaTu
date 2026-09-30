@@ -113,15 +113,35 @@ function viewingStatusHtml(movie) {
     : seen.N && seen.V ? 'Visto separatamente da N e V'
     : seen.N ? 'Visto da N' : seen.V ? 'Visto da V' : 'Non ancora visto';
   const person = key => `<span class="viewing-person viewing-person-${key.toLowerCase()}${seen[key] ? ' is-seen' : ''}${seen.together ? ' is-together' : ''}" aria-label="${key}: ${seen[key] ? (seen.together ? 'visto insieme' : 'visto') : 'non visto'}">${key}</span>`;
-  return `<div class="viewing-status" role="group" aria-label="${label}"><span class="viewing-label" aria-hidden="true">Visto da</span>${person('N')}${person('V')}</div>`;
+  const scores = ['N', 'V'].map(key => {
+    const rating = personalRating(movie, key);
+    return rating === null ? '' : `<span class="viewing-score viewing-score-${key.toLowerCase()}">${key} <i class="fa-solid fa-star" aria-hidden="true"></i> ${rating}/10</span>`;
+  }).filter(Boolean).join('');
+  return `<div class="viewing-status" role="group" aria-label="${label}"><span class="viewing-label" aria-hidden="true">Visto da</span>${person('N')}${person('V')}</div>${scores ? `<div class="viewing-scores" aria-label="Voti personali">${scores}</div>` : ''}`;
+}
+
+function reviewCardsHtml(movie) {
+  return ['N', 'V', 'both'].map(person => {
+    const text = reviewTextFor(movie, person);
+    if (!text) return '';
+    const label = person === 'both' ? 'Insieme' : person;
+    return `<div class="mt-2 p-2.5 bg-slate-900/80 rounded-lg border border-slate-800 text-xs text-slate-300">
+      <span class="text-[11px] font-bold text-indigo-300">Recensione ${label}</span>
+      <p class="italic mt-1">“${escapeHtml(text)}”</p>
+    </div>`;
+  }).join('');
 }
 
 // ---- Il Nostro Cinema — statistiche + timeline recensioni ----
 function renderStats() {
   const watched = movies.filter(m => m.status === 'watched');
   const totalWatched = watched.length;
-  const avgRating = totalWatched
-    ? (watched.reduce((s, m) => s + (m.rating || 0), 0) / totalWatched).toFixed(1)
+  const allRatings = movies.flatMap(m => {
+    const scores = ['N', 'V'].map(person => personalRating(m, person)).filter(value => value !== null);
+    return scores.length ? scores : (m.review_by === 'both' && m.rating > 0 ? [m.rating * 2] : []);
+  });
+  const avgRating = allRatings.length
+    ? (allRatings.reduce((sum, value) => sum + value, 0) / allRatings.length).toFixed(1)
     : '—';
 
   // Genere "più amato": conta le occorrenze dei generi REALI su tutti i film.
@@ -151,7 +171,7 @@ function renderStats() {
 
   const cards = [
     { icon: 'fa-clapperboard', iconClass: 'text-rose-400', label: 'Film visti insieme', value: totalWatched },
-    { icon: 'fa-star', iconClass: 'text-amber-400', label: 'Voto medio', value: avgRating === '—' ? '—' : `⭐ ${avgRating}` },
+    { icon: 'fa-star', iconClass: 'text-amber-400', label: 'Voto medio', value: avgRating === '—' ? '—' : `⭐ ${avgRating}/10` },
     { icon: 'fa-tags', iconClass: 'text-sky-400', label: 'Genere più amato', value: topGenreValue },
     { icon: 'fa-users', iconClass: 'text-indigo-400', label: 'Proposti da', value: proposersValue }
   ];
@@ -165,17 +185,19 @@ function renderStats() {
     </div>
   `).join('');
 
-  const reviewed = watched.filter(m => m.review_text)
-    .sort((a, b) => new Date(b.scheduled_date || b.created_at) - new Date(a.scheduled_date || a.created_at));
+  const reviewed = movies.flatMap(m => ['N', 'V', 'both'].map(person => ({
+    movie: m, person, text: reviewTextFor(m, person)
+  })).filter(entry => entry.text))
+    .sort((a, b) => new Date(b.movie.scheduled_date || b.movie.created_at || 0) - new Date(a.movie.scheduled_date || a.movie.created_at || 0));
   const timeline = document.getElementById('reviewTimeline');
   if (reviewed.length === 0) {
     timeline.innerHTML = `<p class="text-xs text-slate-400 italic">Ancora nessuna recensione.</p>`;
   } else {
-    timeline.innerHTML = reviewed.map(m => `
+    timeline.innerHTML = reviewed.map(({ movie: m, person, text: review }) => `
       <div class="timeline-item">
         <div class="text-sm font-bold text-slate-100">${escapeHtml(m.title)}</div>
-        <div class="text-[10px] text-slate-400">${m.scheduled_date || ''} • ${'⭐'.repeat(m.rating || 0)} • ${m.review_by === 'both' ? 'Insieme' : (CONFIG.PEOPLE[m.review_by]?.label || m.review_by)}</div>
-        <div class="text-xs text-slate-300 italic mt-1">"${escapeHtml(m.review_text)}"</div>
+        <div class="text-[11px] text-slate-400">${person === 'both' ? 'Insieme' : person}${person !== 'both' && personalRating(m, person) !== null ? ` • ★ ${personalRating(m, person)}/10` : ''}</div>
+        <div class="text-xs text-slate-300 italic mt-1">“${escapeHtml(review)}”</div>
       </div>
     `).join('');
   }
@@ -463,20 +485,17 @@ function render() {
               ${m.metacritic_rating ? `<span class="text-emerald-400">MC ${m.metacritic_rating}</span>` : ''}
             </div>
           ` : ''}
-          ${m.review_text ? `
-            <div class="mt-2 p-2.5 bg-slate-900/80 rounded-lg border border-slate-800 text-xs text-slate-300 italic">
-              "${escapeHtml(m.review_text)}"
-              <div class="text-[10px] text-indigo-400 mt-1 not-italic font-semibold">
-                ${'⭐'.repeat(m.rating)} — ${m.review_by === 'both' ? 'Insieme' : (CONFIG.PEOPLE[m.review_by]?.label || m.review_by)}
-              </div>
-            </div>
-          ` : ''}
+          ${reviewCardsHtml(m)}
+          ${!isSurpriseHidden && viewingState(m)[currentUser] ? `<button onclick="addPersonalReview('${m.id}')" class="mt-2 min-h-9 px-2 py-1.5 text-xs text-indigo-300 hover:text-indigo-200 underline">${reviewTextFor(m, currentUser) ? 'Modifica la tua recensione' : 'Scrivi la tua recensione'}</button>` : ''}
         </div>
         ${(m.status === 'watchlist' || m.status === 'tonight') ? `
         <div class="flex flex-col gap-2 pt-2 border-t border-slate-800/80 text-xs">
           ${isSurpriseHidden ? '' : !viewingState(m)[currentUser]
             ? `<button onclick="markSeenUI('${m.id}')" class="w-full min-h-9 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium text-left"><i class="fa-solid fa-eye mr-1.5" aria-hidden="true"></i>L'ho già visto</button>`
-            : `<span class="text-[11px] text-slate-400"><i class="fa-solid fa-check mr-1" aria-hidden="true"></i>Hai già visto questo film</span>`}
+            : `<div class="flex gap-2">
+                <button onclick="markSeenUI('${m.id}')" class="flex-1 min-h-9 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium">${personalRating(m, currentUser) === null ? 'Assegna voto' : 'Modifica voto'}</button>
+                ${canUndoSeen(m, currentUser) ? `<button onclick="undoSeenUI('${m.id}')" class="min-h-9 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium" aria-label="Annulla l'ho già visto">Annulla</button>` : ''}
+              </div>`}
           ${m.status === 'watchlist' ? `
             <div class="flex gap-2">
               <button onclick="quickTonightUI('${m.id}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded font-medium">Stasera</button>
@@ -489,7 +508,7 @@ function render() {
             </div>
           ` : ''}
           ${m.status === 'tonight' ? `
-            <button onclick="addReview('${m.id}')" class="flex-1 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">Visto & Recensione</button>
+            <button onclick="addReview('${m.id}')" class="flex-1 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">Visto insieme & recensione</button>
           ` : ''}
         </div>
         ` : ''}
@@ -593,6 +612,8 @@ function renderMovieDetail(m) {
       <button onclick="closeModal('detailModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition shrink-0" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
     </div>
     ${genreChipsHtml}
+    ${viewingStatusHtml(m)}
+    ${reviewCardsHtml(m)}
     ${ratingsHtml}
     ${overviewHtml}
     ${castHtml}

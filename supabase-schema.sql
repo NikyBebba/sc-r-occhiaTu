@@ -12,10 +12,15 @@ create table movies (
   rt_rating text,
   metacritic_rating text,
   rating integer default 0,
+  seen_rating_n smallint check (seen_rating_n between 0 and 10),
+  seen_rating_v smallint check (seen_rating_v between 0 and 10),
   scheduled_date date,
   scheduled_time time,
   snack text, -- snack abbinato alla serata programmata
   review_text text,
+  review_text_n text,
+  review_text_v text,
+  review_text_together text,
   review_by text check (review_by in ('N', 'V', 'both')), -- chi l'ha visto/recensito: se 'both' il film passa a 'watched', altrimenti resta in watchlist (rewatch insieme)
   watched_by text check (watched_by in ('N', 'V', 'both')), -- chi l'ha VISTO (diverso da chi scrive la recensione): se non 'both', è riproponibile per un rewatch
   genre text, -- mood/tag scelto manualmente: romantico, risata, paura, nostalgia, azione, altro
