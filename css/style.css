@@ -268,6 +268,32 @@ body {
 .viewing-score-n { color: var(--color-persona-n); }
 .viewing-score-v { color: var(--color-persona-v); }
 
+/* Storico: ogni serata conclusa ha il proprio biglietto, anche nei rewatch. */
+.history-ticket {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 122px;
+  padding: 10px;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(130deg, rgba(30, 27, 75, 0.6), rgba(15, 23, 42, 0.92));
+}
+.history-ticket-poster {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: rgba(99, 102, 241, 0.18);
+  color: var(--color-dettaglio);
+  font-size: 24px;
+}
+.history-ticket-poster img { width: 100%; height: 100%; object-fit: cover; }
+.history-ticket-info { min-width: 0; align-self: center; }
+.history-ticket-kicker { color: var(--color-oro); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; }
+.history-ticket-info h5 { color: var(--color-testo-1); font-size: var(--fs-sm); font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; margin: 4px 0; }
+.history-ticket-info p { color: var(--color-testo-3); font-size: 11px; line-height: 1.35; margin-top: 2px; }
+
 /* Timeline recensioni */
 .timeline-item {
   position: relative;

@@ -139,8 +139,61 @@ function reviewCardsHtml(movie) {
   }).join('');
 }
 
+// ---- Il Nostro Cinema — una card per ogni serata completata, anche rewatch.
+// Nessun timbro d'origine: il ticket PNG non viene conservato nel database. ----
+function completedNightEntries() {
+  const timestamp = n => {
+    const value = n.completed_at || (n.date ? `${n.date}T${(n.time || '00:00').slice(0, 5)}:00` : n.created_at);
+    const parsed = value ? new Date(value).getTime() : 0;
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  return movieNights.filter(n => n.status === 'completed')
+    .map(night => ({ night, movie: movies.find(m => m.id === night.movie_id) || null }))
+    .sort((a, b) => timestamp(b.night) - timestamp(a.night));
+}
+
+function completedNightLabel(night) {
+  if (night.date) return 'Serata del ' + formatNightDate(night.date, night.time);
+  if (night.completed_at) {
+    const completed = new Date(night.completed_at);
+    if (Number.isFinite(completed.getTime())) {
+      return 'Conclusa il ' + completed.toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+  }
+  return 'Data non registrata';
+}
+
+function renderNightHistory() {
+  const container = document.getElementById('nightHistory');
+  if (!container) return;
+  const entries = completedNightEntries();
+  const count = document.getElementById('nightHistoryCount');
+  if (count) count.textContent = `${entries.length} ${entries.length === 1 ? 'serata' : 'serate'}`;
+  if (!entries.length) {
+    container.innerHTML = '<p class="text-sm text-slate-400 sm:col-span-2">Le serate concluse compariranno qui. I film visti prima dello storico restano nelle recensioni.</p>';
+    return;
+  }
+  container.innerHTML = entries.map(({ night, movie }) => {
+    const hidden = !!(movie && movie.surprise_by && movie.surprise_by !== currentUser);
+    const title = hidden ? 'Film a sorpresa' : movie?.title || 'Film non disponibile';
+    const poster = movie?.poster && !hidden
+      ? `<img src="${escapeHtml(movie.poster)}" alt="Locandina di ${escapeHtml(title)}" loading="lazy">`
+      : '<i class="fa-solid fa-film" aria-hidden="true"></i>';
+    return `<article class="history-ticket">
+      <div class="history-ticket-poster">${poster}</div>
+      <div class="history-ticket-info">
+        <span class="history-ticket-kicker">SERATA CONCLUSA</span>
+        <h5>${escapeHtml(title)}</h5>
+        <p>${escapeHtml(completedNightLabel(night))}</p>
+        ${night.snack ? `<p>🍿 ${escapeHtml(night.snack)}</p>` : ''}
+      </div>
+    </article>`;
+  }).join('');
+}
+
 // ---- Il Nostro Cinema — statistiche + timeline recensioni ----
 function renderStats() {
+  renderNightHistory();
   const watched = movies.filter(m => m.status === 'watched');
   const totalWatched = watched.length;
   const allRatings = movies.flatMap(m => {
@@ -192,7 +245,8 @@ function renderStats() {
     </div>
   `).join('');
 
-  const reviewed = movies.flatMap(m => ['N', 'V', 'both'].map(person => ({
+  const reviewed = movies.filter(m => !m.surprise_by || m.surprise_by === currentUser)
+    .flatMap(m => ['N', 'V', 'both'].map(person => ({
     movie: m, person, text: reviewTextFor(m, person)
   })).filter(entry => entry.text))
     .sort((a, b) => new Date(b.movie.scheduled_date || b.movie.created_at || 0) - new Date(a.movie.scheduled_date || a.movie.created_at || 0));
@@ -360,6 +414,8 @@ function resetListFiltersUI() {
 // ---- Render principale ----
 function render() {
   renderPillCounters();
+  const statsModal = document.getElementById('statsModal');
+  if (statsModal && !statsModal.classList.contains('hidden')) renderStats();
   // Match Live ha un ingresso dedicato nella dashboard, disponibile online.
   const tabMatch = document.getElementById('tabMatch');
   if (tabMatch) tabMatch.classList.toggle('hidden', dbMode !== 'supabase');

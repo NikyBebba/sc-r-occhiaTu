@@ -1079,6 +1079,39 @@ async function okA(name, fn) {
       && html.indexOf('Azione (5)') === -1        // NON la somma delle occorrenze (5)
       && html.indexOf('undefined') === -1;
   }));
+  ok('Il Nostro Cinema: un biglietto per serata completata, incluso rewatch; annullate escluse', run(() => {
+    const oldMovies = movies, oldNights = movieNights;
+    try {
+      movies = [{ id: 'hist', title: 'Film rivisto', poster: '', status: 'watched' }];
+      movieNights = [
+        { id: 'h1', movie_id: 'hist', status: 'completed', date: '2026-01-10', completed_at: '2026-01-10T23:00:00Z', snack: '🍿 Popcorn' },
+        { id: 'h2', movie_id: 'hist', status: 'completed', date: '2026-03-20', completed_at: '2026-03-20T23:00:00Z', snack: '🍕 Pizza' },
+        { id: 'h3', movie_id: 'hist', status: 'cancelled', date: '2026-04-01', snack: 'No' }
+      ];
+      renderStats();
+      const html = document.getElementById('nightHistory').innerHTML;
+      return (html.match(/Film rivisto/g) || []).length === 2
+        && document.getElementById('nightHistoryCount').textContent === '2 serate'
+        && html.indexOf('20 mar') < html.indexOf('10 gen')
+        && !html.includes('No</p>') && !html.includes('Scelto con la Ruota');
+    } finally { movies = oldMovies; movieNights = oldNights; }
+  }));
+  ok('Il Nostro Cinema: sorpresa e testi utente non rivelano HTML; vuoto esplicito', run(() => {
+    const oldMovies = movies, oldNights = movieNights, oldUser = currentUser;
+    try {
+      currentUser = 'N';
+      movies = [{ id: 'secret', title: '<Titolo>', poster: 'https://ex/poster', surprise_by: 'V', review_text_together: 'spoiler' }];
+      movieNights = [{ id: 's', movie_id: 'secret', status: 'completed', date: null, completed_at: '2026-03-20T20:00:00Z', snack: '<img src=x>' }];
+      renderStats();
+      const hidden = document.getElementById('nightHistory').innerHTML;
+      const surpriseSafe = hidden.includes('Film a sorpresa') && !hidden.includes('&lt;Titolo&gt;')
+        && !hidden.includes('https://ex/poster') && hidden.includes('&lt;img src=x&gt;') && !hidden.includes('<img src=x>');
+      const reviewSafe = !document.getElementById('reviewTimeline').innerHTML.includes('spoiler');
+      movieNights = []; renderNightHistory();
+      return surpriseSafe && reviewSafe && document.getElementById('nightHistoryCount').textContent === '0 serate'
+        && document.getElementById('nightHistory').innerHTML.includes('Le serate concluse compariranno qui');
+    } finally { movies = oldMovies; movieNights = oldNights; currentUser = oldUser; }
+  }));
   ok('card: chip generi reali max 3, dedup, null-safe, escapati', run(() => {
     const full = genreChips({ genres: ['Azione', 'Commedia', 'Dramma', 'Horror'] });
     const dedup = genreChips({ genres: ['Azione', 'Azione'] });
