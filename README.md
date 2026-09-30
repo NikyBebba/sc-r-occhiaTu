@@ -1,0 +1,48 @@
+# sc(r)occhiaTu 🎬
+
+Uno spazio cinema condiviso per N e V: scegliere un film, organizzare la serata e conservare i ricordi delle visioni.
+
+## Cosa funziona oggi
+
+- Watchlist comune con ricerca TMDb, metadati dei film e avviso quando un titolo è già presente.
+- Match Live a swipe, Ruota della fortuna e proposta diretta per scegliere cosa guardare.
+- Serate da proporre e confermare, scelta rapida «Stasera», snack personalizzati e promemoria della prossima serata.
+- Stato «visto» indipendente per N e V, visione insieme, voti personali da 0 a 10 e recensioni facoltative.
+- «Il Nostro Cinema» con statistiche, recensioni e storico delle serate concluse, inclusi i rewatch.
+- Ticket PNG da scaricare dopo la scelta; modalità sorpresa, veto settimanale e PWA installabile.
+
+Le modifiche condivise si sincronizzano tramite Supabase Realtime. In assenza di connessione, l'app segnala la modalità locale e usa `localStorage`.
+
+## Avvio e struttura
+
+L'app usa HTML, JavaScript vanilla, CSS e librerie via CDN. Non richiede un bundler. Per provarla in locale, dalla radice del repository:
+
+```sh
+python3 -m http.server 8000
+```
+
+Aprire `http://localhost:8000` nel browser. La configurazione dei servizi è in `js/config.js`; non riportare chiavi o PIN in documenti, issue o log.
+
+| Percorso | Contenuto |
+| --- | --- |
+| `index.html`, `css/`, `js/` | Interfaccia e logica dell'app |
+| `scripts/` | Import, manutenzione e verifiche |
+| `data/movie-watchlist.json` | Lista iniziale dei titoli |
+| [`docs/MASTER_CONTEXT.md`](docs/MASTER_CONTEXT.md) | Stato corrente, decisioni e roadmap |
+
+## Verifiche
+
+```sh
+node scripts/smoke.js
+node scripts/verify-sw.js
+```
+
+Ultima verifica locale documentata: **289/289** smoke test e **12/12** controlli del service worker. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni.
+
+## File di database
+
+Database locali, dump e backup sono esclusi da Git tramite `.gitignore`. I file `supabase-*.sql` contengono solo lo schema e le migration necessarie a ricostruire la struttura del database; non sono esportazioni dei dati.
+
+## Prossimi passi
+
+La prossima fase prevista è la timeline delle serate per mese, seguita da statistiche retrospettive e dalla definizione di «Why this movie?». Per stato dettagliato, limiti e dipendenze, usare il [context unico](docs/MASTER_CONTEXT.md).
