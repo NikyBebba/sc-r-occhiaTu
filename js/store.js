@@ -540,7 +540,7 @@ async function updateMovieNight(id, patch) {
 async function setQuickTonight(id) {
   await insertMovieNight({
     movie_id: id, date: null, time: null, snack: null,
-    proposed_by: currentUser, status: 'confirmed'
+    proposed_by: currentUser, status: 'confirmed', confirmed_at: new Date().toISOString()
   });
   await updateMovie(id, { status: 'tonight', proposed_by: null, night_confirmed: false });
 }
@@ -649,6 +649,34 @@ function nextMoviePick() {
     return scheduled.sort((a, b) => pickTime(a) - pickTime(b))[0];
   }
   return candidates[candidates.length - 1];
+}
+
+function localDateKey(date = new Date()) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// Tonight Mode si deriva soltanto dalle serate attive di oggi. Per i quick
+// pick senza data conta il momento della conferma, non la data di creazione.
+function tonightPick(now = new Date()) {
+  const today = localDateKey(now);
+  const matches = activeNights().filter(n =>
+    n.date === today || (n.date == null && n.status === 'confirmed' && n.confirmed_at
+      && localDateKey(new Date(n.confirmed_at)) === today));
+  matches.sort((a, b) => {
+    if (a.status !== b.status) return a.status === 'confirmed' ? -1 : 1;
+    return (b.created_at || '').localeCompare(a.created_at || '');
+  });
+  for (const night of matches) {
+    const m = movies.find(movie => movie.id === night.movie_id);
+    if (!m) continue;
+    return {
+      id: m.id, nightId: night.id, title: m.title, poster: m.poster,
+      snack: night.snack, scheduled_date: night.date, scheduled_time: night.time,
+      proposed_by: night.proposed_by, night_confirmed: night.status === 'confirmed'
+    };
+  }
+  return null;
 }
 
 // ============================================

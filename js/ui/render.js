@@ -49,8 +49,12 @@ function renderNextMovieBox() {
   const box = document.getElementById('nextMovieBox');
   if (!box) return;
   const hero = document.getElementById('nextMovieHero');
-  const pick = nextMoviePick();
-  if (hero) hero.classList.toggle('hidden', !pick || currentTab === 'match' || currentTab === 'calendar');
+  const tonight = tonightPick();
+  const pick = tonight || nextMoviePick();
+  if (hero) {
+    hero.classList.toggle('hidden', !pick || currentTab === 'match' || currentTab === 'calendar');
+    hero.classList.toggle('is-tonight', !!tonight);
+  }
   if (!pick) {
     box.innerHTML = '';
     return;
@@ -70,7 +74,8 @@ function renderNextMovieBox() {
       <button onclick="confirmNightUI('${safeId}')" class="next-movie-action next-movie-primary">Conferma la serata</button>
       <button onclick="cancelNightUI('${safeId}', '${safeTitle}')" class="next-movie-action next-movie-secondary">Rifiuta</button>`;
   } else {
-    actionsHtml = `<button onclick="cancelNightUI('${safeId}', '${safeTitle}')" class="next-movie-action next-movie-secondary">Annulla serata</button>`;
+    actionsHtml = `${tonight ? `<button onclick="addReview('${safeId}')" class="next-movie-action next-movie-primary">Recensione insieme</button>` : ''}
+      <button onclick="cancelNightUI('${safeId}', '${safeTitle}')" class="next-movie-action next-movie-secondary">Annulla serata</button>`;
   }
 
   // Step4 phase18 — ticket per la proposta DIRETTA: il bottone appare SOLO se
@@ -88,7 +93,7 @@ function renderNextMovieBox() {
         ${pick.poster ? `<img src="${escapeHtml(pick.poster)}" alt="Locandina di ${escapeHtml(pick.title)}">` : '<i class="fa-solid fa-film" aria-hidden="true"></i>'}
       </div>
       <div class="next-movie-info">
-        <p class="dashboard-eyebrow">${pending ? 'IN ATTESA DI CONFERMA' : 'LA NOSTRA SERATA'}</p>
+        <p class="dashboard-eyebrow">${tonight ? (pending ? 'STASERA · DA CONFERMARE' : 'STASERA · LA NOSTRA SERATA') : (pending ? 'IN ATTESA DI CONFERMA' : 'LA NOSTRA SERATA')}</p>
         <h2>${escapeHtml(pick.title)}</h2>
         <p class="next-movie-date">${countdownHtml}</p>
         ${pick.snack ? `<p class="next-movie-snack">🍿 ${escapeHtml(pick.snack)}</p>` : ''}
@@ -408,7 +413,7 @@ function render() {
     renderVetoInfo();
     renderSyncStatus();
     renderNextMovieBox();
-    if (!countdownTimer) countdownTimer = setInterval(renderNextMovieBox, 30000);
+    if (!countdownTimer) countdownTimer = setInterval(() => { renderNextMovieBox(); renderScheduled(); }, 30000);
     syncGenreFilterOptions();
     syncListFilterSelects();
     drawWheel();
@@ -424,7 +429,7 @@ function render() {
     renderVetoInfo();
     renderSyncStatus();
     renderNextMovieBox();
-    if (!countdownTimer) countdownTimer = setInterval(renderNextMovieBox, 30000);
+    if (!countdownTimer) countdownTimer = setInterval(() => { renderNextMovieBox(); renderScheduled(); }, 30000);
     syncGenreFilterOptions();
     syncListFilterSelects();
     drawWheel();
@@ -549,7 +554,7 @@ function render() {
   renderVetoInfo();
   renderSyncStatus();
   renderNextMovieBox();
-  if (!countdownTimer) countdownTimer = setInterval(renderNextMovieBox, 30000);
+  if (!countdownTimer) countdownTimer = setInterval(() => { renderNextMovieBox(); renderScheduled(); }, 30000);
   syncGenreFilterOptions();
   syncListFilterSelects();
   drawWheel();
@@ -562,7 +567,7 @@ function renderScheduled() {
   // Qui restano le ALTRE serate datate. I film legacy (scheduled_date senza riga
   // movie_nights, usati dal fallback del box) non si escludono. I film già visti
   // (status 'watched') non sono più "programmati": esclusi.
-  const pick = nextMoviePick();
+  const pick = tonightPick() || nextMoviePick();
   const pickId = (pick && activeNights().length > 0) ? pick.id : null;
   const scheduled = movies.filter(m => m.scheduled_date && m.status !== 'watched' && m.id !== pickId);
   if (scheduled.length === 0) {

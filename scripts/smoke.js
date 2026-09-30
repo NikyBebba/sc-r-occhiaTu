@@ -227,7 +227,8 @@ async function okA(name, fn) {
     await setQuickTonight(id);
     const n = movieNights.find(x => x.movie_id === id);
     const m = movies.find(x => x.id === id);
-    return n && n.status === 'confirmed' && n.date === null && m.status === 'tonight' && m.night_confirmed === false;
+    return n && n.status === 'confirmed' && n.date === null && !!n.confirmed_at
+      && m.status === 'tonight' && m.night_confirmed === false;
   }));
 
   await okA('nextMoviePick pick veloce → shape compatibile box', run(() => {
@@ -3721,6 +3722,43 @@ async function okA(name, fn) {
   ok('phase19: senza ora il countdown non inventa 21:30', run(() => {
     const label = nextMovieTimeLabel({ scheduled_date: '2026-11-10', scheduled_time: null }, Date.UTC(2026, 9, 1));
     return label.includes('10 nov') && !label.includes('21:30') && !label.includes('⏳');
+  }));
+  ok('phase20: Tonight Mode solo per data odierna o quick pick confermato oggi', run(() => {
+    const prev = { m: movies, n: movieNights };
+    const now = new Date(2026, 9, 1, 23, 30);
+    const today = localDateKey(now);
+    const yesterday = new Date(2026, 8, 30, 23, 30).toISOString();
+    try {
+      movies = [{ id: 'today', title: 'Oggi' }, { id: 'quick', title: 'Quick' }, { id: 'old', title: 'Old' }];
+      movieNights = [
+        { id: 'old-n', movie_id: 'old', date: null, status: 'confirmed', created_at: now.toISOString(), confirmed_at: yesterday },
+        { id: 'today-n', movie_id: 'today', date: today, status: 'proposed', created_at: now.toISOString() }
+      ];
+      const dated = tonightPick(now)?.id === 'today';
+      movieNights.push({ id: 'quick-n', movie_id: 'quick', date: null, status: 'confirmed', confirmed_at: now.toISOString() });
+      const quick = tonightPick(now)?.id === 'quick';
+      movieNights = [movieNights[0]];
+      const oldQuickExcluded = tonightPick(now) === null;
+      movieNights[0].status = 'cancelled';
+      return dated && quick && oldQuickExcluded && tonightPick(now) === null;
+    } finally { movies = prev.m; movieNights = prev.n; }
+  }));
+  ok('phase20: hero stasera prevale sul prossimo pick e mostra recensione insieme', run(() => {
+    const prev = { m: movies, n: movieNights, tab: currentTab };
+    try {
+      const today = localDateKey();
+      currentTab = 'watchlist';
+      movies = [{ id: 'future', title: 'Futuro', status: 'tonight' }, { id: 'today', title: 'Oggi', status: 'tonight' }];
+      movieNights = [
+        { id: 'f', movie_id: 'future', date: '2020-01-01', time: '20:00', status: 'confirmed' },
+        { id: 't', movie_id: 'today', date: today, time: '20:00', status: 'confirmed' }
+      ];
+      renderNextMovieBox();
+      const hero = document.getElementById('nextMovieHero');
+      const html = document.getElementById('nextMovieBox').innerHTML;
+      return hero.classList.contains('is-tonight') && html.includes('Oggi')
+        && !html.includes('Futuro') && html.includes("addReview('today')");
+    } finally { movies = prev.m; movieNights = prev.n; currentTab = prev.tab; }
   }));
   ok('phase18: matchMatchHtml/matchRevealHtml hanno il bottone Ticket con full percentuale dalla sessione', run(() => {
     const prev = { pSwipes: swipes, pMovies: movies };

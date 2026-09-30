@@ -732,6 +732,14 @@ textarea:focus-visible {
   box-shadow: 0 18px 48px -28px rgba(56, 189, 248, 0.5);
 }
 #nextMovieHero.hidden { display: none; }
+#nextMovieHero.is-tonight {
+  border-color: rgba(251, 191, 36, 0.68);
+  background: radial-gradient(circle at 85% 20%, rgba(251, 191, 36, 0.2), transparent 45%),
+              linear-gradient(120deg, rgba(69, 26, 3, 0.9), rgba(15, 23, 42, 0.96));
+  box-shadow: 0 18px 48px -28px rgba(251, 191, 36, 0.6);
+}
+#nextMovieHero.is-tonight .dashboard-eyebrow { color: var(--color-oro); }
+#nextMovieHero.is-tonight .next-movie-date { color: #fde68a; }
 .next-movie-content { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 16px; padding: 18px; }
 .next-movie-content.is-pending { border-left: 3px solid var(--color-oro); }
 .next-movie-poster {
