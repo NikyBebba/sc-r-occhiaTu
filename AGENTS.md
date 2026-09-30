@@ -165,8 +165,9 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 /
 ├── index.html
 ├── AGENTS.md
-├── supabase-schema.sql
-├── supabase-migration-step2.sql
+├── database/
+│   ├── supabase-schema.sql
+│   └── supabase-migration-step*.sql
 ├── data/
 │   └── movie-watchlist.json
 ├── scripts/

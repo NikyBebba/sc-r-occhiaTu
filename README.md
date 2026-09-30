@@ -28,6 +28,7 @@ Aprire `http://localhost:8000` nel browser. La configurazione dei servizi è in 
 | `index.html`, `css/`, `js/` | Interfaccia e logica dell'app |
 | `scripts/` | Import, manutenzione e verifiche |
 | `data/movie-watchlist.json` | Lista iniziale dei titoli |
+| `database/` | Schema e migration Supabase versionati |
 | [`docs/MASTER_CONTEXT.md`](docs/MASTER_CONTEXT.md) | Stato corrente, decisioni e roadmap |
 
 ## Verifiche
@@ -41,7 +42,7 @@ Ultima verifica locale documentata: **289/289** smoke test e **12/12** controlli
 
 ## File di database
 
-Database locali, dump e backup sono esclusi da Git tramite `.gitignore`. I file `supabase-*.sql` contengono solo lo schema e le migration necessarie a ricostruire la struttura del database; non sono esportazioni dei dati.
+Database locali, dump e backup sono esclusi da Git tramite `.gitignore`. I file in [`database/`](database/) contengono solo lo schema e le migration necessarie a ricostruire la struttura del database; non sono esportazioni dei dati. Li teniamo versionati perché permettono di riprodurre e verificare le modifiche allo schema.
 
 ## Prossimi passi
 
