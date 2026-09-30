@@ -44,7 +44,7 @@ Per aggiornare selettivamente i metadati di film già presenti, `scripts/refresh
 
 ## File di database
 
-Database locali, dump e backup sono esclusi da Git tramite `.gitignore`. I file in [`database/`](database/) contengono solo lo schema e le migration necessarie a ricostruire la struttura del database; non sono esportazioni dei dati. Li teniamo versionati perché permettono di riprodurre e verificare le modifiche allo schema. La [migration Step 9](database/supabase-migration-step9.sql) aggiunge il vincolo unico sull'ID TMDb; va applicata in Supabase prima di considerare garantito il blocco degli inserimenti simultanei.
+Database locali, dump e backup sono esclusi da Git tramite `.gitignore`. I file in [`database/`](database/) contengono solo lo schema e le migration necessarie a ricostruire la struttura del database; non sono esportazioni dei dati. Li teniamo versionati perché permettono di riprodurre e verificare le modifiche allo schema. La [migration Step 9](database/supabase-migration-step9.sql), applicata in Supabase, aggiunge il vincolo unico sull'ID TMDb anche per inserimenti simultanei.
 
 ## Prossimi passi
 
