@@ -353,18 +353,36 @@ function resetListFiltersUI() {
 // ---- Render principale ----
 function render() {
   renderPillCounters();
-  // La pill "Match" è visibile SOLO in modalità Supabase (nessun counter).
+  // Match Live ha un ingresso dedicato nella dashboard, disponibile online.
   const tabMatch = document.getElementById('tabMatch');
   if (tabMatch) tabMatch.classList.toggle('hidden', dbMode !== 'supabase');
   // Home CTA "Cosa Guardiamo?": visibile nelle viste di lista, nascosta in
-  // Calendario e Match (dove la scelta ha già la sua UI dedicata).
+  // Calendario e Match, che occupano una vista dedicata.
   const sceltaCta = document.getElementById('sceltaCta');
   if (sceltaCta) sceltaCta.classList.toggle('hidden', currentTab === 'match' || currentTab === 'calendar');
-  // Bottone "Match Live" della CTA: stessa regola della pill (solo Supabase).
-  const ctaMatch = document.getElementById('ctaMatch');
-  if (ctaMatch) ctaMatch.classList.toggle('hidden', dbMode !== 'supabase');
-  // Stato live della pill (idle/online/live): leggere matchChannelStatus e
-  // lobbyPresenceState, mai introdurre un secondo stato.
+  const inMatch = currentTab === 'match';
+  const sidebar = document.getElementById('dashboardSidebar');
+  if (sidebar) sidebar.classList.toggle('!hidden', inMatch);
+  const library = document.getElementById('librarySection');
+  if (library) {
+    library.classList.toggle('md:col-span-3', inMatch);
+    library.classList.toggle('md:col-span-2', !inMatch);
+  }
+  const matchHeader = document.getElementById('matchViewHeader');
+  if (matchHeader) {
+    matchHeader.classList.toggle('hidden', !inMatch);
+    matchHeader.classList.toggle('flex', inMatch);
+  }
+  const libraryHeader = document.getElementById('libraryHeader');
+  if (libraryHeader) libraryHeader.classList.toggle('!hidden', inMatch);
+  const librarySelect = document.getElementById('libraryViewSelect');
+  if (librarySelect) librarySelect.classList.toggle('!hidden', inMatch);
+  const segControl = document.getElementById('segControl');
+  if (segControl) segControl.classList.toggle('!hidden', inMatch);
+  const libraryCount = document.getElementById('libraryCount');
+  if (libraryCount) libraryCount.textContent = `${movies.length} film`;
+  const libraryTools = document.getElementById('libraryTools');
+  if (libraryTools) libraryTools.classList.toggle('!hidden', inMatch || currentTab === 'calendar');
   renderMatchCta();
   // Pillola animata: riposiziona l'indicatore sotto il tab attivo ad ogni
   // render (copre anche il primo render post-login e i resync Realtime).
@@ -380,9 +398,8 @@ function render() {
   const listFilterBlock = document.getElementById('listFiltersBlock');
   if (listFilterBlock) listFilterBlock.classList.toggle('!hidden', currentTab === 'match');
 
-  // Vista Match: si comporta come il Calendario — il pannello filtri/ricerca
-  // della LISTA è ignorato (il Match ha il suo stato), le pill continuano a
-  // mostrare i contatori. La vista occupa #movieGrid con early-return.
+  // Vista Match: il pannello filtri/ricerca della LISTA è ignorato (il Match
+  // ha il suo stato). La vista occupa #movieGrid con early-return.
   if (currentTab === 'match') {
     renderMatch();
     renderScheduled();

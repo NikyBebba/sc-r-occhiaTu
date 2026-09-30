@@ -1886,15 +1886,43 @@ async function okA(name, fn) {
     currentTab = prevTab; dbMode = prevMode;
     return visibleOnList && hiddenOnCalendar && visibleAgain;
   }));
-  ok('HOME CTA: bottone Match Live nascosto offline (local), visibile con Supabase', run(() => {
+  ok('dashboard: CTA Match Live unica e separata dalle viste, nascosta offline', run(() => {
     const prevTab = currentTab, prevMode = dbMode;
     dbMode = 'local'; currentTab = 'watchlist'; render();
-    const ctaMatch = document.getElementById('ctaMatch');
+    const ctaMatch = document.getElementById('tabMatch');
     const hiddenLocal = ctaMatch.classList.contains('hidden');
     dbMode = 'supabase'; render();
     const visibleSup = !ctaMatch.classList.contains('hidden');
     currentTab = prevTab; dbMode = prevMode;
     return hiddenLocal && visibleSup;
+  }));
+  const dashboardHtml = read('index.html');
+  ok('dashboard: Match fuori dal menu e selettore mobile presente',
+    dashboardHtml.indexOf('id="tabMatch"') < dashboardHtml.indexOf('id="segControl"')
+      && !dashboardHtml.includes('id="ctaMatch"') && dashboardHtml.includes('id="libraryViewSelect"'));
+  ok('dashboard: Match occupa la vista, nasconde sidebar e menu libreria', run(() => {
+    const prevTab = currentTab;
+    currentTab = 'match'; render();
+    const hiddenSidebar = document.getElementById('dashboardSidebar').classList.contains('!hidden');
+    const hiddenLibraryMenu = document.getElementById('libraryTools').classList.contains('!hidden')
+      && document.getElementById('segControl').classList.contains('!hidden')
+      && document.getElementById('libraryViewSelect').classList.contains('!hidden');
+    const visibleReturn = !document.getElementById('matchViewHeader').classList.contains('hidden');
+    currentTab = 'watchlist'; render();
+    const restored = !document.getElementById('dashboardSidebar').classList.contains('!hidden')
+      && document.getElementById('matchViewHeader').classList.contains('hidden');
+    currentTab = prevTab;
+    return hiddenSidebar && hiddenLibraryMenu && visibleReturn && restored;
+  }));
+  ok('dashboard: selettore mobile segue la vista attiva della libreria', run(() => {
+    const prevTab = currentTab, prevMode = dbMode;
+    dbMode = 'local'; setTab('calendar');
+    const select = document.getElementById('libraryViewSelect');
+    const calendar = select.value === 'calendar';
+    setTab('watchlist');
+    const watchlist = select.value === 'watchlist';
+    currentTab = prevTab; dbMode = prevMode;
+    return calendar && watchlist;
   }));
 
   console.log('\n[render — pulsante "Togli veto"]');

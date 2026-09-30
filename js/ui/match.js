@@ -49,7 +49,7 @@ function clearMatchState() {
   matchRevealedKey = null;
 }
 
-// ---- Pill "Match" nello segmented control: segnale stato live (N↔V) ----
+// ---- CTA Match Live nella dashboard: segnale stato live (N↔V) ----
 // La CTA NON crea un secondo stato: legge SOLO le fonti già esistenti
 // (matchChannelStatus + lobbyPresenceState tramite matchPresentUsers) e cambia
 // solo classi di aspetto. La visibilità resta a render() (classList 'hidden'),

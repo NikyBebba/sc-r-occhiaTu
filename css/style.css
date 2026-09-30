@@ -485,15 +485,15 @@ textarea:focus-visible {
   }
 }
 
-/* ---- STEP 2 · Phase 3 — Pill "Match" con stato live.
+/* ---- Match Live: stato della CTA dedicata.
    La CTA NON crea dato: legge solo matchChannelStatus + lobbyPresenceState (via
    renderMatchCta in js/ui/match.js) e cambia solo aspetto. Selettori id-based
    per vincere su Tailwind (stile generato dopo css/style.css nel DOM). Lo stato
    'match-cta-live' respira col keyframe match-glow; prefers-reduced-motion lo
    azzera già (blocco baseline sopra). ---- */
-#tabMatch.match-cta-idle { color: #94a3b8; }
+#tabMatch.match-cta-idle { color: #fff; }
 #tabMatch.match-cta-idle:hover { color: #fff; }
-#tabMatch.match-cta-online { color: #818cf8; box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.35); }
+#tabMatch.match-cta-online { color: #fff; box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.35); }
 #tabMatch.match-cta-live {
   color: #fff;
   animation: match-glow 2.2s var(--ease-out) infinite;
@@ -507,17 +507,11 @@ textarea:focus-visible {
    L'indicatore vive dentro #segControl (relative), trasla left/width via
    updateTabIndicator() (js/ui/navigation.js) con transition CSS; i pulsanti
    attivi perdono il bg (resta solo testo bianco, z-10 sopra la pillola).
-   Variante 'seg-active-match' = gradiente cielo→indigo (tema Match), respiro
-   col keyframe match-glow (già azzerato da prefers-reduced-motion). ---- */
+   Match Live usa una CTA separata dalla navigazione della libreria. ---- */
 #tabIndicator {
   background: linear-gradient(135deg, var(--color-accento), var(--color-accento-alto));
   box-shadow: 0 4px 14px -4px rgba(79, 70, 229, 0.55);
   transition: left var(--duration-medio) var(--ease-out), width var(--duration-medio) var(--ease-out);
-}
-#tabIndicator.seg-active-match {
-  background: var(--gradiente-logo);
-  box-shadow: 0 0 18px rgba(56, 189, 248, 0.4);
-  animation: match-glow 2.2s var(--ease-out) infinite;
 }
 
 /* ---- STEP 2 · Phase 5 — Form controls (ricerca + filtri + sort).
@@ -672,51 +666,58 @@ textarea:focus-visible {
   100% { background-position: 200% 50%; }
 }
 
-/* ---- STEP 2 · Phase 6 — Home CTA "Cosa Guardiamo?".
-   Strip di scelta rapida in cima alla colonna destra: tre ingressi verso le
-   sorgenti già esistenti (Ruota, Match Live, lista), zero nuovi stati.
-   Visibilità per tab gestita in render() al pari della pill Match. ---- */
-#sceltaCta .cta-btn {
-  flex: 1;
+/* ---- Phase 8.2 — dashboard e scelta in primo piano. ---- */
+.dashboard-choice {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  background: linear-gradient(125deg, rgba(49, 46, 129, 0.34), rgba(15, 23, 42, 0.86) 65%);
+}
+#sceltaCta.hidden { display: none; }
+.dashboard-eyebrow {
+  color: var(--color-cielo);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  margin-bottom: 4px;
+}
+.dashboard-choice-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.dashboard-match-btn,
+.dashboard-choice-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 10px 8px;
-  border-radius: var(--radius-lg);
-  font-size: 12px;
-  font-weight: 600;
-  transition: background-color var(--duration-fast) var(--ease-default),
-              border-color var(--duration-fast) var(--ease-default),
-              color var(--duration-fast) var(--ease-default);
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: var(--radius-xl);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  transition: background-color var(--duration-fast), border-color var(--duration-fast), transform var(--duration-fast);
 }
-#sceltaCta .cta-ruota {
-  background: rgba(99, 102, 241, 0.18);
-  border: 1px solid rgba(99, 102, 241, 0.35);
-  color: var(--color-cielo);
-}
-#sceltaCta .cta-ruota:hover {
-  background: rgba(99, 102, 241, 0.3);
-  border-color: rgba(99, 102, 241, 0.6);
+.dashboard-match-btn {
+  grid-column: 1 / -1;
+  justify-content: space-between;
+  min-height: 62px;
   color: #fff;
+  background: linear-gradient(110deg, #4338ca, #075985);
+  border: 1px solid rgba(125, 211, 252, 0.38);
+  box-shadow: 0 12px 26px -14px rgba(56, 189, 248, 0.7);
 }
-#sceltaCta .cta-match {
-  background: rgba(236, 72, 153, 0.14);
-  border: 1px solid rgba(236, 72, 153, 0.3);
-  color: #f9a8d4;
-}
-#sceltaCta .cta-match:hover {
-  background: rgba(236, 72, 153, 0.26);
-  border-color: rgba(236, 72, 153, 0.55);
-  color: #fff;
-}
-#sceltaCta .cta-lista {
-  background: rgba(148, 163, 184, 0.12);
-  border: 1px solid rgba(148, 163, 184, 0.25);
+.dashboard-match-btn span { display: flex; flex-direction: column; align-items: flex-start; }
+.dashboard-match-btn small { font-size: 11px; font-weight: 500; color: #cbd5e1; }
+.dashboard-choice-btn {
   color: var(--color-testo-2);
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid var(--color-bordo-forte);
 }
-#sceltaCta .cta-lista:hover {
-  background: rgba(148, 163, 184, 0.22);
-  border-color: rgba(148, 163, 184, 0.5);
-  color: #fff;
+.dashboard-choice-btn:hover { background: rgba(51, 65, 85, 0.9); color: #fff; }
+.dashboard-match-btn:hover { transform: translateY(-2px); }
+#tabMatch.hidden { display: none; }
+#tabMatch.match-cta-online { border-color: rgba(129, 140, 248, 0.8); }
+#tabMatch.match-cta-live { border-color: var(--color-oro); }
+@media (min-width: 768px) {
+  .dashboard-choice { grid-template-columns: minmax(0, 1fr) minmax(360px, 1.25fr); align-items: center; padding: 24px; }
+  .dashboard-choice-actions { grid-template-columns: 1.3fr 1fr 1fr; }
+  .dashboard-match-btn { grid-column: auto; }
 }
