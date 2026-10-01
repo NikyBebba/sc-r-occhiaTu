@@ -10,6 +10,13 @@ function omdbConfigured() {
 
 const emptyRatings = { imdbRating: '', rtRating: '', metacriticRating: '' };
 
+// Il campo Awards di OMDb contiene anche nomination e totali anonimi.
+// Mostriamo solo una vittoria agli Oscar dichiarata esplicitamente.
+function parseOscarWins(awards) {
+  const match = String(awards || '').match(/\bWon\s+([1-9]\d*)\s+Oscars?\b/i);
+  return match ? Number(match[1]) : null;
+}
+
 // Estrae i tre rating da una risposta OMDb grezza.
 function extractRatings(omdbData) {
   const out = { ...emptyRatings };

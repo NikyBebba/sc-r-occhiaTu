@@ -1,4 +1,4 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.16
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.17
 
 Ultimo aggiornamento: 1 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
 
@@ -18,6 +18,8 @@ Correzione libreria: filtro sempre visibile «Tutti i film, anche al cinema» / 
 
 Phase 23 implementata nel codice locale: «Il Nostro Cinema» mostra serate concluse, film distinti visti, serate di rewatch e film votati da entrambi. I primi tre conteggi derivano da `movie_nights` completate; l'ultimo dai voti personali sui film, zero incluso. Nessuna nuova percentuale di compatibilità o migration. Cache PWA `v14`; smoke locale **302/302 PASS**. [Definizioni e limiti](PHASE23_MOVIE_CHEMISTRY.md).
 
+Decisione Phase 24: la sezione «Why this movie?» e il flag cult manuale sono scartati. Nel dettaglio del film compare solo un'indicazione discreta degli **Oscar vinti** se OMDb li dichiara esplicitamente in `Awards` (`Won N Oscars`); candidature e totali anonimi non diventano badge. L'IMDb ID viene risolto dal TMDb ID all'apertura della scheda, con cache in memoria e nuovo tentativo dopo errori di rete; nessuna migration. Altri premi e fonti esterne potranno essere valutati in una fase futura. Cache PWA `v15`; smoke locale **306/306 PASS**. Il percorso live completo TMDb→OMDb è stato tentato, ma OMDb è andato in timeout; letture dirette precedenti del campo `Awards` hanno confermato il formato di vittorie e nomination.
+
 ## Quadro rapido — dove siamo
 
 | Area | Stato verificato nel codice | Limite attuale |
@@ -27,7 +29,7 @@ Phase 23 implementata nel codice locale: «Il Nostro Cinema» mostra serate conc
 | Film e recensioni | Indicatori N/V/insieme, voto personale 0–10, tre testi distinti, annullamento visione; aggiunta con avviso duplicati | `votes` e campi legacy restano per compatibilità |
 | Il Nostro Cinema | Serate concluse per mese, una card per evento anche nei rewatch; statistiche e recensioni separate | Nessun archivio dei PNG generati |
 
-Verifiche locali dell'ultima revisione funzionale: `node scripts/smoke.js` **302/302 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Migration Step 8 applicata e cinque nuove colonne `movies` verificate via REST; migration Step 9 applicata in Dashboard dall'utente. Step 10 applicata dall'utente e colonna cinema verificata via REST in sola lettura. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
+Verifiche locali dell'ultima revisione funzionale: `node scripts/smoke.js` **306/306 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Migration Step 8 applicata e cinque nuove colonne `movies` verificate via REST; migration Step 9 applicata in Dashboard dall'utente. Step 10 applicata dall'utente e colonna cinema verificata via REST in sola lettura. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
 
 Regola repository: database locali, dump e backup sono esclusi da Git. I file SQL in `database/` descrivono schema e migration, senza esportazioni dei dati.
 
@@ -36,7 +38,7 @@ Regola repository: database locali, dump e backup sono esclusi da Git. I file SQ
 1. **Phase 8.3 — Film al cinema e prossimamente**: [specifica e stato](PHASE8_3_CINEMA_WATCHLIST.md). Implementata localmente; migration Step 10 applicata, verificare su due telefoni dopo il deploy.
 2. **Phase 22 — Timeline per mese**: [specifica e stato](PHASE22_TIMELINE.md). Implementata localmente; verificare il modale su smartphone dopo il deploy.
 3. **Phase 23 — I nostri numeri**: [definizioni e stato](PHASE23_MOVIE_CHEMISTRY.md). Implementata localmente; verificare la nuova sezione su due telefoni dopo il deploy.
-4. **Phase 24 — Why this movie?**: ridefinire con N e V le motivazioni utili senza riattivare il vecchio sistema asincrono `votes`.
+4. **Scheda film — Oscar vinti**: implementata localmente con lettura OMDb su richiesta. Verificare su due telefoni dopo il deploy; nessuna sezione «Why this movie?».
 5. **Fasi successive**: Hot Picks richiede dati TMDb aggiuntivi e una migration autorizzata; Dynamic Island, login, temi, microinterazioni e altre fasi restano pianificate sotto.
 
 Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di sessione, Phase 17 Match Reveal, Phase 18 Final Ticket Generator). Nessun campo/migration nuovo: origine del Ticket tracciata solo in-memory (`markTicketOrigin`/`ticketOriginOf`), scelta esplicita per restare nei vincoli di questo giro — da rivalutare se in futuro servirà uno storico persistito dei ticket (vedi Note aperte). Smoke passato da 245 a 262 test lungo lo step.
@@ -58,7 +60,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 - Login differenziato N/V via PIN individuale, badge utente, logout
 - CRUD film, import bulk (JustWatch non ha export ufficiale → copia manuale); l'aggiunta singola cerca anche titoli omonimi e blocca con avviso soltanto l'ID TMDb già presente, l'import dalla UI salta gli ID duplicati nel riepilogo
-- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v14`, bump per la Phase 23), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
+- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v15`, bump per gli Oscar nella scheda), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
 - **Design system** (Foundation): token CSS (`--color-*`, `--radius-*`, `--shadow-*`, `--duration-*`, `--ease-*`, `--fs-*`), tipografia Plus Jakarta Sans, tema Cinema Classic (nero sala/rosso cinema/oro neon, accenti N blu/V rosa), temi stagionali definiti come token (non ancora applicati), `.glass-panel`/`.glass-card`, accessibilità baseline (contrasti AA, focus-visible, ARIA su modali/segmented, `prefers-reduced-motion` globale)
 - **Header/nav**: la dashboard ospita una CTA Match Live autonoma; la libreria ha cinque viste in un selettore nativo su mobile e nel segmented control su desktop. Match occupa la larghezza disponibile con ritorno alla vista precedente.
 - **Match CTA**: stati idle/online/live letti solo da `matchChannelStatus`/`lobbyPresenceState`/`dbMode`/`currentTab` (nessuno stato duplicato); si aggiorna a ogni render, non su ogni evento presence in tempo reale se si è fermi su un altro tab (limite noto, accettato)
@@ -66,7 +68,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - **Movie Card "biglietto cinema"** (`.movie-ticket`): bordo con effetto perforato, scrim sul poster, badge paternità come person-pill, rating "holographic" quando presente; **bugfix incluso**: il footer azioni non viene renderizzato vuoto per status `watched`/ignoto (ora solo per `watchlist`/`tonight`). Phase 8.1: indicatori N/V neutri, blu/rosa per visioni singole o separate, oro per la visione insieme; tasto "L'ho già visto" per chi non ha ancora segnato la visione, con annullamento personale se premuto per errore. Le recensioni continuano a segnare la visione; i voti 👍/👎 legacy non compaiono più sulle card.
 - **Search & Filters** restyling su token (`.field`), stessa logica invariata (id/handler intatti)
 - **Il Nostro Cinema**: storico visuale delle serate concluse da `movie_nights` raggruppato per mese (una card per evento, rewatch distinti, nessun falso timbro d'origine), più «I nostri numeri» (serate concluse, film distinti, rewatch, film votati da entrambi), statistiche Film visti insieme, Voto medio, Genere più amato, **Proposti da N/V** e recensioni separate senza data; il vecchio badge card "Match!/Gusti diversi" è stato rimosso nella Phase 8.1
-- **Movie Detail** (Phase 9): modale con overview, cast (`cast_names`), meta, rating; apertura al click sull'area "morta" della card (guardia esplicita esclude bottoni/link interni); **Ambient Poster** (Phase 9.1: sfondo blur+overlay dal poster, fallback gradiente se poster assente); **Poster-adaptive colors** (Phase 9.2: colore dominante estratto via canvas nascosto con `crossOrigin="anonymous"`, verificato CORS ok su TMDb/OMDb, fallback silenzioso a bordo indigo standard se l'estrazione fallisce, mai un errore in console); sorpresa vista dall'altra persona → click sulla card resta inerte, nessuno spoiler
+- **Movie Detail** (Phase 9): modale con overview, cast (`cast_names`), meta, rating e Oscar vinti verificati da OMDb su richiesta; apertura al click sull'area "morta" della card (guardia esplicita esclude bottoni/link interni); **Ambient Poster** (Phase 9.1: sfondo blur+overlay dal poster, fallback gradiente se poster assente); **Poster-adaptive colors** (Phase 9.2: colore dominante estratto via canvas nascosto con `crossOrigin="anonymous"`, verificato CORS ok su TMDb/OMDb, fallback silenzioso a bordo indigo standard se l'estrazione fallisce, mai un errore in console); sorpresa vista dall'altra persona → click sulla card resta inerte, nessuno spoiler
 - **Ruota → programmabile** (Phase 15): il vincitore mostra i bottoni "Stasera"/"Programma" (riuso di `quickTonightUI`/`scheduleMovie`, nessun aggancio automatico) e l'accesso alla scheda film con trama/trailer; per una sorpresa ancora nascosta invita prima alla rivelazione dalla lista. `lockWheelWinner` risolto/rimosso in questo giro (dead code non più presente)
 - **Match % di sessione** (Phase 16): `sessionAgreement(swipes, moviesList)` in `match.js` — agreement% = film con giudizio identico (doppio-like O doppio-dislike) / film risolti da entrambi; soglia 3 risposte per un dato "attendibile" (sotto soglia mostrato comunque con nota), placeholder "…%" se denominatore 0, nessuna % su sessione `closed`; calcolo client-side, nessuna migration, nessuna modifica a `votes`
 - **Match Reveal** (Phase 17): celebrazione full-screen con tear CSS-only e coriandoli (`fireConfetti()`, già esistente), si riapre per sessione nuova sullo stesso film o per un secondo match nella stessa sessione, non si riapre su semplice re-render/resync; reset esplicito allo "Esci"
@@ -84,7 +86,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Veto settimanale (1/persona/settimana), rimovibile solo dal proprietario, realtime su vetoes
 - Snack picker con opzione personalizzata (salvata in `movie_nights.snack`; gli snack già usati tornano fra le scelte su entrambi i telefoni, senza nuova tabella)
 - Modalità sorpresa (bottone regalo in navbar, modale, `surprise_by`, blur CSS, badge "tua sorpresa")
-- Smoke test locale: **302/302 PASS** (230 a inizio v2.11 → 245 dopo Step 3 → 262 dopo Step 4 → 268 dopo Phase 8.1 → 274 con annullamento, voti 0–10 e recensioni distinte → 277 con Phase 8.2 → 280 con Phase 19 → 282 con snack personalizzati → 284 con Tonight Mode → 286 con lo storico delle serate → 289 con l'avviso duplicati → 291 con controllo per ID TMDb → 292 con scheda dal risultato Ruota → 296 con Phase 8.3 → 298 con Phase 22 → 300 con filtro disponibilità e gestione dell'errore di salvataggio → 302 con Phase 23)
+- Smoke test locale: **306/306 PASS** (230 a inizio v2.11 → 245 dopo Step 3 → 262 dopo Step 4 → 268 dopo Phase 8.1 → 274 con annullamento, voti 0–10 e recensioni distinte → 277 con Phase 8.2 → 280 con Phase 19 → 282 con snack personalizzati → 284 con Tonight Mode → 286 con lo storico delle serate → 289 con l'avviso duplicati → 291 con controllo per ID TMDb → 292 con scheda dal risultato Ruota → 296 con Phase 8.3 → 298 con Phase 22 → 300 con filtro disponibilità e gestione dell'errore di salvataggio → 302 con Phase 23 → 306 con Oscar nel dettaglio)
 
 ---
 
@@ -101,7 +103,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 1. **Match % solo per Match Live.** Il widget stats "Match sui gusti" è stato sostituito con "Proposti da N/V" (`movies.added_by`). Il vecchio badge card "Match!/Gusti diversi" derivato da `votes` è stato rimosso nella Phase 8.1 insieme alla vecchia UX asincrona.
 2. **Ruota → programmabile.** Fatto (Phase 15): il vincitore mostra le azioni "Stasera"/"Programma", `lockWheelWinner` non più dead code.
 3. **Tonight Mode.** Implementato: si attiva solo con una serata attiva di oggi (`date = oggi` o quick pick "Stasera" con `confirmed_at` di oggi). I quick pick nuovi scrivono `confirmed_at` al momento della scelta.
-4. **Phase 24 da ridefinire**, senza dipendenza dalla vecchia logica `votes`/match asincrono.
+4. **Phase 24 scartata**: il dettaglio mostra solo gli Oscar vinti verificabili; il flag cult manuale non viene introdotto.
 5. **Overview/cast salvati come colonne** (non fetch on demand), per servire sia Phase 9 sia la futura Phase 36 (Poster Flip) senza rifare il lavoro. Fatto: migration step7 + backfill.
 6. **Detail come modale** (non drawer, non pagina a sé), coerente con gli altri modali esistenti. Fatto: Phase 9.
 7. **Sorpresa nel dettaglio**: per l'altra persona il click sulla card resta inerte, nessuna apertura del modale. Fatto.
@@ -122,7 +124,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 31 — Accessibility baseline ✅
 
 ### ✅ PWA (COMPLETA)
-- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v14` per la Phase 23), toast di aggiornamento ✅
+- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v15` per gli Oscar nel dettaglio), toast di aggiornamento ✅
 - Verificato: nessuna richiesta Supabase/TMDb/OMDb/poster/YouTube passa mai dalla cache (nessun `respondWith` su quei domini)
 
 ### STEP 2 — Core Layout (Phase 8.2 implementata)
@@ -155,7 +157,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 21 — "Il Nostro Cinema" ✅ nel codice: il modal unisce storico visuale delle serate completate, statistiche e recensioni. Le card hanno stile biglietto ma non pretendono di essere PNG archiviati; l'origine dei ticket resta in-memory. Nessuna migration.
 - Phase 22 — Movie Timeline (per mese) ✅ nel codice locale: gruppi per mese da serate completate, recensioni separate senza data; nessuna migration
 - Phase 23 — I nostri numeri ✅ nel codice locale: quattro conteggi retrospettivi da serate completate e voti personali, senza nuova percentuale di compatibilità
-- Phase 24 — "Why this movie?" — da ridefinire senza dipendenza dalla vecchia logica `votes`/match asincrono
+- Phase 24 — «Why this movie?» scartata; nessuna nuova sezione. Oscar vinti nel dettaglio film ✅ nel codice locale; altri premi solo dopo verifica di fonti future.
 
 ### STEP 6 — Cinematic UX
 - Phase 10 — Hot Picks. **Dipendenza:** servono `popularità`, `vote_average`, data uscita completa, oggi non salvati (nuova migration se si vuole procedere)

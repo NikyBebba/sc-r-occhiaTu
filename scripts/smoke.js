@@ -2140,6 +2140,60 @@ async function okA(name, fn) {
     movies = saved; currentUser = prevUser; currentTab = prevTab;
     return noSections;
   }));
+  ok('premi: solo Oscar vinti espliciti, mai nomination o totali anonimi', run(() =>
+    parseOscarWins('Won 1 Oscar. Another 12 wins') === 1
+      && parseOscarWins('Won 6 Oscars. 51 wins & 74 nominations total') === 6
+      && parseOscarWins('Nominated for 7 Oscars. 21 wins & 43 nominations total') === null
+      && parseOscarWins('56 wins & 71 nominations') === null
+      && parseOscarWins('N/A') === null));
+  await okA('premi: IMDb ID da TMDb, Awards da OMDb e cache per riapertura', runA(async () => {
+    const oldFetch = fetch;
+    const requested = [];
+    try {
+      fetch = async url => {
+        requested.push(url);
+        return url.includes('themoviedb.org')
+          ? { ok: true, json: async () => ({ imdb_id: 'tt0109830' }) }
+          : { json: async () => ({ Response: 'True', Awards: 'Won 6 Oscars. 51 wins total' }) };
+      };
+      const first = await fetchOscarWins(987654);
+      const second = await fetchOscarWins(987654);
+      return first === 6 && second === 6 && requested.length === 2
+        && requested[0].includes('/movie/987654?') && requested[1].includes('i=tt0109830');
+    } finally { fetch = oldFetch; oscarWinsCache.delete(987654); }
+  }));
+  await okA('premi: errore di rete opzionale ritentato alla prossima apertura', runA(async () => {
+    const oldFetch = fetch;
+    let calls = 0;
+    try {
+      fetch = async url => {
+        calls++;
+        if (calls === 1) return { ok: false };
+        return url.includes('themoviedb.org')
+          ? { ok: true, json: async () => ({ imdb_id: 'tt0109830' }) }
+          : { json: async () => ({ Response: 'True', Awards: 'Won 1 Oscar.' }) };
+      };
+      const failed = await fetchOscarWins(987655);
+      const recovered = await fetchOscarWins(987655);
+      return failed === null && recovered === 1 && calls === 3;
+    } finally { fetch = oldFetch; oscarWinsCache.delete(987655); }
+  }));
+  ok('premi: scheda mostra solo la vittoria del film aperto e resta vuota senza dati', run(() => {
+    const oldMovies = movies, oldUser = currentUser;
+    try {
+      currentUser = 'N';
+      movies = [{ id: 'award-film', title: 'Film', added_by: 'N', status: 'watchlist' }];
+      renderMovieDetail(movies[0]); openModal('detailModal');
+      renderOscarWins('award-film', null);
+      const empty = document.getElementById('detailAwards').innerHTML === '';
+      renderOscarWins('award-film', 2);
+      const shown = document.getElementById('detailAwards').innerHTML.includes('2 Oscar vinti');
+      renderOscarWins('another-film', 5);
+      const noStale = !document.getElementById('detailAwards').innerHTML.includes('5 Oscar');
+      closeModal('detailModal');
+      return empty && shown && noStale;
+    } finally { movies = oldMovies; currentUser = oldUser; closeModal('detailModal'); }
+  }));
   ok('dettaglio: sorpresa vista dall\'altra persona → click inerte; propria sorpresa → apre', run(() => {
     const prevUser = currentUser, prevTab = currentTab, saved = movies;
     currentUser = 'N'; currentTab = 'all';

@@ -726,13 +726,27 @@ function renderScheduled() {
 // ============================================
 // Step3 phase9 — dettaglio film (modale)
 // Apre il modale #detailModal e popola #detailBody con i metadati del film.
-// Nessuna fetch: usa i campi già in memoria (select('*') in store.js).
+// Usa i campi già in memoria; solo gli Oscar sono letti su richiesta.
 // ============================================
 function openMovieDetail(id) {
   const m = movies.find(x => x.id === id);
   if (!m || (m.surprise_by && m.surprise_by !== currentUser)) return;
   renderMovieDetail(m);
   openModal('detailModal');
+  if (m.tmdb_id) fetchOscarWins(m.tmdb_id).then(wins => renderOscarWins(m.id, wins));
+}
+
+function renderOscarWins(movieId, wins) {
+  const body = document.getElementById('detailBody');
+  const awards = document.getElementById('detailAwards');
+  const modal = document.getElementById('detailModal');
+  const movie = movies.find(m => m.id === movieId);
+  if (!body || !awards || !modal || modal.classList.contains('hidden')
+      || body.dataset.movieId !== String(movieId)
+      || !movie || (movie.surprise_by && movie.surprise_by !== currentUser)) return;
+  awards.innerHTML = Number.isSafeInteger(wins) && wins > 0
+    ? `<span class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm"><i class="fa-solid fa-trophy" aria-hidden="true"></i> ${wins} ${wins === 1 ? 'Oscar vinto' : 'Oscar vinti'} <span class="text-xs text-amber-100/70">· OMDb</span></span>`
+    : '';
 }
 
 function renderMovieDetail(m) {
@@ -775,6 +789,7 @@ function renderMovieDetail(m) {
     ${viewingStatusHtml(m)}
     ${reviewCardsHtml(m)}
     ${ratingsHtml}
+    <div id="detailAwards" aria-live="polite"></div>
     ${overviewHtml}
     ${castHtml}
     <div class="flex items-center gap-2 pt-1">
@@ -784,6 +799,7 @@ function renderMovieDetail(m) {
     </div>
     ${trailerHtml}
   `;
+  body.dataset.movieId = String(m.id);
 
   // Step3 phase9.1 — ambient (poster sfocato come sfondo del modale).
   setDetailAmbient(m.poster);
