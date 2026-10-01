@@ -5,7 +5,7 @@
 // Aggiornamento: niente skipWaiting (prompt "nuova versione" lato client).
 // ============================================
 
-const CACHE_REV = 'scorochiatu-shell-v17';
+const CACHE_REV = 'scorochiatu-shell-v18';
 const CACHE_PREFIX = 'scorochiatu-shell-';
 
 const PRECACHE = [
@@ -14,6 +14,7 @@ const PRECACHE = [
   '/js/config.js',
   '/js/format.js',
   '/js/haptics.js',
+  '/js/audio.js',
   '/js/api/omdb.js',
   '/js/api/tmdb.js',
   '/js/api/index.js',

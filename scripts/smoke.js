@@ -160,6 +160,7 @@ async function okA(name, fn) {
     'js/config.js',
     'js/format.js',
     'js/haptics.js',
+    'js/audio.js',
     'js/api/omdb.js', 'js/api/tmdb.js', 'js/api/index.js',
     'js/store.js', 'js/match.js', 'js/filters.js', 'js/wheel.js',
     'js/ui/modals.js', 'js/ui/navigation.js', 'js/ui/actions.js', 'js/ui/render.js', 'js/ui/calendar.js',
@@ -226,6 +227,62 @@ async function okA(name, fn) {
       if (savedPreference === null) localStorage.removeItem('scorochiatu_haptics');
       else localStorage.setItem('scorochiatu_haptics', savedPreference);
       loadHapticsPreference();
+    }
+  }));
+
+  console.log('\n[audio — preferenza del dispositivo]');
+  await okA('suoni opt-in: nessun autoplay, resume dopo il toggle, pagina nascosta silenziosa', runA(async () => {
+    const savedContext = window.AudioContext;
+    const savedWebkitContext = window.webkitAudioContext;
+    const savedVisibility = document.visibilityState;
+    const savedPreference = localStorage.getItem('scorochiatu_audio');
+    const notes = [];
+    let starts = 0;
+    try {
+      localStorage.removeItem('scorochiatu_audio');
+      delete window.AudioContext;
+      delete window.webkitAudioContext;
+      loadAudioPreference();
+      const button = document.getElementById('audioToggle');
+      const unsupported = button.classList.contains('hidden') && !playSound('wheelWin');
+      window.AudioContext = class {
+        constructor() { this.state = 'suspended'; this.currentTime = 0; this.destination = {}; }
+        createOscillator() { return { frequency: { setValueAtTime(f) { notes.push(f); } }, connect() {}, start() { starts++; }, stop() {} }; }
+        createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} }; }
+        suspend() { this.state = 'suspended'; return Promise.resolve(); }
+        resume() { this.state = 'running'; return Promise.resolve(); }
+      };
+      loadAudioPreference();
+      const offByDefault = !button.classList.contains('hidden') && button['aria-pressed'] === 'false'
+        && document.getElementById('audioLabel').textContent.includes('spenti')
+        && !playSound('like');
+      toggleAudio();
+      await Promise.resolve();
+      const onLabel = document.getElementById('audioLabel').textContent.includes('attivi');
+      playSound('like');
+      document.visibilityState = 'hidden';
+      const hidden = !playSound('match');
+      document.visibilityState = 'visible';
+      toggleAudio();
+      const offAgain = !playSound('nope');
+      toggleAudio();
+      await Promise.resolve();
+      const resumed = starts === 4;
+      toggleAudio();
+      return unsupported && offByDefault && onLabel && hidden && offAgain && resumed
+        && notes.join(',') === '660,520,740,660'
+        && localStorage.getItem('scorochiatu_audio') === 'off'
+        && button['aria-pressed'] === 'false';
+    } finally {
+      if (savedContext === undefined) delete window.AudioContext;
+      else window.AudioContext = savedContext;
+      if (savedWebkitContext === undefined) delete window.webkitAudioContext;
+      else window.webkitAudioContext = savedWebkitContext;
+      document.visibilityState = savedVisibility;
+      if (savedPreference === null) localStorage.removeItem('scorochiatu_audio');
+      else localStorage.setItem('scorochiatu_audio', savedPreference);
+      audioContext = null;
+      loadAudioPreference();
     }
   }));
 

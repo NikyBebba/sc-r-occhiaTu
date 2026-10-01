@@ -125,6 +125,7 @@ function spinWheel() {
 
   wheelSpinning = true;
   hapticFeedback('wheelStart');
+  playSound('wheelStart');
   const resultDiv = document.getElementById('wheelWinner');
   resultDiv.classList.add('hidden');
 
@@ -177,6 +178,7 @@ function spinWheel() {
         </div>`;
       fireConfetti();
       hapticFeedback('wheelWin');
+      playSound('wheelWin');
     }
   }
   requestAnimationFrame(frame);

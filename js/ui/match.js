@@ -333,7 +333,10 @@ async function swipeCard(movieId, liked) {
   const answers = swipesForCard(swipes, movieId);
   if (answers[currentUser] !== undefined) return;
   await recordSwipe(session, movieId, currentUser, liked);
-  if (swipesForCard(swipes, movieId)[currentUser] === !!liked) hapticFeedback('swipe');
+  if (swipesForCard(swipes, movieId)[currentUser] === !!liked) {
+    hapticFeedback('swipe');
+    playSound(liked ? 'like' : 'nope');
+  }
   renderMatch();
 }
 
@@ -459,6 +462,7 @@ function openMatchReveal(state, key) {
     if (e && e.target === el && downOnOverlay) closeMatchReveal();
   };
   fireConfetti();
+  playSound('match');
   setTimeout(fireConfetti, 300);
 }
 

@@ -1,4 +1,4 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.19
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.20
 
 Ultimo aggiornamento: 1 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
 
@@ -24,6 +24,8 @@ Phase 25, primo intervento: apertura e chiusura della scheda film con transizion
 
 Phase 27 — Haptic Manager implementata localmente: pulsante nel pannello Ruota disponibile solo se il browser espone `navigator.vibrate`, preferenza opt-in salvata sul singolo dispositivo (`scorochiatu_haptics`), segnali brevi per swipe Match registrato, avvio Ruota e risultato. Nessuna vibrazione con pagina nascosta; API assente o errore di vibrazione restano silenziosi. Nessuna migration. Cache PWA `v17`; smoke locale **308/308 PASS**; sensazione tattile da verificare su un telefono compatibile.
 
+Phase 26 — Audio Manager implementata localmente: pulsante opt-in nel pannello Ruota, preferenza del singolo dispositivo (`scorochiatu_audio`), note sintetizzate con Web Audio API a volume contenuto per Like/Nope registrati, avvio/esito Ruota e Match Reveal. Il contesto audio nasce solo dopo l'attivazione; viene sospeso quando i suoni sono spenti e ripreso al riavvio. Browser senza API e pagina nascosta restano silenziosi. Nessuna libreria, asset audio o migration. Cache PWA `v18`; smoke locale **309/309 PASS**; ascolto e volume da verificare su telefoni reali.
+
 ## Quadro rapido — dove siamo
 
 | Area | Stato verificato nel codice | Limite attuale |
@@ -33,7 +35,7 @@ Phase 27 — Haptic Manager implementata localmente: pulsante nel pannello Ruota
 | Film e recensioni | Indicatori N/V/insieme, voto personale 0–10, tre testi distinti, annullamento visione; aggiunta con avviso duplicati | `votes` e campi legacy restano per compatibilità |
 | Il Nostro Cinema | Serate concluse per mese, una card per evento anche nei rewatch; statistiche e recensioni separate | Nessun archivio dei PNG generati |
 
-Verifiche locali dell'ultima revisione funzionale: `node scripts/smoke.js` **308/308 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Migration Step 8 applicata e cinque nuove colonne `movies` verificate via REST; migration Step 9 applicata in Dashboard dall'utente. Step 10 applicata dall'utente e colonna cinema verificata via REST in sola lettura. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
+Verifiche locali dell'ultima revisione funzionale: `node scripts/smoke.js` **309/309 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Migration Step 8 applicata e cinque nuove colonne `movies` verificate via REST; migration Step 9 applicata in Dashboard dall'utente. Step 10 applicata dall'utente e colonna cinema verificata via REST in sola lettura. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
 
 Regola repository: database locali, dump e backup sono esclusi da Git. I file SQL in `database/` descrivono schema e migration, senza esportazioni dei dati.
 
@@ -45,7 +47,8 @@ Regola repository: database locali, dump e backup sono esclusi da Git. I file SQ
 4. **Scheda film — Oscar vinti**: implementata localmente con lettura OMDb su richiesta. Verificare su due telefoni dopo il deploy; nessuna sezione «Why this movie?».
 5. **Phase 25 — Transizione card/scheda**: implementata localmente con fallback immediato; verificare apertura e chiusura su smartphone dopo il deploy.
 6. **Phase 27 — Vibrazione facoltativa**: implementata localmente; provare toggle, swipe e Ruota su un telefono con Vibration API dopo il deploy.
-7. **Fasi successive**: Hot Picks richiede dati TMDb aggiuntivi e una migration autorizzata; Dynamic Island, login, temi e altre microinterazioni restano pianificate sotto.
+7. **Phase 26 — Suoni facoltativi**: implementata localmente; verificare ascolto e volume su telefono dopo il deploy.
+8. **Fasi successive**: Hot Picks richiede dati TMDb aggiuntivi e una migration autorizzata; Dynamic Island, login, temi e altre microinterazioni restano pianificate sotto.
 
 Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di sessione, Phase 17 Match Reveal, Phase 18 Final Ticket Generator). Nessun campo/migration nuovo: origine del Ticket tracciata solo in-memory (`markTicketOrigin`/`ticketOriginOf`), scelta esplicita per restare nei vincoli di questo giro — da rivalutare se in futuro servirà uno storico persistito dei ticket (vedi Note aperte). Smoke passato da 245 a 262 test lungo lo step.
 
@@ -178,7 +181,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 34 — Seasonal Polish (applica i token di Phase 1.3 già definiti)
 
 ### STEP 8 — Micro-interactions
-- Phase 26 — Audio Manager
+- Phase 26 — Audio Manager ✅ nel codice locale (opt-in per dispositivo; Match e Ruota)
 - Phase 27 — Haptic Manager ✅ nel codice locale (opt-in per dispositivo; Match e Ruota)
 - Phase 28 — Ciak Loader (+ skeleton)
 - Phase 29 — Empty States
