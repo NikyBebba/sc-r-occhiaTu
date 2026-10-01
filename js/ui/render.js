@@ -334,6 +334,7 @@ function emptyListStateHtml() {
   if (state.query && String(state.query).trim()) parts.push(`"${escapeHtml(state.query)}"`);
   if (state.genre) parts.push(`genere ${escapeHtml(state.genre)}`);
   if (state.platform) parts.push(`piattaforma ${escapeHtml(state.platform)}`);
+  if (state.availability === 'streaming') parts.push('solo streaming');
   if (state.proposer) parts.push(`proposto da ${escapeHtml(state.proposer)}`);
   return `
     <div class="col-span-full py-12 text-center text-slate-400 text-sm space-y-3">
@@ -410,6 +411,12 @@ function setPlatformFilter(v) {
   if (sel) sel.value = v;
   render();
 }
+function setAvailabilityFilter(v) {
+  listAvailability = v === 'streaming' ? 'streaming' : 'all';
+  const sel = document.getElementById('availabilityFilterSelect');
+  if (sel) sel.value = listAvailability;
+  render();
+}
 function setListSortKey(v) {
   listSortKey = v || 'added';
   const sel = document.getElementById('sortKeySelect');
@@ -435,6 +442,8 @@ function toggleListSortDir() {
 // e sort (chiave "added" + direzione desc), lasciando intatti i dataset-cache.
 function resetListFiltersUI() {
   resetListFilters();
+  const availability = document.getElementById('availabilityFilterSelect');
+  if (availability) availability.value = 'all';
   const input = document.getElementById('movieSearchInput');
   if (input) input.value = '';
   ['proposerFilterSelect', 'genreListFilterSelect', 'platformFilterSelect'].forEach(id => {

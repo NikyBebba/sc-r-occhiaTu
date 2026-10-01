@@ -1,6 +1,6 @@
 # Phase 8.3 — Film al cinema e prossimamente
 
-Stato: **implementata nel codice locale; migration Step 10 da applicare in Supabase** · 1 ottobre 2026
+Stato: **implementata nel codice locale; migration Step 10 applicata dall'utente e colonna verificata via REST** · 1 ottobre 2026
 
 ## Posizione nella roadmap
 
@@ -15,6 +15,9 @@ della libreria e della scelta, non una statistica o un'estensione del Match Live
   ricercabile. Dalla sua scheda si può cambiare l'opzione quando diventa
   adatto a una serata a casa; non è un'informazione dedotta automaticamente
   dalla data di uscita o dalla disponibilità streaming.
+- La libreria parte da «Tutti i film, anche al cinema» e offre «Solo streaming»,
+  che esclude i film contrassegnati per il cinema. Il filtro usa solo questa
+  scelta manuale: non certifica la presenza del film su un servizio streaming.
 - Finché l'opzione è attiva, il film non entra nella Ruota né nelle card di
   Match Live. Il cambio deve valere anche per una sessione Match già aperta:
   il deck è salvato e non basta filtrare solo alla creazione della sessione.
@@ -44,10 +47,11 @@ Questo è un punto da decidere prima di estendere ticket e timeline.
 
 La nuova colonna `movies` è descritta nella migration additiva
 [`database/supabase-migration-step10.sql`](../database/supabase-migration-step10.sql),
-preparata dopo l'autorizzazione all'implementazione. **Applicare la migration
-prima di pubblicare il nuovo frontend**: l'aggiunta contrassegnata invia il
-nuovo campo a Supabase. Il database remoto non è stato modificato da questo
-lavoro.
+preparata dopo l'autorizzazione all'implementazione. L'utente ha applicato la
+migration in Supabase; una lettura REST della colonna ha restituito HTTP 200.
+Un'aggiunta tentata prima della migration non è stata salvata: va ripetuta.
+Se il database rifiuta l'inserimento per colonna mancante, l'app mostra ora
+un avviso invece di far comparire temporaneamente il film solo in locale.
 
 ## Verifiche
 
@@ -64,5 +68,6 @@ lavoro.
 
 Smoke locale dopo l'implementazione: aggiunta attraverso picker, toggle,
 esclusione da Ruota e deck Match già aperto, programmazione di una serata
-cinema. Restano da verificare la colonna sul database remoto e il flusso su
-due telefoni dopo l'applicazione della migration.
+cinema, filtro libreria e avviso di salvataggio fallito. Colonna verificata
+sul database remoto in sola lettura; resta da verificare il flusso completo
+su due telefoni dopo il deploy.

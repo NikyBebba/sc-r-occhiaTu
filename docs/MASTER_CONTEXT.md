@@ -10,9 +10,11 @@ Aggiornamento successivo: la ricerca mostra anche film omonimi. Dopo la scelta d
 
 Aggiustamento precedente: il risultato della Ruota apre la scheda film già esistente (trama e trailer). Una sorpresa non rivelata resta nascosta anche nel risultato; la scheda diventa accessibile dopo la rivelazione dalla lista. Stato vuoto delle serate semplificato. Smoke locale a questo punto: **292/292 PASS**.
 
-Phase 8.3 implementata nel codice locale: opzione «Al cinema / prossimamente» all'aggiunta, badge e toggle in libreria, esclusione da Ruota e Match Live (anche su deck già aperto), programmazione consentita. **Migration Step 10 preparata ma non ancora applicata al database remoto; non pubblicare il frontend prima della migration.** Smoke locale a questo punto: **296/296 PASS**.
+Phase 8.3 implementata nel codice locale: opzione «Al cinema / prossimamente» all'aggiunta, badge e toggle in libreria, esclusione da Ruota e Match Live (anche su deck già aperto), programmazione consentita. **Migration Step 10 applicata dall'utente; colonna verificata via REST in sola lettura (HTTP 200).** Smoke locale a questo punto: **296/296 PASS**.
 
 Phase 22 implementata nel codice locale: «Il Nostro Cinema» raggruppa le serate concluse per mese, con una card per evento e date derivate da `night.date` o, per i quick pick, da `completed_at` locale. Le recensioni restano senza data in una sezione separata. Cache PWA `v12`. Smoke locale: **298/298 PASS**; prova mobile su due telefoni ancora da eseguire.
+
+Correzione libreria: filtro sempre visibile «Tutti i film, anche al cinema» / «Solo streaming». Il secondo esclude i film segnati manualmente per il cinema; non controlla la disponibilità reale sui provider. L'inserimento cinema rifiutato per colonna assente mostra un errore senza creare un film locale temporaneo. I tentativi precedenti alla migration vanno ripetuti. Cache PWA `v13`; smoke locale **300/300 PASS**.
 
 ## Quadro rapido — dove siamo
 
@@ -23,13 +25,13 @@ Phase 22 implementata nel codice locale: «Il Nostro Cinema» raggruppa le serat
 | Film e recensioni | Indicatori N/V/insieme, voto personale 0–10, tre testi distinti, annullamento visione; aggiunta con avviso duplicati | `votes` e campi legacy restano per compatibilità |
 | Il Nostro Cinema | Serate concluse per mese, una card per evento anche nei rewatch; statistiche e recensioni separate | Nessun archivio dei PNG generati |
 
-Verifiche locali dell'ultima revisione funzionale: `node scripts/smoke.js` **298/298 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Migration Step 8 applicata e cinque nuove colonne `movies` verificate via REST; migration Step 9 applicata in Dashboard dall'utente. **Step 10 da applicare**. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
+Verifiche locali dell'ultima revisione funzionale: `node scripts/smoke.js` **300/300 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Migration Step 8 applicata e cinque nuove colonne `movies` verificate via REST; migration Step 9 applicata in Dashboard dall'utente. Step 10 applicata dall'utente e colonna cinema verificata via REST in sola lettura. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
 
 Regola repository: database locali, dump e backup sono esclusi da Git. I file SQL in `database/` descrivono schema e migration, senza esportazioni dei dati.
 
 ## Prossimo lavoro
 
-1. **Phase 8.3 — Film al cinema e prossimamente**: [specifica e stato](PHASE8_3_CINEMA_WATCHLIST.md). Implementata localmente; applicare la [migration Step 10](../database/supabase-migration-step10.sql) prima del deploy, poi verificare su due telefoni.
+1. **Phase 8.3 — Film al cinema e prossimamente**: [specifica e stato](PHASE8_3_CINEMA_WATCHLIST.md). Implementata localmente; migration Step 10 applicata, verificare su due telefoni dopo il deploy.
 2. **Phase 22 — Timeline per mese**: [specifica e stato](PHASE22_TIMELINE.md). Implementata localmente; verificare il modale su smartphone dopo il deploy.
 3. **Phase 23 — Movie Chemistry**: statistiche retrospettive solo di lettura su film, visioni e serate; nessuna nuova percentuale di compatibilità fuori da Match Live.
 4. **Phase 24 — Why this movie?**: ridefinire con N e V le motivazioni utili senza riattivare il vecchio sistema asincrono `votes`.
@@ -54,7 +56,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 - Login differenziato N/V via PIN individuale, badge utente, logout
 - CRUD film, import bulk (JustWatch non ha export ufficiale → copia manuale); l'aggiunta singola cerca anche titoli omonimi e blocca con avviso soltanto l'ID TMDb già presente, l'import dalla UI salta gli ID duplicati nel riepilogo
-- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v12`, bump per la Phase 22), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
+- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v13`, bump per il filtro libreria), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
 - **Design system** (Foundation): token CSS (`--color-*`, `--radius-*`, `--shadow-*`, `--duration-*`, `--ease-*`, `--fs-*`), tipografia Plus Jakarta Sans, tema Cinema Classic (nero sala/rosso cinema/oro neon, accenti N blu/V rosa), temi stagionali definiti come token (non ancora applicati), `.glass-panel`/`.glass-card`, accessibilità baseline (contrasti AA, focus-visible, ARIA su modali/segmented, `prefers-reduced-motion` globale)
 - **Header/nav**: la dashboard ospita una CTA Match Live autonoma; la libreria ha cinque viste in un selettore nativo su mobile e nel segmented control su desktop. Match occupa la larghezza disponibile con ritorno alla vista precedente.
 - **Match CTA**: stati idle/online/live letti solo da `matchChannelStatus`/`lobbyPresenceState`/`dbMode`/`currentTab` (nessuno stato duplicato); si aggiorna a ogni render, non su ogni evento presence in tempo reale se si è fermi su un altro tab (limite noto, accettato)
@@ -72,7 +74,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Conferma serata solo sulla data specifica, non sull'aggiunta del film; il quick pick "Stasera" crea una serata già confirmed (atto unilaterale, comportamento storico)
 - Tracking visto N / V / insieme: `watched_by` e le recensioni alimentano gli indicatori; la visione insieme porta il film a `watched` e completa la serata, mentre le visioni singole restano proponibili per rewatch
 - `votes` legacy: mantenuti temporaneamente per compatibilità/migrazione, ma non più rappresentati nella UI delle Movie Card e non usati per il nuovo modello di stato di visione. `movies.watched_by` accumula chi ha visto il film; `review_by`/`review_text`/`rating` restano come fallback storico. L'estensione usa `seen_rating_n/v` (0–10, zero valido) e `review_text_n/v/together` (tre testi indipendenti), tutti nullable. Migration additiva Step 8 applicata in Dashboard; disponibilità delle nuove colonne verificata via REST.
-- Ricerca (titolo, regista, generi), filtri (proposto da, genere, piattaforma), sort per anno, anno/regista in card
+- Ricerca (titolo, regista, generi), filtri (disponibilità manuale cinema, proposto da, genere, piattaforma), sort per anno, anno/regista in card
 - Generi reali da TMDb in `movies.genres text[]`, nessun residuo di `genres.js`/mood picker
 - **`movies.overview` e `movies.cast_names text[]`** (migration step7, backfill completato: 131/131 film con `tmdb_id`, 129/131 con overview — 2 senza traduzione it-IT su TMDb — 131/131 con cast_names, 1 caso con solo 2 nomi); popolati anche per i nuovi inserimenti (app + import CLI)
 - Ruota della fortuna con ordine casuale ad ogni sessione e filtro genere; il vincitore può essere scelto per "Stasera" o "Programma" (Phase 15)
@@ -80,7 +82,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Veto settimanale (1/persona/settimana), rimovibile solo dal proprietario, realtime su vetoes
 - Snack picker con opzione personalizzata (salvata in `movie_nights.snack`; gli snack già usati tornano fra le scelte su entrambi i telefoni, senza nuova tabella)
 - Modalità sorpresa (bottone regalo in navbar, modale, `surprise_by`, blur CSS, badge "tua sorpresa")
-- Smoke test locale: **298/298 PASS** (230 a inizio v2.11 → 245 dopo Step 3 → 262 dopo Step 4 → 268 dopo Phase 8.1 → 274 con annullamento, voti 0–10 e recensioni distinte → 277 con Phase 8.2 → 280 con Phase 19 → 282 con snack personalizzati → 284 con Tonight Mode → 286 con lo storico delle serate → 289 con l'avviso duplicati → 291 con controllo per ID TMDb → 292 con scheda dal risultato Ruota → 296 con Phase 8.3 → 298 con Phase 22)
+- Smoke test locale: **300/300 PASS** (230 a inizio v2.11 → 245 dopo Step 3 → 262 dopo Step 4 → 268 dopo Phase 8.1 → 274 con annullamento, voti 0–10 e recensioni distinte → 277 con Phase 8.2 → 280 con Phase 19 → 282 con snack personalizzati → 284 con Tonight Mode → 286 con lo storico delle serate → 289 con l'avviso duplicati → 291 con controllo per ID TMDb → 292 con scheda dal risultato Ruota → 296 con Phase 8.3 → 298 con Phase 22 → 300 con filtro disponibilità e gestione dell'errore di salvataggio)
 
 ---
 
@@ -118,7 +120,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 31 — Accessibility baseline ✅
 
 ### ✅ PWA (COMPLETA)
-- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v12` per la Phase 22), toast di aggiornamento ✅
+- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v13` per il filtro libreria), toast di aggiornamento ✅
 - Verificato: nessuna richiesta Supabase/TMDb/OMDb/poster/YouTube passa mai dalla cache (nessun `respondWith` su quei domini)
 
 ### STEP 2 — Core Layout (Phase 8.2 implementata)
@@ -131,7 +133,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 8 — Movie Card / Cinema Ticket ✅ (+ bugfix footer vuoto su watched/ignoto)
 - **Phase 8.1 — Movie Card Viewing Status** ✅: sostituiti 👍/👎 e i badge derivati dal vecchio voto asincrono con due indicatori N/V. N sempre a sinistra, V sempre a destra: neutri se nessuno ha visto; N blu se visto da N; V rosa se visto da V; blu+rosa se visti separatamente; entrambi oro se visto insieme. "L'ho già visto" richiede un voto personale 0–10 e offre una recensione facoltativa; l'annullamento rimuove i dati personali segnati. Una recensione aggiunta dopo conserva il voto. N, V e insieme hanno tre testi distinti; la recensione insieme non chiede un secondo voto. Match Live invariato. Migration Step 8 applicata e nuove colonne verificate via REST.
 - **Phase 8.2 — Dashboard & Navigation Redesign** ✅ nel codice: "Cosa guardiamo?" occupa l'inizio della dashboard con Match Live come CTA principale e Ruota/Libreria come ingressi separati. Le cinque viste della libreria usano un select nativo su mobile e il segmented control su desktop; Match non è più una pill. Entrando nel Match la sidebar si nasconde, la vista usa tutta la larghezza e un pulsante torna al tab precedente. Restano invariati store, ruota, swipe, serate e tracking visto.
-- **Phase 8.3 — Film al cinema e prossimamente** ✅ nel codice locale: badge e opzione manuale all'aggiunta, libreria e programmazione sì, Ruota e Match Live no. [Specifiche e stato del deploy](PHASE8_3_CINEMA_WATCHLIST.md); migration Step 10 da applicare in Supabase.
+- **Phase 8.3 — Film al cinema e prossimamente** ✅ nel codice locale: badge e opzione manuale all'aggiunta, libreria e programmazione sì, Ruota e Match Live no. Filtro libreria «Tutti» / «Solo streaming» basato sul flag manuale. [Specifiche e stato del deploy](PHASE8_3_CINEMA_WATCHLIST.md); migration Step 10 applicata in Supabase.
 
 ### ✅ STEP 3 — Movie Detail (COMPLETO)
 - Phase 9 — Detail modale ✅

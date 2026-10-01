@@ -178,6 +178,12 @@ async function insertMovie(newMovie) {
       // Il vincolo UNIQUE sull'ID TMDb può vincere la corsa fra due telefoni:
       // in quel caso non creare una copia solo nel mirror locale.
       if (error.code === '23505' && newMovie.tmdb_id != null) return null;
+      // Migration cinema assente: non fingere il salvataggio in locale per poi
+      // perdere il film al successivo refetch dal database.
+      if ((error.code === '42703' || error.code === 'PGRST204') && newMovie.cinema_watchlist) {
+        console.error('[sc(r)occhiaTu] Campo cinema non disponibile nel database:', error.message);
+        return false;
+      }
       console.error('[sc(r)occhiaTu] insertMovie fallita su Supabase:', error.message);
       dbMode = 'local';
       lastSupabaseFailAt = Date.now();

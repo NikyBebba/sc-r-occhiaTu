@@ -222,6 +222,12 @@
           <input id="movieSearchInput" type="text" placeholder="Cerca titolo o genere…" autocomplete="off" oninput="onSearchInput()"
             class="field field-xl w-full pl-9 pr-3 py-2.5">
         </div>
+        <label for="availabilityFilterSelect" class="sr-only">Disponibilità dei film</label>
+        <select id="availabilityFilterSelect" onchange="setAvailabilityFilter(this.value)" class="field w-full min-h-11" aria-label="Mostra tutti i film o solo quelli per lo streaming">
+          <option value="all">🎬 Tutti i film, anche al cinema</option>
+          <option value="streaming">📺 Solo streaming</option>
+        </select>
+        <p class="text-xs text-slate-400 px-1">“Solo streaming” esclude i film segnati «Al cinema / prossimamente».</p>
         <div class="space-y-2" id="listFiltersBlock">
           <button id="filtersToggleBtn" onclick="toggleListFiltersPanel()" class="md:hidden w-full flex items-center justify-between px-3 py-2 bg-slate-800/70 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-800 hover:border-slate-600 text-xs font-medium transition">
             <span><i class="fa-solid fa-sliders mr-1.5"></i> Filtri e ordinamento</span>
@@ -475,6 +481,14 @@
       <h3 id="duplicateModalTitle" class="text-lg font-bold text-slate-100">Film già presente</h3>
       <p id="duplicateMessage" class="text-sm text-slate-300"></p>
       <button onclick="closeModal('duplicateModal')" class="min-h-11 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium">Ho capito</button>
+    </div>
+  </div>
+
+  <div id="addErrorModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass-panel p-6 rounded-2xl max-w-sm w-full border border-slate-800 space-y-4 text-center">
+      <h3 id="addErrorModalTitle" class="text-lg font-bold text-slate-100">Film non salvato</h3>
+      <p id="addErrorMessage" class="text-sm text-slate-300"></p>
+      <button onclick="closeModal('addErrorModal')" class="min-h-11 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium">Ho capito</button>
     </div>
   </div>
 

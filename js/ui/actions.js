@@ -128,13 +128,18 @@ async function applyResolvedDetails(details) {
   } else {
     const newMovie = {
       title: details.title, added_by: pendingAddedBy, status: 'watchlist',
-      cinema_watchlist: pendingCinemaWatchlist,
+      ...(pendingCinemaWatchlist ? { cinema_watchlist: true } : {}),
       duration: details.duration, platform: details.platform,
       poster: details.poster, trailer_url: details.trailerUrl,
       matched: details.matched, rating: 0,
       ...genreFields, ...tmdbFields, ...ratingFields, ...metaFields, ...detailFields
     };
     const inserted = await insertMovie(newMovie);
+    if (inserted === false) {
+      document.getElementById('addErrorMessage').textContent = 'Il film non è stato salvato: la lista cinema non è ancora disponibile sul database condiviso. Riprova più tardi.';
+      openModal('addErrorModal');
+      return false;
+    }
     if (!inserted) {
       await loadMovies();
       showDuplicateNotice(findDuplicateByTmdbId(details.tmdb_id));

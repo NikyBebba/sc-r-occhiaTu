@@ -695,6 +695,21 @@ async function okA(name, fn) {
       saveLocal();
     }
   }));
+  await okA('cinema: colonna DB assente → film non salvato e avviso visibile', runA(async () => {
+    const oldMovies = movies, oldSb = sb, oldMode = dbMode;
+    const oldPicker = pickerMode, oldPending = pendingCinemaWatchlist;
+    try {
+      movies = []; dbMode = 'supabase'; pickerMode = 'add'; pendingAddedBy = 'N'; pendingCinemaWatchlist = true;
+      sb = { from: () => ({ insert: () => ({ select: async () => ({ data: null, error: { code: '42703', message: 'column missing' } }) }) }) };
+      const saved = await applyResolvedDetails({ title: 'Film cinema', tmdb_id: 8002, matched: true, genres: [] });
+      return saved === false && movies.length === 0 && dbMode === 'supabase'
+        && !document.getElementById('addErrorModal').classList.contains('hidden')
+        && document.getElementById('addErrorMessage').textContent.includes('non è stato salvato');
+    } finally {
+      closeModal('addErrorModal'); movies = oldMovies; sb = oldSb; dbMode = oldMode;
+      pickerMode = oldPicker; pendingCinemaWatchlist = oldPending;
+    }
+  }));
   await okA('cinema: escluso dalla scelta ma programmabile come normale serata', runA(async () => {
     const oldMovies = movies, oldNights = movieNights, oldSb = sb, oldUser = currentUser;
     try {
@@ -1580,6 +1595,31 @@ async function okA(name, fn) {
     listQuery = prevQ; listProposer = prevP; listGenre = prevG; listPlatform = prevPl;
     return list.length === 1 && list[0].id === 'g1'
       && counts.all === 1 && counts.watchlist === 1 && counts.tonight === 0 && counts.watched === 0;
+  }));
+  ok('disponibilità: Tutti include cinema, Solo streaming lo esclude e Azzera ripristina', run(() => {
+    const oldMovies = movies, oldTab = currentTab;
+    const oldFilters = { query: listQuery, proposer: listProposer, genre: listGenre,
+      platform: listPlatform, availability: listAvailability, sortKey: listSortKey, sortDir: listSortDir };
+    try {
+      movies = [{ id: 'home', title: 'A casa', status: 'watchlist', cinema_watchlist: false },
+        { id: 'cinema', title: 'Al cinema', status: 'watchlist', cinema_watchlist: true }];
+      currentTab = 'watchlist';
+      resetListFiltersUI();
+      const all = filterMoviesByState(movies, 'watchlist').map(m => m.id).sort().join() === 'cinema,home';
+      setAvailabilityFilter('streaming');
+      const streaming = filterMoviesByState(movies, 'watchlist').map(m => m.id).join() === 'home'
+        && statusCountsFor(movies).watchlist === 1
+        && emptyListStateHtml().includes('solo streaming');
+      resetListFiltersUI();
+      return all && streaming && listAvailability === 'all'
+        && document.getElementById('availabilityFilterSelect').value === 'all';
+    } finally {
+      movies = oldMovies; currentTab = oldTab;
+      listQuery = oldFilters.query; listProposer = oldFilters.proposer;
+      listGenre = oldFilters.genre; listPlatform = oldFilters.platform;
+      listAvailability = oldFilters.availability;
+      listSortKey = oldFilters.sortKey; listSortDir = oldFilters.sortDir;
+    }
   }));
 
   // --- 7c) pagina — ricerca per regista + sort per anno (step 5b, canned) ---
