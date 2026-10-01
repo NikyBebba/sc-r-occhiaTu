@@ -169,6 +169,37 @@ function completedNightEntries() {
     });
 }
 
+// Phase 23: conteggi retrospettivi. Un rewatch è ogni serata conclusa
+// successiva alla prima sullo stesso movie_id; un film rimosso resta conteggiato
+// perché l'evento esiste ancora. Le valutazioni N/V sono per film, non per serata.
+function movieChemistryStats(nights, films) {
+  const completed = nights.filter(n => n.status === 'completed');
+  const byMovie = new Map();
+  completed.forEach(n => {
+    if (n.movie_id != null) byMovie.set(n.movie_id, (byMovie.get(n.movie_id) || 0) + 1);
+  });
+  const rewatches = [...byMovie.values()].reduce((sum, count) => sum + Math.max(0, count - 1), 0);
+  const ratedByBoth = films.filter(m => personalRating(m, 'N') !== null && personalRating(m, 'V') !== null).length;
+  return { nights: completed.length, films: byMovie.size, rewatches, ratedByBoth };
+}
+
+function renderMovieChemistry() {
+  const grid = document.getElementById('chemistryGrid');
+  if (!grid) return;
+  const stats = movieChemistryStats(movieNights, movies);
+  const cards = [
+    { icon: 'fa-ticket', label: 'Serate concluse', value: stats.nights },
+    { icon: 'fa-film', label: 'Film diversi visti', value: stats.films },
+    { icon: 'fa-rotate', label: 'Serate di rewatch', value: stats.rewatches },
+    { icon: 'fa-star', label: 'Film votati da entrambi', value: stats.ratedByBoth }
+  ];
+  grid.innerHTML = cards.map(c => `<div class="glass-card rounded-xl p-3 text-center">
+    <i class="fa-solid ${c.icon} text-sky-400" aria-hidden="true"></i>
+    <div class="text-xl font-bold text-cinema-testo-1 mt-1">${c.value}</div>
+    <div class="text-xs text-cinema-testo-3 mt-0.5">${c.label}</div>
+  </div>`).join('');
+}
+
 function completedNightLabel(entry) {
   if (!entry.timelineDate) return 'Data non registrata';
   if (entry.timelineDate.source === 'scheduled') {
@@ -229,6 +260,7 @@ function renderNightHistory() {
 // ---- Il Nostro Cinema — statistiche + recensioni senza data ----
 function renderStats() {
   renderNightHistory();
+  renderMovieChemistry();
   const watched = movies.filter(m => m.status === 'watched');
   const totalWatched = watched.length;
   const allRatings = movies.flatMap(m => {

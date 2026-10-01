@@ -38,7 +38,7 @@ node scripts/smoke.js
 node scripts/verify-sw.js
 ```
 
-Ultima verifica locale documentata: **300/300** smoke test e **12/12** controlli del service worker. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni.
+Ultima verifica locale documentata: **302/302** smoke test e **12/12** controlli del service worker. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni.
 
 Per aggiornare selettivamente i metadati di film già presenti, `scripts/refresh-movie-metadata.js` accetta `--ids=<uuid>` oppure `--titles=<titolo>`. Eseguire prima `--dry-run` per confrontare i valori; solo `--apply` scrive su Supabase. Include i rating OMDb e conserva quelli già salvati quando il servizio non ne fornisce di nuovi.
 
@@ -48,4 +48,4 @@ Database locali, dump e backup sono esclusi da Git tramite `.gitignore`. I file 
 
 ## Prossimi passi
 
-Le Phase 8.3 «Al cinema / prossimamente» e 22 «Timeline delle serate per mese» sono implementate localmente. La [migration Step 10](database/supabase-migration-step10.sql) è stata applicata dall'utente e la colonna è stata verificata in sola lettura via REST. La libreria offre «Tutti i film» e «Solo streaming»: quest'ultimo esclude i film contrassegnati manualmente per il cinema. Un'aggiunta fallita prima della migration va ripetuta. Restano da verificare i flussi su due telefoni dopo il deploy. Per stato dettagliato, limiti e dipendenze, usare il [context unico](docs/MASTER_CONTEXT.md).
+Le Phase 8.3 «Al cinema / prossimamente», 22 «Timeline delle serate per mese» e [23 «I nostri numeri»](docs/PHASE23_MOVIE_CHEMISTRY.md) sono implementate localmente. La [migration Step 10](database/supabase-migration-step10.sql) è stata applicata dall'utente e la colonna è stata verificata in sola lettura via REST. La libreria offre «Tutti i film» e «Solo streaming»: quest'ultimo esclude i film contrassegnati manualmente per il cinema. Un'aggiunta fallita prima della migration va ripetuta. Restano da verificare i flussi su due telefoni dopo il deploy. Per stato dettagliato, limiti e dipendenze, usare il [context unico](docs/MASTER_CONTEXT.md).

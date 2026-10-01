@@ -1310,6 +1310,29 @@ async function okA(name, fn) {
         && html.includes('Serata del 31 gen') && html.includes('Registrata il');
     } finally { movies = oldMovies; movieNights = oldNights; }
   }));
+  ok('phase23: serate, film distinti e rewatch contano gli eventi completati anche se il film è stato rimosso', run(() => {
+    const result = movieChemistryStats([
+      { movie_id: 'a', status: 'completed' },
+      { movie_id: 'a', status: 'completed' },
+      { movie_id: 'a', status: 'completed' },
+      { movie_id: 'removed', status: 'completed' },
+      { movie_id: 'b', status: 'cancelled' }
+    ], [{ id: 'a', seen_rating_n: 0, seen_rating_v: 8 }, { id: 'b', seen_rating_n: 7 }]);
+    return result.nights === 4 && result.films === 2 && result.rewatches === 2 && result.ratedByBoth === 1;
+  }));
+  ok('phase23: vuoto e dati non conclusi mostrano zero senza attribuire visioni', run(() => {
+    const oldMovies = movies, oldNights = movieNights;
+    try {
+      movies = [{ id: 'unseen', seen_rating_n: null, seen_rating_v: null }];
+      movieNights = [{ movie_id: 'unseen', status: 'proposed' }];
+      renderStats();
+      const values = movieChemistryStats(movieNights, movies);
+      const html = document.getElementById('chemistryGrid').innerHTML;
+      return Object.values(values).every(value => value === 0)
+        && (html.match(/class="text-xl font-bold text-cinema-testo-1 mt-1">0</g) || []).length === 4
+        && html.includes('Film votati da entrambi');
+    } finally { movies = oldMovies; movieNights = oldNights; }
+  }));
   ok('card: chip generi reali max 3, dedup, null-safe, escapati', run(() => {
     const full = genreChips({ genres: ['Azione', 'Commedia', 'Dramma', 'Horror'] });
     const dedup = genreChips({ genres: ['Azione', 'Azione'] });
