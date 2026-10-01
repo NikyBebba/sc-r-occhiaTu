@@ -38,7 +38,7 @@ node scripts/smoke.js
 node scripts/verify-sw.js
 ```
 
-Ultima verifica locale documentata: **291/291** smoke test e **12/12** controlli del service worker. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni.
+Ultima verifica locale documentata: **296/296** smoke test e **12/12** controlli del service worker. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni.
 
 Per aggiornare selettivamente i metadati di film già presenti, `scripts/refresh-movie-metadata.js` accetta `--ids=<uuid>` oppure `--titles=<titolo>`. Eseguire prima `--dry-run` per confrontare i valori; solo `--apply` scrive su Supabase. Include i rating OMDb e conserva quelli già salvati quando il servizio non ne fornisce di nuovi.
 
@@ -48,4 +48,4 @@ Database locali, dump e backup sono esclusi da Git tramite `.gitignore`. I file 
 
 ## Prossimi passi
 
-La prossima fase prevista è la timeline delle serate per mese, seguita da statistiche retrospettive e dalla definizione di «Why this movie?». Per stato dettagliato, limiti e dipendenze, usare il [context unico](docs/MASTER_CONTEXT.md).
+La Phase 8.3 «Al cinema / prossimamente» è implementata localmente. Prima del deploy applicare in Supabase la [migration Step 10](database/supabase-migration-step10.sql), poi verificare l'aggiunta e il cambio del contrassegno su due telefoni. Segue la timeline delle serate per mese. Per stato dettagliato, limiti e dipendenze, usare il [context unico](docs/MASTER_CONTEXT.md).

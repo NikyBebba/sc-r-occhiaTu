@@ -3,6 +3,7 @@ create table movies (
   title text not null,
   added_by text check (added_by in ('N', 'V')),
   status text check (status in ('watchlist', 'tonight', 'watched')) default 'watchlist',
+  cinema_watchlist boolean not null default false, -- scelta manuale: libreria/programmazione sì, Ruota e Match Live no
   duration text,
   platform text,
   poster text,

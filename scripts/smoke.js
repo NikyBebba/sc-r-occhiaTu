@@ -665,6 +665,51 @@ async function okA(name, fn) {
     const m = movies.find(x => x.tmdb_id === 577922);
     return Boolean(m && m.collection_id === null);
   }));
+  await okA('cinema: la scelta attraversa ricerca/picker ed è modificabile nella libreria', runA(async () => {
+    const oldMovies = movies, oldSearch = searchTmdbCandidates, oldDetails = fetchTmdbDetailsById;
+    const oldUser = currentUser, oldTab = currentTab, oldSb = sb, oldMode = dbMode;
+    const oldPending = pendingCinemaWatchlist;
+    try {
+      movies = []; sb = null; dbMode = 'local'; currentUser = 'N'; currentTab = 'watchlist';
+      searchTmdbCandidates = async () => [{ id: 8001, title: 'Film futuro', year: '2027', poster: '' }];
+      fetchTmdbDetailsById = async id => ({ title: 'Film futuro', tmdb_id: id, matched: true, genres: [], platform: 'Streaming' });
+      document.getElementById('addTitle').value = 'Film futuro';
+      document.getElementById('addBy').value = 'N';
+      document.getElementById('addCinemaWatchlist').checked = true;
+      await initiateAddMovie();
+      document.getElementById('addCinemaWatchlist').checked = false; // il picker conserva la scelta
+      await selectPickerCandidate(8001);
+      const movie = movies.find(m => m.tmdb_id === 8001);
+      render();
+      const card = document.getElementById('movieGrid').innerHTML;
+      const stored = JSON.parse(localStorage.getItem('scorochiatu_movies') || '[]');
+      const saved = movie && movie.cinema_watchlist === true
+        && stored.some(m => m.tmdb_id === 8001 && m.cinema_watchlist === true)
+        && card.includes('Al cinema / prossimamente') && card.includes('Programma');
+      await toggleCinemaWatchlist(movie.id);
+      return saved && movies.find(m => m.id === movie.id).cinema_watchlist === false;
+    } finally {
+      movies = oldMovies; searchTmdbCandidates = oldSearch; fetchTmdbDetailsById = oldDetails;
+      currentUser = oldUser; currentTab = oldTab; sb = oldSb; dbMode = oldMode;
+      pendingCinemaWatchlist = oldPending; closeModal('pickerModal');
+      saveLocal();
+    }
+  }));
+  await okA('cinema: escluso dalla scelta ma programmabile come normale serata', runA(async () => {
+    const oldMovies = movies, oldNights = movieNights, oldSb = sb, oldUser = currentUser;
+    try {
+      sb = null; currentUser = 'N';
+      movies = [{ id: 'cinema-night', title: 'Cinema', status: 'watchlist', cinema_watchlist: true }];
+      movieNights = [];
+      await proposeNight('cinema-night', 'N', '2026-10-24', '21:00', '🍿 Popcorn');
+      const night = activeNightForMovie('cinema-night');
+      return night && night.status === 'proposed' && night.date === '2026-10-24'
+        && movies[0].status === 'tonight' && movies[0].cinema_watchlist === true;
+    } finally {
+      movies = oldMovies; movieNights = oldNights; sb = oldSb; currentUser = oldUser;
+      saveLocal();
+    }
+  }));
   await okA('applyResolvedDetails (retry) aggiorna metadati', runA(async () => {
     const target = movies[0];
     pickerMode = 'retry'; pickerTargetId = target.id;
@@ -875,6 +920,44 @@ async function okA(name, fn) {
       && box.innerHTML.indexOf("onclick=\"downloadTicket('") !== -1
       && box.innerHTML.indexOf("', 'wheel')") !== -1;
   }));
+  await okA('ruota: il vincitore apre la scheda con trama e trailer; la sorpresa resta nascosta', runA(async () => {
+    const oldMovies = movies, oldVetoes = vetoes, oldUser = currentUser;
+    const oldRaf = requestAnimationFrame, oldPerf = performance;
+    const box = document.getElementById('wheelWinner');
+    movies = [{ id: 'wheel-detail', title: 'Film della ruota', status: 'watchlist',
+      overview: 'Trama dalla scheda.', trailer_url: 'https://youtu.be/test' }];
+    vetoes = []; currentUser = 'N'; durationFilter = 'all'; genreFilter = 'all';
+    requestAnimationFrame = cb => setTimeout(() => cb(Date.now() + 5000), 0);
+    performance = { now: Date.now };
+    try {
+      wheelSpinning = false;
+      spinWheel();
+      await new Promise(resolve => setTimeout(resolve, 30));
+      const hasAction = box.innerHTML.includes("openMovieDetail('wheel-detail')")
+        && box.innerHTML.includes('Scheda film · trama e trailer');
+      closeModal('detailModal');
+      openMovieDetail('wheel-detail');
+      const detail = document.getElementById('detailBody').innerHTML;
+      const opens = !document.getElementById('detailModal').classList.contains('hidden')
+        && detail.includes('Trama dalla scheda.') && detail.includes('https://youtu.be/test');
+      closeModal('detailModal');
+
+      movies[0].surprise_by = 'V';
+      wheelSpinning = false;
+      spinWheel();
+      await new Promise(resolve => setTimeout(resolve, 30));
+      const hidden = box.innerHTML.includes('Film a sorpresa')
+        && !box.innerHTML.includes('Film della ruota')
+        && !box.innerHTML.includes('openMovieDetail');
+      openMovieDetail('wheel-detail');
+      return hasAction && opens && hidden
+        && document.getElementById('detailModal').classList.contains('hidden');
+    } finally {
+      movies = oldMovies; vetoes = oldVetoes; currentUser = oldUser;
+      requestAnimationFrame = oldRaf; performance = oldPerf; wheelSpinning = false;
+      closeModal('detailModal');
+    }
+  }));
   await okA('phase15: confirmSchedule chiude il box ruota SOLO se visibile (flusso card intatto)', runA(async () => {
     const box = document.getElementById('wheelWinner');
     const prev = {
@@ -974,6 +1057,15 @@ async function okA(name, fn) {
     durationFilter = 'all';
     movies = saved;
     return okShort && okMed && okEpic;
+  }));
+  ok('cinema: la Ruota esclude i film contrassegnati', run(() => {
+    const saved = movies;
+    movies = [{ id: 'cinema', status: 'watchlist', cinema_watchlist: true },
+      { id: 'casa', status: 'watchlist', cinema_watchlist: false }];
+    durationFilter = 'all'; genreFilter = 'all';
+    const ids = wheelPool().map(m => m.id);
+    movies = saved;
+    return ids.length === 1 && ids[0] === 'casa';
   }));
   ok('wheelPool: durata + genere combinati; film senza generi solo in "tutti"', run(() => {
     const saved = movies;
@@ -2456,6 +2548,18 @@ async function okA(name, fn) {
     const deck = r.deck.slice().sort();
     return r.seed === 5 && deck.join() === 'a,d,g'
       && deck.length === new Set(deck).size;
+  }));
+  ok('cinema: nuove sessioni e deck già aperto saltano i film contrassegnati', run(() => {
+    const list = [{ id: 'cinema', status: 'watchlist', cinema_watchlist: true },
+      { id: 'casa', status: 'watchlist', cinema_watchlist: false }];
+    const built = buildDeck(list, { seed: 5 }).deck.join() === 'casa';
+    const session = { id: 's-cinema', status: 'open', deck: ['cinema', 'casa'], matched_movie_id: null };
+    const state = evaluateSession(session, [], list);
+    const swipes = [{ movie_id: 'cinema', person: 'N', liked: true },
+      { movie_id: 'cinema', person: 'V', liked: true }];
+    return built && state.view === 'swipe' && state.movieId === 'casa'
+      && currentIndex(session.deck, [], list) === 1
+      && pendingMatch(session, swipes, session.deck, list) === null;
   }));
   ok('buildDeck: i film swipati in sessioni PRECEDENTI sono riammessi', run(() => {
     const list = [{ id: 'x', title: 'X', status: 'watchlist' }, { id: 'y', title: 'Y', status: 'watchlist' }];

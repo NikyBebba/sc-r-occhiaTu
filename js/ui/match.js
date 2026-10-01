@@ -263,6 +263,16 @@ function renderMatch() {
   const grid = document.getElementById('movieGrid');
   if (!grid) return;
   grid.innerHTML = matchViewHtml();
+  // Un film spostato nella lista cinema può sparire dal deck tramite il
+  // Realtime del core: chiudi anche l'eventuale reveal già aperto.
+  const reveal = document.getElementById('matchReveal');
+  if (reveal && !reveal.classList.contains('hidden')) {
+    const session = matchViewSession();
+    const state = session ? evaluateSession(session, swipes, movies) : null;
+    if (!state || state.view !== 'match' || matchRevealedKey !== session.id + ':' + state.movieId) {
+      reveal.classList.add('hidden');
+    }
+  }
   if (!matchNightCreated && matchAvailable) {
     const card = document.getElementById('matchCard');
     if (card) matchBindSwipe(card, matchCurrentMovieId());
@@ -318,6 +328,8 @@ async function swipeCard(movieId, liked) {
   if (matchDragging || matchPendingRender) { matchPendingRender = true; return; }
   const session = matchViewSession();
   if (!session) return;
+  const state = evaluateSession(session, swipes, movies);
+  if (state.view !== 'swipe' || state.movieId !== movieId) return;
   const answers = swipesForCard(swipes, movieId);
   if (answers[currentUser] !== undefined) return;
   await recordSwipe(session, movieId, currentUser, liked);
@@ -350,6 +362,7 @@ async function newMatchSession() {
 async function createMatchNight(movieId, mode) {
   const session = matchViewSession();
   if (!session || !movieId) return;
+  if (!resolveDeckMovie(movies, movieId)) return;
   if (mode === 'tonight') {
     await setQuickTonight(movieId);
     // La serata deve ESISTERE davvero (insert Supabase riuscito e presente in

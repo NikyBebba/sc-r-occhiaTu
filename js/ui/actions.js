@@ -6,11 +6,13 @@
 // Apre il modale "Aggiungi film" precompilando "Proposto da" con l'utente loggato
 function openAddModal() {
   if (currentUser) document.getElementById('addBy').value = currentUser;
+  document.getElementById('addCinemaWatchlist').checked = false;
   openModal('addModal');
 }
 
 // ---- Aggiunta singola con scelta tra i risultati TMDb ----
 let pendingAddedBy = null; // 'N' o 'V', tenuto in memoria durante il picker
+let pendingCinemaWatchlist = false; // scelta conservata durante la ricerca/picker TMDb
 let pickerMode = 'add';    // 'add' = nuovo film, 'retry' = correggi film esistente
 let pickerTargetId = null; // id del film da aggiornare, solo in modalità 'retry'
 
@@ -33,6 +35,7 @@ async function initiateAddMovie() {
   if (!title) return;
 
   pendingAddedBy = added_by;
+  pendingCinemaWatchlist = document.getElementById('addCinemaWatchlist').checked;
   pickerMode = 'add';
 
   const searchBtn = document.getElementById('addSaveBtn');
@@ -125,6 +128,7 @@ async function applyResolvedDetails(details) {
   } else {
     const newMovie = {
       title: details.title, added_by: pendingAddedBy, status: 'watchlist',
+      cinema_watchlist: pendingCinemaWatchlist,
       duration: details.duration, platform: details.platform,
       poster: details.poster, trailer_url: details.trailerUrl,
       matched: details.matched, rating: 0,
@@ -201,6 +205,12 @@ async function bulkImportMovies() {
 async function updateStatus(id, newStatus) {
   await updateMovie(id, { status: newStatus });
   loadMovies();
+}
+
+async function toggleCinemaWatchlist(id) {
+  const movie = movies.find(m => m.id === id);
+  if (!movie) return;
+  if (await updateMovie(id, { cinema_watchlist: !movie.cinema_watchlist })) await loadMovies();
 }
 
 async function deleteMovieConfirm(id, title) {

@@ -170,7 +170,7 @@ function renderNightHistory() {
   const count = document.getElementById('nightHistoryCount');
   if (count) count.textContent = `${entries.length} ${entries.length === 1 ? 'serata' : 'serate'}`;
   if (!entries.length) {
-    container.innerHTML = '<p class="text-sm text-slate-400 sm:col-span-2">Le serate concluse compariranno qui. I film visti prima dello storico restano nelle recensioni.</p>';
+    container.innerHTML = '<p class="text-sm text-slate-400 sm:col-span-2">Le serate concluse compariranno qui.</p>';
     return;
   }
   container.innerHTML = entries.map(({ night, movie }) => {
@@ -511,7 +511,7 @@ function render() {
     const isVetoed = vetoedIds.includes(m.id);
     // Meta-blocco "{anno} • {durata}" (step 5b): anno e durata includono
     // SOLO valori non-null, mai un "•" isolato.
-    const metaParts = [m.platform || 'Streaming'];
+    const metaParts = [m.cinema_watchlist ? 'Al cinema / prossimamente' : (m.platform || 'Streaming')];
     if (m.release_year) metaParts.push(String(m.release_year));
     if (m.duration) metaParts.push(m.duration);
     const card = document.createElement('div');
@@ -538,7 +538,7 @@ function render() {
           ${isVetoed ? `<span class="badge bg-rose-700/90">vietato</span>` : ''}
         </div>
         ${!isSurpriseHidden ? `<div class="absolute bottom-4 left-2 px-2 py-1 bg-black/60 rounded text-[10px] text-slate-300 backdrop-blur">
-          <i class="fa-solid fa-tv text-indigo-400"></i> ${metaParts.map(escapeHtml).join(' • ')}
+          <i class="fa-solid ${m.cinema_watchlist ? 'fa-ticket' : 'fa-tv'} text-indigo-400"></i> ${metaParts.map(escapeHtml).join(' • ')}
         </div>` : ''}
         ${(m.trailer_url && !isSurpriseHidden) ? `<a href="${m.trailer_url}" target="_blank" rel="noopener" class="absolute bottom-4 right-2 px-2 py-1 bg-red-600/80 hover:bg-red-500 rounded text-[10px] text-white backdrop-blur"><i class="fa-solid fa-play"></i> Trailer</a>` : ''}
       </div>
@@ -553,6 +553,7 @@ function render() {
           ${m.director ? `<div class="mt-1 text-[10px] text-slate-400 truncate" title="${escapeHtml(m.director)}"><i class="fa-solid fa-user mr-1"></i>${escapeHtml(m.director)}</div>` : ''}
           <div class="flex items-center gap-2 mt-1 flex-wrap">
             ${genreChips(m)}
+            ${m.cinema_watchlist ? '<span class="badge bg-amber-600/80">🎬 Al cinema / prossimamente</span>' : ''}
             ${m.status === 'tonight' && currentTab === 'all' ? `<span class="badge bg-sky-700/90">in programma</span>` : ''}
             ${m.status === 'tonight' && currentTab === 'tonight' ? `<span class="badge bg-indigo-600/90"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatNightDate(m.scheduled_date, m.scheduled_time))}</span>` : ''}
           </div>
@@ -579,13 +580,14 @@ function render() {
           ${m.status === 'watchlist' ? `
             <div class="flex gap-2">
               <button onclick="quickTonightUI('${m.id}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded font-medium">Stasera</button>
-              <button onclick="scheduleMovie('${m.id}')" aria-label="Programma la serata" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded"><i class="fa-solid fa-calendar"></i></button>
+              <button onclick="scheduleMovie('${m.id}')" aria-label="Programma la serata" class="${m.cinema_watchlist ? 'flex-1' : ''} px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded">${m.cinema_watchlist ? 'Programma' : '<i class="fa-solid fa-calendar"></i>'}</button>
               ${!isVetoed
                 ? `<button onclick="vetoMovie('${m.id}', '${jsAttrEscape(m.title)}')" aria-label="Vieta questa settimana" class="px-2 py-1.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 rounded" title="Vieta questa settimana"><i class="fa-solid fa-ban"></i></button>`
                 : (vetoForMovieThisWeek(m.id) && vetoForMovieThisWeek(m.id).person === currentUser
                   ? `<button onclick="unvetoMovie('${m.id}')" aria-label="Togli il veto" class="px-2 py-1.5 bg-rose-900/50 hover:bg-rose-900/80 text-rose-300 rounded" title="Togli il veto"><i class="fa-solid fa-rotate-left"></i></button>`
                   : '')}
             </div>
+            ${!isSurpriseHidden ? `<button onclick="toggleCinemaWatchlist('${jsAttrEscape(m.id)}')" class="w-full min-h-9 px-2 py-1.5 text-xs text-amber-200 hover:text-amber-100 underline">${m.cinema_watchlist ? 'Disponibile per Ruota e Match' : 'Tieni per il cinema'}</button>` : ''}
           ` : ''}
           ${m.status === 'tonight' ? `
             <button onclick="addReview('${m.id}')" class="flex-1 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">Visto insieme & recensione</button>
@@ -638,7 +640,7 @@ function renderScheduled() {
           <div class="font-bold text-slate-200">${escapeHtml(m.title)}</div>
           <div class="text-slate-400 text-[10px]"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatNightDate(m.scheduled_date, m.scheduled_time))} ${m.snack ? '• ' + escapeHtml(m.snack) : ''}</div>
         </div>
-        <span class="px-2 py-1 bg-indigo-500/20 text-indigo-300 rounded text-[10px] font-medium">${escapeHtml(m.platform || '')}</span>
+        <span class="px-2 py-1 bg-indigo-500/20 text-indigo-300 rounded text-[10px] font-medium">${escapeHtml(m.cinema_watchlist ? 'Al cinema' : (m.platform || ''))}</span>
       </div>
     `;
   });
@@ -651,7 +653,7 @@ function renderScheduled() {
 // ============================================
 function openMovieDetail(id) {
   const m = movies.find(x => x.id === id);
-  if (!m) return;
+  if (!m || (m.surprise_by && m.surprise_by !== currentUser)) return;
   renderMovieDetail(m);
   openModal('detailModal');
 }
@@ -661,7 +663,7 @@ function renderMovieDetail(m) {
   if (!body) return;
 
   // Meta-blocco "{anno} • {durata}" su piattaforma (regola card: mai "•" isolato)
-  const metaParts = [m.platform || 'Streaming'];
+  const metaParts = [m.cinema_watchlist ? 'Al cinema / prossimamente' : (m.platform || 'Streaming')];
   if (m.release_year) metaParts.push(String(m.release_year));
   if (m.duration) metaParts.push(m.duration);
 
@@ -692,6 +694,7 @@ function renderMovieDetail(m) {
       <button onclick="closeModal('detailModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition shrink-0" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
     </div>
     ${genreChipsHtml}
+    ${m.cinema_watchlist ? '<span class="badge bg-amber-600/80">🎬 Al cinema / prossimamente</span>' : ''}
     ${viewingStatusHtml(m)}
     ${reviewCardsHtml(m)}
     ${ratingsHtml}

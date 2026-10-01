@@ -72,7 +72,7 @@ function buildDeck(moviesList, opts) {
   const seen = new Set();
   for (const m of (moviesList || [])) {
     if (!m || m.id == null) continue;
-    if (m.status && m.status !== 'watchlist') continue;
+    if ((m.status && m.status !== 'watchlist') || m.cinema_watchlist) continue;
     if (veto.has(m.id) || excl.has(m.id)) continue;
     if (seen.has(m.id)) continue;
     seen.add(m.id);
@@ -152,13 +152,13 @@ function isCardResolved(swipes, movieId) {
 
 function resolveDeckMovie(moviesList, movieId) {
   for (const m of (moviesList || [])) {
-    if (m && m.id === movieId) return m;
+    if (m && m.id === movieId && !m.cinema_watchlist) return m;
   }
   return null;
 }
 
 // Primo card non risolto (index), deck.length se tutti risolti. Con
-// moviesList fornito, un id senza film nel deck (cancellato) vale risolto.
+// moviesList fornito, film cancellati o passati alla lista cinema sono saltati.
 function currentIndex(deck, swipes, moviesList) {
   const d = Array.isArray(deck) ? deck : [];
   for (let i = 0; i < d.length; i++) {
