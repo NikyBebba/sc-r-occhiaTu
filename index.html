@@ -141,6 +141,13 @@
       </div>
     </nav>
 
+    <div id="initialLoadingBanner" class="hidden max-w-6xl mx-auto px-4 mb-5">
+      <div class="loading-scene glass-panel rounded-2xl border border-slate-800" role="status" aria-live="polite">
+        <div class="ciak-loader" aria-hidden="true"><div class="ciak-clap"></div><div class="ciak-board"><i class="fa-solid fa-film"></i></div></div>
+        <span>Prepariamo la sala…</span>
+      </div>
+    </div>
+
     <main id="dashboardLayout" class="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
 
       <section id="nextMovieHero" class="hidden next-movie-hero md:col-span-3" aria-label="La nostra prossima serata">
@@ -578,6 +585,7 @@
   <script src="js/ui/calendar.js"></script>
   <script src="js/ui/match.js"></script>
   <script src="js/ui/ticket.js"></script>
+  <script src="js/ui/loading.js"></script>
   <script src="js/main.js"></script>
 
   <!-- Toast aggiornamento PWA -->

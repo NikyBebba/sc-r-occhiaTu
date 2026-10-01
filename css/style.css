@@ -93,6 +93,68 @@ body {
   box-shadow: var(--shadow-card);
 }
 
+/* Phase 28 — primo caricamento: piccolo ciak e sagome delle movie card.
+   Stesse superfici e accenti della libreria; nessun elemento è interattivo. */
+.loading-scene {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 86px;
+  color: var(--color-testo-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.ciak-loader { position: relative; width: 54px; height: 50px; flex: 0 0 54px; }
+.ciak-clap {
+  position: absolute;
+  top: 4px;
+  left: 2px;
+  width: 50px;
+  height: 13px;
+  border: 2px solid var(--color-dettaglio);
+  border-radius: 4px;
+  background: repeating-linear-gradient(115deg, #0f172a 0 10px, #818cf8 10px 18px);
+  transform-origin: 5px 100%;
+  animation: ciak-clap 1.25s ease-in-out infinite;
+}
+.ciak-board {
+  position: absolute;
+  inset: 19px 2px 2px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--color-dettaglio);
+  border-radius: 4px;
+  background: var(--color-superficie);
+  color: var(--color-cielo);
+}
+@keyframes ciak-clap {
+  0%, 30%, 100% { transform: rotate(0deg); }
+  55%, 70% { transform: rotate(-23deg); }
+}
+.loading-movie-card {
+  overflow: hidden;
+  border: 1px solid var(--color-bordo-forte);
+  border-radius: var(--radius-2xl);
+  background: var(--color-vetro);
+  box-shadow: var(--shadow-card);
+}
+.loading-poster,
+.loading-line {
+  background: linear-gradient(100deg, #1e293b 30%, #334155 50%, #1e293b 70%);
+  background-size: 200% 100%;
+  animation: loading-shimmer 1.5s ease-in-out infinite;
+}
+.loading-poster { height: 192px; }
+.loading-card-body { display: grid; gap: 12px; padding: 16px; }
+.loading-line { height: 12px; border-radius: 6px; }
+.loading-line-title { width: 72%; height: 16px; }
+.loading-line-short { width: 45%; }
+@keyframes loading-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass,
   .glass-panel,

@@ -490,6 +490,7 @@ function resetListFiltersUI() {
 
 // ---- Render principale ----
 function render() {
+  finishInitialLoading();
   renderPillCounters();
   const statsModal = document.getElementById('statsModal');
   if (statsModal && !statsModal.classList.contains('hidden')) renderStats();

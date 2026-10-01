@@ -99,8 +99,18 @@ function showApp() {
   const badge = document.getElementById('currentUserBadge');
   const person = CONFIG.PEOPLE[currentUser];
   badge.innerHTML = `<span class="badge ${person.badgeClass}">${person.label}</span>`;
+  beginInitialLoading();
   subscribeRealtime();
-  loadMovies();
+  loadMovies().catch(() => {
+    // Una richiesta che rigetta (anziché restituire un errore Supabase)
+    // usa comunque il mirror locale, come gli altri errori di rete.
+    dbMode = 'local';
+    lastSupabaseFailAt = Date.now();
+    console.error('[sc(r)occhiaTu] Caricamento non riuscito: uso i dati salvati sul telefono.');
+    try { loadLocal(); }
+    catch (error) { movies = []; votes = []; vetoes = []; movieNights = []; }
+    render();
+  });
 }
 
 document.addEventListener('DOMContentLoaded', function () {

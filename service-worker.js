@@ -5,7 +5,7 @@
 // Aggiornamento: niente skipWaiting (prompt "nuova versione" lato client).
 // ============================================
 
-const CACHE_REV = 'scorochiatu-shell-v18';
+const CACHE_REV = 'scorochiatu-shell-v19';
 const CACHE_PREFIX = 'scorochiatu-shell-';
 
 const PRECACHE = [
@@ -29,6 +29,7 @@ const PRECACHE = [
   '/js/ui/calendar.js',
   '/js/ui/match.js',
   '/js/ui/ticket.js',
+  '/js/ui/loading.js',
   '/js/main.js',
   '/manifest.json',
   '/icons/icon-192.png',

@@ -166,6 +166,7 @@ async function okA(name, fn) {
     'js/ui/modals.js', 'js/ui/navigation.js', 'js/ui/actions.js', 'js/ui/render.js', 'js/ui/calendar.js',
     'js/ui/match.js',
     'js/ui/ticket.js',
+    'js/ui/loading.js',
     'js/main.js'
   ].map(f => read(f) + '\n;');
 
@@ -190,6 +191,27 @@ async function okA(name, fn) {
   ok('unsubscribeRealtime no-crash', run(() => { unsubscribeRealtime(); return true; }));
   await okA('loadMovies (locale vuoto) non crasha', runA(async () => { await loadMovies(); return true; }));
   ok('render() non crasha su stato vuoto', run(() => { render(); return true; }));
+  await okA('Phase 28: ciak e skeleton durante il caricamento, poi render senza flash tardivo', runA(async () => {
+    const savedTab = currentTab;
+    try {
+      currentTab = 'watchlist';
+      beginInitialLoading();
+      showInitialLoading();
+      const grid = document.getElementById('movieGrid');
+      const library = document.getElementById('librarySection');
+      const banner = document.getElementById('initialLoadingBanner');
+      const loading = !banner.classList.contains('hidden')
+        && (grid.innerHTML.match(/loading-movie-card/g) || []).length === 2
+        && library['aria-busy'] === 'true';
+      render();
+      await new Promise(resolve => setTimeout(resolve, 190));
+      return loading && banner.classList.contains('hidden')
+        && !grid.innerHTML.includes('loading-movie-card') && library['aria-busy'] === 'false';
+    } finally {
+      currentTab = savedTab;
+      finishInitialLoading();
+    }
+  }));
 
   console.log('\n[haptics — preferenza del dispositivo]');
   ok('vibrazione opt-in: controllo solo con API, cue solo se attiva e pagina visibile', run(() => {
