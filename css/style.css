@@ -202,6 +202,18 @@ body {
   background: linear-gradient(160deg, rgba(2, 6, 23, 0.72) 0%, rgba(15, 23, 42, 0.88) 100%);
 }
 
+/* Phase 25: la card si espande nel dettaglio quando il browser supporta le
+   View Transitions. La pagina sotto il modale resta ferma durante il morph. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0s;
+}
+::view-transition-old(movie-detail),
+::view-transition-new(movie-detail) {
+  animation-duration: 280ms;
+  animation-timing-function: ease-in-out;
+}
+
 /* Step3 phase9.2 — accento perimetrale dal colore dominante del poster.
    SOLO decorativo: bordo + glow. Il testo resta sempre var(--color-testo-1). */
 #detailPanel.detail-accent {

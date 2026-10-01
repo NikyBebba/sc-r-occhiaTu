@@ -1,4 +1,4 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.17
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.18
 
 Ultimo aggiornamento: 1 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
 
@@ -20,6 +20,8 @@ Phase 23 implementata nel codice locale: «Il Nostro Cinema» mostra serate conc
 
 Decisione Phase 24: la sezione «Why this movie?» e il flag cult manuale sono scartati. Nel dettaglio del film compare solo un'indicazione discreta degli **Oscar vinti** se OMDb li dichiara esplicitamente in `Awards` (`Won N Oscars`); candidature e totali anonimi non diventano badge. L'IMDb ID viene risolto dal TMDb ID all'apertura della scheda, con cache in memoria e nuovo tentativo dopo errori di rete; nessuna migration. Altri premi e fonti esterne potranno essere valutati in una fase futura. Cache PWA `v15`; smoke locale **306/306 PASS**. Il percorso live completo TMDb→OMDb è stato tentato, ma OMDb è andato in timeout; letture dirette precedenti del campo `Awards` hanno confermato il formato di vittorie e nomination.
 
+Phase 25, primo intervento: apertura e chiusura della scheda film con transizione condivisa dalla card della libreria, tramite View Transitions API. Senza supporto, con movimento ridotto o se la card è stata ricostruita, il modale usa l'apertura/chiusura immediata esistente. La scheda aperta dalla Ruota resta immediata. Nessuna migration. Cache PWA `v16`; smoke locale **307/307 PASS**; resa visiva da verificare su smartphone/browser reali.
+
 ## Quadro rapido — dove siamo
 
 | Area | Stato verificato nel codice | Limite attuale |
@@ -29,7 +31,7 @@ Decisione Phase 24: la sezione «Why this movie?» e il flag cult manuale sono s
 | Film e recensioni | Indicatori N/V/insieme, voto personale 0–10, tre testi distinti, annullamento visione; aggiunta con avviso duplicati | `votes` e campi legacy restano per compatibilità |
 | Il Nostro Cinema | Serate concluse per mese, una card per evento anche nei rewatch; statistiche e recensioni separate | Nessun archivio dei PNG generati |
 
-Verifiche locali dell'ultima revisione funzionale: `node scripts/smoke.js` **306/306 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Migration Step 8 applicata e cinque nuove colonne `movies` verificate via REST; migration Step 9 applicata in Dashboard dall'utente. Step 10 applicata dall'utente e colonna cinema verificata via REST in sola lettura. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
+Verifiche locali dell'ultima revisione funzionale: `node scripts/smoke.js` **307/307 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Migration Step 8 applicata e cinque nuove colonne `movies` verificate via REST; migration Step 9 applicata in Dashboard dall'utente. Step 10 applicata dall'utente e colonna cinema verificata via REST in sola lettura. Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
 
 Regola repository: database locali, dump e backup sono esclusi da Git. I file SQL in `database/` descrivono schema e migration, senza esportazioni dei dati.
 
@@ -39,7 +41,8 @@ Regola repository: database locali, dump e backup sono esclusi da Git. I file SQ
 2. **Phase 22 — Timeline per mese**: [specifica e stato](PHASE22_TIMELINE.md). Implementata localmente; verificare il modale su smartphone dopo il deploy.
 3. **Phase 23 — I nostri numeri**: [definizioni e stato](PHASE23_MOVIE_CHEMISTRY.md). Implementata localmente; verificare la nuova sezione su due telefoni dopo il deploy.
 4. **Scheda film — Oscar vinti**: implementata localmente con lettura OMDb su richiesta. Verificare su due telefoni dopo il deploy; nessuna sezione «Why this movie?».
-5. **Fasi successive**: Hot Picks richiede dati TMDb aggiuntivi e una migration autorizzata; Dynamic Island, login, temi, microinterazioni e altre fasi restano pianificate sotto.
+5. **Phase 25 — Transizione card/scheda**: implementata localmente con fallback immediato; verificare apertura e chiusura su smartphone dopo il deploy.
+6. **Fasi successive**: Hot Picks richiede dati TMDb aggiuntivi e una migration autorizzata; Dynamic Island, login, temi, microinterazioni e altre fasi restano pianificate sotto.
 
 Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di sessione, Phase 17 Match Reveal, Phase 18 Final Ticket Generator). Nessun campo/migration nuovo: origine del Ticket tracciata solo in-memory (`markTicketOrigin`/`ticketOriginOf`), scelta esplicita per restare nei vincoli di questo giro — da rivalutare se in futuro servirà uno storico persistito dei ticket (vedi Note aperte). Smoke passato da 245 a 262 test lungo lo step.
 
@@ -164,7 +167,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 11 — Dynamic Island — allineare a "serata in programma" e alla Tonight
 - Phase 12 — Login Experience (12.1-12.5)
 - Phase 14 — Film Grain
-- Phase 25 — Shared Element Transitions
+- Phase 25 — Shared Element Transitions (card libreria ↔ scheda film ✅ nel codice locale; altri passaggi non definiti)
 
 ### STEP 7 — Themes
 - Phase 32 — Cinema Mode

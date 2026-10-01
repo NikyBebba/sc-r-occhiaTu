@@ -2115,6 +2115,41 @@ async function okA(name, fn) {
     movies = saved; currentUser = prevUser; currentTab = prevTab;
     return okOpen;
   }));
+  await okA('dettaglio: transizione card/modale in entrambi i versi, fallback con movimento ridotto', runA(async () => {
+    const savedMovies = movies, savedUser = currentUser;
+    const savedTransition = document.startViewTransition;
+    const savedMatchMedia = window.matchMedia;
+    const source = { isConnected: true, style: {} };
+    let calls = 0;
+    movies = [{ id: 'detail-transition', title: 'Transizione', status: 'watchlist', added_by: 'N' }];
+    currentUser = 'N';
+    closeModalNow('detailModal');
+    document.startViewTransition = update => {
+      calls++;
+      return { finished: Promise.resolve().then(update) };
+    };
+    window.matchMedia = () => ({ matches: false });
+    try {
+      openMovieDetail('detail-transition', source);
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const opened = !document.getElementById('detailModal').classList.contains('hidden')
+        && source.style.viewTransitionName === '';
+      closeModal('detailModal');
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const closed = document.getElementById('detailModal').classList.contains('hidden')
+        && source.style.viewTransitionName === '';
+      window.matchMedia = () => ({ matches: true });
+      openMovieDetail('detail-transition', source);
+      const reducedMotion = calls === 2 && !document.getElementById('detailModal').classList.contains('hidden');
+      closeModal('detailModal');
+      return opened && closed && reducedMotion && calls === 2;
+    } finally {
+      document.startViewTransition = savedTransition;
+      window.matchMedia = savedMatchMedia;
+      movies = savedMovies; currentUser = savedUser;
+      closeModalNow('detailModal');
+    }
+  }));
   ok('dettaglio: guardia — click su button/a/input/select/textarea NON apre il modale', run(() => {
     const prevUser = currentUser, prevTab = currentTab, saved = movies;
     currentUser = 'N'; currentTab = 'all';

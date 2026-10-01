@@ -680,7 +680,7 @@ function render() {
       if (isSurpriseHidden) return;
       const t = e && e.target;
       if (t && t.closest && t.closest('button, a, input, select, textarea')) return;
-      openMovieDetail(m.id);
+      openMovieDetail(m.id, card);
     });
     grid.appendChild(card);
   });
@@ -728,12 +728,84 @@ function renderScheduled() {
 // Apre il modale #detailModal e popola #detailBody con i metadati del film.
 // Usa i campi già in memoria; solo gli Oscar sono letti su richiesta.
 // ============================================
-function openMovieDetail(id) {
+let detailTransitionSource = null;
+let detailTransitionActive = false;
+
+function canTransitionMovieDetail(source) {
+  return !!(source && source.isConnected && document.startViewTransition
+    && (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches));
+}
+
+function openMovieDetail(id, sourceCard) {
+  if (detailTransitionActive) return;
   const m = movies.find(x => x.id === id);
   if (!m || (m.surprise_by && m.surprise_by !== currentUser)) return;
   renderMovieDetail(m);
-  openModal('detailModal');
+  const panel = document.getElementById('detailPanel');
+  if (panel && canTransitionMovieDetail(sourceCard) && !detailTransitionActive) {
+    detailTransitionActive = true;
+    detailTransitionSource = sourceCard;
+    sourceCard.style.viewTransitionName = 'movie-detail';
+    let transition;
+    try {
+      transition = document.startViewTransition(() => {
+        sourceCard.style.viewTransitionName = '';
+        openModal('detailModal');
+        panel.style.viewTransitionName = 'movie-detail';
+      });
+    } catch (error) {
+      sourceCard.style.viewTransitionName = '';
+      detailTransitionActive = false;
+      detailTransitionSource = null;
+      openModal('detailModal');
+      transition = null;
+    }
+    if (transition) {
+      transition.finished.then(() => {
+        panel.style.viewTransitionName = '';
+        detailTransitionActive = false;
+      }, () => {
+        panel.style.viewTransitionName = '';
+        detailTransitionActive = false;
+      });
+    }
+  } else {
+    detailTransitionSource = null;
+    openModal('detailModal');
+  }
   if (m.tmdb_id) fetchOscarWins(m.tmdb_id).then(wins => renderOscarWins(m.id, wins));
+}
+
+function closeMovieDetailWithTransition(closeNow) {
+  const source = detailTransitionSource;
+  const panel = document.getElementById('detailPanel');
+  const modal = document.getElementById('detailModal');
+  detailTransitionSource = null;
+  if (detailTransitionActive || !panel || !modal || modal.classList.contains('hidden')
+      || !canTransitionMovieDetail(source)) return false;
+  detailTransitionActive = true;
+  panel.style.viewTransitionName = 'movie-detail';
+  let transition;
+  try {
+    transition = document.startViewTransition(() => {
+      panel.style.viewTransitionName = '';
+      closeNow();
+      source.style.viewTransitionName = 'movie-detail';
+    });
+  } catch (error) {
+    panel.style.viewTransitionName = '';
+    detailTransitionActive = false;
+    closeNow();
+    return true;
+  }
+  transition.finished.then(() => {
+    source.style.viewTransitionName = '';
+    detailTransitionActive = false;
+  }, () => {
+    source.style.viewTransitionName = '';
+    detailTransitionActive = false;
+  });
+  return true;
 }
 
 function renderOscarWins(movieId, wins) {

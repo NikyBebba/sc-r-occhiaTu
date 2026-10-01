@@ -23,6 +23,12 @@ function openModal(id) {
 }
 
 function closeModal(id) {
+  if (id === 'detailModal' && typeof closeMovieDetailWithTransition === 'function'
+      && closeMovieDetailWithTransition(() => closeModalNow(id))) return;
+  closeModalNow(id);
+}
+
+function closeModalNow(id) {
   const el = document.getElementById(id);
   if (el) el.classList.add('hidden');
   modalStack = modalStack.filter(x => x !== id);
