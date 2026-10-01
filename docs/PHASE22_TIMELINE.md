@@ -1,6 +1,6 @@
 # Phase 22 — Timeline delle serate per mese
 
-Stato: **progettata, non implementata** · 1 ottobre 2026
+Stato: **implementata nel codice locale; verifica mobile su due telefoni da eseguire** · 1 ottobre 2026
 
 ## Obiettivo
 
@@ -77,6 +77,10 @@ date e fusi orari si possono verificare senza DOM.
    resync continuano a funzionare. Eseguire smoke test, check JS e controllo
    mobile manuale del modale; il test locale non sostituisce la prova su due
    telefoni.
+
+Smoke locale dopo l'implementazione: raggruppamento per mese, priorità a
+`night.date`, fallback locale a `completed_at`, sezione senza data e rewatch
+verificati. La prova manuale su due telefoni resta da fare dopo il deploy.
 
 ## Dopo la Phase 22
 

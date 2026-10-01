@@ -141,26 +141,42 @@ function reviewCardsHtml(movie) {
 
 // ---- Il Nostro Cinema — una card per ogni serata completata, anche rewatch.
 // Nessun timbro d'origine: il ticket PNG non viene conservato nel database. ----
-function completedNightEntries() {
-  const timestamp = n => {
-    const value = n.completed_at || (n.date ? `${n.date}T${(n.time || '00:00').slice(0, 5)}:00` : n.created_at);
-    const parsed = value ? new Date(value).getTime() : 0;
-    return Number.isFinite(parsed) ? parsed : 0;
-  };
-  return movieNights.filter(n => n.status === 'completed')
-    .map(night => ({ night, movie: movies.find(m => m.id === night.movie_id) || null }))
-    .sort((a, b) => timestamp(b.night) - timestamp(a.night));
-}
-
-function completedNightLabel(night) {
-  if (night.date) return 'Serata del ' + formatNightDate(night.date, night.time);
-  if (night.completed_at) {
-    const completed = new Date(night.completed_at);
-    if (Number.isFinite(completed.getTime())) {
-      return 'Conclusa il ' + completed.toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
+function nightTimelineDate(night) {
+  const raw = night.date;
+  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [year, month, day] = raw.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    if (date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day) {
+      return { key: raw, source: 'scheduled' };
     }
   }
-  return 'Data non registrata';
+  const completed = night.completed_at ? new Date(night.completed_at) : null;
+  if (completed && Number.isFinite(completed.getTime())) {
+    return { key: localDateKey(completed), source: 'registered' };
+  }
+  return null;
+}
+
+function completedNightEntries() {
+  return movieNights.filter(n => n.status === 'completed')
+    .map(night => ({ night, movie: movies.find(m => m.id === night.movie_id) || null,
+      timelineDate: nightTimelineDate(night) }))
+    .sort((a, b) => {
+      const byDay = (b.timelineDate?.key || '').localeCompare(a.timelineDate?.key || '');
+      if (byDay) return byDay;
+      const byCompletion = (b.night.completed_at || '').localeCompare(a.night.completed_at || '');
+      return byCompletion || String(a.night.id || '').localeCompare(String(b.night.id || ''));
+    });
+}
+
+function completedNightLabel(entry) {
+  if (!entry.timelineDate) return 'Data non registrata';
+  if (entry.timelineDate.source === 'scheduled') {
+    return 'Serata del ' + formatNightDate(entry.timelineDate.key, entry.night.time);
+  }
+  const [year, month, day] = entry.timelineDate.key.split('-').map(Number);
+  return 'Registrata il ' + new Date(year, month - 1, day)
+    .toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function renderNightHistory() {
@@ -170,28 +186,47 @@ function renderNightHistory() {
   const count = document.getElementById('nightHistoryCount');
   if (count) count.textContent = `${entries.length} ${entries.length === 1 ? 'serata' : 'serate'}`;
   if (!entries.length) {
-    container.innerHTML = '<p class="text-sm text-slate-400 sm:col-span-2">Le serate concluse compariranno qui.</p>';
+    container.innerHTML = '<p class="text-sm text-slate-400">Le serate concluse compariranno qui.</p>';
     return;
   }
-  container.innerHTML = entries.map(({ night, movie }) => {
-    const hidden = !!(movie && movie.surprise_by && movie.surprise_by !== currentUser);
-    const title = hidden ? 'Film a sorpresa' : movie?.title || 'Film non disponibile';
-    const poster = movie?.poster && !hidden
-      ? `<img src="${escapeHtml(movie.poster)}" alt="Locandina di ${escapeHtml(title)}" loading="lazy">`
-      : '<i class="fa-solid fa-film" aria-hidden="true"></i>';
-    return `<article class="history-ticket">
+  const groups = new Map();
+  entries.forEach(entry => {
+    const monthKey = entry.timelineDate ? entry.timelineDate.key.slice(0, 7) : '';
+    if (!groups.has(monthKey)) groups.set(monthKey, []);
+    groups.get(monthKey).push(entry);
+  });
+  container.innerHTML = [...groups].map(([monthKey, group]) => {
+    const monthLabel = monthKey
+      ? new Date(Number(monthKey.slice(0, 4)), Number(monthKey.slice(5, 7)) - 1, 1)
+        .toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
+      : 'Data non registrata';
+    const cards = group.map(({ night, movie, timelineDate }) => {
+      const hidden = !!(movie && movie.surprise_by && movie.surprise_by !== currentUser);
+      const title = hidden ? 'Film a sorpresa' : movie?.title || 'Film non disponibile';
+      const poster = movie?.poster && !hidden
+        ? `<img src="${escapeHtml(movie.poster)}" alt="Locandina di ${escapeHtml(title)}" loading="lazy">`
+        : '<i class="fa-solid fa-film" aria-hidden="true"></i>';
+      return `<article class="history-ticket">
       <div class="history-ticket-poster">${poster}</div>
       <div class="history-ticket-info">
         <span class="history-ticket-kicker">SERATA CONCLUSA</span>
         <h5>${escapeHtml(title)}</h5>
-        <p>${escapeHtml(completedNightLabel(night))}</p>
+        <p>${escapeHtml(completedNightLabel({ night, timelineDate }))}</p>
         ${night.snack ? `<p>🍿 ${escapeHtml(night.snack)}</p>` : ''}
       </div>
     </article>`;
+    }).join('');
+    return `<section aria-label="${escapeHtml(monthLabel)}">
+      <div class="flex items-center justify-between gap-2 mb-3">
+        <h5 class="text-sm font-bold text-slate-200 capitalize">${escapeHtml(monthLabel)}</h5>
+        <span class="text-xs text-slate-400">${group.length} ${group.length === 1 ? 'serata' : 'serate'}</span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${cards}</div>
+    </section>`;
   }).join('');
 }
 
-// ---- Il Nostro Cinema — statistiche + timeline recensioni ----
+// ---- Il Nostro Cinema — statistiche + recensioni senza data ----
 function renderStats() {
   renderNightHistory();
   const watched = movies.filter(m => m.status === 'watched');
@@ -249,7 +284,8 @@ function renderStats() {
     .flatMap(m => ['N', 'V', 'both'].map(person => ({
     movie: m, person, text: reviewTextFor(m, person)
   })).filter(entry => entry.text))
-    .sort((a, b) => new Date(b.movie.scheduled_date || b.movie.created_at || 0) - new Date(a.movie.scheduled_date || a.movie.created_at || 0));
+    .sort((a, b) => String(a.movie.title || '').localeCompare(String(b.movie.title || ''), 'it')
+      || ['N', 'V', 'both'].indexOf(a.person) - ['N', 'V', 'both'].indexOf(b.person));
   const timeline = document.getElementById('reviewTimeline');
   if (reviewed.length === 0) {
     timeline.innerHTML = `<p class="text-xs text-slate-400 italic">Ancora nessuna recensione.</p>`;

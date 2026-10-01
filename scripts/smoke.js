@@ -1269,6 +1269,32 @@ async function okA(name, fn) {
         && document.getElementById('nightHistory').innerHTML.includes('Le serate concluse compariranno qui');
     } finally { movies = oldMovies; movieNights = oldNights; currentUser = oldUser; }
   }));
+  ok('phase22: mese della serata prima della registrazione; quick pick usa completed_at locale', run(() => {
+    const scheduled = nightTimelineDate({ date: '2026-01-31', completed_at: '2026-02-02T10:00:00Z' });
+    const quick = nightTimelineDate({ date: null, completed_at: '2026-03-20T20:00:00Z' });
+    const invalid = nightTimelineDate({ date: '2026-02-30', completed_at: null });
+    return scheduled.key === '2026-01-31' && scheduled.source === 'scheduled'
+      && quick.key === localDateKey(new Date('2026-03-20T20:00:00Z'))
+      && quick.source === 'registered' && invalid === null;
+  }));
+  ok('phase22: gruppi mensili, rewatch e date sconosciute separati', run(() => {
+    const oldMovies = movies, oldNights = movieNights;
+    try {
+      movies = [{ id: 'phase22-film', title: 'Film', poster: '' }];
+      movieNights = [
+        { id: 'jan', movie_id: 'phase22-film', status: 'completed', date: '2026-01-31', completed_at: '2026-02-02T10:00:00Z' },
+        { id: 'mar', movie_id: 'phase22-film', status: 'completed', date: null, completed_at: '2026-03-20T20:00:00Z' },
+        { id: 'unknown', movie_id: 'phase22-film', status: 'completed', date: '2026-02-30', completed_at: null }
+      ];
+      renderNightHistory();
+      const html = document.getElementById('nightHistory').innerHTML;
+      return document.getElementById('nightHistoryCount').textContent === '3 serate'
+        && (html.match(/<article class="history-ticket">/g) || []).length === 3
+        && html.indexOf('marzo 2026') < html.indexOf('gennaio 2026')
+        && html.indexOf('gennaio 2026') < html.indexOf('Data non registrata')
+        && html.includes('Serata del 31 gen') && html.includes('Registrata il');
+    } finally { movies = oldMovies; movieNights = oldNights; }
+  }));
   ok('card: chip generi reali max 3, dedup, null-safe, escapati', run(() => {
     const full = genreChips({ genres: ['Azione', 'Commedia', 'Dramma', 'Horror'] });
     const dedup = genreChips({ genres: ['Azione', 'Azione'] });
