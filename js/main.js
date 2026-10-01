@@ -94,6 +94,7 @@ function applySwUpdate() {
 
 function showApp() {
   document.getElementById('appRoot').classList.remove('hidden');
+  loadHapticsPreference();
   const badge = document.getElementById('currentUserBadge');
   const person = CONFIG.PEOPLE[currentUser];
   badge.innerHTML = `<span class="badge ${person.badgeClass}">${person.label}</span>`;

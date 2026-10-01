@@ -159,6 +159,7 @@ async function okA(name, fn) {
   const sources = [
     'js/config.js',
     'js/format.js',
+    'js/haptics.js',
     'js/api/omdb.js', 'js/api/tmdb.js', 'js/api/index.js',
     'js/store.js', 'js/match.js', 'js/filters.js', 'js/wheel.js',
     'js/ui/modals.js', 'js/ui/navigation.js', 'js/ui/actions.js', 'js/ui/render.js', 'js/ui/calendar.js',
@@ -188,6 +189,45 @@ async function okA(name, fn) {
   ok('unsubscribeRealtime no-crash', run(() => { unsubscribeRealtime(); return true; }));
   await okA('loadMovies (locale vuoto) non crasha', runA(async () => { await loadMovies(); return true; }));
   ok('render() non crasha su stato vuoto', run(() => { render(); return true; }));
+
+  console.log('\n[haptics — preferenza del dispositivo]');
+  ok('vibrazione opt-in: controllo solo con API, cue solo se attiva e pagina visibile', run(() => {
+    const savedNavigator = globalThis.navigator;
+    const savedVisibility = document.visibilityState;
+    const savedPreference = localStorage.getItem('scorochiatu_haptics');
+    const calls = [];
+    try {
+      localStorage.removeItem('scorochiatu_haptics');
+      delete globalThis.navigator;
+      loadHapticsPreference();
+      const button = document.getElementById('hapticsToggle');
+      const unsupported = button.classList.contains('hidden') && !hapticFeedback('swipe');
+      globalThis.navigator = { vibrate: pattern => { calls.push(pattern); return true; } };
+      loadHapticsPreference();
+      const offByDefault = !button.classList.contains('hidden') && button['aria-pressed'] === 'false'
+        && document.getElementById('hapticsLabel').textContent.includes('spenta')
+        && !hapticFeedback('swipe');
+      toggleHaptics();
+      const onLabel = document.getElementById('hapticsLabel').textContent.includes('attiva');
+      hapticFeedback('swipe');
+      document.visibilityState = 'hidden';
+      hapticFeedback('wheelWin');
+      document.visibilityState = 'visible';
+      toggleHaptics();
+      hapticFeedback('wheelStart');
+      return unsupported && offByDefault && onLabel && calls.length === 2
+        && calls[0] === 12 && calls[1] === 18
+        && localStorage.getItem('scorochiatu_haptics') === 'off'
+        && button['aria-pressed'] === 'false';
+    } finally {
+      if (savedNavigator === undefined) delete globalThis.navigator;
+      else globalThis.navigator = savedNavigator;
+      document.visibilityState = savedVisibility;
+      if (savedPreference === null) localStorage.removeItem('scorochiatu_haptics');
+      else localStorage.setItem('scorochiatu_haptics', savedPreference);
+      loadHapticsPreference();
+    }
+  }));
 
   // --- 0b) formatNightDate (helper DOM-free) ---
   console.log('\n[formatNightDate]');

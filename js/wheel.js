@@ -124,6 +124,7 @@ function spinWheel() {
   if (available.length === 0 || wheelSpinning) return;
 
   wheelSpinning = true;
+  hapticFeedback('wheelStart');
   const resultDiv = document.getElementById('wheelWinner');
   resultDiv.classList.add('hidden');
 
@@ -175,6 +176,7 @@ function spinWheel() {
           <button onclick="downloadTicket('${jsAttrEscape(winner.id)}', 'wheel')" class="flex-1 py-2 bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-indigo-300 rounded-lg text-sm font-medium transition">🎟️ Ticket</button>
         </div>`;
       fireConfetti();
+      hapticFeedback('wheelWin');
     }
   }
   requestAnimationFrame(frame);

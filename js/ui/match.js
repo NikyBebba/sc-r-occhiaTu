@@ -333,6 +333,7 @@ async function swipeCard(movieId, liked) {
   const answers = swipesForCard(swipes, movieId);
   if (answers[currentUser] !== undefined) return;
   await recordSwipe(session, movieId, currentUser, liked);
+  if (swipesForCard(swipes, movieId)[currentUser] === !!liked) hapticFeedback('swipe');
   renderMatch();
 }
 
