@@ -1,6 +1,9 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.38
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.39
 
 Ultimo aggiornamento: 5 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
+
+README riscritto come presentazione generale — L'utente chiede di spiegare il progetto per **due utenti**, senza usare N/V come identità nella descrizione pubblica. README ora separa scopo, percorso di utilizzo, funzioni, architettura, avvio, stato e possibili evoluzioni; niente dettagli delle rifiniture o diario della sessione. Resta esplicito il limite attuale: uno spazio con due profili preconfigurati, senza registrazione/gruppi indipendenti. L'apertura a più spazi è una possibilità da progettare, non implementata. Nessuna modifica ai profili runtime, al modello dati o alla UI.
+
 
 ## Checkpoint corrente — 5 ottobre 2026
 
