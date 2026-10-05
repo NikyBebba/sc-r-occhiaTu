@@ -145,7 +145,7 @@ function renderMovieDetail(m) {
     <div class="detail-viewing">${viewingStatusHtml(m)}</div>
     ${reviewCardsHtml(m)}
     ${sagaButtonHtml(m)}
-    ${m.status === 'tonight' || m.status === 'watched' ? sharedVoteButtonHtml(m) : ''}
+    ${activeNightForMovie(m.id) || m.status === 'watched' ? sharedVoteButtonHtml(m) : ''}
     ${personalVoteButtonHtml(m)}
     <div class="detail-footer">
       ${personBadge(m.added_by)}

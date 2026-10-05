@@ -1,6 +1,6 @@
 # Proiezioni: oggi, programmazione e dettagli
 
-Aggiornamento del 5 ottobre 2026, cache PWA `v45`.
+Aggiornamento del 5 ottobre 2026, cache PWA `v48`.
 
 ## Esperienza implementata
 
@@ -51,8 +51,11 @@ film contrassegnati cinema, anche se la libreria mostra quella categoria.
 
 Nessun cambio di schema: snack e luogo usano `movie_nights.snack/location` già
 esistenti. Scelta rapida: confirmed, date/time NULL, confirmed_at registrato.
-Programmazione: proposed, data/ora e proposed_by. Mirror film compatibile:
-la scelta rapida pulisce eventuali vecchie date e aggiorna snack. Origine ticket
+Programmazione: proposed, data/ora e proposed_by. Dopo i test reali della
+transizione superati sui due client, movie_nights è l’unica fonte:
+nessun fallback/dual-write ai dettagli legacy del film. Catalogo snack
+dagli eventi, filtro/contatore In programma da eventi attivi. Le colonne DB
+restano per rollback, con eventuale riallineamento esplicito dai nuovi eventi. Origine ticket
 solo in memoria, come prima. Realtime e refetch mantengono la sincronizzazione.
 
 Il salvataggio fallito lascia il popup aperto con errore visibile; il bottone
@@ -61,14 +64,15 @@ fallisce. Il Match si chiude solo dopo conferma del popup e creazione riuscita.
 
 ## Verifiche
 
-- Smoke: **379/379 PASS**, con regressioni su annullo, snack custom, persistenza
-  del luogo, pulizia delle vecchie date, modifica/rimozione dei dettagli,
+- Smoke: **400/400 PASS**, con regressioni su annullo, snack custom, persistenza
+  del luogo, vecchie date ignorate e conservate per rollback, modifica/rimozione dei dettagli,
   insert fallito, viste disgiunte/contatori/switch/card, proposta accettata durante il film di oggi, eventi distinti
   dello stesso film, luogo conservato alla conclusione e testi del canvas.
-- Service worker: **12/12 PASS**; controllo sintassi e diff senza errori.
+- Service worker: **15/15 PASS**; controllo sintassi e diff senza errori.
 - Chromium con fixture a 320×568, 390×844 e 768×844: popup, programmazione a
   pranzo, accettazione, modifica/rimozione, card e annullo; switch Streaming/Cinema,
   comandi uniformi, colori, resync e spostamento tra le due viste. Screenshot e PNG
   ispezionati; nessun errore JavaScript o overflow orizzontale.
-- Nessuna scrittura sul database reale. Sincronizzazione tra due telefoni e
-  download PNG su dispositivo reale restano da verificare dopo il deploy.
+- Nessuna scrittura sul database reale. Test reali della transizione v47 su due
+  client superati, confermati dall’utente. Il cleanup v48 non è pubblicato;
+  adozione e download PNG su dispositivo reale restano verifiche distinte.

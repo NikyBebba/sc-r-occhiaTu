@@ -161,9 +161,15 @@ function deriveFilterOptions(list) {
 // ---- Wrapper "pronti per la vista" (stato globale) ----
 
 function filterMoviesByState(list, statusFilter) {
+  if (statusFilter === 'tonight') {
+    const scheduledIds = new Set(activeNights().map(n => n.movie_id));
+    return filterMovies(list, listFilterState()).filter(m => scheduledIds.has(m.id));
+  }
   return filterMovies(list, { ...listFilterState(), status: statusFilter || null });
 }
 
 function statusCountsFor(list) {
-  return statusCounts(list, listFilterState());
+  const counts = statusCounts(list, listFilterState());
+  counts.tonight = filterMoviesByState(list, 'tonight').length;
+  return counts;
 }

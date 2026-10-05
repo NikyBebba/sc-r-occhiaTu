@@ -87,7 +87,7 @@ async function markMovieSeen(id, person, rating = null, reviewText = null) {
       return false;
     }
     if (data && data.length) return true;
-    const latest = await sb.from('movies').select('*').eq('id', id).maybeSingle();
+    const latest = await sb.from('movies').select(MOVIE_SELECT_FIELDS).eq('id', id).maybeSingle();
     if (latest.error || !latest.data) {
       console.error('[sc(r)occhiaTu] markMovieSeen: riallineamento fallito:', latest.error?.message || 'film non trovato');
       return false;
@@ -126,7 +126,7 @@ async function undoMovieSeen(id, person) {
       return false;
     }
     if (data && data.length) return true;
-    const latest = await sb.from('movies').select('*').eq('id', id).maybeSingle();
+    const latest = await sb.from('movies').select(MOVIE_SELECT_FIELDS).eq('id', id).maybeSingle();
     if (latest.error || !latest.data) {
       console.error('[sc(r)occhiaTu] undoMovieSeen: riallineamento fallito:', latest.error?.message || 'film non trovato');
       return false;

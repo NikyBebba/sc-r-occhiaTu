@@ -539,13 +539,15 @@ async function okA(name, fn) {
         && movieProjection(movie).night_confirmed === false;
     } finally { movieNights = old; }
   }));
-  ok('proiezione: film senza evento conserva esattamente il fallback legacy', run(() => {
+  ok('proiezione: senza evento i dettagli legacy sono ignorati senza mutare il film', run(() => {
     const old = movieNights;
     const movie = { id: 'legacy-only', status: 'tonight', scheduled_date: '2026-11-01', scheduled_time: '20:00', snack: 'Legacy' };
     try {
       movieNights = [];
       const projection = movieProjection(movie);
-      return JSON.stringify(projection) === JSON.stringify(movie) && projection !== movie;
+      return projection.nightId === null && projection.scheduled_date === null && projection.scheduled_time === null
+        && projection.snack === null && projection.proposed_by === null && projection.night_confirmed === false
+        && movie.scheduled_date === '2026-11-01' && movie.snack === 'Legacy';
     } finally { movieNights = old; }
   }));
   ok('card programmata: badge e dettagli leggono entrambi la data dell’evento', run(() => {
@@ -571,11 +573,10 @@ async function okA(name, fn) {
       return ignored && nightChanged && vetoChanged && initial !== dataSignature();
     } finally { movies = old.movies; votes = old.votes; vetoes = old.vetoes; movieNights = old.movieNights; }
   }));
-  await okA('votes opzionale: errori REST e query rifiutate non degradano film/serate né cancellano il mirror', runA(async () => {
+  await okA('core: nessuna query votes e nessuna cancellazione del suo mirror', runA(async () => {
     const old = { sb, dbMode, lastSupabaseFailAt, votes, warn: console.warn };
     const cached = localStorage.getItem('scorochiatu_votes');
-    let rejectVotes = false;
-    const rows = { movies: [{ id: 'remote-movie' }], movie_nights: [{ id: 'remote-night' }], vetoes: [] };
+        const rows = { movies: [{ id: 'remote-movie' }], movie_nights: [{ id: 'remote-night' }], vetoes: [] };
     try {
       console.warn = () => {};
       votes = [];
@@ -583,16 +584,16 @@ async function okA(name, fn) {
       sb = { from(table) { return { select() { return {
         order() { return this; },
         then(resolve, reject) {
-          if (table === 'votes' && rejectVotes) return Promise.reject(new Error('legacy offline')).then(resolve, reject);
+          if (table === 'votes') throw new Error('il core non deve interrogare votes');
           return Promise.resolve(table === 'votes' ? { error: { code: '42P01' } } : { data: rows[table], error: null }).then(resolve, reject);
         }
       }; } }; } };
       dbMode = 'supabase'; lastSupabaseFailAt = 0;
       const first = await fetchAll();
-      rejectVotes = true;
       const second = await fetchAll();
       return first.movies[0].id === 'remote-movie' && second.nights[0].id === 'remote-night'
-        && first.votes[0].liked === true && second.votes[0].liked === true
+        && !('votes' in first) && !('votes' in second) && votes.length === 0
+        && localStorage.getItem('scorochiatu_votes').includes('old')
         && dbMode === 'supabase' && lastSupabaseFailAt === 0;
     } finally {
       sb = old.sb; dbMode = old.dbMode; lastSupabaseFailAt = old.lastSupabaseFailAt; votes = old.votes; console.warn = old.warn;
@@ -631,8 +632,8 @@ async function okA(name, fn) {
       cached.forEach(([key, value]) => value === null ? localStorage.removeItem('scorochiatu_' + key) : localStorage.setItem('scorochiatu_' + key, value));
     }
   }));
-  await okA('letture: errori film restano fatali, movie_nights assente conserva modalità Supabase e fallback legacy', runA(async () => {
-    const old = { sb, dbMode, lastSupabaseFailAt, movieNightsAvailable, warn: console.warn, error: console.error };
+  await okA('letture: errori film o serate usano il mirror locale, mai il legacy del film', runA(async () => {
+    const old = { sb, dbMode, lastSupabaseFailAt, warn: console.warn, error: console.error };
     let failedTable = 'movies';
     try {
       console.warn = () => {}; console.error = () => {};
@@ -645,13 +646,13 @@ async function okA(name, fn) {
       const degraded = coreFailure === null && dbMode === 'local';
       dbMode = 'supabase'; lastSupabaseFailAt = 0; failedTable = 'movie_nights';
       const legacyFallback = await fetchAll();
-      return degraded && legacyFallback.nights.length === 0 && movieNightsAvailable === false && dbMode === 'supabase';
+      return degraded && legacyFallback === null && dbMode === 'local';
     } finally {
       sb = old.sb; dbMode = old.dbMode; lastSupabaseFailAt = old.lastSupabaseFailAt;
-      movieNightsAvailable = old.movieNightsAvailable; console.warn = old.warn; console.error = old.error;
+      console.warn = old.warn; console.error = old.error;
     }
   }));
-  await okA('resync: sole modifiche votes aggiornano snapshot senza render; evento cambiato produce un render', runA(async () => {
+  await okA('resync: votes indipendente senza render; evento cambiato produce un render', runA(async () => {
     const old = { sb, dbMode, lastSupabaseFailAt, movies, votes, vetoes, movieNights, render };
     const cached = ['movies', 'votes', 'vetoes', 'movie_nights'].map(key => [key, localStorage.getItem('scorochiatu_' + key)]);
     let renders = 0;
@@ -663,7 +664,7 @@ async function okA(name, fn) {
         then(resolve) { return Promise.resolve({ data: rows[table], error: null }).then(resolve); }
       }; } }; } };
       await resyncQuiet();
-      const quiet = renders === 0 && votes[0].liked === true;
+      const quiet = renders === 0 && votes.length === 0;
       rows.movie_nights = [{ id: 'n', movie_id: 'm', status: 'proposed' }];
       await resyncQuiet();
       return quiet && renders === 1;
@@ -671,6 +672,137 @@ async function okA(name, fn) {
       sb = old.sb; dbMode = old.dbMode; lastSupabaseFailAt = old.lastSupabaseFailAt;
       movies = old.movies; votes = old.votes; vetoes = old.vetoes; movieNights = old.movieNights; render = old.render;
       cached.forEach(([key, value]) => value === null ? localStorage.removeItem('scorochiatu_' + key) : localStorage.setItem('scorochiatu_' + key, value));
+    }
+  }));
+  ok('letture film: tutti i campi contenuto/visione presenti, nessuna colonna di programmazione richiesta', run(() => {
+    const fields = MOVIE_SELECT_FIELDS.split(',');
+    return ['id', 'status', 'watched_by', 'review_by', 'seen_rating_together', 'review_text_together',
+      'tmdb_id', 'collection_id', 'cinema_watchlist', 'genres', 'overview'].every(f => fields.includes(f))
+      && ['scheduled_date', 'scheduled_time', 'snack', 'proposed_by', 'night_confirmed'].every(f => !fields.includes(f));
+  }));
+  ok('source of truth: eventi chiusi non riattivano hero, cartellone o info dai flag del film', run(() => {
+    const old = { movies, movieNights, currentTab, currentUser };
+    try {
+      currentUser = 'N'; currentTab = 'tonight';
+      movies = [{ id: 'stale', title: 'Vecchio programma', status: 'tonight', scheduled_date: '2026-11-10',
+        scheduled_time: '13:00', snack: 'Obsoleto', proposed_by: 'V', night_confirmed: true }];
+      movieNights = [{ id: 'closed', movie_id: 'stale', status: 'cancelled', date: '2026-11-10' }];
+      renderNextMovieBox(); renderScheduled();
+      return nextMoviePick() === null && projectionInfoHtml(movies[0]) === ''
+        && document.getElementById('nextMovieBox').innerHTML === ''
+        && document.getElementById('scheduledList').innerHTML === ''
+        && !createMovieCard(movies[0], []).innerHTML.includes('projection-card-info');
+    } finally { movies = old.movies; movieNights = old.movieNights; currentTab = old.currentTab; currentUser = old.currentUser; }
+  }));
+  ok('source of truth: filtro e contatore In programma derivano dagli eventi, un film per più rewatch', run(() => {
+    const old = movieNights, oldAvailability = listAvailability;
+    const list = [{ id: 'a', status: 'watchlist' }, { id: 'b', status: 'tonight' }, { id: 'c', status: 'watched' }];
+    try {
+      listAvailability = 'streaming'; resetListFilters();
+      movieNights = [{ id: 'a1', movie_id: 'a', status: 'proposed' }, { id: 'a2', movie_id: 'a', status: 'confirmed' },
+        { id: 'b1', movie_id: 'b', status: 'completed' }, { id: 'c1', movie_id: 'c', status: 'confirmed' }];
+      const selected = filterMoviesByState(list, 'tonight');
+      return selected.length === 2 && selected[0].id === 'a' && selected[1].id === 'c'
+        && statusCountsFor(list).tonight === 2 && viewingState(list[2]).together;
+    } finally { movieNights = old; listAvailability = oldAvailability; }
+  }));
+  ok('snack: solo catalogo ed eventi, anche storici; il mirror del film non aggiunge scelte', run(() => {
+    const oldM = movies, oldN = movieNights;
+    try {
+      movies = [{ id: 'snack', snack: 'Solo legacy' }];
+      movieNights = [{ status: 'cancelled', snack: 'Storico' }, { status: 'completed', snack: ' storico ' }];
+      return !snackChoices().includes('Solo legacy') && snackChoices().filter(s => s.toLowerCase() === 'storico').length === 1;
+    } finally { movies = oldM; movieNights = oldN; }
+  }));
+  await okA('serate Supabase: tutte le scritture film contengono solo status; conferma non scrive movies', runA(async () => {
+    const old = { sb, movies, movieNights, currentUser, dbMode };
+    const writes = [];
+    try {
+      currentUser = 'N'; movies = [{ id: 'm', status: 'watchlist' }]; movieNights = [];
+      sb = { from(table) { return {
+        insert(rows) { return { select: async () => ({ data: [{ id: 'n' + movieNights.length, ...rows[0] }], error: null }) }; },
+        update(patch) { return { eq: async (_, id) => {
+          writes.push({ table, patch: { ...patch }, id });
+          if (table === 'movie_nights') Object.assign(movieNights.find(n => n.id === id), patch);
+          return { error: null };
+        } }; }
+      }; } };
+      await setQuickTonight('m', 'Quick snack', 'Casa');
+      await proposeNight('m', 'V', '2026-11-10', '13:00', 'Pizza');
+      const proposal = movieNights[0];
+      const beforeConfirm = writes.filter(w => w.table === 'movies').length;
+      await confirmNight('m', proposal.id);
+      const noMovieConfirm = writes.filter(w => w.table === 'movies').length === beforeConfirm;
+      await cancelNight('m', proposal.id);
+      const remaining = writes.at(-1).patch.status === 'tonight';
+      await cancelNight('m', movieNights.find(n => n.status === 'confirmed').id);
+      const patches = writes.filter(w => w.table === 'movies').map(w => w.patch);
+      return noMovieConfirm && remaining && patches.length === 4
+        && patches.every(patch => Object.keys(patch).join() === 'status') && patches.at(-1).status === 'watchlist';
+    } finally { sb = old.sb; movies = old.movies; movieNights = old.movieNights; currentUser = old.currentUser; dbMode = old.dbMode; saveLocal(); }
+  }));
+  await okA('serate: conferma/annullo senza evento o con ID di altro film non scrivono nulla', runA(async () => {
+    const old = { sb, movies, movieNights };
+    try {
+      sb = null; movies = [{ id: 'stale', status: 'tonight', night_confirmed: false, snack: 'Legacy' }];
+      movieNights = [{ id: 'other', movie_id: 'elsewhere', status: 'proposed' }];
+      const before = JSON.stringify([movies, movieNights]);
+      return await confirmNight('stale') === false && await cancelNight('stale') === false
+        && await confirmNight('stale', 'other') === false && await cancelNight('stale', 'other') === false
+        && JSON.stringify([movies, movieNights]) === before;
+    } finally { sb = old.sb; movies = old.movies; movieNights = old.movieNights; }
+  }));
+  await okA('caricamento: serate rifiutate preservano cache e modalità offline; ripristino usa solo eventi remoti', runA(async () => {
+    const old = { sb, movies, movieNights, vetoes, dbMode, lastSupabaseFailAt, render, error: console.error };
+    const cached = ['movies', 'vetoes', 'movie_nights'].map(key => [key, localStorage.getItem('scorochiatu_' + key)]);
+    let rejected = true;
+    try {
+      movies = [{ id: 'cached', status: 'tonight' }]; vetoes = [];
+      movieNights = [{ id: 'cached-night', movie_id: 'cached', status: 'confirmed' }]; saveLocal();
+      console.error = () => {}; render = () => {}; dbMode = 'supabase';
+      sb = { from(table) { return { select() { return { order() { return this; }, then(resolve, reject) {
+        if (table === 'movie_nights' && rejected) return Promise.reject(new Error('rete')).then(resolve, reject);
+        return Promise.resolve({ data: [], error: null }).then(resolve, reject);
+      } }; } }; } };
+      await loadMovies();
+      const offline = dbMode === 'local' && nextMoviePick()?.nightId === 'cached-night'
+        && localStorage.getItem('scorochiatu_movie_nights').includes('cached-night');
+      rejected = false; lastSupabaseFailAt = 0; await loadMovies();
+      return offline && dbMode === 'supabase' && movieNights.length === 0 && nextMoviePick() === null;
+    } finally {
+      sb = old.sb; movies = old.movies; movieNights = old.movieNights; vetoes = old.vetoes;
+      dbMode = old.dbMode; lastSupabaseFailAt = old.lastSupabaseFailAt; render = old.render; console.error = old.error;
+      cached.forEach(([key, value]) => value === null ? localStorage.removeItem('scorochiatu_' + key) : localStorage.setItem('scorochiatu_' + key, value));
+    }
+  }));
+  await okA('core locale: save/load/cancellazione film non leggono o riscrivono la cache votes', runA(async () => {
+    const old = { sb, movies, movieNights, vetoes, votes };
+    const cached = ['movies', 'vetoes', 'movie_nights', 'votes'].map(key => [key, localStorage.getItem('scorochiatu_' + key)]);
+    try {
+      sb = null; movies = [{ id: 'm' }]; movieNights = []; vetoes = [];
+      votes = [{ movie_id: 'm', person: 'N', liked: true }];
+      localStorage.setItem('scorochiatu_votes', '{archivio-invariato');
+      saveLocal(); loadLocal(); await deleteMovie('m');
+      return votes.length === 1 && localStorage.getItem('scorochiatu_votes') === '{archivio-invariato';
+    } finally {
+      sb = old.sb; movies = old.movies; movieNights = old.movieNights; vetoes = old.vetoes; votes = old.votes;
+      cached.forEach(([key, value]) => value === null ? localStorage.removeItem('scorochiatu_' + key) : localStorage.setItem('scorochiatu_' + key, value));
+    }
+  }));
+  await okA('votes dormiente: salvataggio esplicito modifica solo la sua cache, errori non degradano il core', runA(async () => {
+    const old = { sb, votes, dbMode, lastSupabaseFailAt, error: console.error };
+    const cachedVotes = localStorage.getItem('scorochiatu_votes');
+    const cachedMovies = localStorage.getItem('scorochiatu_movies');
+    try {
+      votes = []; sb = null; await castVote('dormant', 'N', true);
+      const isolated = localStorage.getItem('scorochiatu_movies') === cachedMovies;
+      console.error = () => {}; dbMode = 'supabase'; lastSupabaseFailAt = 0;
+      sb = { from: () => ({ upsert: async () => ({ error: { message: 'votes offline' } }), select: async () => ({ error: {} }) }) };
+      await castVote('failing', 'V', true);
+      return isolated && dbMode === 'supabase' && lastSupabaseFailAt === 0;
+    } finally {
+      sb = old.sb; votes = old.votes; dbMode = old.dbMode; lastSupabaseFailAt = old.lastSupabaseFailAt; console.error = old.error;
+      if (cachedVotes === null) localStorage.removeItem('scorochiatu_votes'); else localStorage.setItem('scorochiatu_votes', cachedVotes);
     }
   }));
   ok('audit dati: distingue legacy senza eventi, specchi chiusi, rewatch e dati senza data; non muta né espone titoli', (() => {
@@ -739,14 +871,14 @@ async function okA(name, fn) {
   }));
 
   console.log('\n[store locale — serate movie_nights]');
-  await okA('setQuickTonight crea serata confirmed (date null) + mirror', runA(async () => {
+  await okA('setQuickTonight crea serata confirmed (date null), aggiorna solo il ciclo film', runA(async () => {
     const id = movies[0].id;
     currentUser = 'N';
     await setQuickTonight(id);
     const n = movieNights.find(x => x.movie_id === id);
     const m = movies.find(x => x.id === id);
     return n && n.status === 'confirmed' && n.date === null && !!n.confirmed_at
-      && m.status === 'tonight' && m.night_confirmed === false;
+      && m.status === 'tonight' && !('night_confirmed' in m);
   }));
 
   await okA('nextMoviePick pick veloce → shape compatibile box', run(() => {
@@ -754,12 +886,12 @@ async function okA(name, fn) {
     return pick && pick.id === movies[0].id && pick.night_confirmed === true && pick.scheduled_date === null;
   }));
 
-  await okA('proposeNight crea serata proposed + mirror legacy', runA(async () => {
+  await okA('proposeNight crea serata proposed senza campi di programmazione sul film', runA(async () => {
     const id = movies[1].id;
     await proposeNight(id, 'V', '2026-10-01', '21:30', '🍕 Pizza');
     const n = movieNights.find(x => x.movie_id === id);
     const m = movies.find(x => x.id === id);
-    return n && n.status === 'proposed' && n.snack === '🍕 Pizza' && m.scheduled_date === '2026-10-01' && m.night_confirmed === false;
+    return n && n.status === 'proposed' && n.snack === '🍕 Pizza' && !('scheduled_date' in m) && !('night_confirmed' in m) && m.status === 'tonight';
   }));
 
   await okA('nextMoviePick dà priorità alla serata con data', runA(async () => {
@@ -784,13 +916,13 @@ async function okA(name, fn) {
     return pick && pick.id === movies[0].id; // resta la quick pick valida
   }));
 
-  await okA('cancelNight → cancelled + mirror watchlist pulito', runA(async () => {
+  await okA('cancelNight → cancelled e film watchlist senza scritture legacy', runA(async () => {
     const id = movies[1].id;
     await proposeNight(id, 'N', '2026-10-15', '21:30', null);
     await cancelNight(id);
     const n = movieNights.find(x => x.movie_id === id && x.status === 'cancelled');
     const m = movies.find(x => x.id === id);
-    return n && m.status === 'watchlist' && m.proposed_by === null && m.scheduled_date === null;
+    return n && m.status === 'watchlist' && !('proposed_by' in m) && !('scheduled_date' in m);
   }));
 
   await okA('storico: stesso film può avere più serate', run(() => {
@@ -1014,13 +1146,8 @@ async function okA(name, fn) {
     currentUser = prevUser;
     return away && mine;
   }));
-  await okA('proposeMovie/acceptProposal', runA(async () => {
-    await proposeMovie({ title: 'Proposal Test', matched: true }, 'V');
-    const p = movies.find(x => x.title === 'Proposal Test');
-    if (!p) return false;
-    await acceptProposal(p.id);
-    return movies.find(x => x.id === p.id).status === 'watchlist';
-  }));
+  ok('proposte film obsolete: API rimosse, programmazione tramite eventi', run(() =>
+    typeof proposeMovie === 'undefined' && typeof acceptProposal === 'undefined' && typeof rejectProposal === 'undefined'));
 
   // --- 3) api TMDb metadata (live, senza stampare chiavi) ---
   console.log('\n[api — metadati TMDb]');
@@ -2464,13 +2591,14 @@ async function okA(name, fn) {
     return last === 'calendar';
   }));
   ok('pill: contatori calcolati coi filtri attivi, "Tutti" = tutti i match', run(() => {
-    const saved = movies;
+    const saved = movies, savedNights = movieNights;
     const prevQ = listQuery, prevP = listProposer, prevG = listGenre, prevPl = listPlatform;
     movies = [
       { id: 'p1', title: 'Dracula', status: 'watchlist', added_by: 'N', genres: ['Horror'], platform: 'Netflix' },
       { id: 'p2', title: 'Dracula Night', status: 'tonight', added_by: 'V', genres: ['Horror'], platform: 'Prima' },
       { id: 'p3', title: 'Riso', status: 'watched', added_by: 'N', genres: ['Commedia'], platform: 'Netflix' }
     ];
+    movieNights = [{ id: 'fixture-night', movie_id: 'p2', status: 'confirmed', date: null }];
     listQuery = 'dracula'; listProposer = ''; listGenre = ''; listPlatform = '';
     renderPillCounters();
     const okFiltered = document.getElementById('pillCountAll').textContent === '2'
@@ -2480,7 +2608,7 @@ async function okA(name, fn) {
     listQuery = '';
     renderPillCounters();
     const okAll = document.getElementById('pillCountAll').textContent === '3';
-    movies = saved;
+    movies = saved; movieNights = savedNights;
     listQuery = prevQ; listProposer = prevP; listGenre = prevG; listPlatform = prevPl;
     return okFiltered && okAll;
   }));
@@ -2535,7 +2663,7 @@ async function okA(name, fn) {
     return immediate && rerendered;
   }));
   ok('azioni card: stesse di oggi per ogni status con la tab specifica', run(() => {
-    const saved = movies;
+    const saved = movies, savedNights = movieNights;
     const prevUser = currentUser; const prevTab = currentTab;
     currentUser = 'N';
     currentTab = 'watchlist';
@@ -2545,6 +2673,7 @@ async function okA(name, fn) {
       { id: 'C', title: 'Gamma Watched', status: 'watched', added_by: 'N', poster: '', platform: '', review_text: '', rating: 0 },
       { id: 'D', title: 'Delta Proposal', status: 'proposal', added_by: 'V', poster: '', platform: '' }
     ];
+    movieNights = [{ id: 'fixture-night', movie_id: 'B', status: 'confirmed', date: null }];
     const cnt = (h, s) => h.split(s).length - 1;
     let okAll = true;
     render();
@@ -2567,11 +2696,11 @@ async function okA(name, fn) {
       && cnt(html, 'quickTonightUI') === 0 && cnt(html, 'scheduleMovie') === 0 && cnt(html, 'vetoMovie') === 0;
     currentTab = prevTab;
     currentUser = prevUser;
-    movies = saved;
+    movies = saved; movieNights = savedNights;
     return okAll;
   }));
   ok('azioni card: stesse di oggi con currentTab="all" (status misti) + badge stasera', run(() => {
-    const saved = movies;
+    const saved = movies, savedNights = movieNights;
     const prevUser = currentUser; const prevTab = currentTab;
     currentUser = 'N';
     currentTab = 'all';
@@ -2581,6 +2710,7 @@ async function okA(name, fn) {
       { id: 'C', title: 'Gamma Watched', status: 'watched', added_by: 'N', poster: '', platform: '', review_text: '', rating: 0 },
       { id: 'D', title: 'Delta Proposal', status: 'proposal', added_by: 'V', poster: '', platform: '' }
     ];
+    movieNights = [{ id: 'fixture-night', movie_id: 'B', status: 'confirmed', date: null }];
     const cnt = (h, s) => h.split(s).length - 1;
     render();
     const html = document.getElementById('movieGrid').innerHTML;
@@ -2593,7 +2723,7 @@ async function okA(name, fn) {
       && cnt(html, 'deleteMovieConfirm') === 4; // ogni card ha comunque il cestino (nessun errore per status ignoto)
     currentTab = prevTab;
     currentUser = prevUser;
-    movies = saved;
+    movies = saved; movieNights = savedNights;
     return ok;
   }));
 
@@ -3632,7 +3762,7 @@ async function okA(name, fn) {
     closeModal('scheduleModal');
     return opened && movieNights.length === 0 && movies[0].status === 'watchlist';
   })));
-  await okA('Oggi: snack custom e luogo persistiti, vecchia data pulita e recupero locale', runA(() => withProjectionFixture(async () => {
+  await okA('Oggi: snack/luogo sull’evento, mirror legacy intatto e ignorato dopo recupero locale', runA(() => withProjectionFixture(async () => {
     quickTonightUI('quick-new', 'wheel');
     document.getElementById('scheduleSnack').value = CUSTOM_SNACK;
     document.getElementById('scheduleCustomSnack').value = '  Panini  ';
@@ -3641,7 +3771,7 @@ async function okA(name, fn) {
     loadLocal();
     const pick = tonightPick();
     return movieNights.length === 1 && movieNights[0].snack === 'Panini' && movieNights[0].location === 'Terrazza'
-      && movieNights[0].date === null && movies[0].scheduled_date === null && movies[0].scheduled_time === null
+      && movieNights[0].date === null && movies[0].scheduled_date === '2000-01-01' && movies[0].snack === 'Vecchio'
       && pick.location === 'Terrazza' && ticketOriginOf('quick-new') === 'wheel';
   })));
   await okA('Programma: luogo salvato; modifica rimuove snack/luogo senza alterare data, stato o voto', runA(() => withProjectionFixture(async () => {
@@ -3768,13 +3898,13 @@ async function okA(name, fn) {
     movies = savedM; movieNights = savedN;
     return okR;
   }));
-  ok('scheduledList: legacy (scheduled_date senza movie_nights) resta in lista', run(() => {
+  ok('scheduledList: scheduled_date senza evento ignorata', run(() => {
     const savedM = movies, savedN = movieNights;
     movies = [{ id: 'lg', title: 'Legacy', status: 'tonight', scheduled_date: '2026-11-01', scheduled_time: '20:00', added_by: 'N', platform: 'PL', poster: '' }];
     movieNights = [];
     renderScheduled();
     const html = document.getElementById('scheduledList').innerHTML;
-    const okR = html.indexOf('Legacy') !== -1;
+    const okR = html === '' && document.getElementById('scheduledPanel').classList.contains('hidden');
     movies = savedM; movieNights = savedN;
     return okR;
   }));
@@ -3790,17 +3920,17 @@ async function okA(name, fn) {
     movies = savedM; movieNights = savedN;
     return okR;
   }));
-  ok('scheduledList: film in watchlist con data resta in lista', run(() => {
+  ok('scheduledList: data legacy su watchlist non crea una proiezione', run(() => {
     const savedM = movies, savedN = movieNights;
     movies = [{ id: 'wl1', title: 'Planned Film', status: 'watchlist', scheduled_date: '2026-10-22', scheduled_time: '20:00', added_by: 'V', platform: 'Q', poster: '' }];
     movieNights = [];
     renderScheduled();
     const html = document.getElementById('scheduledList').innerHTML;
-    const okR = html.indexOf('Planned Film') !== -1;
+    const okR = html === '';
     movies = savedM; movieNights = savedN;
     return okR;
   }));
-  ok('scheduledList: watched+watchlist → solo watchlist; quick-only → pannello nascosto', run(() => {
+  ok('scheduledList: mirror watched/watchlist ignorati; quick-only → pannello nascosto', run(() => {
     const savedM = movies, savedN = movieNights;
     movies = [
       { id: 'm1', title: 'Seen', status: 'watched', scheduled_date: '2026-10-20', added_by: 'N', platform: 'P', poster: '' },
@@ -3809,7 +3939,7 @@ async function okA(name, fn) {
     movieNights = [];
     renderScheduled();
     const mix = document.getElementById('scheduledList').innerHTML;
-    const ok1 = mix.indexOf('Keep') !== -1 && mix.indexOf('Seen') === -1;
+    const ok1 = mix === '';
     movies = [{ id: 'q1', title: 'Quick', status: 'tonight', scheduled_date: null, added_by: 'N', platform: 'P', poster: '' }];
     movieNights = [{ id: 'nq', movie_id: 'q1', date: null, time: null, status: 'confirmed', proposed_by: 'N' }];
     renderScheduled();
@@ -3819,7 +3949,7 @@ async function okA(name, fn) {
     return ok1 && ok2;
   }));
 
-  console.log('\n[nextMoviePick — fallback legacy: watched esclusi]');
+  console.log('\n[nextMoviePick — nessun fallback ai film]');
   ok('nextMoviePick: film watched con scheduled_date + night_confirmed NON restituito', run(() => {
     const savedM = movies, savedN = movieNights;
     movies = [{ id: 'w1', title: 'W Seen', status: 'watched', scheduled_date: '2026-10-20', night_confirmed: true, proposed_by: 'N' }];
@@ -3828,23 +3958,23 @@ async function okA(name, fn) {
     movies = savedM; movieNights = savedN;
     return pick === null;
   }));
-  ok('nextMoviePick: film in watchlist con serata → sì', run(() => {
+  ok('nextMoviePick: watchlist con soli flag legacy → nessun pick', run(() => {
     const savedM = movies, savedN = movieNights;
     movies = [{ id: 'wl1', title: 'Planned', status: 'watchlist', scheduled_date: '2026-10-22', night_confirmed: true, proposed_by: 'V' }];
     movieNights = [];
     const pick = nextMoviePick();
     movies = savedM; movieNights = savedN;
-    return pick !== null && pick.id === 'wl1';
+    return pick === null;
   }));
-  ok('nextMoviePick: film "tonight" → sì', run(() => {
+  ok('nextMoviePick: status tonight senza evento → nessun pick', run(() => {
     const savedM = movies, savedN = movieNights;
     movies = [{ id: 'tn1', title: 'Tonight', status: 'tonight' }];
     movieNights = [];
     const pick = nextMoviePick();
     movies = savedM; movieNights = savedN;
-    return pick !== null && pick.id === 'tn1';
+    return pick === null;
   }));
-  ok('nextMoviePick: nessun altro caso cambia (serata attiva batte watched; quick legacy ok)', run(() => {
+  ok('nextMoviePick: evento attivo prevale; quick legacy ignorato', run(() => {
     const savedM = movies, savedN = movieNights;
     movies = [
       { id: 'ma', title: 'M A', status: 'tonight' },
@@ -3856,7 +3986,7 @@ async function okA(name, fn) {
     movieNights = [];
     const pick2 = nextMoviePick();                       // fallback legacy quick
     movies = savedM; movieNights = savedN;
-    return pick1 !== null && pick1.id === 'ma' && pick2 !== null && pick2.id === 'lq';
+    return pick1 !== null && pick1.id === 'ma' && pick2 === null;
   }));
 
   ok('collapse: toggle mobile + render/resync non tocca lo stato del pannello', run(() => {
@@ -5376,7 +5506,7 @@ async function okA(name, fn) {
       const empty = canvas.width === 1080 && canvas.height === 1920
         && text.includes('Da programmare') && !text.some(t => t.includes('Proposto da') || t.includes('Oggi'));
       text = [];
-      drawTicketCanvas({ title: 'Un film', status: 'tonight' }, 'match', null, null);
+      drawTicketCanvas({ title: 'Un film', nightId: 'quick-event' }, 'match', null, null);
       const match = text.includes('Match Live') && text.includes('Oggi')
         && !text.some(t => t.includes('%') || t.includes('Proposto da'));
       text = [];

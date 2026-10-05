@@ -1,4 +1,4 @@
-// Film: dedup TMDb, CRUD, proposte legacy e sorpresa.
+// Film: dedup TMDb, CRUD e sorpresa.
 // Dipende dallo stato e dalla persistenza core di js/store.js.
 
 // Il titolo non identifica un film: omonimi e capitoli di una saga possono
@@ -13,7 +13,7 @@ function findDuplicateByTmdbId(tmdbId, excludeId = null) {
 async function insertMovie(newMovie) {
   const finalMovie = { ...newMovie };
   if (sb) {
-    const { data, error } = await sb.from('movies').insert([newMovie]).select();
+    const { data, error } = await sb.from('movies').insert([newMovie]).select('id');
     if (error) {
       // Il vincolo UNIQUE sull'ID TMDb può vincere la corsa fra due telefoni:
       // in quel caso non creare una copia solo nel mirror locale.
@@ -63,7 +63,6 @@ async function deleteMovie(id) {
     }
   } else {
     movies = movies.filter(x => x.id !== id);
-    votes = votes.filter(v => v.movie_id !== id);
     movieNights = movieNights.filter(n => n.movie_id !== id);
     saveLocal();
   }

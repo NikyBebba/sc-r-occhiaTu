@@ -241,7 +241,7 @@ function drawTicketCanvas(movie, origin, pct, img) {
   // Un film scelto ma non programmato non è automaticamente una serata oggi.
   const date = movie.scheduled_date
     ? formatNightDate(movie.scheduled_date, movie.scheduled_time)
-    : (movie.status === 'tonight' ? formatNightDate(null, movie.scheduled_time) : 'Da programmare');
+    : (movie.nightId ? formatNightDate(null, movie.scheduled_time) : 'Da programmare');
   ctx.fillStyle = '#25233c';
   ticketTextBlock(ctx, date, 120, 1425, 840, 1, 40, 28);
   ctx.fillStyle = '#6b5e46';
@@ -348,7 +348,7 @@ async function downloadTicket(movieId, origin) {
   const hidden = movie.surprise_by && movie.surprise_by !== currentUser;
   const img = await loadTicketPoster(hidden ? null : movie.poster);
   const night = activeNightForMovie(movieId);
-  const ticketMovie = night ? { ...movieProjection(movie, night), status: 'tonight' } : movie;
+  const ticketMovie = movieProjection(movie, night);
   const visibleMovie = hidden ? { ...ticketMovie, title: 'Film a sorpresa', poster: null, release_year: null, duration: null, platform: null } : ticketMovie;
   const canvas = drawTicketCanvas(visibleMovie, origin, pct, img);
   downloadTicketCanvas(canvas, ticketFileName(visibleMovie));

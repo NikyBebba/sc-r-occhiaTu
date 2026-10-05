@@ -1,4 +1,4 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.42
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.43
 
 Ultimo aggiornamento: 5 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
 
@@ -7,7 +7,7 @@ README riscritto come presentazione generale — L'utente chiede di spiegare il 
 
 ## Checkpoint corrente — 5 ottobre 2026
 
-Versione corrente dopo l'avvio della transizione dati, cache PWA **`v47`**. I paragrafi storici sono
+Versione corrente dopo il cleanup applicativo, cache PWA **`v48`**. I paragrafi storici sono
 cronologia: statuette, vecchi nomi e conteggi non descrivono la UI attuale.
 
 - Libreria: Streaming come vista iniziale; switch a due pulsanti Streaming /
@@ -31,10 +31,11 @@ cronologia: statuette, vecchi nomi e conteggi non descrivono la UI attuale.
 - Ricordi → «Titoli di coda»: quattro riepiloghi, «In numeri» con icona,
   storico N+V e «Dopo il film» senza etichette ripetute. Film aggiunti contati
   su tutta la libreria; media calcolata in decimi con arrotondamento corretto.
-- **391/391 smoke PASS**, **15/15 service worker PASS**, controlli sintassi
+- **400/400 smoke PASS**, **15/15 service worker PASS**, controlli sintassi
   e diff check; browser fixture a 320/390/768 px con screenshot ispezionati,
   nessun errore JS/overflow. Tool di verifica solo fuori dal repository.
-- Dopo il push e il deploy: accettare l'aggiornamento PWA sui due telefoni e
+- Test reali della transizione v47 sui due client confermati dall’utente.
+  Il cleanup v48 è verificato localmente e non pubblicato. Dopo una futura pubblicazione, accettare l'aggiornamento PWA sui due telefoni e
   provare decimali, rimozione del testo, saghe e proiezioni con sincronizzazione reale.
   Non dichiarare verificato questo passaggio prima della prova dell'utente.
 
@@ -42,9 +43,77 @@ README e AGENTS allineati a questo checkpoint; le specifiche Phase 22/23/38/41
 documentano i rispettivi cicli funzionali precedenti. Le istruzioni di
 sicurezza e il contratto Match restano invariati.
 
-## Transizione dati — movie_nights e legacy, 5 ottobre 2026
+## Cleanup applicativo — movie_nights unica fonte, 5 ottobre 2026
 
-Prima fase implementata e verificata; [audit, dipendenze, dual-write e piano](DATA_MODEL_TRANSITION.md).
+Implementato localmente dopo la conferma dell'utente: **test reali della
+transizione v47 superati sui due client**. Cache PWA `v48`. Nessuna modifica
+allo schema o ai dati reali; colonne/tabelle legacy, policy e pubblicazioni
+DB conservate. Nessun push/deploy di questo ciclo.
+
+Dipendenze verificate prima degli interventi: pick prossimo/oggi, cartellone,
+card/dettaglio e contatori In programma, calendario/storico, ticket, catalogo
+snack, azioni serata/recensione, CRUD e mirror core, API votes, handler HTML,
+script di manutenzione e contratto Match. La programmazione usa soltanto
+`movie_nights`: non ci sono più letture/fallback/dual-write dei dettagli su
+`movies.scheduled_date/time`, `snack`, `proposed_by`, `night_confirmed`.
+Le query applicative sui film selezionano esplicitamente i campi contenuto e
+visione (`MOVIE_SELECT_FIELDS`); vecchie cache possono ancora contenere i
+campi ignorati, senza ricostruire eventi. L'audit diagnostico separato resta
+in grado di leggere il legacy per analisi/rollback, senza scrivere.
+
+`nightProjectionFields` conserva i nomi delle API UI, ricavandoli solo
+dall'evento; senza evento restituisce dettagli vuoti. Nessun hero/cartellone,
+card programmata o ticket datato nasce da flag sul film. Il filtro e il
+contatore In programma usano gli eventi attivi, deduplicati per film.
+Conferma e modifica snack/luogo scrivono solo su movie_nights. Scelta/proposta
+aggiornano ancora `movies.status=tonight`; annullo lo riporta a watchlist o
+mantiene tonight con eventi restanti. È il ciclo del film già usato da
+visioni/Ruota/Match, non una fonte alternativa dei dettagli: non viene
+ridefinita la semantica delle visioni o del deck Match. Scritture film/evento
+restano sequenziali, non atomiche; una transazione richiederebbe un'altra fase.
+
+`movie_nights` è ora indispensabile: errore REST o query rifiutata comportano
+modalità offline e recupero del mirror locale completo, mai dei flag film.
+La sottoscrizione core include sempre movies/vetoes/movie_nights. Eliminata
+la guardia di migrazione `movieNightsAvailable`; recupero e resync restano
+compatibili con il badge offline e il pulsante Riprova esistenti.
+
+`votes` è definitivamente separato dal core: nessuna query, lettura/scrittura
+cache, snapshot o pulizia locale durante load/resync/CRUD. `store/legacy.js`
+conserva API dormienti di like/dislike, prive di chiamanti UI e I/O all'avvio,
+con salvataggio della sola cache legacy e senza cambiare dbMode del core.
+Il reset dati eccezionale in main resta invariato; autenticazione invariata.
+Le obsolete API proposeMovie/acceptProposal/rejectProposal, senza chiamanti
+applicativi e con status proposal incompatibile, sono rimosse. Tabella votes,
+FK/cascade e dati restano nel DB; nessuna cancellazione diretta eseguita.
+
+Rollback: schema e dati legacy restano disponibili, ma i mirror sono congelati.
+Per un ritorno a un frontend che li usa occorre un riallineamento esplicito e
+verificato dagli eventi successivi; ripubblicare un vecchio client da solo non
+rende correnti quei dettagli. Nessun backfill/drop o ricostruzione di date,
+autori o conferme ambigue. I fallback storici dei **voti e delle recensioni**
+sono distinti dalla programmazione e restano invariati.
+
+Verifiche: suite completa dopo il primo cleanup **391/391**, finale
+**400/400 smoke** con nove nuove regressioni e test legacy aggiornati;
+**15/15 PWA**, sintassi completa (46 file JS) e diff check. Query film reale
+verificata in sola lettura: HTTP 200 sulle 34 colonne contenuto/visione,
+senza leggere campi di programmazione. **344 API mantenute e
+144 scenari DOM identici** sui dati coerenti rispetto a v47, includendo N/V,
+Streaming/Cinema, tab e viste. Test separati provano l'assenza di programmazione
+con mirror soli/stale, payload film privi dei campi legacy, rewatch distinti,
+cache votes intatta, degradazione/ripristino delle serate e isolamento API
+votes. Chromium: proiezioni/cinema/Ricordi 320/390/768 px, recensioni N/V
+320/390 px; zero errori JS/overflow, screenshot e ticket ispezionati.
+Match Live, main/autenticazione, config e SQL invariati. Nessuna scrittura
+Supabase reale in questo ciclo; l'adozione della nuova v48 andrà verificata
+quando verrà pubblicata, separatamente dai test utente già superati per v47.
+
+## Transizione dati — prima fase storica v47, 5 ottobre 2026
+
+Prima fase pubblicata e testata dall’utente su due client; i vincoli del
+cleanup corrente sono descritti sopra. Il seguito documenta l’implementazione
+v47 prima del cleanup. [Audit, dipendenze, dual-write e piano](DATA_MODEL_TRANSITION.md).
 `movie_nights` è la fonte dei dettagli della proiezione quando esiste un
 evento attivo: adattatori comuni `nightProjectionFields`/`movieProjection`
 per pick, cartellone, card e ticket. NULL e dettagli rimossi prevalgono sul
@@ -101,9 +170,9 @@ un nuovo sistema di moduli o un contenitore dello stato.
 | `js/store.js` | Client, stato core, lettura Supabase, mirror locale, fallback e Realtime core |
 | `js/store/movies.js` | CRUD film, dedup TMDb e sorpresa |
 | `js/store/viewing.js` | Stato visioni, voti/recensioni personali e fallback condivisi, scritture condizionate |
-| `js/store/legacy.js` | Snapshot opzionale votes e API like/dislike/proposte obsolete |
+| `js/store/legacy.js` | API votes dormienti, I/O solo su chiamata esplicita, cache separata |
 | `js/store/choices.js` | Veto settimanali |
-| `js/store/nights.js` | Eventi serata, mirror legacy, pick prossimo/oggi e data locale |
+| `js/store/nights.js` | Eventi serata, unica programmazione, pick prossimo/oggi e data locale |
 | `js/store/match.js` | Stato/persistenza sessioni e swipe, reconcile, canale Match e presence |
 | `js/ui/actions.js` | Aggiunta, picker, import, correzione titolo e azioni libreria |
 | `js/ui/actions/nights.js` | Form programmazione/oggi/modifica, snack, luogo e conferma/annullamento |

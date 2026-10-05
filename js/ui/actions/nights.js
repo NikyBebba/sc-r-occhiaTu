@@ -50,11 +50,10 @@ function editNightDetailsUI(id, nightId) {
 const SNACKS = ['🍿 Popcorn dolce', '🍿 Popcorn salato', '🍫 Cioccolato', '🍕 Pizza', '🍦 Gelato', '🍟 Patatine'];
 const CUSTOM_SNACK = '__custom_snack__';
 
-// Gli snack già usati sono condivisi attraverso movie_nights (e il mirror
-// legacy movies.snack), senza aggiungere una tabella o uno storage separato.
+// Gli snack già usati sono condivisi esclusivamente attraverso movie_nights.
 function snackChoices() {
   const seen = new Set();
-  return [...SNACKS, ...movieNights.map(n => n.snack), ...movies.map(m => m.snack)]
+  return [...SNACKS, ...movieNights.map(n => n.snack)]
     .filter(value => typeof value === 'string' && value.trim() && value.trim() !== CUSTOM_SNACK)
     .map(value => value.trim())
     .filter(value => {
@@ -119,7 +118,6 @@ async function confirmSchedule() {
     if (mode === 'edit') {
       const night = movieNights.find(n => n.id === scheduleEditingNightId && (n.status === 'proposed' || n.status === 'confirmed'));
       saved = !!night && await updateMovieNight(night.id, { snack: snack || null, location });
-      if (saved && activeNightForMovie(id)?.id === night.id) await updateMovie(id, { snack: snack || null });
     } else if (mode === 'quick') {
       saved = await setQuickTonight(id, snack || null, location);
     } else {

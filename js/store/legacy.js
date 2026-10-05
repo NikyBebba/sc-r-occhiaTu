@@ -1,4 +1,10 @@
-// API legacy conservate durante la transizione, senza chiamanti UI.
+// API votes dormienti, senza chiamanti UI e senza I/O al caricamento.
+// Il core non legge né scrive questa cache; conservata per rollback.
+let votes = [];
+
+function saveLegacyVotes() {
+  localStorage.setItem('scorochiatu_votes', JSON.stringify(votes));
+}
 // votes non alimenta Match Live, visioni, rating decimali o statistiche.
 
 function readLegacyVotesMirror() {
@@ -32,8 +38,7 @@ function getVotesForMovie(movieId) {
 
 async function castVote(movieId, person, liked) {
   // Toggle: riclickare lo STESSO voto lo rimuove (delete della riga in votes).
-  // La decisione legge lo stato in memoria (votes, già sincronizzato da
-  // loadMovies/resync), non una query dedicata.
+  // La decisione legge lo snapshot delle API legacy, indipendente dal core.
   const existing = votes.find(v => v.movie_id === movieId && v.person === person);
   const removing = existing && existing.liked === liked;
 
@@ -42,19 +47,15 @@ async function castVote(movieId, person, liked) {
       const { error } = await sb.from('votes').delete().eq('movie_id', movieId).eq('person', person);
       if (error) {
         console.error('[sc(r)occhiaTu] rimozione voto fallita su Supabase:', error.message);
-        dbMode = 'local';
-        lastSupabaseFailAt = Date.now();
       }
     } else {
       const { error } = await sb.from('votes').upsert([{ movie_id: movieId, person, liked }], { onConflict: 'movie_id,person' });
       if (error) {
         console.error('[sc(r)occhiaTu] castVote fallito su Supabase:', error.message);
-        dbMode = 'local';
-        lastSupabaseFailAt = Date.now();
       }
     }
     const { data } = await sb.from('votes').select('*');
-    if (data) { votes = data; saveLocal(); }
+    if (data) { votes = data; saveLegacyVotes(); }
   } else {
     if (removing) {
       votes = votes.filter(v => !(v.movie_id === movieId && v.person === person));
@@ -63,19 +64,8 @@ async function castVote(movieId, person, liked) {
     } else {
       votes.push({ id: Date.now().toString() + Math.random(), movie_id: movieId, person, liked });
     }
-    saveLocal();
+    saveLegacyVotes();
   }
 }
 
-// ---- Proposte film obsolete: 'proposal' non è ammesso dallo schema attuale ----
-async function proposeMovie(movieData, proposedBy) {
-  await insertMovie({ ...movieData, status: 'proposal', proposed_by: proposedBy, added_by: proposedBy });
-}
-
-async function acceptProposal(id) {
-  await updateMovie(id, { status: 'watchlist' });
-}
-
-async function rejectProposal(id) {
-  await deleteMovie(id);
-}
+// Nessuna proposta film legacy: la programmazione vive solo in store/nights.

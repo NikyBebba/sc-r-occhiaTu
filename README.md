@@ -39,7 +39,7 @@ Il progetto usa **HTML, JavaScript vanilla ES6 e CSS**, senza framework o bundle
 
 La distinzione centrale è **film = contenuto, serata = evento**. Uno stesso film può avere più serate, senza perdere le date e i luoghi dei rewatch. I voti appartengono al film e restano separati tra personali e condiviso.
 
-I dettagli delle proiezioni sono letti dagli eventi `movie_nights`; i vecchi campi di programmazione sul film restano come mirror e fallback durante la transizione. Il precedente sistema di like/dislike `votes` è conservato per compatibilità e non alimenta l'interfaccia o il Match Live. [Audit e piano di dismissione](docs/DATA_MODEL_TRANSITION.md).
+La programmazione ha un'unica fonte: gli eventi `movie_nights`. Il client non legge né aggiorna i vecchi dettagli sul film; colonne e dati DB restano per un eventuale rollback con riallineamento dei mirror. Il precedente sistema di like/dislike `votes` conserva API dormienti e una cache separata, senza letture/scritture nel core, nell'interfaccia o nel Match Live. [Audit e piano di dismissione](docs/DATA_MODEL_TRANSITION.md).
 
 L'implementazione attuale gestisce **uno spazio con due profili preconfigurati** e ingresso tramite PIN lato client. Non include registrazione o gestione di gruppi indipendenti. I profili e la configurazione dei servizi sono in `js/config.js`; chiavi e PIN non vanno riportati in documentazione o log. Il PIN è un deterrente locale, non un sistema di autenticazione server; le policy Supabase pubbliche fanno parte del modello attuale.
 
@@ -71,11 +71,11 @@ node scripts/verify-sw.js
 node scripts/audit-data-model.js --live
 ```
 
-Checkpoint del 5 ottobre 2026: **391/391 smoke test** e **15/15 controlli del service worker** superati, controlli sintassi e diff senza errori. Cache PWA `v47`. Store, azioni e renderer sono separati per dominio mantenendo le API esistenti. Proiezioni, cinema, voti e Ricordi sono stati verificati anche in Chromium con dati di prova a larghezze mobile e tablet; 144 scenari DOM coincidono con la baseline sui dati coerenti. Le verifiche precedenti di login, home e saghe sono documentate nel master context.
+Checkpoint del 5 ottobre 2026: **400/400 smoke test** e **15/15 controlli del service worker** superati, controlli sintassi e diff senza errori. Cache PWA `v48`. Store, azioni e renderer sono separati per dominio. Le API attive restano compatibili; le tre vecchie proposte film senza chiamanti sono state rimosse. Proiezioni, cinema, voti e Ricordi sono stati verificati anche in Chromium con dati di prova a larghezze mobile e tablet; 144 scenari DOM coincidono con la baseline sui dati coerenti. Le verifiche precedenti di login, home e saghe sono documentate nel master context.
 
 L'audit esegue solo letture e stampa conteggi aggregati; accetta anche `--file=fixture.json` per dati di prova. Nel ciclo corrente non sono stati migrati o cancellati dati, né eseguiti push/deploy.
 
-La migration dei voti decimali è stata applicata sull'istanza di riferimento. Restano da verificare su due telefoni reali il tastierino nativo e la sincronizzazione degli ultimi flussi di voti, recensioni, saghe e proiezioni. Il dettaglio delle verifiche, delle migration e dei limiti è nel [master context](docs/MASTER_CONTEXT.md).
+La migration dei voti decimali è stata applicata sull'istanza di riferimento. L’utente ha confermato superati i test reali della transizione movie_nights v47 sui due client. Il cleanup v48 è verificato localmente e non pubblicato; la sua adozione sui dispositivi va verificata dopo una futura pubblicazione. Le verifiche del tastierino nativo e degli altri flussi restano distinte da questa conferma. Il dettaglio delle verifiche, delle migration e dei limiti è nel [master context](docs/MASTER_CONTEXT.md).
 
 Specifiche: [proiezioni, snack e luogo](docs/PROIEZIONI.md), [voti decimali](docs/PHASE38_DECIMAL_RATINGS.md), [saghe](docs/PHASE41_SAGHE.md), [Ricordi e statistiche](docs/PHASE23_MOVIE_CHEMISTRY.md), [timeline mensile](docs/PHASE22_TIMELINE.md).
 

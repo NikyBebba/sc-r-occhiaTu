@@ -110,8 +110,8 @@ function createMovieCard(m, vetoedIds) {
           <div class="flex items-center gap-2 mt-1 flex-wrap">
             ${genreChips(m)}
             ${m.cinema_watchlist ? '<span class="badge bg-amber-600/80">🎬 Al cinema / prossimamente</span>' : ''}
-            ${m.status === 'tonight' && currentTab === 'all' ? `<span class="badge bg-sky-700/90">in programma</span>` : ''}
-            ${m.status === 'tonight' && currentTab === 'tonight' ? `<span class="badge bg-indigo-600/90"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatNightDate(projection.scheduled_date, projection.scheduled_time))}</span>` : ''}
+            ${projection.nightId && currentTab === 'all' ? `<span class="badge bg-sky-700/90">in programma</span>` : ''}
+            ${projection.nightId && currentTab === 'tonight' ? `<span class="badge bg-indigo-600/90"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatNightDate(projection.scheduled_date, projection.scheduled_time))}</span>` : ''}
           </div>
           ${viewingStatusHtml(m)}
           ${m.matched === false ? `<button onclick="retryMatch('${m.id}', '${jsAttrEscape(m.title)}')" class="mt-1 text-[10px] text-amber-400 hover:text-amber-300 underline">Correggi titolo e ricerca di nuovo</button>` : ''}
@@ -125,7 +125,7 @@ function createMovieCard(m, vetoedIds) {
           ${reviewCardsHtml(m)}
           ${sagaButtonHtml(m)}
         </div>
-        ${(m.status === 'watchlist' || m.status === 'tonight' || m.status === 'watched') ? `
+        ${(m.status === 'watchlist' || projection.nightId || m.status === 'watched') ? `
         <div class="card-action-row flex flex-col gap-2 pt-2 border-t border-slate-800/80 text-xs">
           ${m.status === 'watched' || isSurpriseHidden ? '' : !viewingState(m)[currentUser]
             ? `<button onclick="markSeenUI('${m.id}')" class="w-full min-h-9 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium text-left"><i class="fa-solid fa-eye mr-1.5" aria-hidden="true"></i>L'ho già visto</button>`
@@ -142,7 +142,7 @@ function createMovieCard(m, vetoedIds) {
             </div>
             ${!isSurpriseHidden ? `<button onclick="toggleCinemaWatchlist('${jsAttrEscape(m.id)}')" class="w-full min-h-9 px-2 py-1.5 text-xs text-amber-200 hover:text-amber-100 underline">${m.cinema_watchlist ? 'Sposta in Streaming' : 'Sposta al cinema / prossimamente'}</button>` : ''}
           ` : ''}
-          ${m.status === 'tonight' ? `
+          ${projection.nightId ? `
             ${projectionInfoHtml(m)}
             ${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? `<button onclick="finishTogetherNightUI('${jsAttrEscape(m.id)}')" class="flex-1 min-h-11 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">Segna come visto</button>` : sharedVoteButtonHtml(m)}
             ${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? sharedVoteButtonHtml(m) : ''}

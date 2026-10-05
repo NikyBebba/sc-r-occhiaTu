@@ -168,8 +168,8 @@ function render() {
   const grid = document.getElementById('movieGrid');
   grid.innerHTML = '';
 
-  // currentTab: 'all' = nessun vincolo di status; altrimenti mappa 1:1 sul
-  // valore di movies.status. Pipeline: filtri puri (filters.js) + sort null-last.
+  // currentTab: 'all' = tutti, 'tonight' = film con eventi attivi; le altre
+  // viste usano il ciclo del film. Pipeline: filtri (filters.js) + sort null-last.
   const statusFilter = currentTab === 'all' ? null : currentTab;
   const filtered = sortMovies(filterMoviesByState(movies, statusFilter), listSortKey, listSortDir);
   if (filtered.length === 0) {

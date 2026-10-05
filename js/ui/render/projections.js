@@ -100,6 +100,7 @@ function projectionActionsHtml(pick) {
 
 function projectionInfoHtml(movie) {
   const night = activeNightForMovie(movie.id);
+  if (!night) return '';
   const pick = movieProjection(movie, night);
   if (movie.surprise_by && movie.surprise_by !== currentUser) pick.title = 'Film a sorpresa';
   const pending = pick.proposed_by && !pick.night_confirmed;
@@ -120,9 +121,6 @@ function renderScheduled() {
       const movie = movies.find(m => m.id === n.movie_id);
       return movie ? movieProjection(movie, n) : null;
     }).filter(Boolean);
-  // Fallback legacy solo per film senza alcun evento, neppure concluso.
-  entries.push(...movies.filter(m => m.scheduled_date && m.status !== 'watched'
-    && !movieNights.some(n => n.movie_id === m.id)));
   entries.sort((a, b) => (a.scheduled_date || '').localeCompare(b.scheduled_date || ''));
   if (panel) panel.classList.toggle('hidden', !entries.length || currentTab === 'match');
   container.innerHTML = entries.map(m => {

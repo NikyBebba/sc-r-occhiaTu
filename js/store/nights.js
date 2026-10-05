@@ -1,9 +1,8 @@
 // ============================================
 // SERATE — entità movie_nights (step 2)
 // Regola: 1 film = 1 contenuto, 1 serata = 1 evento. Più serate possono
-// puntare allo stesso film (rewatch). I campi legacy scheduled_*/proposed_by/
-// night_confirmed su movies restano alimentati (strategia B) perché vecchi
-// dati, tab e render continuino a funzionare senza riscrittura totale.
+// puntare allo stesso film (rewatch). Solo movie_nights possiede i dettagli
+// di programmazione; movies.status conserva il ciclo di vita del film.
 // ============================================
 
 function activeNights() {
@@ -20,16 +19,16 @@ function activeNightForMovie(movieId) {
 // Adattatore di sola lettura: i nomi scheduled_* sono il contratto dei
 // renderer/ticket, non una lettura del mirror su movies. Anche NULL e stringhe
 // vuote dell'evento prevalgono: non recuperare dettagli obsoleti dal film.
-function nightProjectionFields(night) {
+function nightProjectionFields(night = null) {
   return {
-    nightId: night.id, scheduled_date: night.date, scheduled_time: night.time,
-    snack: night.snack, location: night.location, proposed_by: night.proposed_by,
-    night_confirmed: night.status === 'confirmed'
+    nightId: night?.id ?? null, scheduled_date: night?.date ?? null, scheduled_time: night?.time ?? null,
+    snack: night?.snack ?? null, location: night?.location ?? null, proposed_by: night?.proposed_by ?? null,
+    night_confirmed: night?.status === 'confirmed'
   };
 }
 
 function movieProjection(movie, night = activeNightForMovie(movie.id)) {
-  return night ? { ...movie, ...nightProjectionFields(night) } : { ...movie };
+  return { ...movie, ...nightProjectionFields(night) };
 }
 
 async function insertMovieNight(night) {
@@ -74,8 +73,7 @@ async function setQuickTonight(id, snack = null, location = null) {
     proposed_by: currentUser, status: 'confirmed', confirmed_at: new Date().toISOString()
   });
   if (!night) return false;
-  await updateMovie(id, { status: 'tonight', scheduled_date: null, scheduled_time: null,
-    snack, proposed_by: null, night_confirmed: false });
+  await updateMovie(id, { status: 'tonight' });
   return true;
 }
 
@@ -86,43 +84,31 @@ async function proposeNight(id, person, date, time, snack, location = null) {
     proposed_by: person, status: 'proposed'
   });
   if (!night) return false;
-  await updateMovie(id, {
-    status: 'tonight', scheduled_date: date, scheduled_time: time || '21:30',
-    snack, proposed_by: person, night_confirmed: false
-  });
+  await updateMovie(id, { status: 'tonight' });
   return true;
 }
 
 async function confirmNight(id, nightId) {
   const night = nightId ? activeNights().find(n => n.id === nightId && n.movie_id === id) : activeNightForMovie(id);
-  if (nightId && !night) return false;
+  if (!night) return false;
   if (night && night.status === 'proposed') {
     if (!await updateMovieNight(night.id, { status: 'confirmed', confirmed_at: new Date().toISOString() })) return false;
   }
-  if (!night || activeNightForMovie(id)?.id === night.id) await updateMovie(id, { night_confirmed: true });
   return true;
 }
 
 // Annulla/rifiuta: la serata attiva passa a 'cancelled', il film torna in
-// watchlist e pulisce i campi serata legacy.
+// watchlist, oppure resta tonight se esistono altri eventi attivi.
 async function cancelNight(id, nightId) {
   const night = nightId ? activeNights().find(n => n.id === nightId && n.movie_id === id) : activeNightForMovie(id);
-  if (nightId && !night) return false;
+  if (!night) return false;
   if (night) {
     if (!await updateMovieNight(night.id, { status: 'cancelled', cancelled_at: new Date().toISOString() })) return false;
   }
   const remaining = activeNights().filter(n => n.movie_id === id && n.id !== night?.id)
     .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))[0];
-  if (remaining) return updateMovie(id, { status: 'tonight', scheduled_date: remaining.date,
-    scheduled_time: remaining.time, snack: remaining.snack, proposed_by: remaining.proposed_by, night_confirmed: remaining.status === 'confirmed' });
-  await updateMovie(id, {
-    status: 'watchlist',
-    scheduled_date: null,
-    scheduled_time: null,
-    snack: null,
-    proposed_by: null,
-    night_confirmed: false
-  });
+  if (remaining) return updateMovie(id, { status: 'tonight' });
+  await updateMovie(id, { status: 'watchlist' });
 }
 
 // Serata "avvenuta": chiamata quando il film viene recensito come visto
@@ -145,7 +131,7 @@ async function completeNight(id, location = undefined) {
 // Il film corrente per il box "Prossimo Film".
 // 1) Serate (movie_nights): priorità a quelle con data (prossima più vicina);
 //    se nessuna ha data, si usano quelle "stasera" senza data.
-// 2) Fallback legacy: dati pre-step2 senza riga in movie_nights.
+// Senza evento attivo non esiste una proiezione, anche con mirror legacy.
 function nextMoviePick() {
   const active = activeNights();
   const dated = active.filter(n => n.date);
@@ -163,26 +149,7 @@ function nextMoviePick() {
     }
   }
 
-  // Dati legacy (creati prima di movie_nights): state/flag sul film.
-  // I film già visti (status 'watched') non sono mai una serata da programmare:
-  // il mirror scheduled_date/night_confirmed sopravvive alla recensione, quindi
-  // vanno esclusi esplicitamente (il percorso principale da activeNights() è già
-  // coperto perché completeNight chiude le righe movie_nights).
-  const candidates = movies.filter(m =>
-    m.status !== 'watched' &&
-    (m.status === 'tonight' || (m.scheduled_date && (m.night_confirmed || m.proposed_by)))
-  );
-  if (candidates.length === 0) return null;
-
-  const pickTime = m => {
-    if (!m.scheduled_date) return NaN;
-    return new Date(`${m.scheduled_date}T${m.scheduled_time || '21:30'}:00`).getTime();
-  };
-  const scheduled = candidates.filter(m => m.scheduled_date);
-  if (scheduled.length > 0) {
-    return scheduled.sort((a, b) => pickTime(a) - pickTime(b))[0];
-  }
-  return candidates[candidates.length - 1];
+  return null;
 }
 
 function localDateKey(date = new Date()) {

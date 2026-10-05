@@ -43,7 +43,7 @@ chiare le distinzioni tra voto personale e condiviso e i messaggi d'errore.
 - **Font Awesome via CDN**;
 - **@supabase/supabase-js v2 via CDN** (tabelle: `movies`, `votes`, `vetoes`,
   `movie_nights`, RLS aperte, **Realtime core**: movies/vetoes/movie_nights;
-  votes resta legacy opzionale, senza binding nel nuovo client);
+  votes resta nel DB; API dormienti isolate, nessun I/O nel core);
 - **TMDb API v3** (`language=it-IT`) per ricerca, dettagli, provider, trailer;
 - **OMDb API** come fallback e per rating (IMDb / RT / Metacritic);
 - **localStorage** come fallback offline di Supabase (mirror + modalità
@@ -74,7 +74,7 @@ theme (head) → config → format → haptics → audio → api(omdb+tmdb → i
   mirror, fallback e **Realtime core centralizzato**. I domini estratti
   conservano le API globali: `store/movies.js` (CRUD, dedup e sorpresa),
   `store/viewing.js` (visioni, voti e recensioni), `store/legacy.js`
-  (votes opzionale e API obsolete), `store/choices.js` (veto),
+  (API votes dormienti, cache separata), `store/choices.js` (veto),
   `store/nights.js` (serate, pick e adattatori proiezione),
   `store/match.js` (sessioni/swipe, canale Match e presence).
   (`subscribeRealtime`/`unsubscribeRealtime`: il canale del CORE è unico;
@@ -134,7 +134,7 @@ theme (head) → config → format → haptics → audio → api(omdb+tmdb → i
 - `data/movie-watchlist.json` — lista ufficiale titoli (source of truth), N: 116
   + V: 15 = 131.
 
-Stato: variabili globali (`movies`, `votes`, `vetoes`, `movieNights`,
+Stato core: variabili globali (`movies`, `vetoes`, `movieNights`,
 `currentUser`, `currentTab`, `dbMode`). Ogni azione segue il ciclo:
 
 ```
@@ -232,15 +232,19 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
   - `cinema_watchlist` esclude da Ruota e Match; libreria e programmazione restano.
     Due viste separate Streaming/Cinema (Streaming iniziale), switch senza dropdown;
     Azzera filtri conserva la vista, card cinema ambrate e azioni Oggi/Programma uniformi.
-  - La "serata" VIVE sull'entità separata `movie_nights`. I flag legacy
-    sul film (`scheduled_*`, `proposed_by`, `night_confirmed`) restano
-    alimentati in scrittura per compatibilità (strategia B), così vecchi
-    dati/render continuano a funzionare.
+  - La programmazione vive **solo in `movie_nights`**. Colonne legacy
+    `scheduled_date/time`, `snack`, `proposed_by`, `night_confirmed` sul film
+    restano nel DB per rollback, ma NON leggere/scrivere né riattivare fallback
+    applicativi. `MOVIE_SELECT_FIELDS` seleziona solo contenuto e visioni.
+    I nomi scheduled_* nelle API renderer/ticket sono adattatori degli eventi.
+    `movies.status` conserva il ciclo film esistente per visioni/Ruota/Match;
+    filtro e contatore In programma dipendono dagli eventi attivi.
 - `votes(id, movie_id FK, person, liked, unique(movie_id,person))`: like/dislike
-  dismessi dalla UI, distinti dai voti decimali e dal Match Live. Snapshot/API
-  legacy preservati; errori di lettura/cache non degradano film e serate.
-  Non entra nella firma render né nel Realtime core. Non droppare/cancellare
-  senza verificare client, copie offline e archivio.
+  dismessi dalla UI, distinti dai voti decimali e dal Match Live. API dormienti
+  in store/legacy.js, nessun I/O all'avvio; cache separata. Il core non legge,
+  scrive o ripulisce questo snapshot/cache e non lo include in render/Realtime.
+  Non droppare/cancellare colonne/tabelle/dati legacy. Un rollback a frontend
+  precedenti richiede riallineare i mirror dalle nuove serate; non inventare dati.
 - `vetoes(id, person, movie_id FK, week_key 'YYYY-W##', unique(person,
   week_key))`.
 - `movie_nights(id, movie_id FK, date, time, snack, proposed_by, status,
@@ -309,7 +313,7 @@ Per le priorità precise leggere il master context aggiornato.
 ## Vincoli tecnici
 
 - Dipendenze ancora via CDN (Tailwind Play, Font Awesome, supabase-js).
-- PWA presente: manifest e service worker, cache corrente `v47`; domini API,
+- PWA presente: manifest e service worker, cache corrente `v48`; domini API,
   Supabase, poster e YouTube sempre esclusi dall'intercettazione. Le icone PWA
   sono provvisorie; non confondere l'app-shell offline con dati remoti disponibili.
 - HTML delle card generato come stringhe: usare `escapeHtml`/`jsAttrEscape`
@@ -366,19 +370,24 @@ Per le priorità precise leggere il master context aggiornato.
 - Consolidation & Architecture: domini estratti incrementalmente da store,
   actions e render; stato globale e API esistenti conservati, nessuna modifica
   ad autenticazione/schema/UX. Mappa e dipendenze nel master context.
-- Transizione dati: adattatori event-first per proiezioni, mirror e status film
-  conservati; votes isolato/opzionale. [Inventario e limiti](docs/DATA_MODEL_TRANSITION.md).
-  Nessuna migration, cancellazione, scrittura DB reale, push o deploy.
-- Audit live: 94 film (93 watchlist, 1 watched), 30 serate (29 cancelled,
-  1 completed), 1 voto legacy; nessun evento attivo. Conteggi osservati,
-  non una prova del dual-write attivo o delle copie locali dei telefoni.
-- `node scripts/smoke.js`: **391/391 PASS**; service worker
-  **15/15 PASS**, inclusa copertura offline dei nuovi moduli; controlli
-  sintassi e diff check superati, cache PWA `v47`.
-- Confronto baseline corrente: 343 funzioni conservate e 144 scenari DOM identici
-  sui dati coerenti; mirror divergente coperto da test dedicato.
-  Chromium con fixture per proiezioni/cinema/Ricordi a 320/390/768 px,
-  recensioni N/V a 320/390 px, zero errori JS e overflow rilevato.
+- Cleanup applicativo: movie_nights unica fonte di programmazione, nessun
+  fallback/dual-write dei dettagli sui film. votes dormiente separato dal core.
+  [Inventario e rollback](docs/DATA_MODEL_TRANSITION.md). Test reali della
+  transizione v47 superati sui due client, confermati dall'utente.
+  Il cleanup v48 resta locale, senza push/deploy, SQL o scritture DB reali.
+- Audit storico v47: 94 film (93 watchlist, 1 watched), 30 serate
+  (29 cancelled, 1 completed), 1 voto legacy; non un nuovo conteggio live.
+  Le differenze mirror/eventi sono attese dopo il congelamento v48: non
+  ripristinare automaticamente dual-write né considerarle guasti dell'app.
+- `node scripts/smoke.js`: **400/400 PASS**; service worker **15/15 PASS**,
+  sintassi completa e diff check, cache PWA `v48`.
+- Confronto v47: 344 API mantenute (rimosse solo le tre proposte film obsolete),
+  144 scenari DOM identici sui dati coerenti; flag soli/stale testati separatamente.
+  Chromium proiezioni/cinema/Ricordi a 320/390/768 px, recensioni N/V
+  a 320/390 px, zero errori JS/overflow, screenshot ispezionati.
+- movie_nights è necessario: errori REST o query rifiutate usano il mirror
+  locale degli eventi con badge offline, mai il legacy film. Realtime core
+  include sempre movie_nights. Non reintrodurre movieNightsAvailable.
 - Baseline browser precedente: Chromium con fixture a 320/390/768 px per login/PIN/home, voti e Ricordi;
   pannello saghe anche a 320×568. Screenshot ispezionati, zero errori JS e
   nessun overflow orizzontale. Tool di verifica solo in directory temporanee.

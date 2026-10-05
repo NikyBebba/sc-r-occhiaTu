@@ -7,8 +7,18 @@ if (CONFIG.SUPABASE_URL && CONFIG.SUPABASE_URL.startsWith('http') &&
   sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 }
 
+// Colonne contenuto/visione: il client non richiede i mirror di programmazione.
+// Mantenerle allineate allo schema e ai campi realmente usati dai domini.
+const MOVIE_SELECT_FIELDS = [
+  'id', 'title', 'added_by', 'status', 'duration', 'platform', 'poster', 'trailer_url',
+  'matched', 'imdb_rating', 'rt_rating', 'metacritic_rating', 'rating', 'review_text',
+  'review_by', 'watched_by', 'genre', 'surprise_by', 'tmdb_id', 'collection_id',
+  'collection_name', 'cinema_watchlist', 'seen_rating_n', 'seen_rating_v',
+  'seen_rating_together', 'review_text_n', 'review_text_v', 'review_text_together',
+  'genres', 'release_year', 'director', 'overview', 'cast_names', 'created_at'
+].join(',');
+
 let movies = [];
-let votes = [];   // snapshot legacy, solo per compatibilità (store/legacy.js)
 let vetoes = [];  // { id, person, movie_id, week_key }
 let movieNights = []; // { id, movie_id, date, time, snack, location, proposed_by, status, ... }
 
@@ -28,21 +38,16 @@ const SUPABASE_RETRY_MS = 15000;
 // scritture).
 let realtimeChannel = null;
 let resyncTimer = null;
-// Se la tabella movie_nights non esiste ancora (migration non applicata)
-// evito di sottoscriverla: altrimenti supabase-js tenta join ripetuti.
-let movieNightsAvailable = true;
 
 
 function saveLocal() {
   localStorage.setItem('scorochiatu_movies', JSON.stringify(movies));
-  localStorage.setItem('scorochiatu_votes', JSON.stringify(votes));
   localStorage.setItem('scorochiatu_vetoes', JSON.stringify(vetoes));
   localStorage.setItem('scorochiatu_movie_nights', JSON.stringify(movieNights));
 }
 
 function loadLocal() {
   movies = JSON.parse(localStorage.getItem('scorochiatu_movies') || '[]');
-  votes = readLegacyVotesMirror();
   vetoes = JSON.parse(localStorage.getItem('scorochiatu_vetoes') || '[]');
   movieNights = JSON.parse(localStorage.getItem('scorochiatu_movie_nights') || '[]');
   if (!Array.isArray(movieNights)) movieNights = [];
@@ -53,13 +58,21 @@ function loadLocal() {
 async function fetchAll() {
   if (!sb) return null;
   if (dbMode === 'local' && Date.now() - lastSupabaseFailAt < SUPABASE_RETRY_MS) return null;
-  const [moviesRes, legacyVotes, vetoesRes, nightsRes] = await Promise.all([
-    sb.from('movies').select('*').order('created_at', { ascending: false }),
-    fetchLegacyVotes(),
-    sb.from('vetoes').select('*'),
-    sb.from('movie_nights').select('*').order('created_at', { ascending: false })
-  ]);
-  const coreFailed = moviesRes.error || vetoesRes.error;
+  let results;
+  try {
+    results = await Promise.all([
+      sb.from('movies').select(MOVIE_SELECT_FIELDS).order('created_at', { ascending: false }),
+      sb.from('vetoes').select('*'),
+      sb.from('movie_nights').select('*').order('created_at', { ascending: false })
+    ]);
+  } catch (_) {
+    dbMode = 'local';
+    lastSupabaseFailAt = Date.now();
+    console.error('[sc(r)occhiaTu] Lettura Supabase non riuscita — conservo il mirror locale di film e serate.');
+    return null;
+  }
+  const [moviesRes, vetoesRes, nightsRes] = results;
+  const coreFailed = moviesRes.error || vetoesRes.error || nightsRes.error;
   if (coreFailed) {
     dbMode = 'local';
     lastSupabaseFailAt = Date.now();
@@ -68,25 +81,10 @@ async function fetchAll() {
     return null;
   }
   dbMode = 'supabase';
-  // movie_nights può non esistere ancora (migration non applicata) oppure
-  // fallire per altri motivi: NON è fatale, senza serate il box "Prossimo
-  // Film" funziona col fallback legacy sui flag del film.
-  let nights = [];
-  if (nightsRes.error) {
-    movieNightsAvailable = false;
-    if (Date.now() - (fetchAll.__lastNightsWarn || 0) > 60000) {
-      console.warn('[sc(r)occhiaTu] movie_nights non disponibile:', nightsRes.error.message, '— il box usa i dati legacy.');
-      fetchAll.__lastNightsWarn = Date.now();
-    }
-  } else {
-    movieNightsAvailable = true;
-    nights = nightsRes.data || [];
-  }
   return {
     movies: moviesRes.data || [],
-    votes: legacyVotes,
     vetoes: vetoesRes.data || [],
-    nights
+    nights: nightsRes.data || []
   };
 }
 
@@ -99,7 +97,6 @@ async function loadMovies() {
   const remote = await fetchAll();
   if (remote) {
     movies = remote.movies;
-    votes = remote.votes;
     vetoes = remote.vetoes;
     movieNights = remote.nights;
     saveLocal(); // il localStorage è anche un mirror del DB (= fallback utile)
@@ -118,7 +115,6 @@ async function resyncQuiet() {
   const remote = await fetchAll();
   if (remote) {
     movies = remote.movies;
-    votes = remote.votes;
     vetoes = remote.vetoes;
     movieNights = remote.nights;
     saveLocal();
@@ -143,9 +139,7 @@ function subscribeRealtime() {
     .channel('scorochiatu-db-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'movies' }, onDbChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'vetoes' }, onDbChange);
-  if (movieNightsAvailable) {
-    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'movie_nights' }, onDbChange);
-  }
+  channel.on('postgres_changes', { event: '*', schema: 'public', table: 'movie_nights' }, onDbChange);
   realtimeChannel = channel.subscribe((status, err) => {
     if (status === 'SUBSCRIBED') return;
     if (err) console.warn('[sc(r)occhiaTu] Realtime non attivo (' + status + '):', err.message);
