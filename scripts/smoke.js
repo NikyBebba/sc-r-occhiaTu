@@ -2761,14 +2761,31 @@ async function okA(name, fn) {
     return hiddenSidebar && hiddenLibraryMenu && visibleReturn && restored;
   }));
   ok('dashboard: selettore mobile segue la vista attiva della libreria', run(() => {
-    const prevTab = currentTab, prevMode = dbMode;
+    const prevTab = currentTab, prevMode = dbMode, prevView = dashboardView;
     dbMode = 'local'; setTab('calendar');
     const select = document.getElementById('libraryViewSelect');
-    const calendar = select.value === 'calendar';
+    const calendar = select.classList.contains('!hidden')
+      && document.getElementById('libraryPageTitle').textContent === 'Calendario';
+    setTab('watched');
+    const watched = select.classList.contains('!hidden')
+      && document.getElementById('segControl').classList.contains('!hidden')
+      && document.getElementById('libraryPageTitle').textContent === 'Visti e recensioni';
     setTab('watchlist');
-    const watchlist = select.value === 'watchlist';
-    currentTab = prevTab; dbMode = prevMode;
-    return calendar && watchlist;
+    const watchlist = select.value === 'watchlist' && !select.classList.contains('!hidden')
+      && document.getElementById('libraryPageTitle').textContent === 'Libreria';
+    currentTab = prevTab; dbMode = prevMode; dashboardView = prevView;
+    return calendar && watched && watchlist;
+  }));
+  ok('home: saluto personale e conteggi coerenti con le viste dei film', run(() => {
+    const prevUser = currentUser, prevMovies = movies;
+    try {
+      currentUser = 'N';
+      movies = [{ status: 'watchlist' }, { status: 'watched' }, { status: 'tonight' }];
+      renderDashboardHome();
+      return document.getElementById('sceltaTitle').textContent === `Ciao, ${CONFIG.PEOPLE.N.label}.`
+        && document.getElementById('homeWatchlistCount').textContent.startsWith('1 film')
+        && document.getElementById('homeWatchedCount').textContent === '1 film visto insieme.';
+    } finally { currentUser = prevUser; movies = prevMovies; }
   }));
 
   console.log('\n[render — pulsante "Togli veto"]');
@@ -3568,7 +3585,7 @@ async function okA(name, fn) {
         matchAvailable, swipeSessions, swipes, matchChannel, matchResyncTimer,
         matchProbeDone, matchLeaving, matchUnavailableWarnedAt,
         matchProbeTimeoutMs, lobbyPresenceState, realtimeChannel,
-        matchChannelStatus, currentTab, matchPrevTab, matchDragging,
+        matchChannelStatus, currentTab, dashboardView, matchPrevTab, matchDragging,
         matchPendingRender, matchNightCreated, matchPendingSchedule, matchExitTimer,
         matchEnterErrorMsg, matchEnterErrorLogged, matchContinueErrLoggedAt,
         matchRevealedKey };
@@ -3583,6 +3600,7 @@ async function okA(name, fn) {
       matchProbeTimeoutMs = p.matchProbeTimeoutMs; lobbyPresenceState = p.lobbyPresenceState;
       realtimeChannel = p.realtimeChannel;
       matchChannelStatus = p.matchChannelStatus; currentTab = p.currentTab;
+      dashboardView = p.dashboardView;
       matchPrevTab = p.matchPrevTab; matchDragging = p.matchDragging;
       matchPendingRender = p.matchPendingRender; matchNightCreated = p.matchNightCreated;
       matchPendingSchedule = p.matchPendingSchedule; matchExitTimer = p.matchExitTimer;
@@ -4861,7 +4879,12 @@ async function okA(name, fn) {
       const reentered = matchPrevTab === 'calendar' && currentTab === 'match'
         && matchChannel === ch1
         && mock.__calls().channels.length === 1;
-      return entered && swipeView && lobbyDue && left && reentered;
+      exitMatchView();
+      const exitedHome = dashboardView === 'home' && currentTab !== 'match'
+        && matchChannel === ch1 && swipeSessions.some(s => s.id === S.id && s.status === 'open')
+        && !document.getElementById('sceltaCta').classList.contains('hidden')
+        && document.getElementById('librarySection').classList.contains('!hidden');
+      return entered && swipeView && lobbyDue && left && reentered && exitedHome;
     } finally { __matchRestore(p); }
   }));
 

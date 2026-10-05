@@ -159,28 +159,37 @@
       </div>
     </div>
 
-    <main id="dashboardLayout" class="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+    <main id="dashboardLayout" class="app-pages">
 
-      <section id="nextMovieHero" class="hidden next-movie-hero md:col-span-3" aria-label="La nostra prossima serata">
+      <section id="nextMovieHero" class="hidden next-movie-hero" aria-label="La nostra prossima serata">
         <div id="nextMovieBox"></div>
       </section>
 
-      <section id="sceltaCta" aria-labelledby="sceltaTitle" class="dashboard-choice is-home glass-panel rounded-2xl border border-slate-800 md:col-span-3">
-        <div>
-          <p class="dashboard-eyebrow">IL VOSTRO CINEMA</p>
-          <h2 id="sceltaTitle" class="text-xl sm:text-2xl font-bold text-cinema-testo-1">Cosa guardiamo?</h2>
-          <p class="text-sm text-slate-400 mt-1">Scegliete insieme come iniziare la serata.</p>
+      <section id="sceltaCta" aria-labelledby="sceltaTitle" class="dashboard-choice is-home glass-panel rounded-2xl border border-slate-800">
+        <div class="home-welcome">
+          <div class="home-marquee" aria-hidden="true"><i class="fa-solid fa-clapperboard"></i><span>LA VOSTRA SALA È APERTA</span><i class="fa-solid fa-star"></i></div>
+          <h2 id="sceltaTitle" class="home-greeting">Ciao, benvenuti in sala.</h2>
+          <p class="home-headline">Ogni bel film inizia con una scelta.</p>
+          <p class="home-intro">Mettetevi comodi. Alla prossima scena pensiamo insieme.</p>
+          <div class="home-film-strip" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
         </div>
         <div class="dashboard-choice-actions">
-          <button id="tabMatch" onclick="setTab('match')" class="dashboard-match-btn hidden" aria-label="Apri Match Live" aria-current="false"><i class="fa-solid fa-heart" aria-hidden="true"></i><span>Match Live<small>Scegliete insieme</small></span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
-          <button onclick="openWheelView()" class="dashboard-choice-btn" aria-label="Apri la ruota della fortuna"><i class="fa-solid fa-rotate" aria-hidden="true"></i><span>Ruota<small>Lasciate fare al caso</small></span></button>
-          <button onclick="setTab('watchlist')" class="dashboard-choice-btn" aria-label="Sfoglia la lista dei film"><i class="fa-solid fa-film" aria-hidden="true"></i><span>Sfoglia la lista<small>Trovate la vostra scelta</small></span></button>
+          <button id="tabMatch" onclick="setTab('match')" class="dashboard-match-btn home-mode home-mode-match hidden" aria-label="Apri Match Live" aria-current="false"><span class="home-mode-icon"><i class="fa-solid fa-heart" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Troviamo il Match</strong><small>Due gusti, un film. Scoprite dove vi incontrate.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
+          <button onclick="openWheelView()" class="dashboard-choice-btn home-mode home-mode-wheel" aria-label="Apri la ruota della fortuna"><span class="home-mode-icon"><i class="fa-solid fa-rotate" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Gira la Ruota</strong><small>Un po’ di fortuna, la prossima serata.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
+          <button onclick="setTab('watchlist')" class="dashboard-choice-btn home-mode home-mode-list" aria-label="Sfoglia la lista dei film"><span class="home-mode-icon"><i class="fa-solid fa-film" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Sfoglia la lista</strong><small id="homeWatchlistCount">I vostri film, tutti da scoprire.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
+        </div>
+        <div class="home-shortcuts" aria-label="Le vostre visioni e serate">
+          <div class="home-shortcuts-heading"><span>Il vostro cinema continua</span><i class="fa-solid fa-ticket" aria-hidden="true"></i></div>
+          <div class="home-shortcuts-grid">
+            <button onclick="setTab('watched')" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-solid fa-star" aria-hidden="true"></i></span><span><strong>Visti e recensioni</strong><small id="homeWatchedCount">I film che vi sono rimasti.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+            <button onclick="setTab('calendar')" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-regular fa-calendar" aria-hidden="true"></i></span><span><strong>Calendario</strong><small>Le serate vissute e quelle in arrivo.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+          </div>
         </div>
       </section>
 
       <!-- COLONNA SINISTRA -->
-      <div id="dashboardSidebar" class="!hidden space-y-6 md:col-span-3">
-        <button onclick="openDashboardHome()" class="dashboard-back"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Torna alle scelte</button>
+      <div id="dashboardSidebar" class="!hidden space-y-6">
+        <button onclick="openDashboardHome()" class="dashboard-back"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Torna alla home</button>
         <div id="wheelPanel" class="glass-panel p-5 rounded-2xl border border-slate-800 text-center">
           <h2 class="text-lg font-bold text-slate-100 mb-1 flex items-center justify-center gap-2">
             <i class="fa-solid fa-compass text-indigo-400"></i> Ruota della Fortuna
@@ -227,14 +236,14 @@
       </div>
 
       <!-- COLONNA DESTRA -->
-      <section id="librarySection" class="!hidden md:col-span-3 space-y-5 min-w-0" aria-label="Libreria e Match Live">
+      <section id="librarySection" class="!hidden space-y-5 min-w-0" aria-label="Film e serate">
         <div id="matchViewHeader" class="hidden glass-panel p-4 rounded-2xl border border-slate-800 items-center justify-between gap-3">
           <div><p class="dashboard-eyebrow">IN DUE, IN DIRETTA</p><h2 class="text-lg font-bold">Match Live</h2></div>
-          <button onclick="openDashboardHome()" class="dashboard-choice-btn match-return" aria-label="Esci da Match Live e torna alle scelte"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Torna alle scelte</button>
+          <button onclick="exitMatchView()" class="dashboard-choice-btn match-return" aria-label="Esci da Match Live e torna alla home"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Torna alla home</button>
         </div>
-        <button id="libraryBack" onclick="openDashboardHome()" class="dashboard-back"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Torna alle scelte</button>
+        <button id="libraryBack" onclick="openDashboardHome()" class="dashboard-back"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Torna alla home</button>
         <div id="libraryHeader" class="flex items-center justify-between gap-3">
-          <div><p class="dashboard-eyebrow">I VOSTRI FILM</p><h2 class="text-lg font-bold text-slate-100">Libreria</h2></div>
+          <div><p id="libraryPageEyebrow" class="dashboard-eyebrow">I VOSTRI FILM</p><h2 id="libraryPageTitle" class="text-lg font-bold text-slate-100">Libreria</h2></div>
           <span id="libraryCount" class="text-sm text-slate-400"></span>
         </div>
 
@@ -287,14 +296,12 @@
         <!-- AZIONI/VISTA: segmented control (header lista) -->
         <label for="libraryViewSelect" class="sr-only">Vista della libreria</label>
         <select id="libraryViewSelect" onchange="setTab(this.value)" class="field w-full lg:hidden min-h-11" aria-label="Vista della libreria">
-          <option value="all">Tutti</option><option value="watchlist" selected>Da vedere</option><option value="tonight">In programma</option><option value="watched">Visti e recensioni</option><option value="calendar">Calendario</option>
+          <option value="all">Tutti i film</option><option value="watchlist" selected>Da vedere</option><option value="tonight">In programma</option>
         </select>
         <div id="segControl" role="tablist" aria-label="Viste della libreria" class="relative hidden lg:flex bg-slate-900/60 p-1 rounded-xl border border-slate-800 text-xs gap-1">
           <button onclick="setTab('all')" id="tabAll" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap relative z-10">Tutti <span id="pillCountAll" class="text-[10px] opacity-80">0</span></button>
           <button onclick="setTab('watchlist')" id="tabWatchlist" role="tab" aria-selected="true" class="flex-1 py-2 rounded-lg font-medium transition text-white whitespace-nowrap relative z-10">Da Vedere <span id="pillCountWatchlist" class="text-[10px] opacity-80">0</span></button>
           <button onclick="setTab('tonight')" id="tabTonight" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap relative z-10">In programma <span id="pillCountTonight" class="text-[10px] opacity-80">0</span></button>
-          <button onclick="setTab('watched')" id="tabWatched" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap relative z-10">Visti e Recensioni <span id="pillCountWatched" class="text-[10px] opacity-80">0</span></button>
-          <button onclick="setTab('calendar')" id="tabCalendar" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap relative z-10">Calendario</button>
           <div id="tabIndicator" aria-hidden="true" class="absolute inset-y-1 rounded-lg"></div>
         </div>
         <div id="movieGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>

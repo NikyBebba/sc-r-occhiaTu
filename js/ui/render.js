@@ -526,8 +526,23 @@ function resetListFiltersUI() {
 }
 
 // ---- Render principale ----
+function renderDashboardHome() {
+  const greeting = document.getElementById('sceltaTitle');
+  const name = CONFIG.PEOPLE[currentUser]?.label || currentUser;
+  if (greeting) greeting.textContent = name ? `Ciao, ${name}.` : 'Benvenuti in sala.';
+  const watchlist = document.getElementById('homeWatchlistCount');
+  const waiting = movies.filter(m => m.status === 'watchlist').length;
+  if (watchlist) watchlist.textContent = waiting
+    ? `${waiting} film aspettano la vostra scelta.` : 'La prossima storia la scegliete voi.';
+  const watched = document.getElementById('homeWatchedCount');
+  const seen = movies.filter(m => m.status === 'watched').length;
+  if (watched) watched.textContent = seen
+    ? `${seen} ${seen === 1 ? 'film visto insieme' : 'film visti insieme'}.` : 'I film che vi sono rimasti.';
+}
+
 function render() {
   finishInitialLoading();
+  renderDashboardHome();
   renderPillCounters();
   const statsModal = document.getElementById('statsModal');
   if (statsModal && !statsModal.classList.contains('hidden')) renderStats();
@@ -546,12 +561,10 @@ function render() {
   const sidebar = document.getElementById('dashboardSidebar');
   if (sidebar) {
     sidebar.classList.toggle('!hidden', !inWheel);
-    sidebar.classList.toggle('md:col-span-3', inWheel);
   }
   const library = document.getElementById('librarySection');
   if (library) {
     library.classList.toggle('!hidden', !inLibrary);
-    library.classList.add('md:col-span-3');
   }
   const libraryBack = document.getElementById('libraryBack');
   if (libraryBack) libraryBack.classList.toggle('hidden', inMatch);
@@ -563,11 +576,19 @@ function render() {
   const libraryHeader = document.getElementById('libraryHeader');
   if (libraryHeader) libraryHeader.classList.toggle('!hidden', inMatch);
   const librarySelect = document.getElementById('libraryViewSelect');
-  if (librarySelect) librarySelect.classList.toggle('!hidden', inMatch);
+  const filmLibrary = LIBRARY_TABS.includes(currentTab);
+  if (librarySelect) librarySelect.classList.toggle('!hidden', !filmLibrary);
   const segControl = document.getElementById('segControl');
-  if (segControl) segControl.classList.toggle('!hidden', inMatch);
+  if (segControl) segControl.classList.toggle('!hidden', !filmLibrary);
+  const pageTitle = document.getElementById('libraryPageTitle');
+  if (pageTitle) pageTitle.textContent = currentTab === 'calendar' ? 'Calendario'
+    : currentTab === 'watched' ? 'Visti e recensioni' : 'Libreria';
+  const pageEyebrow = document.getElementById('libraryPageEyebrow');
+  if (pageEyebrow) pageEyebrow.textContent = currentTab === 'calendar' ? 'LE VOSTRE SERATE'
+    : currentTab === 'watched' ? 'I FILM VISSUTI INSIEME' : 'I VOSTRI FILM';
   const libraryCount = document.getElementById('libraryCount');
-  if (libraryCount) libraryCount.textContent = `${movies.length} film`;
+  if (libraryCount) libraryCount.textContent = currentTab === 'calendar' ? ''
+    : `${currentTab === 'watched' ? movies.filter(m => m.status === 'watched').length : movies.length} film`;
   const libraryTools = document.getElementById('libraryTools');
   if (libraryTools) libraryTools.classList.toggle('!hidden', inMatch || currentTab === 'calendar');
   renderMatchCta();

@@ -8,7 +8,7 @@ let dashboardView = 'home'; // 'home' | 'wheel' | 'library'
 let matchPrevTab = 'watchlist';
 
 const TAB_KEYS = ['all', 'watchlist', 'tonight', 'watched', 'calendar', 'match'];
-const LIBRARY_TABS = TAB_KEYS.filter(k => k !== 'match');
+const LIBRARY_TABS = ['all', 'watchlist', 'tonight'];
 const TAB_ID = k => 'tab' + k[0].toUpperCase() + k.slice(1);
 
 function syncLibraryNavigation() {
@@ -21,7 +21,7 @@ function syncLibraryNavigation() {
     btn.setAttribute('aria-selected', String(k === currentTab));
   });
   const select = document.getElementById('libraryViewSelect');
-  if (select) select.value = currentTab === 'match' ? matchPrevTab : currentTab;
+  if (select) select.value = LIBRARY_TABS.includes(currentTab) ? currentTab : 'watchlist';
   const match = document.getElementById('tabMatch');
   if (match) match.setAttribute('aria-current', String(currentTab === 'match'));
   updateTabIndicator();
@@ -83,7 +83,7 @@ function openDashboardHome() {
 function updateTabIndicator() {
   const seg = document.getElementById('segControl');
   const indicator = document.getElementById('tabIndicator');
-  if (currentTab === 'match') {
+  if (!LIBRARY_TABS.includes(currentTab)) {
     if (indicator) indicator.style.opacity = '0';
     return;
   }

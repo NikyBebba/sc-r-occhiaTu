@@ -485,9 +485,7 @@ function tryMatchAgain() {
   enterMatch().catch(e => reportMatchEnterError(e));
 }
 
-// Esci = pausa: chiude il canale (via setTab → leaveMatch), la sessione resta
-// attiva. Torna al tab da cui eravamo entrati.
+// Esci = pausa: rimuove la presence, conserva sessione e canale e torna alla home.
 function exitMatchView() {
-  clearMatchState();
-  setTab(matchPrevTab);
+  openDashboardHome();
 }

@@ -1,6 +1,8 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.24
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.25
 
 Ultimo aggiornamento: 5 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
+
+Home personale e pagine centrate — Saluto dal nome utente configurato, scena di benvenuto e tre card con icone grandi per Match, Ruota e Libreria. Una sezione compatta apre direttamente Visti e recensioni e Calendario; queste viste hanno titolo e navigazione propri. La Libreria conserva i soli filtri Tutti / Da vedere / In programma, ricerca e ordinamento. Il contenitore delle pagine è ora una colonna unica centrata, senza la vecchia griglia laterale. Tutte le uscite interne da Match (`exitMatchView`, inclusi gli «Esci» e la chiusura automatica) tornano alla home, rimuovendo la presence ma conservando sessione e canale. Nessuna modifica al modello dati. Cache PWA `v35`, smoke **330/330 PASS**, service worker **12/12 PASS**; resa visiva su smartphone da verificare.
 
 Revisione home e ricordi condivisi — Home con le tre scelte ingrandite e viste dedicate per Match, Ruota e Libreria, con ritorno alle scelte; la prossima serata resta sopra le scelte quando presente. Ruota e lista non occupano la schermata iniziale. Eliminato il collegamento duplicato «La vostra storia». Il tema è nella fila delle azioni, separato dal gruppo persona/uscita. Il calendario esclude annullate e saltate e colloca le scelte rapide concluse nel giorno locale di `completed_at`. Il voto insieme 0–10 si salva anche senza testo ed è visibile come «I ★ voto/10» in oro nelle card, nella scheda e nello storico. Le modifiche conservano la data e non concludono un rewatch attivo. Ricordi contiene solo recensioni e voti insieme; genere, proponenti e conteggio dei film votati riguardano le visioni condivise. Le statistiche individuali restano un'idea futura. Nessuna migration. Cache PWA `v34`; smoke locale **329/329 PASS**, service worker **12/12 PASS**. Verifica visiva su smartphone ancora da fare.
 
@@ -49,7 +51,7 @@ Phase 28 — Ciak Loader e skeleton implementata localmente: al primo ingresso, 
 | Film e recensioni | Indicatori N/V/insieme, voti personali e condiviso 0–10, tre testi distinti, luogo facoltativo per serata; aggiunta con avviso duplicati | La recensione insieme è un testo per film; il luogo resta per evento |
 | Il Nostro Cinema | Serate concluse per mese, una card per evento anche nei rewatch; voto medio dei soli film visti insieme | Nessun archivio dei PNG generati |
 
-Verifiche locali dell'ultima revisione: `node scripts/smoke.js` **329/329 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Le migration Step 8, Step 9, Step 10, voto condiviso e luogo per serata sono state applicate; le due nuove colonne sono state verificate via REST in sola lettura (HTTP 200). Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
+Verifiche locali dell'ultima revisione: `node scripts/smoke.js` **330/330 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Le migration Step 8, Step 9, Step 10, voto condiviso e luogo per serata sono state applicate; le due nuove colonne sono state verificate via REST in sola lettura (HTTP 200). Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
 
 Regola repository: database locali, dump e backup sono esclusi da Git. I file SQL in `database/` descrivono schema e migration, senza esportazioni dei dati.
 
@@ -86,9 +88,9 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 - Login differenziato N/V via PIN individuale, badge utente, logout
 - CRUD film, import bulk (JustWatch non ha export ufficiale → copia manuale); l'aggiunta singola cerca anche titoli omonimi e blocca con avviso soltanto l'ID TMDb già presente, l'import dalla UI salta gli ID duplicati nel riepilogo
-- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v34`), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
+- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v35`), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
 - **Design system** (Foundation): token CSS (`--color-*`, `--radius-*`, `--shadow-*`, `--duration-*`, `--ease-*`, `--fs-*`), tipografia Plus Jakarta Sans, otto temi con anteprima e preferenza locale (Cinema, Cinema Noir, VHS e cinque stagionali), `.glass-panel`/`.glass-card`, accessibilità baseline (focus-visible, ARIA su modali/segmented, `prefers-reduced-motion` globale). Le varianti cromatiche seguono le superfici principali e la Ruota; verifica visiva su smartphone ancora da fare.
-- **Header/nav**: barra mobile con marca e gruppo persona/uscita sopra, tema/Ricordi/Aggiungi sotto. «Ricordi» apre «Il Nostro Cinema» e ha testo visibile anche su mobile. «Sorpresa» è un'azione secondaria nel pannello Ruota; «Importa» è un link nel form di aggiunta singola. La home ospita tre scelte ingrandite per Match, Ruota e Libreria, aperte in viste dedicate; la libreria ha cinque viste in un selettore nativo su mobile e nel segmented control su desktop. Match e Libreria occupano la larghezza disponibile; ogni modalità permette di tornare alle scelte.
+- **Header/nav**: barra mobile con marca e gruppo persona/uscita sopra, tema/Ricordi/Aggiungi sotto. «Ricordi» apre «Il Nostro Cinema» e ha testo visibile anche su mobile. «Sorpresa» è un'azione secondaria nel pannello Ruota; «Importa» è un link nel form di aggiunta singola. La home ospita tre scelte ingrandite per Match, Ruota e Libreria, aperte in viste dedicate; la libreria filtra Tutti / Da vedere / In programma, mentre Calendario e Visti e recensioni hanno accessi dalla home e viste dedicate. Match e Libreria occupano la larghezza disponibile; ogni modalità permette di tornare alle scelte.
 - **Match CTA**: stati idle/online/live letti solo da `matchChannelStatus`/`lobbyPresenceState`/`dbMode`/`currentTab` (nessuno stato duplicato); si aggiorna a ogni render, non su ogni evento presence in tempo reale se si è fermi su un altro tab (limite noto, accettato)
 - **Home CTA "Cosa guardiamo?"**: Match Live apre la sua vista dedicata; Ruota e Sfoglia la lista portano alle rispettive sezioni, senza nuovi stati di scelta
 - **Movie Card "biglietto cinema"** (`.movie-ticket`): bordo con effetto perforato, scrim sul poster, badge paternità come person-pill, rating "holographic" quando presente. Il footer su `watched` ora offre «Modifica recensione insieme»; lo status ignoto non mostra un footer vuoto. Gli indicatori N/V sono neutri, blu/rosa per visioni singole o separate, oro per la visione insieme. «L'ho già visto» apre il voto personale e collega alla recensione insieme. I voti 👍/👎 legacy non compaiono più sulle card.
@@ -112,7 +114,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Veto settimanale (1/persona/settimana), rimovibile solo dal proprietario, realtime su vetoes
 - Snack picker con opzione personalizzata (salvata in `movie_nights.snack`; gli snack già usati tornano fra le scelte su entrambi i telefoni, senza nuova tabella)
 - Modalità sorpresa (azione secondaria nella Ruota, modale, `surprise_by`, blur CSS, badge "tua sorpresa")
-- Smoke test locale: **329/329 PASS**; `scripts/verify-sw.js`: **12/12 PASS**. Il percorso storico dei test precedenti resta nella cronologia Git.
+- Smoke test locale: **330/330 PASS**; `scripts/verify-sw.js`: **12/12 PASS**. Il percorso storico dei test precedenti resta nella cronologia Git.
 
 ---
 
@@ -150,7 +152,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 31 — Accessibility baseline ✅
 
 ### ✅ PWA (COMPLETA)
-- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v34` nell'ultimo ciclo UI), toast di aggiornamento ✅
+- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v35` nell'ultimo ciclo UI), toast di aggiornamento ✅
 - Verificato: nessuna richiesta Supabase/TMDb/OMDb/poster/YouTube passa mai dalla cache (nessun `respondWith` su quei domini)
 
 ### STEP 2 — Core Layout (Phase 8.2 implementata)
