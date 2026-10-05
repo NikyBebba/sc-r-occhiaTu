@@ -68,7 +68,7 @@ node scripts/smoke.js
 node scripts/verify-sw.js
 ```
 
-Checkpoint del 5 ottobre 2026: **379/379 smoke test** e **12/12 controlli del service worker** superati, controlli sintassi e diff senza errori. Cache PWA `v45`. Login, home, voti, Ricordi, saghe e i flussi di proiezione sono stati verificati anche in Chromium con dati di prova e screenshot a larghezze mobile e tablet.
+Checkpoint del 5 ottobre 2026: **379/379 smoke test** e **15/15 controlli del service worker** superati, controlli sintassi e diff senza errori. Cache PWA `v46`. Store, azioni e renderer sono separati per dominio mantenendo le API esistenti. Proiezioni, cinema, voti e Ricordi sono stati verificati anche in Chromium con dati di prova a larghezze mobile e tablet; le verifiche precedenti di login, home e saghe sono documentate nel master context.
 
 La migration dei voti decimali è stata applicata sull'istanza di riferimento. Restano da verificare su due telefoni reali il tastierino nativo e la sincronizzazione degli ultimi flussi di voti, recensioni, saghe e proiezioni. Il dettaglio delle verifiche, delle migration e dei limiti è nel [master context](docs/MASTER_CONTEXT.md).
 

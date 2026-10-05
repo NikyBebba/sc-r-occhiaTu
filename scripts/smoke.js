@@ -162,20 +162,10 @@ async function okA(name, fn) {
 }
 
 (async () => {
-  const sources = [
-    'js/theme.js',
-    'js/config.js',
-    'js/format.js',
-    'js/haptics.js',
-    'js/audio.js',
-    'js/api/omdb.js', 'js/api/tmdb.js', 'js/api/index.js',
-    'js/store.js', 'js/match.js', 'js/filters.js', 'js/wheel.js',
-    'js/ui/modals.js', 'js/ui/navigation.js', 'js/ui/actions.js', 'js/ui/sagas.js', 'js/ui/render.js', 'js/ui/calendar.js',
-    'js/ui/match.js',
-    'js/ui/ticket.js',
-    'js/ui/loading.js',
-    'js/main.js'
-  ].map(f => read(f) + '\n;');
+  // Stessa lista e stesso ordine del browser, inclusi i moduli di dominio.
+  const sources = [...read('index.html').matchAll(/<script src="([^"]+)"><\/script>/g)]
+    .map(m => m[1]).filter(s => !/^https?:\/\//.test(s))
+    .map(f => read(f) + '\n;');
 
   try {
     vm.createContext(sandbox);
@@ -5702,12 +5692,14 @@ async function okA(name, fn) {
   // nell'ordine reale del browser e si caricano in un contesto vm ISOLATO.
   console.log('\n[match — caricamento browser (ordine script di index.html)]');
 
-  ok('index.html: js/match.js presente, subito dopo js/store.js e prima di js/ui/match.js', (() => {
+  ok('index.html: domini store prima di js/match.js, logica Match prima della UI', (() => {
     const scripts = [...read('index.html').matchAll(/<script src="([^"]+)"><\/script>/g)].map(m => m[1]).filter(s => !/^https?:\/\//.test(s));
     const iStore = scripts.indexOf('js/store.js');
     const iMatch = scripts.indexOf('js/match.js');
     const iUIMatch = scripts.indexOf('js/ui/match.js');
-    return iStore !== -1 && iMatch === iStore + 1 && iUIMatch > iMatch && scripts.indexOf('js/main.js') === scripts.length - 1;
+    const domains = ['movies', 'viewing', 'choices', 'nights', 'match'].map(name => scripts.indexOf(`js/store/${name}.js`));
+    return iStore !== -1 && domains.every(i => i > iStore && i < iMatch)
+      && iUIMatch > iMatch && scripts.indexOf('js/main.js') === scripts.length - 1;
   })());
 
   await okA('ordine index.html: load isolato (vm, senza DOM reale) — funzioni cross-file tutte definite', async () => {

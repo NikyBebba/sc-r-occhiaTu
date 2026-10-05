@@ -1,4 +1,4 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.40
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.41
 
 Ultimo aggiornamento: 5 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
 
@@ -7,7 +7,7 @@ README riscritto come presentazione generale — L'utente chiede di spiegare il 
 
 ## Checkpoint corrente — 5 ottobre 2026
 
-Versione finale del ciclo, cache PWA **`v45`**. I paragrafi successivi sono
+Versione corrente dopo Consolidation & Architecture, cache PWA **`v46`**. I paragrafi storici sono
 cronologia: statuette, vecchi nomi e conteggi non descrivono la UI attuale.
 
 - Libreria: Streaming come vista iniziale; switch a due pulsanti Streaming /
@@ -31,15 +31,82 @@ cronologia: statuette, vecchi nomi e conteggi non descrivono la UI attuale.
 - Ricordi → «Titoli di coda»: quattro riepiloghi, «In numeri» con icona,
   storico N+V e «Dopo il film» senza etichette ripetute. Film aggiunti contati
   su tutta la libreria; media calcolata in decimi con arrotondamento corretto.
-- **379/379 smoke PASS**, **12/12 service worker PASS**, controlli sintassi
+- **379/379 smoke PASS**, **15/15 service worker PASS**, controlli sintassi
   e diff check; browser fixture a 320/390/768 px con screenshot ispezionati,
   nessun errore JS/overflow. Tool di verifica solo fuori dal repository.
 - Dopo il push e il deploy: accettare l'aggiornamento PWA sui due telefoni e
   provare decimali, rimozione del testo, saghe e proiezioni con sincronizzazione reale.
   Non dichiarare verificato questo passaggio prima della prova dell'utente.
 
-README, AGENTS e specifiche Phase 22/23/38/41 allineati a questo checkpoint;
-le istruzioni di sicurezza e il contratto Match restano invariati.
+README e AGENTS allineati a questo checkpoint; le specifiche Phase 22/23/38/41
+documentano i rispettivi cicli funzionali precedenti. Le istruzioni di
+sicurezza e il contratto Match restano invariati.
+
+## Consolidation & Architecture — 5 ottobre 2026
+
+Fase implementata e verificata localmente, senza nuove feature, modifiche UX,
+autenticazione, schema DB, credenziali o dipendenze. Estrazione incrementale
+dei domini dai tre file più monolitici; nomi, firme, valori restituiti e
+handler HTML esistenti conservati. Rimangono script classici ES6 con stato
+globale condiviso: questa fase separa le responsabilità, non introduce
+un nuovo sistema di moduli o un contenitore dello stato.
+
+| Modulo | Responsabilità corrente |
+| --- | --- |
+| `js/store.js` | Client, stato core, lettura Supabase, mirror locale, fallback e Realtime core |
+| `js/store/movies.js` | CRUD film, dedup TMDb, proposte legacy e sorpresa |
+| `js/store/viewing.js` | Stato visioni, voti/recensioni personali e fallback condivisi, scritture condizionate |
+| `js/store/choices.js` | Voti like/dislike legacy e veto settimanali |
+| `js/store/nights.js` | Eventi serata, mirror legacy, pick prossimo/oggi e data locale |
+| `js/store/match.js` | Stato/persistenza sessioni e swipe, reconcile, canale Match e presence |
+| `js/ui/actions.js` | Aggiunta, picker, import, correzione titolo e azioni libreria |
+| `js/ui/actions/nights.js` | Form programmazione/oggi/modifica, snack, luogo e conferma/annullamento |
+| `js/ui/actions/viewing.js` | Form recensioni/voti, segna visione e annullamento personale |
+| `js/ui/actions/choices.js` | Sorpresa e veto in UI |
+| `js/ui/render.js` | Coordinamento delle viste, home, badge connessione e veto |
+| `js/ui/render/cards.js` | Card e frammenti condivisi di generi, visioni, voti e recensioni |
+| `js/ui/render/memories.js` | Timeline mensile, storico serate e quattro riepiloghi di Titoli di coda |
+| `js/ui/render/library.js` | Ricerca, controlli filtri, sort, contatori e stati vuoti |
+| `js/ui/render/projections.js` | Hero, countdown e cartellone |
+| `js/ui/render/detail.js` | Scheda film, transizioni, Oscar e accento poster |
+
+Dipendenze studiate prima dell'estrazione: i domini dati condividono client,
+array e mirror core; le serate scrivono anche sui film; Match usa veto/serate
+e le funzioni pure di `js/match.js`, conservando il canale separato dal core.
+Le azioni richiamano persistenza → `loadMovies()` → `render()` con gli stessi
+await; recensioni e calendario riusano le date dello storico; card, dettaglio
+e form condividono i frammenti voto. Modali, Match, Ruota e ticket si richiamano
+a runtime, dopo il caricamento di tutti gli script e prima dell'uso dell'app.
+Questi legami restano espliciti, senza wrapper o duplicazioni delle API.
+
+Ordine: `store` → `store/{movies,viewing,choices,nights,match}` → logica pura
+`match` → filtri/ruota → modali/navigazione → `actions` e relativi domini →
+saghe → `render/{cards,memories,library,projections,detail}` → coordinatore
+`render` → calendario/Match UI/ticket/loading → `main`. Il bootstrap e il
+login restano in `main.js`, invariato. `index.html` è anche la fonte dell'ordine
+per lo smoke principale; il test isolato carica ancora ogni script separatamente
+come nel browser. Tutti i nuovi file sono nel precache PWA; versione `v46`
+necessaria per aggiornare insieme shell e script estratti.
+
+Verifiche: baseline **379/379 smoke**, poi **379/379 dopo ciascuno dei tre
+refactor** (store, actions, render), con letture live TMDb/OMDb e nessuna
+scrittura sul database reale. Service worker **15/15**: oltre ai 12 controlli
+esistenti, percorsi unici/esistenti, copertura degli script HTML e caricamento
+offline dalla cache simulata dopo install. Sintassi completa e diff check PASS.
+Confronto temporaneo con i sorgenti iniziali: **159 API conservate**, tutte
+con implementazione identica salvo il coordinatore `render()` che delega la
+costruzione delle card; **144 scenari DOM identici** (vuoto/fixture, N/V,
+Streaming/Cinema, sei tab, tre viste), inclusi HTML, classi e binding.
+Chromium con fixture: proiezioni, snack/luogo, Streaming/Cinema e Ricordi a
+320/390/768 px; modifica recensione N/V a 320/390 px. Nessun errore JS o
+overflow rilevato; screenshot rappresentativi ispezionati. Strumenti di
+confronto/browser solo in directory temporanee, nessuna dipendenza aggiunta.
+
+Limiti reali: questa è una separazione per dominio, non la rimozione dello
+stato globale o del mirror legacy. Il ciclo Match resta in un singolo modulo
+dedicato per preservare il contratto e le gare tra i due telefoni. Deploy e
+sincronizzazione sui telefoni non eseguiti in questa fase; i controlli locali
+non sostituiscono la prova condivisa dopo l'aggiornamento PWA.
 
 ## Cronologia del ciclo
 
@@ -209,7 +276,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Veto settimanale (1/persona/settimana), rimovibile solo dal proprietario, realtime su vetoes
 - Snack picker con opzione personalizzata (salvata in `movie_nights.snack`; gli snack già usati tornano fra le scelte su entrambi i telefoni, senza nuova tabella)
 - Modalità sorpresa (azione secondaria nella Ruota, modale, `surprise_by`, blur CSS, badge "tua sorpresa")
-- Smoke test locale corrente: **369/369 PASS**; `scripts/verify-sw.js`: **12/12 PASS**. Il percorso storico dei test precedenti resta nella cronologia Git.
+- Smoke test locale corrente: **379/379 PASS**; `scripts/verify-sw.js`: **15/15 PASS**. Il percorso storico dei test precedenti resta nella cronologia Git.
 
 ---
 
@@ -247,7 +314,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 31 — Accessibility baseline ✅
 
 ### ✅ PWA (COMPLETA)
-- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v44` al checkpoint corrente), toast di aggiornamento ✅
+- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v46` al checkpoint corrente), toast di aggiornamento ✅
 - Verificato: nessuna richiesta Supabase/TMDb/OMDb/poster/YouTube passa mai dalla cache (nessun `respondWith` su quei domini)
 
 ### STEP 2 — Core Layout (Phase 8.2 implementata)
@@ -350,7 +417,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Origine del Ticket (Match Live/Ruota/diretta) tracciata solo in-memory (`markTicketOrigin`/`ticketOriginOf`), persa al refresh/nuova sessione di navigazione — lo storico Phase 21 mostra serate concluse senza attribuire un'origine non salvata
 - Colonna legacy `movies.genre` (ex mood) non più letta/scritta: valutare drop in una migration
 - Doppio livello `movie_nights` + mirror legacy su `movies` (`night_confirmed`, `scheduled_*`): tenere finché serve, poi dismettere
-- `AGENTS.md` obsoleto: non allineato a questo documento, da aggiornare insieme
+- Stato globale e dipendenze tra script classici conservati dopo Consolidation; eventuale isolamento ulteriore richiede una fase dedicata. `AGENTS.md` allineato alla nuova mappa dei domini.
 - Icone PWA **provvisorie** (generate via script, non un asset di design reale) — da sostituire quando disponibile
 - `via.placeholder.com` (fallback poster) risulta irraggiungibile dall'ambiente di sviluppo — non blocca nulla oggi (il dettaglio usa un gradiente CSS quando manca il poster), ma va verificato in un contesto reale prima di contarci altrove
 

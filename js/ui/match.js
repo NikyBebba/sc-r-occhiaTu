@@ -2,7 +2,7 @@
 // UI — Match tab: lobby, swipe, match, completed, "stasera dal match"
 // La UI CHIAMA le funzioni dello store (mai le ridefinisce): enterMatch/
 // leaveMatch/ensureActiveSession/closeSession/recordSwipe/continueMatch/
-// setQuickTonight vivono in store.js. Vista in #movieGrid come il calendario.
+// setQuickTonight vivono in store/match.js e store/nights.js. Vista in #movieGrid come il calendario.
 // ============================================
 
 // Stato del gesto touch (nessuna libreria): soglia ~80px, il drag NON ri-render.

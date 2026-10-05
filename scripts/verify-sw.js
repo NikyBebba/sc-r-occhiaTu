@@ -26,7 +26,9 @@ function ok(name, cond) {
 const cacheApi = {
   store: new Map(),
   async open() { return cacheApi; },
-  async addAll() { return; },
+  async addAll(paths) {
+    paths.forEach(url => cacheApi.store.set(url, { ok: true, status: 200, url }));
+  },
   async keys() { return [...cacheApi.store.keys()]; },
   async delete(k) { return cacheApi.store.delete(k); },
   async match(key) { return cacheApi.store.get((key && key.url) || String(key)) || undefined; },
@@ -100,6 +102,25 @@ function fire(url, mode) {
   res = await p;
   offline = false;
   ok('CDN offline: fallback su cache (solo errore di rete)', res && res.status === 200 && res.url.includes('tailwind'));
+
+  console.log('--- 3. App-shell: moduli di dominio disponibili offline ---');
+  const repo = path.resolve(__dirname, '..');
+  const precache = vm.runInContext('PRECACHE', swCtx);
+  const html = fs.readFileSync(path.join(repo, 'index.html'), 'utf8');
+  const scripts = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)]
+    .map(m => m[1]).filter(src => !/^https?:\/\//.test(src));
+  ok('precache: percorsi unici e file locali esistenti',
+    new Set(precache).size === precache.length
+    && precache.every(asset => fs.existsSync(path.join(repo, asset === '/' ? 'index.html' : asset))));
+  ok('precache: tutti gli script di index.html inclusi', scripts.every(src => precache.includes('/' + src)));
+  let installation;
+  listeners.install({ waitUntil(promise) { installation = promise; } });
+  await installation;
+  offline = true;
+  const cachedScripts = await Promise.all(scripts.map(src => fire(selfStub.location.origin + '/' + src)));
+  offline = false;
+  ok('offline dopo install: ogni script servito dalla cache',
+    cachedScripts.every((response, i) => response && response.ok && response.url === '/' + scripts[i]));
 
   console.log('\n=== RISULTATO: ' + pass + ' PASS / ' + fail + ' FAIL ===');
   process.exit(fail === 0 ? 0 : 1);

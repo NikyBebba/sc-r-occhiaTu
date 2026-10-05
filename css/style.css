@@ -1156,7 +1156,7 @@ textarea:focus-visible {
 /* Perforazioni "biglietto": due semicerchi (clipati da overflow:hidden) sugli
    estremi della cucitura tra poster e contenuto.
    ATTENZIONE: `calc(192px - 11px)` dipende dall'altezza FISSA del poster
-   (h-48 = 192px, vedi template card in js/ui/render.js). I cerchi da 22px sono
+   (h-48 = 192px, vedi template card in js/ui/render/cards.js). I cerchi da 22px sono
    centrati esattamente sulla linea di strappo (bordo superiore del contenuto).
    Se in futuro si cambia l'altezza del poster, aggiornare questo valore. */
 .movie-ticket::before,

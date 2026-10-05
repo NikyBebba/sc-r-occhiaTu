@@ -56,7 +56,7 @@ NON introdurre framework/bundler/backend senza autorizzazione.
 Flusso di caricamento dei moduli (ordine in `index.html`):
 
 ```
-theme (head) → config → format → haptics → audio → api(omdb+tmdb → index) → store → match → filters → wheel → ui(modals+navigation+actions+sagas+render+calendar+match+ticket+loading) → main
+theme (head) → config → format → haptics → audio → api(omdb+tmdb → index) → store + store/{movies,viewing,choices,nights,match} → match → filters → wheel → ui(modals+navigation+actions e domini+sagas+render e domini+calendar+match+ticket+loading) → main
 ```
 
 - `js/config.js` — chiavi runtime (TMDb/OMDb/Supabase) + `PEOPLE` (label + PIN).
@@ -69,10 +69,12 @@ theme (head) → config → format → haptics → audio → api(omdb+tmdb → i
   `buildTmdbDetails(detail, fallbackTitle)`, `fetchTmdbDetailsById`,
   `fetchTmdbDetailsByTitle`.
 - `js/api/index.js` — orchestratore `fetchMovieDetails` (TMDb → OMDb → notFound).
-- `js/store.js` — livello dati: Supabase (o localStorage), `movies`, `votes`,
-  `vetoes`, `movie_nights`, logica serata (`setQuickTonight`, `proposeNight`,
-  `confirmNight`, `cancelNight`, `completeNight`, `nextMoviePick`), match %,
-  veto settimanale, sorpresa, **Realtime centralizzato**
+- `js/store.js` — client, stato globale, letture Supabase/localStorage,
+  mirror, fallback e **Realtime core centralizzato**. I domini estratti
+  conservano le API globali: `store/movies.js` (CRUD, dedup e sorpresa),
+  `store/viewing.js` (visioni, voti e recensioni), `store/choices.js`
+  (voti legacy e veto), `store/nights.js` (serate e pick),
+  `store/match.js` (sessioni/swipe, canale Match e presence).
   (`subscribeRealtime`/`unsubscribeRealtime`: il canale del CORE è unico;
   il Match "live" usa un canale separato e temporaneo `scorochiatu-match`,
   per isolare i guasti dal core — i binding match+presence stanno SOLO lì;
@@ -97,12 +99,16 @@ theme (head) → config → format → haptics → audio → api(omdb+tmdb → i
 - `js/ui/modals.js` — `openModal`/`closeModal`/`showConfirmModal` + helper
   anti-XSS `escapeHtml`/`jsAttrEscape` + costanti visuali (`personBadge`).
 - `js/ui/navigation.js` — tab (state + switch).
-- `js/ui/actions.js` — azioni sui film: aggiunta singola (picker TMDb), import
-  bulk, aggiusta/retry con metadati, programma/annulla serata, voto, veto,
-  sorpresa, recensione, scelta rapida «Oggi» con popup snack/luogo e modifica dei dettagli.
-- `js/ui/render.js` — `render`, `renderScheduled`, `renderStats`,
-  `renderVetoInfo`, `renderSyncStatus`, `renderNextMovieBox` (countdown 30s),
-  `drawWheel` invocata dal render.
+- `js/ui/actions.js` — libreria: aggiunta/picker TMDb, import, stato, cinema,
+  eliminazione e retry; `actions/nights.js` gestisce programmazione/Oggi,
+  snack/luogo e modifiche, `actions/viewing.js` voti/recensioni/visioni,
+  `actions/choices.js` sorpresa e veto. Firme e handler HTML invariati.
+- `js/ui/render.js` — coordinatore `render`, home, veto e connessione;
+  `render/cards.js` costruisce le card e i frammenti voto condivisi,
+  `render/memories.js` storico/statistiche, `render/library.js` controlli
+  ricerca/filtri/sort, `render/projections.js` hero/countdown/cartellone,
+  `render/detail.js` scheda e transizioni. I domini render si caricano prima
+  del coordinatore; `drawWheel` resta invocata dal render.
 - `js/ui/sagas.js` — collection TMDb su richiesta, ordine di uscita, suggerimento
   dopo nuova visione, aggiunta esplicita con dedup, retry e protezione sorpresa.
 - `js/ui/ticket.js` — ticket PNG via canvas nativo, poster e talloncino; origine
@@ -189,8 +195,12 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 ├── js/
 │   ├── config.js, format.js, theme.js, audio.js, haptics.js
 │   ├── store.js, match.js, filters.js, wheel.js, main.js
+│   ├── store/{movies,viewing,choices,nights,match}.js
 │   ├── api/{omdb,tmdb,index}.js
-│   └── ui/{modals,navigation,actions,sagas,render,calendar,match,ticket,loading}.js
+│   └── ui/
+│       ├── {modals,navigation,actions,sagas,render,calendar,match,ticket,loading}.js
+│       ├── actions/{nights,viewing,choices}.js
+│       └── render/{cards,memories,library,projections,detail}.js
 └── css/style.css
 ```
 
@@ -290,7 +300,7 @@ Per le priorità precise leggere il master context aggiornato.
 ## Vincoli tecnici
 
 - Dipendenze ancora via CDN (Tailwind Play, Font Awesome, supabase-js).
-- PWA presente: manifest e service worker, cache corrente `v45`; domini API,
+- PWA presente: manifest e service worker, cache corrente `v46`; domini API,
   Supabase, poster e YouTube sempre esclusi dall'intercettazione. Le icone PWA
   sono provvisorie; non confondere l'app-shell offline con dati remoti disponibili.
 - HTML delle card generato come stringhe: usare `escapeHtml`/`jsAttrEscape`
@@ -344,9 +354,16 @@ Per le priorità precise leggere il master context aggiornato.
 
 ## Checkpoint verificato — 5 ottobre 2026
 
-- `node scripts/smoke.js`: **379/379 PASS**; service worker **12/12 PASS**;
-  controlli sintassi e diff check superati, cache PWA `v45`.
-- Chromium con fixture a 320/390/768 px per login/PIN/home, voti e Ricordi;
+- Consolidation & Architecture: domini estratti incrementalmente da store,
+  actions e render; stato globale e API esistenti conservati, nessuna modifica
+  ad autenticazione/schema/UX. Mappa e dipendenze nel master context.
+- `node scripts/smoke.js`: **379/379 PASS** dopo ogni refactor; service worker
+  **15/15 PASS**, inclusa copertura offline dei nuovi moduli; controlli
+  sintassi e diff check superati, cache PWA `v46`.
+- Confronto baseline: 159 API conservate e 144 scenari DOM identici.
+  Chromium con fixture per proiezioni/cinema/Ricordi a 320/390/768 px,
+  recensioni N/V a 320/390 px, zero errori JS e overflow rilevato.
+- Baseline browser precedente: Chromium con fixture a 320/390/768 px per login/PIN/home, voti e Ricordi;
   pannello saghe anche a 320×568. Screenshot ispezionati, zero errori JS e
   nessun overflow orizzontale. Tool di verifica solo in directory temporanee.
 - Migration Phase 38 applicata dall'utente; nessuna scrittura reale nei test
