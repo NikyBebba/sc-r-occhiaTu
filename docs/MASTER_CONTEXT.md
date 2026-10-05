@@ -1,6 +1,9 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.36
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.37
 
 Ultimo aggiornamento: 5 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
+
+Rifinitura successiva — L'utente preferisce due icone del ciak alle statuette: «Luci basse, schermo acceso» è affiancata da due `fa-clapperboard` uguali. Rimossi SVG e relativo stile; Font Awesome già incluso, nessuna dipendenza. PIN spy invariato. Cache PWA `v44`.
+
 
 Rifinitura home e PIN — «Luci basse, schermo acceso» ha due statuette dorate uguali ai lati (SVG nativi inline, decorativi, nessuna immagine/dipendenza esterna). Nel PIN l'eyebrow diventa «Ciak, si entra» e il titolo «Biglietto, prego». Sotto: «Accesso riservato, agente {nome}. Senza codice segreto non si passa.»; battuta originale in stile spy movie, senza attribuzione a un film. Testo dinamico per N/V con textContent; controllo PIN e sessione invariati. Cache PWA `v43`. Sintassi e diff check superati; Chromium con fixture a 320/390/768 px, due SVG identici, login/PIN/home e zero errori/overflow, screenshot ispezionati. Smoke **369/369 PASS**, service worker **12/12 PASS**.
 
