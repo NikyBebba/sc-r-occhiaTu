@@ -1466,3 +1466,5 @@ textarea:focus-visible {
 
 .cinema-stat-card { min-width: 0; }
 .cinema-stat-value, .cinema-stat-card p { overflow-wrap: anywhere; }
+
+.home-marquee .home-award { width: 18px; height: 32px; flex: 0 0 18px; fill: currentColor; }

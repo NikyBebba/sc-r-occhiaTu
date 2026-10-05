@@ -1,6 +1,9 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.35
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.36
 
 Ultimo aggiornamento: 5 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
+
+Rifinitura home e PIN — «Luci basse, schermo acceso» ha due statuette dorate uguali ai lati (SVG nativi inline, decorativi, nessuna immagine/dipendenza esterna). Nel PIN l'eyebrow diventa «Ciak, si entra» e il titolo «Biglietto, prego». Sotto: «Accesso riservato, agente {nome}. Senza codice segreto non si passa.»; battuta originale in stile spy movie, senza attribuzione a un film. Testo dinamico per N/V con textContent; controllo PIN e sessione invariati. Cache PWA `v43`. Sintassi e diff check superati; Chromium con fixture a 320/390/768 px, due SVG identici, login/PIN/home e zero errori/overflow, screenshot ispezionati. Smoke **369/369 PASS**, service worker **12/12 PASS**.
+
 
 Direzione del tono estesa a login e home — Preferenza esplicita dell'utente: cinema, leggerezza e piccole battute, senza una cornice continuamente romantica e senza seriosità. Login: «Proiezione quasi pronta», «Due poltrone. Un solo telecomando.», «Vietato spoilerare all'ingresso»; PIN «Biglietto, prego» / «Ciak, si entra». Home: «Che film si guarda?», «Popcorn pronti. Manca solo il film.», Match «Due sì fanno un Match» con pollice su, Ruota «Un giro e salta fuori il film», collegamenti «Tra un film e l'altro». Conteggi, cartellone e stati vuoti usano testi semplici e riferimenti al cinema; niente nostri/vostri/insieme ripetuti nella home. «In numeri» ha l'icona chart-bar supportata dalla versione Font Awesome dell'app. La distinzione personale/condiviso resta precisa nei voti e nei flussi, senza cambiare PIN, sessioni, conteggi o logiche Match/Ruota. Smoke **369/369 PASS**, service worker **12/12 PASS**; browser con fixture a 320/390/768 px per login, PIN, home, icona e Ricordi, senza overflow/errori JS. Nessuna migration o dipendenza, cache PWA `v42`.
 

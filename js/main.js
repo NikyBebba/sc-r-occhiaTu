@@ -28,7 +28,7 @@ function selectUser(code) {
   gate.dataset.person = code;
   gate.classList.remove('hidden');
   document.getElementById('pinPersonMark').textContent = code;
-  document.getElementById('pinGateLabel').textContent = `${CONFIG.PEOPLE[code].label}, il PIN e si entra.`;
+  document.getElementById('pinGateLabel').textContent = `«Accesso riservato, agente ${CONFIG.PEOPLE[code].label}. Senza codice segreto non si passa.»`;
   document.getElementById('pinError').classList.add('hidden');
   const input = document.getElementById('pinInput');
   input.value = '';
