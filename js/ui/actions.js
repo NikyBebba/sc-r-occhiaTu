@@ -391,7 +391,7 @@ function openReviewFor(id, by) {
   ).join('') : '';
   nightSelect.value = reviewNight?.id || '';
   document.getElementById('reviewNightSelectWrap').classList.toggle('hidden', completedNights.length <= 1);
-  document.getElementById('reviewRating').value = existingScore === null ? '' : String(existingScore);
+  document.getElementById('reviewRating').value = formatMovieRating(existingScore);
   document.getElementById('reviewRatingLabel').textContent = by === 'both' ? 'Il vostro voto ★' : 'Il tuo voto ★';
   document.getElementById('reviewHelp').textContent = by === 'both'
     ? (hasReview
@@ -439,12 +439,12 @@ async function confirmReview() {
   const location = document.getElementById('reviewLocation').value.trim().slice(0, 120);
   const reviewNightId = document.getElementById('reviewNightId').value;
   const rawRating = document.getElementById('reviewRating').value;
-  const rating = Number(rawRating);
+  const rating = parseMovieRating(rawRating);
   const error = document.getElementById('reviewError');
   const saveButton = document.getElementById('reviewSaveButton');
   error.classList.add('hidden');
-  if (rawRating === '' || !Number.isInteger(rating) || rating < 0 || rating > 10) {
-    error.textContent = 'Scegli un voto da 0 a 10.';
+  if (rating === null) {
+    error.textContent = 'Scegli un voto da 0 a 10, con al massimo un decimale (es. 8,3).';
     error.classList.remove('hidden');
     document.getElementById('reviewRating').focus();
     return;
@@ -531,7 +531,7 @@ function markSeenUI(id) {
   if (!movie || (currentUser !== 'N' && currentUser !== 'V')) return;
   document.getElementById('seenMovieId').value = id;
   const score = personalRating(movie, currentUser);
-  document.getElementById('seenRating').value = score === null ? '' : String(score);
+  document.getElementById('seenRating').value = formatMovieRating(score);
   document.getElementById('seenReview').value = reviewTextFor(movie, currentUser);
   document.getElementById('seenRatingError').classList.add('hidden');
   openModal('seenModal');
@@ -540,11 +540,12 @@ function markSeenUI(id) {
 async function confirmSeen() {
   const id = document.getElementById('seenMovieId').value;
   const raw = document.getElementById('seenRating').value;
-  const rating = Number(raw);
+  const rating = parseMovieRating(raw);
   const error = document.getElementById('seenRatingError');
-  if (raw === '' || !Number.isInteger(rating) || rating < 0 || rating > 10) {
-    error.textContent = 'Scegli un voto da 0 a 10.';
+  if (rating === null) {
+    error.textContent = 'Scegli un voto da 0 a 10, con al massimo un decimale (es. 8,3).';
     error.classList.remove('hidden');
+    document.getElementById('seenRating').focus();
     return;
   }
   const reviewText = document.getElementById('seenReview').value.trim();

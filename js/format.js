@@ -8,6 +8,24 @@
 
 const MONTHS_SHORT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 
+// Voti 0–10: una cifra decimale, senza arrotondare input non validi.
+function validMovieRating(value) {
+  return typeof value === 'number' && Number.isFinite(value)
+    && value >= 0 && value <= 10 && Number(value.toFixed(1)) === value;
+}
+
+function parseMovieRating(raw) {
+  if (typeof raw !== 'string') return null;
+  const text = raw.trim();
+  if (!/^\d{1,2}(?:[.,]\d)?$/.test(text)) return null;
+  const value = Number(text.replace(',', '.'));
+  return validMovieRating(value) ? value : null;
+}
+
+function formatMovieRating(value) {
+  return validMovieRating(value) ? String(value).replace('.', ',') : '';
+}
+
 function formatNightDate(date, time) {
   if (!date) return 'Stasera';
   const raw = String(date);

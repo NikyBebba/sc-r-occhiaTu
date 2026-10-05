@@ -1781,8 +1781,8 @@ async function okA(name, fn) {
       ];
       renderStats();
       const html = document.getElementById('statsGrid').innerHTML;
-      return html.includes('Voto medio insieme') && html.includes('⭐ 4.0/10')
-        && !html.includes('⭐ 9.0/10');
+      return html.includes('Voto medio insieme') && html.includes('⭐ 4,0/10')
+        && !html.includes('⭐ 9,0/10');
     } finally { movies = saved; }
   }));
   ok('Il Nostro Cinema: un biglietto per serata completata, incluso rewatch; annullate escluse', run(() => {
@@ -2468,11 +2468,94 @@ async function okA(name, fn) {
     return b.indexOf('badge badge-n person-pill') !== -1 && b.indexOf('fa-circle') !== -1;
   }));
 
+  console.log('\n[phase38 — voti decimali]');
+  ok('voti: tutti i decimi 0–10, punto/virgola, zero, spazi esterni e formato italiano', run(() => {
+    for (let i = 0; i <= 100; i++) {
+      const value = i / 10;
+      if (!validMovieRating(value) || parseMovieRating(String(value)) !== value
+          || parseMovieRating(formatMovieRating(value)) !== value) return false;
+    }
+    return parseMovieRating(' 8,3 ') === 8.3 && parseMovieRating('10.0') === 10
+      && formatMovieRating(0) === '0' && formatMovieRating(null) === '';
+  }));
+  ok('voti: rifiuta vuoto, segni, esponenti, misti, fuori scala e precisione eccessiva', run(() => {
+    return ['', ' ', '-1', '+8', '10.1', '11', '8.33', '8,30', '8.', '8,', '.5', '8,3.2',
+      '8e0', 'Infinity', 'NaN', '8 voto', '1 0', '<b>8</b>'].every(raw => parseMovieRating(raw) === null)
+      && [null, undefined, '8.3', NaN, Infinity, -1, 10.1, 8.33].every(value => !validMovieRating(value));
+  }));
+  await okA('voti: salvataggio personale decimale, persistenza locale, modifica e rifiuto senza scritture', runA(async () => {
+    const previous = movies, user = currentUser, client = sb;
+    sb = null; currentUser = 'N';
+    movies = [{ id: 'decimal-personal', title: 'Film', status: 'watchlist', seen_rating_v: 7.8 }];
+    const el = id => document.getElementById(id);
+    try {
+      markSeenUI('decimal-personal');
+      el('seenRating').value = '8,3'; el('seenReview').value = '';
+      await confirmSeen();
+      const stored = JSON.parse(localStorage.getItem('scorochiatu_movies'))[0];
+      const first = stored.seen_rating_n === 8.3 && stored.seen_rating_v === 7.8;
+      markSeenUI('decimal-personal');
+      const prefilled = el('seenRating').value === '8,3';
+      el('seenRating').value = '8.34'; await confirmSeen();
+      const rejected = movies[0].seen_rating_n === 8.3 && !el('seenRatingError').classList.contains('hidden');
+      const storeRejected = !(await markMovieSeen('decimal-personal', 'N', 8.34));
+      el('seenRating').value = '9.1'; await confirmSeen();
+      addPersonalReview('decimal-personal'); el('reviewRating').value = '9,2'; el('reviewText').value = 'Nuovo voto';
+      await confirmReview();
+      return first && prefilled && rejected && storeRejected && movies[0].seen_rating_n === 9.2
+        && movies[0].seen_rating_v === 7.8 && movies[0].review_text_n === 'Nuovo voto';
+    } finally { movies = previous; currentUser = user; sb = client; saveLocal(); }
+  }));
+  await okA('voti insieme: decimale distinto dai personali, edit conserva serata e prefilla virgola', runA(async () => {
+    const previous = movies, nights = movieNights, user = currentUser, client = sb;
+    sb = null; currentUser = 'N';
+    movies = [{ id: 'decimal-together', title: 'Film', status: 'tonight', seen_rating_n: 8.3, seen_rating_v: 7.8 }];
+    movieNights = [{ id: 'decimal-night', movie_id: 'decimal-together', status: 'confirmed', date: '2026-10-05' }];
+    const el = id => document.getElementById(id);
+    try {
+      addReview('decimal-together'); el('reviewRating').value = '8.34'; el('reviewText').value = '';
+      await confirmReview();
+      const rejected = movies[0].seen_rating_together === undefined && movieNights[0].status === 'confirmed';
+      el('reviewRating').value = '8,1'; await confirmReview();
+      const completed = movieNights[0].completed_at;
+      addReview('decimal-together');
+      const prefilled = el('reviewRating').value === '8,1';
+      el('reviewRating').value = '9.3'; await confirmReview();
+      return rejected && prefilled && movies[0].seen_rating_together === 9.3 && movies[0].seen_rating_n === 8.3
+        && movies[0].seen_rating_v === 7.8 && movieNights.length === 1 && movieNights[0].completed_at === completed;
+    } finally { movies = previous; movieNights = nights; currentUser = user; sb = client; saveLocal(); }
+  }));
+  ok('voti: card/recensioni mostrano virgola, ordinamento usa decimali e fallback legacy resta intero', run(() => {
+    const movie = { status: 'watched', seen_rating_n: 8.3, seen_rating_v: 0, seen_rating_together: 9.1, review_text_together: 'Bello' };
+    return viewingStatusHtml(movie).includes('8,3/10') && viewingStatusHtml(movie).includes('9,1/10')
+      && reviewCardsHtml(movie).includes('9,1/10') && togetherRating(movie) === 9.1
+      && personalRating({ review_by: 'N', rating: 4 }, 'N') === 8
+      && sortMovies([{ id: 'low', seen_rating_n: 8.2 }, { id: 'high', seen_rating_n: 8.3 }], 'rating', 'desc')[0].id === 'high';
+  }));
+
+  ok('voti decimali: media insieme include zero, storico e Ricordi mantengono il valore esatto', run(() => {
+    const previous = movies, nights = movieNights, user = currentUser;
+    currentUser = 'N';
+    movies = [
+      { id: 'decimal-stats1', title: 'Film uno', status: 'watched', seen_rating_together: 8.3, seen_rating_n: 10 },
+      { id: 'decimal-stats2', title: 'Film due', status: 'watched', seen_rating_together: 0 },
+      { id: 'decimal-solo', title: 'Film personale', status: 'watchlist', seen_rating_n: 9.8 }
+    ];
+    movieNights = [{ id: 'decimal-history', movie_id: 'decimal-stats1', status: 'completed', date: '2026-10-05' }];
+    try {
+      renderStats();
+      return document.getElementById('statsGrid').innerHTML.includes('⭐ 4,2/10')
+        && document.getElementById('reviewTimeline').innerHTML.includes('8,3/10')
+        && document.getElementById('nightHistory').innerHTML.includes('8,3/10');
+    } finally { movies = previous; movieNights = nights; currentUser = user; }
+  }));
+
   console.log('\n[phase8.1 — stato di visione sulle card]');
   ok('HTML: modali visto e recensione con voto 0–10 e validazione visibile', (() => {
     const html = read('index.html');
     return html.includes('id="seenModal"') && html.includes('id="seenRating"')
-      && html.includes('<option value="0">0 / 10</option>') && html.includes('<option value="10">10 / 10</option>')
+      && html.includes('type="text" id="seenRating" inputmode="decimal"')
+      && html.includes('type="text" id="reviewRating" inputmode="decimal"')
       && html.includes('id="seenReview"') && html.includes('id="reviewModal"')
       && html.includes('id="reviewRating"') && html.includes('id="reviewError"')
       && !html.includes('id="reviewStars"');

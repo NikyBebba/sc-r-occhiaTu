@@ -436,15 +436,8 @@
       <input type="hidden" id="seenMovieId">
       <div>
         <label for="seenRating" class="block text-sm font-medium text-slate-200 mb-1">Il tuo voto <span class="text-amber-400">★</span></label>
-        <select id="seenRating" class="field w-full" required>
-          <option value="" selected>Scegli un voto da 0 a 10</option>
-          <option value="0">0 / 10</option><option value="1">1 / 10</option>
-          <option value="2">2 / 10</option><option value="3">3 / 10</option>
-          <option value="4">4 / 10</option><option value="5">5 / 10</option>
-          <option value="6">6 / 10</option><option value="7">7 / 10</option>
-          <option value="8">8 / 10</option><option value="9">9 / 10</option>
-          <option value="10">10 / 10</option>
-        </select>
+        <input type="text" id="seenRating" inputmode="decimal" autocomplete="off" class="field w-full min-h-11 px-3 py-2" placeholder="Es. 8,3" aria-describedby="seenRatingHint" required>
+        <p id="seenRatingHint" class="text-xs text-slate-400 mt-1">Da 0 a 10 · un decimale facoltativo</p>
         <p id="seenRatingError" class="hidden text-xs text-rose-300 mt-1" role="alert"></p>
       </div>
       <div>
@@ -472,15 +465,8 @@
       <p id="reviewMovieTitle" class="text-sm text-slate-300"></p>
       <div>
         <label for="reviewRating" id="reviewRatingLabel" class="block text-sm font-medium text-slate-200 mb-1">Il tuo voto <span class="text-amber-400">★</span></label>
-        <select id="reviewRating" class="field w-full" required>
-          <option value="">Scegli un voto da 0 a 10</option>
-          <option value="0">0 / 10</option><option value="1">1 / 10</option>
-          <option value="2">2 / 10</option><option value="3">3 / 10</option>
-          <option value="4">4 / 10</option><option value="5">5 / 10</option>
-          <option value="6">6 / 10</option><option value="7">7 / 10</option>
-          <option value="8">8 / 10</option><option value="9">9 / 10</option>
-          <option value="10">10 / 10</option>
-        </select>
+        <input type="text" id="reviewRating" inputmode="decimal" autocomplete="off" class="field w-full min-h-11 px-3 py-2" placeholder="Es. 8,3" aria-describedby="reviewRatingHint" required>
+        <p id="reviewRatingHint" class="text-xs text-slate-400 mt-1">Da 0 a 10 · un decimale facoltativo</p>
       </div>
       <div>
         <label for="reviewText" class="block text-sm font-medium text-slate-200 mb-1">La recensione <span id="reviewTextOptional" class="text-slate-400 font-normal">(facoltativa)</span></label>

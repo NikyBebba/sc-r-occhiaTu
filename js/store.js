@@ -227,7 +227,7 @@ function viewingState(movie) {
 function personalRating(movie, person) {
   if (person !== 'N' && person !== 'V') return null;
   const value = movie[person === 'N' ? 'seen_rating_n' : 'seen_rating_v'];
-  if (Number.isInteger(value) && value >= 0 && value <= 10) return value;
+  if (validMovieRating(value)) return value;
   // Le recensioni storiche avevano una scala 1–5: equivalenza visiva 2–10.
   const old = Number(movie.rating);
   return movie.review_by === person && Number.isInteger(old) && old >= 1 && old <= 5 ? old * 2 : null;
@@ -235,7 +235,7 @@ function personalRating(movie, person) {
 
 function togetherRating(movie) {
   const value = movie.seen_rating_together;
-  if (Number.isInteger(value) && value >= 0 && value <= 10) return value;
+  if (validMovieRating(value)) return value;
   const old = Number(movie.rating);
   return movie.review_by === 'both' && Number.isInteger(old) && old >= 1 && old <= 5 ? old * 2 : null;
 }
@@ -269,7 +269,7 @@ function watchedByAfterUndo(movie, person) {
 // telefono se N e V premono quasi nello stesso momento.
 async function markMovieSeen(id, person, rating = null, reviewText = '') {
   if (person !== 'N' && person !== 'V') return false;
-  if (rating !== null && (!Number.isInteger(rating) || rating < 0 || rating > 10)) return false;
+  if (rating !== null && !validMovieRating(rating)) return false;
   let movie = movies.find(m => m.id === id);
   if (!movie) return false;
   const ratingField = person === 'N' ? 'seen_rating_n' : 'seen_rating_v';

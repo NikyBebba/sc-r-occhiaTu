@@ -13,9 +13,9 @@ create table movies (
   rt_rating text,
   metacritic_rating text,
   rating integer default 0,
-  seen_rating_n smallint check (seen_rating_n between 0 and 10),
-  seen_rating_v smallint check (seen_rating_v between 0 and 10),
-  seen_rating_together smallint check (seen_rating_together between 0 and 10),
+  seen_rating_n numeric check (seen_rating_n between 0 and 10 and seen_rating_n * 10 = trunc(seen_rating_n * 10)),
+  seen_rating_v numeric check (seen_rating_v between 0 and 10 and seen_rating_v * 10 = trunc(seen_rating_v * 10)),
+  seen_rating_together numeric check (seen_rating_together between 0 and 10 and seen_rating_together * 10 = trunc(seen_rating_together * 10)),
   scheduled_date date,
   scheduled_time time,
   snack text, -- snack abbinato alla serata programmata

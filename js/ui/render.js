@@ -149,10 +149,10 @@ function viewingStatusHtml(movie) {
   const person = key => `<span class="viewing-person viewing-person-${key.toLowerCase()}${seen[key] ? ' is-seen' : ''}${seen.together ? ' is-together' : ''}" aria-label="${key}: ${seen[key] ? (seen.together ? 'visto insieme' : 'visto') : 'non visto'}">${key}</span>`;
   const scores = ['N', 'V'].map(key => {
     const rating = personalRating(movie, key);
-    return rating === null ? '' : `<span class="viewing-score viewing-score-${key.toLowerCase()}">${key} <i class="fa-solid fa-star" aria-hidden="true"></i> ${rating}/10</span>`;
+    return rating === null ? '' : `<span class="viewing-score viewing-score-${key.toLowerCase()}">${key} <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(rating)}/10</span>`;
   }).filter(Boolean);
   const shared = togetherRating(movie);
-  if (shared !== null && seen.together) scores.push(`<span class="viewing-score viewing-score-together" aria-label="Voto insieme: ${shared} su 10">I <i class="fa-solid fa-star" aria-hidden="true"></i> ${shared}/10</span>`);
+  if (shared !== null && seen.together) scores.push(`<span class="viewing-score viewing-score-together" aria-label="Voto insieme: ${formatMovieRating(shared)} su 10">I <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(shared)}/10</span>`);
   return `<div class="viewing-status" role="group" aria-label="${label}"><span class="viewing-label" aria-hidden="true">Visto da</span>${person('N')}${person('V')}</div>${scores.length ? `<div class="viewing-scores" aria-label="Voti del film">${scores.join('')}</div>` : ''}`;
 }
 
@@ -163,7 +163,7 @@ function reviewCardsHtml(movie) {
     const label = person === 'both' ? 'Insieme' : person;
     const score = person === 'both' ? togetherRating(movie) : personalRating(movie, person);
     return `<div class="mt-2 p-2.5 bg-slate-900/80 rounded-lg border border-slate-800 text-xs text-slate-300">
-      <span class="text-[11px] font-bold text-indigo-300">Recensione ${label}${score !== null ? ` · ★ ${score}/10` : ''}</span>
+      <span class="text-[11px] font-bold text-indigo-300">Recensione ${label}${score !== null ? ` · ★ ${formatMovieRating(score)}/10` : ''}</span>
       <p class="italic mt-1">“${escapeHtml(text)}”</p>
     </div>`;
   }).join('');
@@ -275,7 +275,7 @@ function renderNightHistory() {
         <p>${escapeHtml(completedNightLabel({ night, timelineDate }))}</p>
         ${night.snack ? `<p>🍿 ${escapeHtml(night.snack)}</p>` : ''}
         ${night.location && !hidden ? `<p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${escapeHtml(night.location)}</p>` : ''}
-        ${movie && !hidden && togetherRating(movie) !== null ? `<p class="history-shared-score">I <i class="fa-solid fa-star" aria-hidden="true"></i> ${togetherRating(movie)}/10</p>` : ''}
+        ${movie && !hidden && togetherRating(movie) !== null ? `<p class="history-shared-score">I <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(togetherRating(movie))}/10</p>` : ''}
       </div>
     </article>`;
     }).join('');
@@ -297,7 +297,7 @@ function renderStats() {
   const totalWatched = watched.length;
   const allRatings = watched.map(togetherRating).filter(value => value !== null);
   const avgRating = allRatings.length
-    ? (allRatings.reduce((sum, value) => sum + value, 0) / allRatings.length).toFixed(1)
+    ? (allRatings.reduce((sum, value) => sum + value, 0) / allRatings.length).toFixed(1).replace('.', ',')
     : '—';
 
   // Genere più visto insieme: conta le occorrenze dei generi REALI sui film condivisi.
@@ -352,7 +352,7 @@ function renderStats() {
     timeline.innerHTML = reviewed.map(({ movie: m, text: review, score }) => `
       <div class="timeline-item">
         <div class="text-sm font-bold text-slate-100">${escapeHtml(m.title)}</div>
-        <div class="text-[11px] text-amber-300">Insieme${score !== null ? ` • ★ ${score}/10` : ''}</div>
+        <div class="text-[11px] text-amber-300">Insieme${score !== null ? ` • ★ ${formatMovieRating(score)}/10` : ''}</div>
         ${review ? `<div class="text-xs text-slate-300 italic mt-1">“${escapeHtml(review)}”</div>` : ''}
       </div>
     `).join('');

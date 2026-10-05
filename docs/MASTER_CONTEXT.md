@@ -1,6 +1,8 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.30
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.31
 
 Ultimo aggiornamento: 5 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
+
+Phase 38 — Voti decimali implementati localmente: campi con tastierino decimale al posto dei menu, scala 0–10 con un decimale facoltativo, punto e virgola accettati. Card, recensioni, storico, modifica e media conservano i valori; voti personali e insieme distinti, zero e legacy preservati. Migration dei tre campi `seen_rating_*` da smallint a numeric con CHECK sui decimi preparata e verificata su PostgreSQL temporaneo, **non applicata su Supabase: necessaria prima del push**. Cache PWA `v40`; smoke **358/358 PASS**, service worker **12/12 PASS**. [Specifica e attivazione](PHASE38_DECIMAL_RATINGS.md).
 
 Ripristino pulsante saghe sulle card — «Continua la saga» torna anche nelle card della libreria e dei film visti, oltre che nella scheda dettaglio e nei flussi di scelta. Resta visibile dopo i render e il passaggio a visto; assente per film senza collection nota e sorprese non rivelate. Cache PWA `v39`. Verifica di regressione sul render delle card superata; smoke **352/352 PASS**, service worker **12/12 PASS**.
 
@@ -63,13 +65,17 @@ Phase 28 — Ciak Loader e skeleton implementata localmente: al primo ingresso, 
 | Film e recensioni | Indicatori N/V/insieme, voti personali e condiviso 0–10, tre testi distinti, luogo facoltativo per serata; aggiunta con avviso duplicati | La recensione insieme è un testo per film; il luogo resta per evento |
 | Il Nostro Cinema | Serate concluse per mese, una card per evento anche nei rewatch; voto medio dei soli film visti insieme | Nessun archivio dei PNG generati |
 
-Verifiche locali dell'ultima revisione: `node scripts/smoke.js` **352/352 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Le migration Step 8, Step 9, Step 10, voto condiviso e luogo per serata sono state applicate; le due nuove colonne sono state verificate via REST in sola lettura (HTTP 200). Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
+Verifiche locali dell'ultima revisione: `node scripts/smoke.js` **358/358 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Le migration Step 8, Step 9, Step 10, voto condiviso e luogo per serata sono state applicate; le due nuove colonne sono state verificate via REST in sola lettura (HTTP 200). Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
 
 Regola repository: database locali, dump e backup sono esclusi da Git. I file SQL in `database/` descrivono schema e migration, senza esportazioni dei dati.
 
+## Criterio per le prossime idee
+
+L'utente apprezza aggiunte come «Continua la saga», il ticket più curato e le atmosfere automatiche: funzioni che collegano scelta, film, serata e ricordo e rendono l'app personale e piacevole da usare in due. Per le prossime proposte privilegiare azioni utili nel momento giusto, pochi passaggi e una cura visiva coerente. Conservare le azioni apprezzate anche nelle card, dove sono facilmente scopribili; evitare di nasconderle durante le rifiniture.
+
 ## Prossimo lavoro
 
-Priorità aggiornata: verificare le saghe dopo il deploy; ticket e temi sono già stati testati dall'utente dopo il push. Poi riprendere gli altri step della roadmap. Resta aperta la revisione UI/UX mobile delle viste principali: verificare disposizione e temi su smartphone, poi rifinire gli stati d'errore e la serata senza cambiare i loro flussi dati. I controlli su due telefoni e gli interventi tecnici successivi restano attività separate.
+Priorità aggiornata: completare l'attivazione della Phase 38 applicando la migration dei voti decimali su Supabase prima di pubblicare; poi verificare tastierino e salvataggi sui due telefoni insieme alle saghe. Ticket e temi sono già stati testati dall'utente dopo il push. Poi riprendere gli altri step della roadmap. Resta aperta la revisione UI/UX mobile delle viste principali: verificare disposizione e temi su smartphone, poi rifinire gli stati d'errore e la serata senza cambiare i loro flussi dati. I controlli su due telefoni e gli interventi tecnici successivi restano attività separate.
 
 ### Cose da sistemare prima dei prossimi step
 
@@ -240,7 +246,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 35 — Lightweight Gamification (Awards, no leaderboard)
 - Phase 36 — Poster Flip (dati `cast_names`/`overview` ora pronti da Step 3)
 - Phase 37 — Advanced Recommendation
-- Phase 38 — Voti decimali da tastierino (**idea, non implementata**): sostituire i menu 0–10 con un campo numerico per voto personale e condiviso, con tastierino mobile `inputmode="decimal"` e separatore decimale disponibile. Accettare `8.3` e `7,8`, normalizzare il valore e validare 0–10 con una cifra decimale. Prima dell'implementazione definire una migration additiva/alterazione verificata per `seen_rating_n`, `seen_rating_v` e `seen_rating_together`, oggi `smallint`, e adeguare salvataggio, statistiche, fallback legacy e test. Non cambiare il data model senza una fase dedicata.
+- Phase 38 — Voti decimali da tastierino ✅ nel codice locale: punto/virgola, una cifra decimale, voto personale/condiviso, statistiche e fallback legacy verificati. Migration `seen_rating_n/v/together` da smallint a numeric preparata, **non applicata: prima del deploy**. [Specifiche e verifiche](PHASE38_DECIMAL_RATINGS.md).
 - Phase 39 — Spazio «Extra» (**idea, non implementata**): eventuale sezione compatta per le funzioni giocose usate di rado, a partire dalla Sorpresa; decidere contenuti e posizione dopo la verifica dell'uso reale. La Ruota resta centrale nella scelta del film.
 - Phase 40 — Statistiche personali (**idea, non implementata**): sezione dedicata ai voti, alle visioni e alle recensioni del singolo, distinta da Ricordi; definire metriche e navigazione in una fase dedicata.
 - Phase 41 — Suggerimenti saghe ✅ nel codice locale: capitoli in ordine di uscita, aggiunta esplicita e dedup, futuri per il cinema, sorprese protette; verifica reale su due telefoni da fare. [Specifica](PHASE41_SAGHE.md).
