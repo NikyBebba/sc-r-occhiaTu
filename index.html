@@ -165,6 +165,11 @@
         <div id="nextMovieBox"></div>
       </section>
 
+      <section id="scheduledPanel" class="hidden upcoming-projections glass-panel rounded-2xl border border-slate-800" aria-label="Altre proiezioni">
+        <h2 class="text-sm font-bold text-slate-200 mb-3"><i class="fa-solid fa-calendar-days text-sky-400 mr-2" aria-hidden="true"></i>In cartellone</h2>
+        <div id="scheduledList" class="space-y-3"></div>
+      </section>
+
       <section id="sceltaCta" aria-labelledby="sceltaTitle" class="dashboard-choice is-home glass-panel rounded-2xl border border-slate-800">
         <div class="home-welcome">
           <div class="home-marquee" aria-hidden="true"><i class="fa-solid fa-clapperboard" aria-hidden="true"></i><span>LUCI BASSE, SCHERMO ACCESO</span><i class="fa-solid fa-clapperboard" aria-hidden="true"></i></div>
@@ -226,13 +231,6 @@
             <i class="fa-solid fa-mobile-screen-button mr-1" aria-hidden="true"></i><span id="hapticsLabel">Vibrazione su questo telefono: spenta</span>
           </button>
         </div>
-
-        <div id="scheduledPanel" class="glass-panel p-5 rounded-2xl border border-slate-800">
-          <h2 class="text-lg font-bold text-slate-100 mb-3 flex items-center gap-2">
-            <i class="fa-solid fa-calendar-days text-sky-400"></i> Altre serate
-          </h2>
-          <div id="scheduledList" class="space-y-3"></div>
-        </div>
       </div>
 
       <!-- COLONNA DESTRA -->
@@ -254,12 +252,10 @@
           <input id="movieSearchInput" type="text" placeholder="Cerca titolo o genere…" autocomplete="off" oninput="onSearchInput()"
             class="field field-xl w-full pl-9 pr-3 py-2.5">
         </div>
-        <label for="availabilityFilterSelect" class="sr-only">Disponibilità dei film</label>
-        <select id="availabilityFilterSelect" onchange="setAvailabilityFilter(this.value)" class="field w-full min-h-11" aria-label="Mostra tutti i film o solo quelli per lo streaming">
-          <option value="all">🎬 Tutti i film, anche al cinema</option>
-          <option value="streaming">📺 Solo streaming</option>
-        </select>
-        <p class="text-xs text-slate-400 px-1">“Solo streaming” esclude i film segnati «Al cinema / prossimamente».</p>
+        <div class="availability-switch" role="group" aria-label="Tipo di proiezione">
+          <button id="availabilityStreaming" type="button" onclick="setAvailabilityFilter('streaming')" aria-pressed="true"><i class="fa-solid fa-tv" aria-hidden="true"></i> Streaming</button>
+          <button id="availabilityCinema" type="button" onclick="setAvailabilityFilter('cinema')" aria-pressed="false"><i class="fa-solid fa-ticket" aria-hidden="true"></i> Al cinema / prossimamente</button>
+        </div>
         <div class="space-y-2" id="listFiltersBlock">
           <button id="filtersToggleBtn" onclick="toggleListFiltersPanel()" class="md:hidden w-full flex items-center justify-between px-3 py-2 bg-slate-800/70 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-800 hover:border-slate-600 text-xs font-medium transition">
             <span><i class="fa-solid fa-sliders mr-1.5"></i> Filtri e ordinamento</span>
@@ -387,22 +383,23 @@
 
   <!-- MODALE PROGRAMMAZIONE (sostituisce prompt) -->
   <div id="scheduleModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-    <div class="glass-panel p-6 rounded-2xl max-w-sm w-full border border-slate-800 space-y-4">
+    <div class="glass-panel p-6 rounded-2xl max-w-sm w-full max-h-[90vh] overflow-y-auto border border-slate-800 space-y-4">
       <div class="flex items-center justify-between gap-2">
-        <h3 id="scheduleModalTitle" class="text-lg font-bold text-slate-100">Programma la serata</h3>
+        <h3 id="scheduleModalTitle" class="text-lg font-bold text-slate-100">Programma la proiezione</h3>
         <button onclick="closeModal('scheduleModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <input type="hidden" id="scheduleMovieId">
-      <div>
-        <label class="block text-xs font-medium text-slate-400 mb-1">Data</label>
+      <p id="scheduleHint" class="text-sm text-slate-400">Data, snack e posto in sala.</p>
+      <div id="scheduleDateField">
+        <label for="scheduleDate" class="block text-xs font-medium text-slate-400 mb-1">Data</label>
         <input type="date" id="scheduleDate" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
       </div>
-      <div>
-        <label class="block text-xs font-medium text-slate-400 mb-1">Ora</label>
+      <div id="scheduleTimeField">
+        <label for="scheduleTime" class="block text-xs font-medium text-slate-400 mb-1">Ora</label>
         <input type="time" id="scheduleTime" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
       </div>
       <div>
-        <label for="scheduleSnack" class="block text-xs font-medium text-slate-400 mb-1">Snack della serata</label>
+        <label for="scheduleSnack" class="block text-xs font-medium text-slate-400 mb-1">Snack · facoltativo</label>
         <div class="flex gap-2">
           <select id="scheduleSnack" onchange="toggleCustomSnack()" class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
             <option value="🍿 Popcorn dolce">🍿 Popcorn dolce</option>
@@ -419,9 +416,15 @@
         <input id="scheduleCustomSnack" type="text" maxlength="80" autocomplete="off" placeholder="Scrivi il tuo snack…" class="hidden field w-full mt-2" oninput="document.getElementById('scheduleSnackError').classList.add('hidden')">
         <p id="scheduleSnackError" class="hidden text-xs text-rose-300 mt-1" role="alert">Scrivi uno snack prima di confermare.</p>
       </div>
+      <div>
+        <label for="scheduleLocation" class="block text-xs font-medium text-slate-400 mb-1">Luogo · facoltativo</label>
+        <input id="scheduleLocation" type="text" maxlength="120" autocomplete="off" class="field w-full" placeholder="Es. divano, cinema, casa di amici…">
+        <p class="text-xs text-slate-400 mt-1">Snack e luogo si possono cambiare anche dopo.</p>
+      </div>
+      <p id="scheduleSaveError" class="hidden text-sm text-rose-300" role="alert"></p>
       <div class="flex justify-end gap-2 pt-2">
         <button onclick="closeModal('scheduleModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
-        <button onclick="confirmSchedule()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">Conferma</button>
+        <button id="scheduleConfirm" onclick="confirmSchedule()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">Conferma</button>
       </div>
     </div>
   </div>

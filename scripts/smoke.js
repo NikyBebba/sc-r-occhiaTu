@@ -198,6 +198,7 @@ async function okA(name, fn) {
   ok('unsubscribeRealtime no-crash', run(() => { unsubscribeRealtime(); return true; }));
   await okA('loadMovies (locale vuoto) non crasha', runA(async () => { await loadMovies(); return true; }));
   ok('render() non crasha su stato vuoto', run(() => { render(); return true; }));
+  ok('lista: Streaming è la vista iniziale e cinema assente non nasconde film legacy', run(() => listAvailability === 'streaming' && matchFilters({}, { availability: 'streaming' }) && !matchFilters({}, { availability: 'cinema' })));
   ok('tema: palette scelta e preferenza locale', run(() => {
     setTheme('autunno');
     return document.documentElement.getAttribute('data-theme') === 'autunno'
@@ -524,9 +525,9 @@ async function okA(name, fn) {
 
   // --- 0b) formatNightDate (helper DOM-free) ---
   console.log('\n[formatNightDate]');
-  ok('date null → "Stasera" (con/senza time, stringa vuota)', run(() =>
-    formatNightDate(null, '21:30') === 'Stasera' && formatNightDate(null, null) === 'Stasera'
-    && formatNightDate('', '21:30') === 'Stasera' && formatNightDate(undefined, '21:30') === 'Stasera'));
+  ok('date null → "Oggi" (con/senza time, stringa vuota)', run(() =>
+    formatNightDate(null, '21:30') === 'Oggi' && formatNightDate(null, null) === 'Oggi'
+    && formatNightDate('', '21:30') === 'Oggi' && formatNightDate(undefined, '21:30') === 'Oggi'));
   ok('data valida + orario semplice e con secondi', run(() =>
     formatNightDate('2026-10-24', '21:30') === '24 ott · 21:30'
     && formatNightDate('2026-10-24', '21:30:00') === '24 ott · 21:30'));
@@ -1187,7 +1188,7 @@ async function okA(name, fn) {
   await okA('cinema: la scelta attraversa ricerca/picker ed è modificabile nella libreria', runA(async () => {
     const oldMovies = movies, oldSearch = searchTmdbCandidates, oldDetails = fetchTmdbDetailsById;
     const oldUser = currentUser, oldTab = currentTab, oldSb = sb, oldMode = dbMode;
-    const oldPending = pendingCinemaWatchlist;
+    const oldPending = pendingCinemaWatchlist, oldAvailability = listAvailability;
     try {
       movies = []; sb = null; dbMode = 'local'; currentUser = 'N'; currentTab = 'watchlist';
       searchTmdbCandidates = async () => [{ id: 8001, title: 'Film futuro', year: '2027', poster: '' }];
@@ -1199,7 +1200,7 @@ async function okA(name, fn) {
       document.getElementById('addCinemaWatchlist').checked = false; // il picker conserva la scelta
       await selectPickerCandidate(8001);
       const movie = movies.find(m => m.tmdb_id === 8001);
-      render();
+      listAvailability = 'cinema'; render();
       const card = document.getElementById('movieGrid').innerHTML;
       const stored = JSON.parse(localStorage.getItem('scorochiatu_movies') || '[]');
       const saved = movie && movie.cinema_watchlist === true
@@ -1210,7 +1211,7 @@ async function okA(name, fn) {
     } finally {
       movies = oldMovies; searchTmdbCandidates = oldSearch; fetchTmdbDetailsById = oldDetails;
       currentUser = oldUser; currentTab = oldTab; sb = oldSb; dbMode = oldMode;
-      pendingCinemaWatchlist = oldPending; closeModal('pickerModal');
+      pendingCinemaWatchlist = oldPending; listAvailability = oldAvailability; closeModal('pickerModal');
       saveLocal();
     }
   }));
@@ -1426,7 +1427,7 @@ async function okA(name, fn) {
       && box.innerHTML.indexOf('fa-xmark') !== -1
       && box.innerHTML.indexOf('closeWheelWinner') !== -1;
   }));
-  await okA('phase15/18: il vincitore ha Stasera/Programma + Ticket (flussi card, nessun aggancio automatico)', runA(async () => {
+  await okA('phase15/18: il vincitore ha Oggi/Programma + Ticket (flussi card, nessun aggancio automatico)', runA(async () => {
     const box = document.getElementById('wheelWinner');
     box.classList.add('hidden');
     wheelSpinning = false;
@@ -2176,23 +2177,26 @@ async function okA(name, fn) {
     return list.length === 1 && list[0].id === 'g1'
       && counts.all === 1 && counts.watchlist === 1 && counts.tonight === 0 && counts.watched === 0;
   }));
-  ok('disponibilità: Tutti include cinema, Solo streaming lo esclude e Azzera ripristina', run(() => {
+  ok('viste: Streaming e Cinema disgiunti, contatori coerenti, Azzera conserva la vista e resync lo switch', run(() => {
     const oldMovies = movies, oldTab = currentTab;
     const oldFilters = { query: listQuery, proposer: listProposer, genre: listGenre,
       platform: listPlatform, availability: listAvailability, sortKey: listSortKey, sortDir: listSortDir };
     try {
       movies = [{ id: 'home', title: 'A casa', status: 'watchlist', cinema_watchlist: false },
+        { id: 'legacy', title: 'Legacy streaming', status: 'watched' },
         { id: 'cinema', title: 'Al cinema', status: 'watchlist', cinema_watchlist: true }];
-      currentTab = 'watchlist';
-      resetListFiltersUI();
-      const all = filterMoviesByState(movies, 'watchlist').map(m => m.id).sort().join() === 'cinema,home';
+      currentTab = 'watchlist'; resetListFiltersUI();
       setAvailabilityFilter('streaming');
       const streaming = filterMoviesByState(movies, 'watchlist').map(m => m.id).join() === 'home'
-        && statusCountsFor(movies).watchlist === 1
-        && emptyListStateHtml().includes('solo streaming');
-      resetListFiltersUI();
-      return all && streaming && listAvailability === 'all'
-        && document.getElementById('availabilityFilterSelect').value === 'all';
+        && statusCountsFor(movies).watchlist === 1 && statusCountsFor(movies).watched === 1
+        && document.getElementById('availabilityStreaming').getAttribute('aria-pressed') === 'true';
+      setAvailabilityFilter('cinema');
+      const cinema = filterMoviesByState(movies, 'watchlist').map(m => m.id).join() === 'cinema'
+        && statusCountsFor(movies).watched === 0 && statusCountsFor(movies).watchlist === 1;
+      listQuery = 'non esiste'; resetListFiltersUI(); render();
+      return streaming && cinema && listQuery === '' && listAvailability === 'cinema'
+        && document.getElementById('availabilityCinema').getAttribute('aria-pressed') === 'true'
+        && document.getElementById('availabilityStreaming').getAttribute('aria-pressed') === 'false';
     } finally {
       movies = oldMovies; currentTab = oldTab;
       listQuery = oldFilters.query; listProposer = oldFilters.proposer;
@@ -2200,6 +2204,18 @@ async function okA(name, fn) {
       listAvailability = oldFilters.availability;
       listSortKey = oldFilters.sortKey; listSortDir = oldFilters.sortDir;
     }
+  }));
+  ok('Cinema: card distinta con gli stessi comandi Oggi/Programma e nessun dropdown Tutti/Solo streaming', run(() => {
+    const old = { m: movies, tab: currentTab, availability: listAvailability, q: listQuery, g: listGenre, p: listPlatform, author: listProposer };
+    try {
+      listQuery = ''; listGenre = ''; listPlatform = ''; listProposer = ''; currentTab = 'watchlist';
+      movies = [{ id: 'cinema-card', title: 'Cinema card', status: 'watchlist', cinema_watchlist: true }];
+      listAvailability = 'cinema'; render();
+      const html = document.getElementById('movieGrid').innerHTML;
+      return document.getElementById('movieGrid')._children[0]?.className.includes('is-cinema-ticket') && html.includes('Oggi') && html.includes('Programma')
+        && html.includes('quickTonightUI') && html.includes('scheduleMovie');
+    } finally { movies = old.m; currentTab = old.tab; listAvailability = old.availability;
+      listQuery = old.q; listGenre = old.g; listPlatform = old.p; listProposer = old.author; }
   }));
 
   // --- 7c) pagina — ricerca per regista + sort per anno (step 5b, canned) ---
@@ -3412,6 +3428,111 @@ async function okA(name, fn) {
     movies = saved;
     return ok1 && ok2 && ok3;
   }));
+
+  console.log('\n[proiezioni — oggi, snack, luogo e proposte visibili]');
+  run(() => { globalThis.withProjectionFixture = async function(check) {
+    const prev = { m: movies, n: movieNights, user: currentUser, tab: currentTab, s: sb, mode: dbMode,
+      formMode: scheduleMode, origin: scheduleOrigin, edit: scheduleEditingNightId,
+      lm: localStorage.getItem('scorochiatu_movies'), ln: localStorage.getItem('scorochiatu_movie_nights') };
+    try {
+      sb = null; dbMode = 'local'; currentUser = 'N'; currentTab = 'watchlist';
+      movies = [{ id: 'quick-new', title: 'Film di oggi', status: 'watchlist', scheduled_date: '2000-01-01', snack: 'Vecchio' },
+        { id: 'future-new', title: 'Film futuro', status: 'watchlist' }];
+      movieNights = []; wheelScheduleFor = null; matchPendingSchedule = null;
+      return await check();
+    } finally {
+      closeModal('scheduleModal');
+      movies = prev.m; movieNights = prev.n; currentUser = prev.user; currentTab = prev.tab;
+      sb = prev.s; dbMode = prev.mode; scheduleMode = prev.formMode; scheduleOrigin = prev.origin; scheduleEditingNightId = prev.edit;
+      for (const [key, value] of [['scorochiatu_movies', prev.lm], ['scorochiatu_movie_nights', prev.ln]]) {
+        if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value);
+      }
+    }
+  }; });
+  await okA('Oggi: popup senza scritture, campi data/ora nascosti e annullo inerte', runA(() => withProjectionFixture(async () => {
+    quickTonightUI('quick-new');
+    const opened = movieNights.length === 0 && movies[0].status === 'watchlist'
+      && !document.getElementById('scheduleModal').classList.contains('hidden')
+      && document.getElementById('scheduleDateField').classList.contains('hidden');
+    closeModal('scheduleModal');
+    return opened && movieNights.length === 0 && movies[0].status === 'watchlist';
+  })));
+  await okA('Oggi: snack custom e luogo persistiti, vecchia data pulita e recupero locale', runA(() => withProjectionFixture(async () => {
+    quickTonightUI('quick-new', 'wheel');
+    document.getElementById('scheduleSnack').value = CUSTOM_SNACK;
+    document.getElementById('scheduleCustomSnack').value = '  Panini  ';
+    document.getElementById('scheduleLocation').value = '  Terrazza  ';
+    await confirmSchedule();
+    loadLocal();
+    const pick = tonightPick();
+    return movieNights.length === 1 && movieNights[0].snack === 'Panini' && movieNights[0].location === 'Terrazza'
+      && movieNights[0].date === null && movies[0].scheduled_date === null && movies[0].scheduled_time === null
+      && pick.location === 'Terrazza' && ticketOriginOf('quick-new') === 'wheel';
+  })));
+  await okA('Programma: luogo salvato; modifica rimuove snack/luogo senza alterare data, stato o voto', runA(() => withProjectionFixture(async () => {
+    scheduleMovie('future-new');
+    document.getElementById('scheduleDate').value = '2026-11-10';
+    document.getElementById('scheduleTime').value = '13:00';
+    document.getElementById('scheduleLocation').value = 'Cinema';
+    await confirmSchedule();
+    const n = movieNights[0];
+    const created = n.status === 'proposed' && n.location === 'Cinema';
+    movies[1].seen_rating_n = 8.3;
+    editNightDetailsUI('future-new', n.id);
+    document.getElementById('scheduleSnack').value = '';
+    document.getElementById('scheduleLocation').value = '';
+    await confirmSchedule();
+    return created && movieNights.length === 1 && n.date === '2026-11-10' && n.time === '13:00'
+      && n.status === 'proposed' && n.location === null && n.snack === null && movies[1].seen_rating_n === 8.3;
+  })));
+  await okA('Oggi: insert fallito lascia popup e stato film, senza origine fittizia', runA(() => withProjectionFixture(async () => {
+    const insert = insertMovieNight;
+    try {
+      insertMovieNight = async () => null;
+      markTicketOrigin('quick-new', null);
+      quickTonightUI('quick-new');
+      await confirmSchedule();
+      return movieNights.length === 0 && movies[0].status === 'watchlist' && ticketOriginOf('quick-new') === null
+        && !document.getElementById('scheduleModal').classList.contains('hidden')
+        && !document.getElementById('scheduleSaveError').classList.contains('hidden');
+    } finally { insertMovieNight = insert; }
+  })));
+  await okA('In cartellone: proposta accettabile durante film di oggi, attesa per proponente', runA(() => withProjectionFixture(async () => {
+    await setQuickTonight('quick-new');
+    await proposeNight('future-new', 'N', '2026-11-10', '13:00', '<snack>', '<luogo>');
+    renderScheduled();
+    const own = document.getElementById('scheduledList').innerHTML;
+    currentUser = 'V'; renderScheduled();
+    const other = document.getElementById('scheduledList').innerHTML;
+    const visible = !document.getElementById('scheduledPanel').classList.contains('hidden');
+    await confirmNightUI('future-new', activeNightForMovie('future-new').id);
+    return visible && own.includes('In attesa di conferma') && !own.includes('Accetta proposta')
+      && other.includes('Accetta proposta') && other.includes('&lt;snack&gt;') && other.includes('&lt;luogo&gt;')
+      && !other.includes('Film di oggi') && activeNightForMovie('future-new').status === 'confirmed'
+      && tonightPick().id === 'quick-new';
+  })));
+  await okA('Due eventi dello stesso film: conferma e annullo colpiscono solo l’evento indicato', runA(() => withProjectionFixture(async () => {
+    const a = await insertMovieNight({ movie_id: 'future-new', date: '2026-11-10', status: 'proposed', proposed_by: 'N' });
+    const b = await insertMovieNight({ movie_id: 'future-new', date: '2026-12-10', status: 'proposed', proposed_by: 'N' });
+    await confirmNight('future-new', a.id);
+    const confirmed = a.status === 'confirmed' && b.status === 'proposed';
+    await cancelNight('future-new', a.id);
+    return confirmed && a.status === 'cancelled' && b.status === 'proposed' && movies[1].status === 'tonight';
+  })));
+  await okA('Sorprese: hero e nuovi dettagli non rivelano né modificano il titolo originale', runA(() => withProjectionFixture(async () => {
+    movies[1].surprise_by = 'V';
+    const title = movies[1].title;
+    const details = projectionInfoHtml(movies[1]);
+    await setQuickTonight('future-new'); renderNextMovieBox();
+    const html = document.getElementById('nextMovieBox').innerHTML;
+    return movies[1].title === title && !details.includes(title) && !html.includes(title)
+      && html.includes('Film a sorpresa');
+  })));
+  await okA('Conclusione rapida conserva il luogo già scelto per l’evento', runA(() => withProjectionFixture(async () => {
+    await setQuickTonight('quick-new', null, 'Divano');
+    await completeNight('quick-new');
+    return movieNights[0].status === 'completed' && movieNights[0].location === 'Divano';
+  })));
 
   console.log('\n[renderScheduled — dedup next night]');
   ok('scheduledList: una serata con pick → niente doppione e pannello nascosto', run(() => {
@@ -4964,7 +5085,7 @@ async function okA(name, fn) {
       __matchUI({ presence: ['N', 'V'], sessions: [{ id: 'sM2', status: 'matched', created_at: new Date().toISOString(), deck: ['ma', 'mb'], matched_movie_id: 'ma' }], swipes: [{ movie_id: 'mb', person: 'N', liked: true }, { movie_id: 'mb', person: 'V', liked: true }], movies: [{ id: 'ma', title: 'M' }, { id: 'mb', title: 'B' }] });
       const html = matchViewHtml();
       const celebrates = html.indexOf('Match!') !== -1
-        && html.indexOf('Stasera') !== -1 && html.indexOf('Programma') !== -1
+        && html.indexOf('Oggi') !== -1 && html.indexOf('Programma') !== -1
         && html.indexOf('Continua') !== -1 && html.indexOf('Esci') !== -1;
       return noCelebration && celebrates;
     } finally { __matchRestore(p); }
@@ -5050,9 +5171,9 @@ async function okA(name, fn) {
     const man = ticketStampText('manual', null);
     return m100.main === '100%' && m100.sub === "d'accordo"
       && w.main === 'Scelto con la Ruota' && w.sub === ''
-      && man.main === 'Proposto da N/V' && man.sub === ''
+      && man.main === 'Scelto dalla lista' && man.sub === ''
       // match SENZA pct condiviso (total 0) cade sul timbro placeholder
-      && ticketStampText('match', null).main === 'Proposto da N/V';
+      && ticketStampText('match', null).main === 'Match Live';
   }));
   ok('ticket: titolo lungo e parola senza spazi restano leggibili entro la larghezza', run(() => {
     const ctx = { font: '', measureText(text) {
@@ -5078,16 +5199,18 @@ async function okA(name, fn) {
     try {
       const canvas = drawTicketCanvas({ title: 'Un film' }, null, null, null);
       const empty = canvas.width === 1080 && canvas.height === 1920
-        && text.includes('Da programmare') && !text.some(t => t.includes('Proposto da') || t.includes('Stasera'));
+        && text.includes('Da programmare') && !text.some(t => t.includes('Proposto da') || t.includes('Oggi'));
       text = [];
       drawTicketCanvas({ title: 'Un film', status: 'tonight' }, 'match', null, null);
-      const match = text.includes('Match Live') && text.includes('Stasera')
+      const match = text.includes('Match Live') && text.includes('Oggi')
         && !text.some(t => t.includes('%') || t.includes('Proposto da'));
       text = [];
-      drawTicketCanvas({ title: 'Un film', scheduled_date: '2026-10-24', scheduled_time: null }, 'wheel', null, null);
+      drawTicketCanvas({ title: 'Un film', scheduled_date: '2026-10-24', scheduled_time: null, location: 'Terrazza' }, 'wheel', null, null);
       const dated = text.includes('24 ott') && text.includes('Scelto con la Ruota')
         && !text.some(t => t.includes('21:30'));
-      return empty && match && dated;
+      return empty && match && dated && text.includes('Terrazza')
+        && text.includes('BIGLIETTO, PREGO') && text.includes('Vietato spoilerare.')
+        && !text.some(t => /nostr|insieme|N\/V/i.test(t));
     } finally { document.createElement = originalCreate; }
   }));
   ok('phase18: markTicketOrigin/ticketOriginOf — flag in-memory, mai URL/persistenza', run(() => {
@@ -5101,7 +5224,7 @@ async function okA(name, fn) {
   await okA('phase18: confirmSchedule marca manual per la card e wheel per il vincitore ruota', runA(async () => {
     const prev = { pSb: sb, pUser: currentUser, pTab: currentTab, pMovies: movies, pNights: movieNights };
     try {
-      // (a) da card (Stasera quickTonightUI+confirm senza fromMatch) → manual
+      // (a) da card (Oggi quickTonightUI+confirm senza fromMatch) → manual
       currentUser = 'N'; currentTab = 'watchlist'; movies = [{ id: 'a', title: 'A' }]; movieNights = []; sb = null; dbMode = 'local';
       markTicketOrigin('a', null);
       document.getElementById('scheduleMovieId').value = 'a';
@@ -5127,10 +5250,13 @@ async function okA(name, fn) {
       currentUser = 'N'; currentTab = 'watchlist'; movies = [{ id: 'q1', title: 'Q1' }]; movieNights = []; sb = null; dbMode = 'local';
       markTicketOrigin('q1', null);
       await quickTonightUI('q1');
+      await confirmSchedule();
       const dfl = ticketOriginOf('q1') === 'manual';
       await quickTonightUI('q1', 'wheel');
+      await confirmSchedule();
       const wl = ticketOriginOf('q1') === 'wheel';
       await quickTonightUI('q1', 'match');
+      await confirmSchedule();
       const ml = ticketOriginOf('q1') === 'match';
       return dfl && wl && ml;
     } finally {
@@ -5185,7 +5311,7 @@ async function okA(name, fn) {
       currentUser = 'V'; renderNextMovieBox();
       const htmlV = document.getElementById('nextMovieBox').innerHTML;
       return htmlN.includes('In attesa') && htmlN.includes('Annulla proposta')
-        && !htmlN.includes('Conferma la serata') && htmlV.includes('Conferma la serata')
+        && !htmlN.includes('Accetta proposta') && htmlV.includes('Accetta proposta')
         && htmlV.includes('Rifiuta') && htmlV.includes('&lt;Film&gt;')
         && movieNights[0].status === 'proposed';
     } finally { movies = prev.pMovies; movieNights = prev.pNights; currentUser = prev.pUser; currentTab = prev.pTab; }
@@ -5313,7 +5439,7 @@ async function okA(name, fn) {
     } finally { __matchRestore(p); }
   }));
 
-  await okA('serata dal match: Stasera → confirmed + sessione chiusa SOLO dopo creazione reale', runA(async () => {
+  await okA('serata dal match: Oggi → confirmed + sessione chiusa SOLO dopo creazione reale', runA(async () => {
     const p = __matchSnap();
     const S = { id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] };
     const mock = mockMatchSb({ sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
@@ -5322,6 +5448,7 @@ async function okA(name, fn) {
     __matchUI({ presence: ['N', 'V'], sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
     try {
       await createMatchNight('ma', 'tonight');
+      await confirmSchedule();
       const root = mock.__root();
       const night = root.movie_nights.find(n => n.movie_id === 'ma');
       const sessionAfter = root.swipe_sessions[0];
@@ -5334,7 +5461,7 @@ async function okA(name, fn) {
     } finally { __matchRestore(p); }
   }));
 
-  await okA('Stasera: serata NON creata (insert fallito) → sessione aperta, niente "Serata creata"', runA(async () => {
+  await okA('Oggi: serata NON creata (insert fallito) → sessione aperta, niente "Serata creata"', runA(async () => {
     const p = __matchSnap();
     const S = { id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] };
     const mock = mockMatchSb({ failInsert: '500', sessions: [S], movies: [{ id: 'ma', title: 'Match A' }] });
@@ -5344,6 +5471,7 @@ async function okA(name, fn) {
     document.getElementById('movieGrid').innerHTML = '';   // hermetic: verifica assenza celebrazione
     try {
       await createMatchNight('ma', 'tonight');
+      await confirmSchedule();
       const root = mock.__root();
       return activeNightForMovie('ma') === null
         && root.swipe_sessions[0].status === 'open'

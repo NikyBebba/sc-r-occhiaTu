@@ -1,4 +1,4 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.39
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.40
 
 Ultimo aggiornamento: 5 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
 
@@ -7,9 +7,20 @@ README riscritto come presentazione generale — L'utente chiede di spiegare il 
 
 ## Checkpoint corrente — 5 ottobre 2026
 
-Versione finale del ciclo, cache PWA **`v44`**. I paragrafi successivi sono
+Versione finale del ciclo, cache PWA **`v45`**. I paragrafi successivi sono
 cronologia: statuette, vecchi nomi e conteggi non descrivono la UI attuale.
 
+- Libreria: Streaming come vista iniziale; switch a due pulsanti Streaming /
+  Al cinema / prossimamente, senza vista mista o spiegazione di esclusione.
+  Card cinema ambrate con badge, stessi tasti Oggi/Programma. Contatori e
+  opzioni filtro seguono la vista; Azzera conserva la categoria selezionata.
+  Scelta conservata durante render/Realtime, nessuna certificazione provider.
+- Proiezioni aggiornate: «Oggi» apre un popup con snack e luogo facoltativi;
+  programmazione e modifica usano lo stesso form. «In cartellone», sotto il
+  hero, mostra altre proposte con accettazione/rifiuto anche durante il film
+  di oggi. Card e ticket usano testi cinematografici e mostrano il luogo.
+  La scelta rapida resta confirmed con date NULL; nessuna nuova migration.
+  [Flussi e verifiche](PROIEZIONI.md).
 - Home con due ciak uguali e copy cinematografico; ingresso persona/PIN
   con «Ciak, si entra», «Biglietto, prego» e battuta originale da agente.
 - Saghe implementate: «Continua la saga» anche sulle card, ordine di uscita,
@@ -20,11 +31,11 @@ cronologia: statuette, vecchi nomi e conteggi non descrivono la UI attuale.
 - Ricordi → «Titoli di coda»: quattro riepiloghi, «In numeri» con icona,
   storico N+V e «Dopo il film» senza etichette ripetute. Film aggiunti contati
   su tutta la libreria; media calcolata in decimi con arrotondamento corretto.
-- **369/369 smoke PASS**, **12/12 service worker PASS**, controlli sintassi
+- **379/379 smoke PASS**, **12/12 service worker PASS**, controlli sintassi
   e diff check; browser fixture a 320/390/768 px con screenshot ispezionati,
   nessun errore JS/overflow. Tool di verifica solo fuori dal repository.
 - Dopo il push e il deploy: accettare l'aggiornamento PWA sui due telefoni e
-  provare decimali, rimozione del testo e saghe con sincronizzazione reale.
+  provare decimali, rimozione del testo, saghe e proiezioni con sincronizzazione reale.
   Non dichiarare verificato questo passaggio prima della prova dell'utente.
 
 README, AGENTS e specifiche Phase 22/23/38/41 allineati a questo checkpoint;

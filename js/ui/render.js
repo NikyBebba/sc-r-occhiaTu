@@ -51,10 +51,10 @@ async function retrySyncUI() {
   }
 }
 
-// ---- Hero "La nostra serata" — usa il pick corrente senza nuovi stati ----
+// ---- Hero della proiezione — usa il pick corrente senza nuovi stati ----
 let countdownTimer = null;
 function nextMovieTimeLabel(pick, now = Date.now()) {
-  if (!pick.scheduled_date) return '🎬 Stasera';
+  if (!pick.scheduled_date) return '🎬 Oggi';
   const dateLabel = formatNightDate(pick.scheduled_date, pick.scheduled_time);
   // Senza ora precisa non si può calcolare un countdown attendibile.
   if (!/^\d{2}:\d{2}(?::\d{2})?$/.test(pick.scheduled_time || '')) return '📅 ' + dateLabel;
@@ -72,7 +72,10 @@ function renderNextMovieBox() {
   if (!box) return;
   const hero = document.getElementById('nextMovieHero');
   const tonight = tonightPick();
-  const pick = tonight || nextMoviePick();
+  const rawPick = tonight || nextMoviePick();
+  const sourceMovie = movies.find(m => m.id === rawPick?.id);
+  const pick = rawPick && sourceMovie?.surprise_by && sourceMovie.surprise_by !== currentUser
+    ? { ...rawPick, title: 'Film a sorpresa', poster: null } : rawPick;
   if (hero) {
     hero.classList.toggle('hidden', !pick || currentTab === 'match' || (dashboardView === 'library' && currentTab === 'calendar'));
     hero.classList.toggle('is-tonight', !!tonight);
@@ -88,21 +91,24 @@ function renderNextMovieBox() {
   const dateHtml = pick.scheduled_date ? escapeHtml(formatNightDate(pick.scheduled_date, pick.scheduled_time)) : '';
   const safeId = jsAttrEscape(pick.id);
   const safeTitle = jsAttrEscape(pick.title);
+  const nightTarget = pick.nightId ? `, '${jsAttrEscape(pick.nightId)}'` : '';
   const pickMovie = movies.find(m => m.id === pick.id) || {};
   const hasTogetherReview = !!reviewTextFor(pickMovie, 'both') || togetherRating(pickMovie) !== null;
 
   let actionsHtml = '';
   if (pending && pick.proposed_by === currentUser) {
     actionsHtml = `<p class="text-sm text-amber-200">In attesa che ${escapeHtml(CONFIG.PEOPLE[pick.proposed_by === 'N' ? 'V' : 'N']?.label || '...')} confermi</p>
-      <button onclick="cancelNightUI('${safeId}', '${safeTitle}')" class="next-movie-action next-movie-secondary">Annulla proposta</button>`;
+      <button onclick="cancelNightUI('${safeId}', '${safeTitle}'${nightTarget})" class="next-movie-action next-movie-secondary">Annulla proposta</button>`;
   } else if (pending && pick.proposed_by !== currentUser) {
     actionsHtml = `<p class="text-sm text-sky-200">Proposto da ${escapeHtml(CONFIG.PEOPLE[pick.proposed_by]?.label || pick.proposed_by)}</p>
-      <button onclick="confirmNightUI('${safeId}')" class="next-movie-action next-movie-primary">Conferma la serata</button>
-      <button onclick="cancelNightUI('${safeId}', '${safeTitle}')" class="next-movie-action next-movie-secondary">Rifiuta</button>`;
+      <button onclick="confirmNightUI('${safeId}'${nightTarget})" class="next-movie-action next-movie-primary">Accetta proposta</button>
+      <button onclick="cancelNightUI('${safeId}', '${safeTitle}'${nightTarget})" class="next-movie-action next-movie-secondary">Rifiuta</button>`;
   } else {
-    actionsHtml = `${tonight ? `<button onclick="${hasTogetherReview ? 'finishTogetherNightUI' : 'addReview'}('${safeId}')" class="next-movie-action next-movie-primary">${hasTogetherReview ? 'Segna serata vista' : `Voto ${sharedPeopleLabel()}`}</button>` : ''}
-      <button onclick="cancelNightUI('${safeId}', '${safeTitle}')" class="next-movie-action next-movie-secondary">Annulla serata</button>`;
+    actionsHtml = `${tonight ? `<button onclick="${hasTogetherReview ? 'finishTogetherNightUI' : 'addReview'}('${safeId}')" class="next-movie-action next-movie-primary">${hasTogetherReview ? 'Segna come visto' : `Voto ${sharedPeopleLabel()}`}</button>` : ''}
+      <button onclick="cancelNightUI('${safeId}', '${safeTitle}'${nightTarget})" class="next-movie-action next-movie-secondary">Annulla proiezione</button>`;
   }
+
+  if (pick.nightId) actionsHtml += `<button onclick="editNightDetailsUI('${safeId}'${nightTarget})" class="next-movie-action next-movie-secondary">Snack e luogo</button>`;
 
   // Step4 phase18 — ticket per la proposta DIRETTA: il bottone appare SOLO se
   // l'origine è stata marcata in-memory come 'manual' in QUESTA sessione di
@@ -119,10 +125,11 @@ function renderNextMovieBox() {
         ${pick.poster ? `<img src="${escapeHtml(pick.poster)}" alt="Locandina di ${escapeHtml(pick.title)}">` : '<i class="fa-solid fa-film" aria-hidden="true"></i>'}
       </div>
       <div class="next-movie-info">
-        <p class="dashboard-eyebrow next-movie-status"><i class="fa-solid ${pending ? 'fa-hourglass-half' : tonight ? 'fa-star' : 'fa-ticket'}" aria-hidden="true"></i>${tonight ? (pending ? 'STASERA · DA CONFERMARE' : 'STASERA · LA NOSTRA SERATA') : (pending ? 'IN ATTESA DI CONFERMA' : 'LA NOSTRA SERATA')}</p>
+        <p class="dashboard-eyebrow next-movie-status"><i class="fa-solid ${pending ? 'fa-hourglass-half' : tonight ? 'fa-star' : 'fa-ticket'}" aria-hidden="true"></i>${tonight ? (pending ? 'OGGI · PROPOSTA' : 'OGGI SI GUARDA') : (pending ? 'PROPOSTA DI PROIEZIONE' : 'IN PROGRAMMA')}</p>
         <h2>${escapeHtml(pick.title)}</h2>
         <div class="next-movie-timing"><p class="next-movie-date">${countdownHtml}</p>${dateHtml && countdown.startsWith('⏳') ? `<p class="next-movie-when"><i class="fa-regular fa-calendar" aria-hidden="true"></i> ${dateHtml}</p>` : ''}</div>
         ${pick.snack ? `<p class="next-movie-snack">🍿 ${escapeHtml(pick.snack)}</p>` : ''}
+        ${pick.location ? `<p class="next-movie-snack"><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${escapeHtml(pick.location)}</p>` : ''}
         <div class="next-movie-actions">${actionsHtml}</div>
         ${sagaButtonHtml(pickMovie)}
       </div>
@@ -393,9 +400,10 @@ function emptyListStateHtml() {
       tonight: ['fa-calendar-plus', 'Nessuna serata in programma', 'Scegliete un film dalla lista e fissate la prossima serata.', 'Vai ai film da vedere', "setTab('watchlist')"],
       watched: ['fa-ticket', 'I titoli di coda devono ancora scorrere', 'Qui finiscono i film visti, i voti e i commenti.', 'Vai ai film da vedere', "setTab('watchlist')"]
     }[currentTab] || ['fa-film', 'Nessun film', 'Aggiungi un film alla libreria.', 'Aggiungi un film', "openAddModal()"];
+    const viewLabel = state.availability === 'cinema' ? 'Al cinema / prossimamente' : 'Streaming';
     return `<div class="empty-movie-state col-span-full">
       <span class="empty-movie-icon" aria-hidden="true"><i class="fa-solid ${empty[0]}"></i></span>
-      <h3>${empty[1]}</h3><p>${empty[2]}</p>
+      <span class="dashboard-eyebrow">${viewLabel}</span><h3>${empty[1]}</h3><p>${empty[2]}</p>
       <button onclick="${empty[4]}" class="empty-movie-action">${empty[3]} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
     </div>`;
   }
@@ -403,7 +411,7 @@ function emptyListStateHtml() {
   if (state.query && String(state.query).trim()) parts.push(`"${escapeHtml(state.query)}"`);
   if (state.genre) parts.push(`genere ${escapeHtml(state.genre)}`);
   if (state.platform) parts.push(`piattaforma ${escapeHtml(state.platform)}`);
-  if (state.availability === 'streaming') parts.push('solo streaming');
+  parts.push(state.availability === 'cinema' ? 'al cinema / prossimamente' : 'streaming');
   if (state.proposer) parts.push(`proposto da ${escapeHtml(state.proposer)}`);
   return `
     <div class="empty-movie-state col-span-full">
@@ -446,7 +454,7 @@ function refreshSelectOptions(sel, cacheAttr, options, allLabel) {
 }
 function syncListFilterSelects() {
   if (!document.getElementById('listFiltersPanel')) return;
-  const opts = deriveFilterOptions(movies);
+  const opts = deriveFilterOptions(filterMovies(movies, { availability: listAvailability }));
   const proposerSel = document.getElementById('proposerFilterSelect');
   if (proposerSel) {
     const eff = refreshSelectOptions(proposerSel, 'listProposerOptions', opts.proposers, '👤 Tutti i propositori');
@@ -481,10 +489,18 @@ function setPlatformFilter(v) {
   if (sel) sel.value = v;
   render();
 }
+function renderAvailabilitySwitch() {
+  for (const [mode, id] of [['streaming', 'availabilityStreaming'], ['cinema', 'availabilityCinema']]) {
+    const button = document.getElementById(id);
+    if (button) button.setAttribute('aria-pressed', String(listAvailability === mode));
+  }
+}
 function setAvailabilityFilter(v) {
-  listAvailability = v === 'streaming' ? 'streaming' : 'all';
-  const sel = document.getElementById('availabilityFilterSelect');
-  if (sel) sel.value = listAvailability;
+  if (v !== 'streaming' && v !== 'cinema') return;
+  listAvailability = v;
+  listPlatform = '';
+  const platform = document.getElementById('platformFilterSelect');
+  if (platform) platform.value = 'all';
   render();
 }
 function setListSortKey(v) {
@@ -512,8 +528,6 @@ function toggleListSortDir() {
 // e sort (chiave "added" + direzione desc), lasciando intatti i dataset-cache.
 function resetListFiltersUI() {
   resetListFilters();
-  const availability = document.getElementById('availabilityFilterSelect');
-  if (availability) availability.value = 'all';
   const input = document.getElementById('movieSearchInput');
   if (input) input.value = '';
   ['proposerFilterSelect', 'genreListFilterSelect', 'platformFilterSelect'].forEach(id => {
@@ -544,6 +558,8 @@ function renderDashboardHome() {
 function render() {
   finishInitialLoading();
   renderDashboardHome();
+  renderAvailabilitySwitch();
+  syncListFilterSelects();
   if (typeof renderSagaPanel === 'function' && !document.getElementById('sagaModal').classList.contains('hidden')) renderSagaPanel();
   renderPillCounters();
   const statsModal = document.getElementById('statsModal');
@@ -590,7 +606,7 @@ function render() {
     : currentTab === 'watched' ? 'DOPO LA PROIEZIONE' : 'LO SCAFFALE DEI FILM';
   const libraryCount = document.getElementById('libraryCount');
   if (libraryCount) libraryCount.textContent = currentTab === 'calendar' ? ''
-    : `${currentTab === 'watched' ? movies.filter(m => m.status === 'watched').length : movies.length} film`;
+    : `${filterMoviesByState(movies, currentTab === 'all' ? null : currentTab).length} film`;
   const libraryTools = document.getElementById('libraryTools');
   if (libraryTools) libraryTools.classList.toggle('!hidden', inMatch || currentTab === 'calendar');
   renderMatchCta();
@@ -662,7 +678,7 @@ function render() {
     if (m.release_year) metaParts.push(String(m.release_year));
     if (m.duration) metaParts.push(m.duration);
     const card = document.createElement('div');
-    card.className = "movie-ticket flex flex-col justify-between" + (isVetoed ? ' card-vetoed' : '');
+    card.className = "movie-ticket flex flex-col justify-between" + (m.cinema_watchlist ? ' is-cinema-ticket' : '') + (isVetoed ? ' card-vetoed' : '');
 
     card.innerHTML = `
       <div class="relative h-48 bg-slate-900 overflow-hidden">
@@ -723,18 +739,19 @@ function render() {
             : (canUndoSeen(m, currentUser) ? `<button onclick="undoSeenUI('${jsAttrEscape(m.id)}')" class="min-h-9 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium" aria-label="Annulla l'ho già visto">Annulla</button>` : '')}
           ${m.status === 'watchlist' ? `
             <div class="flex gap-2">
-              <button onclick="quickTonightUI('${m.id}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded font-medium">Stasera</button>
-              <button onclick="scheduleMovie('${m.id}')" aria-label="Programma la serata" class="${m.cinema_watchlist ? 'flex-1' : ''} px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded">${m.cinema_watchlist ? 'Programma' : '<i class="fa-solid fa-calendar"></i>'}</button>
+              <button onclick="quickTonightUI('${m.id}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded font-medium">Oggi</button>
+              <button onclick="scheduleMovie('${m.id}')" aria-label="Programma la serata" class="flex-1 px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded">Programma</button>
               ${!isVetoed
                 ? `<button onclick="vetoMovie('${m.id}', '${jsAttrEscape(m.title)}')" aria-label="Vieta questa settimana" class="px-2 py-1.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 rounded" title="Vieta questa settimana"><i class="fa-solid fa-ban"></i></button>`
                 : (vetoForMovieThisWeek(m.id) && vetoForMovieThisWeek(m.id).person === currentUser
                   ? `<button onclick="unvetoMovie('${m.id}')" aria-label="Togli il veto" class="px-2 py-1.5 bg-rose-900/50 hover:bg-rose-900/80 text-rose-300 rounded" title="Togli il veto"><i class="fa-solid fa-rotate-left"></i></button>`
                   : '')}
             </div>
-            ${!isSurpriseHidden ? `<button onclick="toggleCinemaWatchlist('${jsAttrEscape(m.id)}')" class="w-full min-h-9 px-2 py-1.5 text-xs text-amber-200 hover:text-amber-100 underline">${m.cinema_watchlist ? 'Disponibile per Ruota e Match' : 'Tieni per il cinema'}</button>` : ''}
+            ${!isSurpriseHidden ? `<button onclick="toggleCinemaWatchlist('${jsAttrEscape(m.id)}')" class="w-full min-h-9 px-2 py-1.5 text-xs text-amber-200 hover:text-amber-100 underline">${m.cinema_watchlist ? 'Sposta in Streaming' : 'Sposta al cinema / prossimamente'}</button>` : ''}
           ` : ''}
           ${m.status === 'tonight' ? `
-            ${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? `<button onclick="finishTogetherNightUI('${jsAttrEscape(m.id)}')" class="flex-1 min-h-11 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">Segna serata vista</button>` : sharedVoteButtonHtml(m)}
+            ${projectionInfoHtml(m)}
+            ${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? `<button onclick="finishTogetherNightUI('${jsAttrEscape(m.id)}')" class="flex-1 min-h-11 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">Segna come visto</button>` : sharedVoteButtonHtml(m)}
             ${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? sharedVoteButtonHtml(m) : ''}
           ` : ''}
           ${m.status === 'watched' && !isSurpriseHidden ? `
@@ -767,32 +784,59 @@ function render() {
   drawWheel();
 }
 
+function projectionActionsHtml(pick) {
+  const id = jsAttrEscape(pick.id);
+  const title = jsAttrEscape(pick.title);
+  const target = pick.nightId ? `, '${jsAttrEscape(pick.nightId)}'` : '';
+  if (pick.proposed_by && !pick.night_confirmed) {
+    if (pick.proposed_by !== currentUser) return `<button onclick="confirmNightUI('${id}'${target})" class="projection-accept">Accetta proposta</button><button onclick="cancelNightUI('${id}', '${title}'${target})">Rifiuta</button>`;
+    return `<span class="projection-wait">In attesa di conferma</span><button onclick="cancelNightUI('${id}', '${title}'${target})">Annulla proposta</button>`;
+  }
+  return '';
+}
+
+function projectionInfoHtml(movie) {
+  const night = activeNightForMovie(movie.id);
+  const pick = night ? { ...movie, scheduled_date: night.date, scheduled_time: night.time,
+    nightId: night.id, snack: night.snack, location: night.location, proposed_by: night.proposed_by,
+    night_confirmed: night.status === 'confirmed' } : { ...movie };
+  if (movie.surprise_by && movie.surprise_by !== currentUser) pick.title = 'Film a sorpresa';
+  const pending = pick.proposed_by && !pick.night_confirmed;
+  return `<div class="projection-card-info"><p><i class="fa-solid ${pending ? 'fa-hourglass-half' : 'fa-calendar-check'}" aria-hidden="true"></i> ${pending ? 'Proposta da confermare' : 'Proiezione in programma'} · ${escapeHtml(formatNightDate(pick.scheduled_date, pick.scheduled_time))}</p>
+    ${pick.snack ? `<p>🍿 ${escapeHtml(pick.snack)}</p>` : ''}
+    ${pick.location ? `<p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${escapeHtml(pick.location)}</p>` : ''}
+    <div class="projection-actions">${projectionActionsHtml(pick)}${night ? `<button onclick="editNightDetailsUI('${jsAttrEscape(movie.id)}', '${jsAttrEscape(night.id)}')">Snack e luogo</button>` : ''}</div></div>`;
+}
+
 function renderScheduled() {
   const container = document.getElementById('scheduledList');
   const panel = document.getElementById('scheduledPanel');
-  container.innerHTML = '';
-  // Dedup: il box "Prossimo Film" mostra già la serata corrente (da movie_nights).
-  // Qui restano le ALTRE serate datate. I film legacy (scheduled_date senza riga
-  // movie_nights, usati dal fallback del box) non si escludono. I film già visti
-  // (status 'watched') non sono più "programmati": esclusi.
+  if (!container) return;
   const pick = tonightPick() || nextMoviePick();
-  const pickId = (pick && activeNights().length > 0) ? pick.id : null;
-  const scheduled = movies.filter(m => m.scheduled_date && m.status !== 'watched' && m.id !== pickId);
-  if (panel) panel.classList.toggle('hidden', scheduled.length === 0);
-  if (scheduled.length === 0) {
-    return;
-  }
-  scheduled.forEach(m => {
-    container.innerHTML += `
-      <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-xs flex justify-between items-center">
-        <div>
-          <div class="font-bold text-slate-200">${escapeHtml(m.title)}</div>
-          <div class="text-slate-400 text-[10px]"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatNightDate(m.scheduled_date, m.scheduled_time))} ${m.snack ? '• ' + escapeHtml(m.snack) : ''}</div>
-        </div>
-        <span class="px-2 py-1 bg-indigo-500/20 text-indigo-300 rounded text-[10px] font-medium">${escapeHtml(m.cinema_watchlist ? 'Al cinema' : (m.platform || ''))}</span>
-      </div>
-    `;
-  });
+  const active = activeNights();
+  const entries = active.filter(n => n.id !== pick?.nightId)
+    .map(n => {
+      const movie = movies.find(m => m.id === n.movie_id);
+      return movie ? { ...movie, nightId: n.id, scheduled_date: n.date,
+        scheduled_time: n.time, snack: n.snack, location: n.location,
+        proposed_by: n.proposed_by, night_confirmed: n.status === 'confirmed' } : null;
+    }).filter(Boolean);
+  // Mirror legacy solo per film senza evento attivo, mai per eventi conclusi.
+  entries.push(...movies.filter(m => m.scheduled_date && m.status !== 'watched'
+    && !movieNights.some(n => n.movie_id === m.id)));
+  entries.sort((a, b) => (a.scheduled_date || '').localeCompare(b.scheduled_date || ''));
+  if (panel) panel.classList.toggle('hidden', !entries.length || currentTab === 'match');
+  container.innerHTML = entries.map(m => {
+    const hidden = m.surprise_by && m.surprise_by !== currentUser;
+    const title = hidden ? 'Film a sorpresa' : m.title;
+    const actionPick = { ...m, title };
+    return `<article class="upcoming-projection">
+      <div class="upcoming-projection-copy"><p class="dashboard-eyebrow">${m.proposed_by && !m.night_confirmed ? 'PROPOSTA' : 'PROSSIMA PROIEZIONE'}</p><h3>${escapeHtml(title)}</h3>
+      <p>${escapeHtml(formatNightDate(m.scheduled_date, m.scheduled_time))}${!hidden && (m.cinema_watchlist || m.platform) ? ' · ' + escapeHtml(m.cinema_watchlist ? 'Al cinema' : m.platform) : ''}${m.snack ? ' · ' + escapeHtml(m.snack) : ''}</p>
+      ${m.location ? `<p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${escapeHtml(m.location)}</p>` : ''}</div>
+      <div class="projection-actions">${projectionActionsHtml(actionPick)}${m.nightId ? `<button onclick="editNightDetailsUI('${jsAttrEscape(m.id)}', '${jsAttrEscape(m.nightId)}')">Snack e luogo</button>` : ''}</div>
+    </article>`;
+  }).join('');
 }
 
 // ============================================

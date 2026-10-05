@@ -3,7 +3,7 @@
 // Nessun new Date('YYYY-MM-DD') (parsing UTC in certi engine): parsing
 // manuale della parte ISO + month-names italiani corti. Se l'input non è
 // parserizzabile si ripiega sul dato grezzo. Mai orari inventati: senza
-// time si mostra solo la data; date NULL → "Stasera".
+// time si mostra solo la data; date NULL → "Oggi".
 // ============================================
 
 const MONTHS_SHORT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
@@ -27,7 +27,7 @@ function formatMovieRating(value) {
 }
 
 function formatNightDate(date, time) {
-  if (!date) return 'Stasera';
+  if (!date) return 'Oggi';
   const raw = String(date);
   const m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (!m) return raw;

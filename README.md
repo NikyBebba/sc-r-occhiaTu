@@ -10,21 +10,21 @@ L'esperienza parte dalla scelta e continua dopo il film: appuntamenti, voti, rec
 
 1. **Costruire la libreria.** Cercare film, scegliere la locandina corretta e aggiungerli alla lista. Ogni film conserva il proprio autore, i metadati disponibili e lo stato di visione.
 2. **Scegliere cosa guardare.** Con Match Live entrambi scorrono i film: due preferenze positive producono un Match. La Ruota sceglie a caso dalla lista filtrata; in alternativa si può proporre direttamente un titolo.
-3. **Organizzare la proiezione.** Scegliere «Stasera» oppure programmare data, ora e snack. Le proposte programmate possono essere confermate dall'altro utente; il calendario raccoglie gli appuntamenti.
+3. **Organizzare la proiezione.** Scegliere «Oggi» con snack e luogo facoltativi oppure programmare data, ora e dettagli della proiezione. Le proposte programmate possono essere confermate dall'altro utente; il calendario raccoglie gli appuntamenti.
 4. **Lasciare un voto o un commento.** Ogni utente può registrare le proprie visioni e valutazioni; una visione condivisa ha voto e recensione distinti da quelli personali.
 5. **Continuare l'esperienza.** Consultare gli altri capitoli di una saga, aggiungerli esplicitamente alla lista e ritrovare serate e recensioni in Ricordi.
 
 ## Funzioni disponibili
 
-- **Libreria condivisa:** ricerca TMDb, picker dei risultati, importazione in blocco, dettagli e trailer disponibili, filtri e ordinamento. Controllo duplicati tramite ID del film.
+- **Libreria condivisa:** ricerca TMDb, picker dei risultati, importazione in blocco, dettagli e trailer disponibili, filtri e ordinamento. Viste separate Streaming e Al cinema / prossimamente, con Streaming all’apertura e card cinema riconoscibili. Controllo duplicati tramite ID del film.
 - **Match Live:** sessione sincronizzata su due dispositivi, swipe e riconoscimento dei film apprezzati da entrambi. La percentuale di accordo riguarda la sessione di Match.
 - **Ruota e sorprese:** scelta casuale con filtri, veto settimanale per ciascun utente, film sorpresa con locandina nascosta fino alla rivelazione e confetti al risultato.
-- **Serate e calendario:** proposte, conferme, scelta rapida, promemoria, snack personalizzati e luogo facoltativo. Rivedere un film crea un nuovo evento e conserva lo storico.
+- **Serate e calendario:** proposte, conferme, scelta rapida «Oggi», promemoria, snack personalizzati e luogo facoltativo, modificabili anche dopo. Le altre proposte restano visibili e accettabili durante la proiezione di oggi. Rivedere un film crea un nuovo evento e conserva lo storico.
 - **Voti e recensioni:** scala 0–10 con un decimale, tastierino mobile e supporto a punto o virgola. Valutazioni personali e condivise separate; il testo è facoltativo e può essere rimosso mantenendo il voto.
 - **Saghe:** capitoli TMDb in ordine di uscita, stato dei film già presenti e suggerimento dopo una nuova visione. Nessuna aggiunta automatica: si scelgono i capitoli da salvare.
 - **Film al cinema e prossimamente:** possono restare in libreria ed essere programmati, con esclusione da Ruota e Match finché sono segnati per il cinema. I capitoli di saga con uscita futura ricevono questa indicazione.
 - **Ricordi / Titoli di coda:** storico mensile delle serate e quattro riepiloghi: voto medio, voto più alto, genere più visto e film aggiunti per autore. Voti e commenti sono raccolti in «Dopo il film».
-- **Ticket cinematografico:** immagine PNG scaricabile con locandina, titolo, origine della scelta e dati disponibili della serata.
+- **Ticket cinematografico:** immagine PNG scaricabile con locandina, titolo, origine della scelta e dati disponibili della proiezione, compreso il luogo. Testi cinematografici senza formule romantiche ripetute.
 - **Atmosfere automatiche:** quattro stagioni e quattro festività, con cambio secondo il calendario e scelta manuale temporanea. Suoni e vibrazione sono facoltativi sui dispositivi compatibili.
 - **PWA e sincronizzazione:** app installabile, aggiornamenti dell'app-shell e dati condivisi tramite Realtime. Se la connessione non è disponibile, viene segnalata la modalità locale.
 
@@ -68,11 +68,11 @@ node scripts/smoke.js
 node scripts/verify-sw.js
 ```
 
-Checkpoint del 5 ottobre 2026: **369/369 smoke test** e **12/12 controlli del service worker** superati, controlli sintassi e diff senza errori. Cache PWA `v44`. Login, home, voti, Ricordi e saghe sono stati verificati anche in Chromium con dati di prova e screenshot a larghezze mobile e tablet.
+Checkpoint del 5 ottobre 2026: **379/379 smoke test** e **12/12 controlli del service worker** superati, controlli sintassi e diff senza errori. Cache PWA `v45`. Login, home, voti, Ricordi, saghe e i flussi di proiezione sono stati verificati anche in Chromium con dati di prova e screenshot a larghezze mobile e tablet.
 
-La migration dei voti decimali è stata applicata sull'istanza di riferimento. Restano da verificare su due telefoni reali il tastierino nativo e la sincronizzazione degli ultimi flussi di voti, recensioni e saghe. Il dettaglio delle verifiche, delle migration e dei limiti è nel [master context](docs/MASTER_CONTEXT.md).
+La migration dei voti decimali è stata applicata sull'istanza di riferimento. Restano da verificare su due telefoni reali il tastierino nativo e la sincronizzazione degli ultimi flussi di voti, recensioni, saghe e proiezioni. Il dettaglio delle verifiche, delle migration e dei limiti è nel [master context](docs/MASTER_CONTEXT.md).
 
-Specifiche: [voti decimali](docs/PHASE38_DECIMAL_RATINGS.md), [saghe](docs/PHASE41_SAGHE.md), [Ricordi e statistiche](docs/PHASE23_MOVIE_CHEMISTRY.md), [timeline mensile](docs/PHASE22_TIMELINE.md).
+Specifiche: [proiezioni, snack e luogo](docs/PROIEZIONI.md), [voti decimali](docs/PHASE38_DECIMAL_RATINGS.md), [saghe](docs/PHASE41_SAGHE.md), [Ricordi e statistiche](docs/PHASE23_MOVIE_CHEMISTRY.md), [timeline mensile](docs/PHASE22_TIMELINE.md).
 
 ## Possibili evoluzioni
 

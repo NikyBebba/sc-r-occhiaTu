@@ -3,7 +3,7 @@
 // Export "immagine high-res formato Instagram Stories" (1080×1920) disegnata
 // su canvas nativo, nessuna libreria esterna. Il ticket mostra la Match %
 // SOLO se l'origine è Match Live; altrimenti un timbro d'origine ("Scelto con
-// la Ruota" / "Proposto da N/V"). Origine passata dal chiamante, MAI
+// la Ruota" / "Scelto dalla lista"). Origine passata dal chiamante, MAI
 // ricostruita da altrove: il dato non la traccia (nessun campo nuovo).
 //
 // Poster: crossOrigin="anonymous" (stesso pattern di Phase 9.2, verificato
@@ -72,7 +72,8 @@ function ticketStampText(origin, pct) {
     return { main: pct + '%', sub: "d'accordo" };
   }
   if (origin === 'wheel') return { main: 'Scelto con la Ruota', sub: '' };
-  return { main: 'Proposto da N/V', sub: '' };
+  if (origin === 'match') return { main: 'Match Live', sub: '' };
+  return { main: 'Scelto dalla lista', sub: '' };
 }
 
 // Testo adattivo: limita le righe e segnala il taglio senza invadere le altre aree.
@@ -155,14 +156,14 @@ function drawTicketCanvas(movie, origin, pct, img) {
   ctx.fillText('sc(r)occhiaTu', 120, 165);
   ctx.fillStyle = '#b5b9dd';
   ctx.font = '24px ' + TICKET_FONT;
-  ctx.fillText('IL NOSTRO CINEMA', 120, 214);
+  ctx.fillText('BIGLIETTO, PREGO', 120, 214);
   ctx.textAlign = 'right';
   ctx.fillStyle = '#f5cf80';
   ctx.font = 'bold 26px ' + TICKET_FONT;
   ctx.fillText('DUE POSTI', 960, 161);
   ctx.font = '24px ' + TICKET_FONT;
   ctx.fillStyle = '#b5b9dd';
-  ctx.fillText('Una serata insieme', 960, 205);
+  ctx.fillText('Pronti alla proiezione', 960, 205);
 
   const posterY = 260, posterH = 920;
   const fallback = ctx.createLinearGradient(72, posterY, 1008, 1180);
@@ -201,7 +202,7 @@ function drawTicketCanvas(movie, origin, pct, img) {
   ctx.textAlign = 'left';
   ctx.fillStyle = '#f5cf80';
   ctx.font = 'bold 24px ' + TICKET_FONT;
-  ctx.fillText('IL FILM DELLA NOSTRA SERATA', 120, 852);
+  ctx.fillText('IN PROGRAMMA', 120, 852);
   ctx.fillStyle = '#ffffff';
   const title = ticketFitText(ctx, movie.title || 'Un film', 840, 3, 76, 48);
   title.lines.forEach((line, i) => ctx.fillText(line, 120, 1080 - (title.lines.length - 1 - i) * title.size * 1.18));
@@ -224,11 +225,11 @@ function drawTicketCanvas(movie, origin, pct, img) {
   let stamp = ticketStampText(origin, pct);
   if (origin === 'match' && (pct === null || pct === undefined)) stamp = { main: 'Match Live', sub: '' };
   if (origin === 'manual') {
-    const person = movie.proposed_by || movie.added_by;
+    const person = movie.proposed_by;
     const label = CONFIG.PEOPLE[person]?.label;
     if (label) stamp = { main: 'Proposto da ' + label, sub: '' };
   }
-  if (!origin) stamp = { main: 'Una serata insieme', sub: '' };
+  if (!origin) stamp = { main: 'Pronti alla proiezione', sub: '' };
   const stampLabel = stamp.sub ? 'Match Live · ' + stamp.main + ' ' + stamp.sub : stamp.main;
   ticketTextBlock(ctx, stampLabel, 120, 1294, 840, 1, 42, 28);
   ctx.strokeStyle = '#d1c7b0';
@@ -236,18 +237,24 @@ function drawTicketCanvas(movie, origin, pct, img) {
 
   ctx.fillStyle = '#6b5e46';
   ctx.font = 'bold 22px ' + TICKET_FONT;
-  ctx.fillText('QUANDO', 120, 1390);
+  ctx.fillText('QUANDO', 120, 1375);
   // Un film scelto ma non programmato non è automaticamente una serata oggi.
   const date = movie.scheduled_date
     ? formatNightDate(movie.scheduled_date, movie.scheduled_time)
     : (movie.status === 'tonight' ? formatNightDate(null, movie.scheduled_time) : 'Da programmare');
   ctx.fillStyle = '#25233c';
-  ticketTextBlock(ctx, date, 120, 1444, 840, 1, 40, 28);
+  ticketTextBlock(ctx, date, 120, 1425, 840, 1, 40, 28);
   ctx.fillStyle = '#6b5e46';
   ctx.font = 'bold 22px ' + TICKET_FONT;
-  ctx.fillText('SNACK', 120, 1510);
+  ctx.fillText('SNACK', 120, 1475);
   ctx.fillStyle = '#25233c';
-  ticketTextBlock(ctx, movie.snack || 'Da scegliere insieme', 120, 1563, 840, 2, 36, 28);
+  ticketTextBlock(ctx, movie.snack || 'Da scegliere', 120, 1525, 840, 1, 36, 28);
+
+  ctx.fillStyle = '#6b5e46';
+  ctx.font = 'bold 22px ' + TICKET_FONT;
+  ctx.fillText('DOVE', 120, 1575);
+  ctx.fillStyle = '#25233c';
+  ticketTextBlock(ctx, movie.location || 'Posto da decidere', 120, 1625, 840, 1, 36, 28);
 
   ctx.strokeStyle = '#d1c7b0';
   ctx.beginPath(); ctx.moveTo(120, 1650); ctx.lineTo(960, 1650); ctx.stroke();
@@ -261,10 +268,10 @@ function drawTicketCanvas(movie, origin, pct, img) {
   ctx.textAlign = 'right';
   ctx.fillStyle = '#25233c';
   ctx.font = 'bold 30px ' + TICKET_FONT;
-  ctx.fillText('Due posti, una storia.', 960, 1720);
+  ctx.fillText('Il film è servito.', 960, 1720);
   ctx.fillStyle = '#6b5e46';
   ctx.font = '24px ' + TICKET_FONT;
-  ctx.fillText('Da scegliere insieme.', 960, 1764);
+  ctx.fillText('Vietato spoilerare.', 960, 1764);
   ctx.restore();
 
   // Tacche laterali del talloncino.
@@ -338,7 +345,12 @@ async function downloadTicket(movieId, origin) {
     await Promise.race([document.fonts.load('bold 76px ' + TICKET_FONT).catch(() => {}),
       new Promise(resolve => setTimeout(resolve, 1500))]);
   }
-  const img = await loadTicketPoster(movie.poster);
-  const canvas = drawTicketCanvas(movie, origin, pct, img);
-  downloadTicketCanvas(canvas, ticketFileName(movie));
+  const hidden = movie.surprise_by && movie.surprise_by !== currentUser;
+  const img = await loadTicketPoster(hidden ? null : movie.poster);
+  const night = activeNightForMovie(movieId);
+  const ticketMovie = night ? { ...movie, scheduled_date: night.date, scheduled_time: night.time,
+    snack: night.snack, location: night.location, proposed_by: night.proposed_by, status: 'tonight' } : movie;
+  const visibleMovie = hidden ? { ...ticketMovie, title: 'Film a sorpresa', poster: null, release_year: null, duration: null, platform: null } : ticketMovie;
+  const canvas = drawTicketCanvas(visibleMovie, origin, pct, img);
+  downloadTicketCanvas(canvas, ticketFileName(visibleMovie));
 }

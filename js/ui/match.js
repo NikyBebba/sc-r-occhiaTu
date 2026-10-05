@@ -212,7 +212,7 @@ function matchMatchHtml(state) {
       ${pctLine}
       <p class="text-xs text-slate-400">Il riconoscimento sincronizza lo stato tra i telefoni: il partner vedrà sparire la celebrazione al prossimo riallineamento (o premendo "Continua a swipare").</p>
       <div class="flex gap-2">
-        <button onclick="createMatchNight('${movie ? jsAttrEscape(movie.id) : ''}', 'tonight')" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition">Stasera</button>
+        <button onclick="createMatchNight('${movie ? jsAttrEscape(movie.id) : ''}', 'tonight')" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition">Oggi</button>
         <button onclick="createMatchNight('${movie ? jsAttrEscape(movie.id) : ''}', 'schedule')" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-sm font-medium transition">Programma</button>
       </div>
       <div class="flex gap-2">
@@ -362,7 +362,7 @@ async function newMatchSession() {
 }
 
 // ---- Creare la serata dal match ----
-// Stasera → setQuickTonight (serata confirmed senza data).
+// Oggi → popup snack/luogo → setQuickTonight solo al salvataggio (confirmed senza data).
 // Programma → modale esistente: la sessione si chiude SOLO quando la serata è
 // stata effettivamente creata (hook in confirmSchedule), mai all'apertura né
 // se l'utente annulla.
@@ -371,19 +371,8 @@ async function createMatchNight(movieId, mode) {
   if (!session || !movieId) return;
   if (!resolveDeckMovie(movies, movieId)) return;
   if (mode === 'tonight') {
-    await setQuickTonight(movieId);
-    // La serata deve ESISTERE davvero (insert Supabase riuscito e presente in
-    // movieNights): se non risulta creata (es. failover a locale) la sessione
-    // NON si chiude e la UI NON mostra "Serata creata" — si resta sulla
-    // celebrazione e si può ritentare.
-    if (!activeNightForMovie(movieId)) {
-      console.warn('[sc(r)occhiaTu] Stasera: serata non creata — sessione Match lasciata aperta.');
-      return;
-    }
-    await closeSession(session.id);
-    const movie = resolveDeckMovie(movies, movieId);
-    matchNightCreated = { movieId, title: movie ? movie.title : '' };
-    renderMatch();
+    matchPendingSchedule = { sessionId: session.id, movieId };
+    quickTonightUI(movieId, 'match');
     return;
   }
   matchPendingSchedule = { sessionId: session.id, movieId };

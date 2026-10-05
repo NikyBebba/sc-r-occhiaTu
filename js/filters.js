@@ -29,7 +29,7 @@ let listQuery = '';       // testo ricerca (title + genres)
 let listProposer = '';    // '' = tutti, altrimenti 'N' | 'V' (movies.added_by)
 let listGenre = '';       // '' = tutti, altrimenti un genere reale da movies.genres
 let listPlatform = '';    // '' = tutti, altrimenti movies.platform
-let listAvailability = 'all'; // 'all' | 'streaming' (esclude i film segnati per il cinema)
+let listAvailability = 'streaming'; // due viste distinte: 'streaming' | 'cinema'
 let listSortKey = 'added'; // title | year | duration | rating | imdb | added | proposer
 let listSortDir = 'desc';  // asc | desc
 
@@ -42,13 +42,12 @@ function resetListFilters() {
   listProposer = '';
   listGenre = '';
   listPlatform = '';
-  listAvailability = 'all';
   listSortKey = 'added';
   listSortDir = 'desc';
 }
 
 function hasActiveListFilters(state) {
-  return Boolean((state && state.query && String(state.query).trim()) || (state && state.proposer) || (state && state.genre) || (state && state.platform) || (state && state.availability === 'streaming'));
+  return Boolean((state && state.query && String(state.query).trim()) || (state && state.proposer) || (state && state.genre) || (state && state.platform));
 }
 
 // ---- Normalizzazione ricerca (maiuscole, accenti, spazi) ----
@@ -68,6 +67,7 @@ function movieSearchText(m) {
 // Predicato singolo: applica disponibilità manuale, ricerca, proposer, genere e piattaforma.
 function matchFilters(m, { query, proposer, genre, platform, availability } = {}) {
   if (availability === 'streaming' && m.cinema_watchlist) return false;
+  if (availability === 'cinema' && !m.cinema_watchlist) return false;
   if (proposer && m.added_by !== proposer) return false;
   if (genre && !(Array.isArray(m.genres) && m.genres.includes(genre))) return false;
   if (platform && m.platform !== platform) return false;

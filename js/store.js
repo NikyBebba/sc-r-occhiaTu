@@ -555,50 +555,54 @@ async function updateMovieNight(id, patch) {
   return true;
 }
 
-// "Stasera": pick veloce senza data fissa. Crea una serata già 'confirmed'
-// (atto unilaterale, come prima: nessuna conferma richiesta) con date=null
-// così il box continua a mostrare "🎬 stasera". Legacy mirror: status tonight,
-// senza proposed_by né night_confirmed (pending del box = false → un solo
-// pulsante "Annulla").
-async function setQuickTonight(id) {
-  await insertMovieNight({
-    movie_id: id, date: null, time: null, snack: null,
+// Scelta rapida di oggi, confermata direttamente; data NULL resta il contratto.
+async function setQuickTonight(id, snack = null, location = null) {
+  const night = await insertMovieNight({
+    movie_id: id, date: null, time: null, snack, location,
     proposed_by: currentUser, status: 'confirmed', confirmed_at: new Date().toISOString()
   });
-  await updateMovie(id, { status: 'tonight', proposed_by: null, night_confirmed: false });
+  if (!night) return false;
+  await updateMovie(id, { status: 'tonight', scheduled_date: null, scheduled_time: null,
+    snack, proposed_by: null, night_confirmed: false });
+  return true;
 }
 
-// Proposta di una sera precisa: l'altra persona deve confermare.
-async function proposeNight(id, person, date, time, snack) {
-  await insertMovieNight({
-    movie_id: id, date, time: time || '21:30', snack,
+// La proposta programmata conserva snack e luogo sull'evento, anche nei rewatch.
+async function proposeNight(id, person, date, time, snack, location = null) {
+  const night = await insertMovieNight({
+    movie_id: id, date, time: time || '21:30', snack, location,
     proposed_by: person, status: 'proposed'
   });
+  if (!night) return false;
   await updateMovie(id, {
-    status: 'tonight',
-    scheduled_date: date,
-    scheduled_time: time || '21:30',
-    snack,
-    proposed_by: person,
-    night_confirmed: false
+    status: 'tonight', scheduled_date: date, scheduled_time: time || '21:30',
+    snack, proposed_by: person, night_confirmed: false
   });
+  return true;
 }
 
-async function confirmNight(id) {
-  const night = activeNightForMovie(id);
+async function confirmNight(id, nightId) {
+  const night = nightId ? activeNights().find(n => n.id === nightId && n.movie_id === id) : activeNightForMovie(id);
+  if (nightId && !night) return false;
   if (night && night.status === 'proposed') {
-    await updateMovieNight(night.id, { status: 'confirmed', confirmed_at: new Date().toISOString() });
+    if (!await updateMovieNight(night.id, { status: 'confirmed', confirmed_at: new Date().toISOString() })) return false;
   }
-  await updateMovie(id, { night_confirmed: true });
+  if (!night || activeNightForMovie(id)?.id === night.id) await updateMovie(id, { night_confirmed: true });
+  return true;
 }
 
 // Annulla/rifiuta: la serata attiva passa a 'cancelled', il film torna in
 // watchlist e pulisce i campi serata legacy.
-async function cancelNight(id) {
-  const night = activeNightForMovie(id);
+async function cancelNight(id, nightId) {
+  const night = nightId ? activeNights().find(n => n.id === nightId && n.movie_id === id) : activeNightForMovie(id);
+  if (nightId && !night) return false;
   if (night) {
-    await updateMovieNight(night.id, { status: 'cancelled', cancelled_at: new Date().toISOString() });
+    if (!await updateMovieNight(night.id, { status: 'cancelled', cancelled_at: new Date().toISOString() })) return false;
   }
+  const remaining = activeNights().filter(n => n.movie_id === id && n.id !== night?.id)
+    .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))[0];
+  if (remaining) return updateMovie(id, { status: 'tonight', scheduled_date: remaining.date,
+    scheduled_time: remaining.time, snack: remaining.snack, proposed_by: remaining.proposed_by, night_confirmed: remaining.status === 'confirmed' });
   await updateMovie(id, {
     status: 'watchlist',
     scheduled_date: null,
@@ -611,18 +615,18 @@ async function cancelNight(id) {
 
 // Serata "avvenuta": chiamata quando il film viene recensito come visto
 // insieme (by='both'), da ui.confirmReview.
-async function completeNight(id, location = null) {
+async function completeNight(id, location = undefined) {
   const nights = movieNights
     .filter(n => n.movie_id === id && (n.status === 'proposed' || n.status === 'confirmed'))
     .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
   const night = nights[0];
   if (night) {
-    return updateMovieNight(night.id, { status: 'completed', completed_at: new Date().toISOString(), location });
+    return updateMovieNight(night.id, { status: 'completed', completed_at: new Date().toISOString(), location: location === undefined ? (night.location || null) : location });
   }
   // Una recensione insieme senza programmazione è comunque una visione:
   // registriamo l'evento ora, così il luogo ha un proprietario anche qui.
   return !!(await insertMovieNight({ movie_id: id, date: null, time: null,
-    snack: null, location, proposed_by: null, status: 'completed',
+    snack: null, location: location || null, proposed_by: null, status: 'completed',
     completed_at: new Date().toISOString() }));
 }
 
@@ -648,7 +652,7 @@ function nextMoviePick() {
         nightId: night.id,
         title: m.title,
         poster: m.poster,
-        snack: night.snack,
+        snack: night.snack, location: night.location,
         scheduled_date: night.date,
         scheduled_time: night.time,
         proposed_by: night.proposed_by,
@@ -700,7 +704,7 @@ function tonightPick(now = new Date()) {
     if (!m) continue;
     return {
       id: m.id, nightId: night.id, title: m.title, poster: m.poster,
-      snack: night.snack, scheduled_date: night.date, scheduled_time: night.time,
+      snack: night.snack, location: night.location, scheduled_date: night.date, scheduled_time: night.time,
       proposed_by: night.proposed_by, night_confirmed: night.status === 'confirmed'
     };
   }

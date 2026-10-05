@@ -122,7 +122,7 @@ function formatDayLabel(key) {
 }
 
 // Riga di riepilogo per una night (usata sia nel giorno selezionato sia nel
-// footer "Senza data (Stasera)"). Tutti i testi utente passano da escapeHtml.
+// footer "Scelte rapide (oggi)"). Tutti i testi utente passano da escapeHtml.
 function nightRowHtml(entry) {
   const ui = nightStatusUI(entry.night.status);
   const title = entry.movie ? entry.movie.title : 'Film rimosso';
@@ -201,7 +201,7 @@ function renderCalendar() {
   const activeUndated = undated.filter(e => e.night.status === 'proposed' || e.night.status === 'confirmed');
   const undatedHtml = activeUndated.length ? `
     <div class="mt-4 pt-3 border-t border-slate-800">
-      <div class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Senza data (Stasera)</div>
+      <div class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Scelte rapide (oggi)</div>
       ${activeUndated.map(nightRowHtml).join('')}
     </div>` : '';
 

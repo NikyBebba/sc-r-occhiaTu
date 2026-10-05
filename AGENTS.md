@@ -62,7 +62,7 @@ theme (head) → config → format → haptics → audio → api(omdb+tmdb → i
 - `js/config.js` — chiavi runtime (TMDb/OMDb/Supabase) + `PEOPLE` (label + PIN).
 - `js/format.js` — helper DOM-free dei voti decimali (validazione, parsing punto/virgola, formato italiano) e delle date: `formatNightDate(date, time)` (data serata
   leggibile "24 ott · 21:30", senza `new Date('YYYY-MM-DD')`, fallback al dato
-  grezzo, mai orari inventati, `date NULL` → "Stasera").
+  grezzo, mai orari inventati, `date NULL` → "Oggi").
 - `js/api/omdb.js` — OMDb: `omdbConfigured`, `extractRatings`, `fetchOmdbByTitle`,
   `fetchOmdbByImdbId`, `omdbToDetails`, `emptyRatings`.
 - `js/api/tmdb.js` — TMDb: `tmdbConfigured`, `searchTmdbCandidates`,
@@ -99,7 +99,7 @@ theme (head) → config → format → haptics → audio → api(omdb+tmdb → i
 - `js/ui/navigation.js` — tab (state + switch).
 - `js/ui/actions.js` — azioni sui film: aggiunta singola (picker TMDb), import
   bulk, aggiusta/retry con metadati, programma/annulla serata, voto, veto,
-  sorpresa, recensione, "stasera".
+  sorpresa, recensione, scelta rapida «Oggi» con popup snack/luogo e modifica dei dettagli.
 - `js/ui/render.js` — `render`, `renderScheduled`, `renderStats`,
   `renderVetoInfo`, `renderSyncStatus`, `renderNextMovieBox` (countdown 30s),
   `drawWheel` invocata dal render.
@@ -215,6 +215,8 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
     solo il testo, preservando voto e dati degli altri autori. Testo omesso nel
     livello dati conserva la recensione; non far riapparire il mirror legacy.
   - `cinema_watchlist` esclude da Ruota e Match; libreria e programmazione restano.
+    Due viste separate Streaming/Cinema (Streaming iniziale), switch senza dropdown;
+    Azzera filtri conserva la vista, card cinema ambrate e azioni Oggi/Programma uniformi.
   - La "serata" VIVE sull'entità separata `movie_nights`. I flag legacy
     sul film (`scheduled_*`, `proposed_by`, `night_confirmed`) restano
     alimentati in scrittura per compatibilità (strategia B), così vecchi
@@ -230,7 +232,7 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
   - Regola: **1 film = 1 contenuto, 1 serata = 1 evento** → più serate
     possono puntare allo stesso film (rewatch), storico persistente per
     calendario/streak future.
-  - `date NULL` = pick veloce "Stasera" (senza data fissa).
+  - `date NULL` = pick veloce "Oggi" (senza data fissa).
 
 ## UX principles
 
@@ -248,7 +250,8 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 Login persona/PIN, home Match/Ruota/Libreria, watchlist con picker TMDb,
 import bulk, dedup per ID e UNIQUE, Match Live a swipe con presence e Match %,
 Ruota canvas con filtri e confetti, veto settimanale, sorprese, serate con
-proposta/conferma e rewatch, snack/luogo, calendario mensile,
+proposta/conferma e rewatch, popup «Oggi» con snack/luogo facoltativi e modificabili,
+proposte «In cartellone» accettabili anche durante il film di oggi, calendario mensile,
 voti personali/condivisi 0–10 con decimali e recensioni facoltative,
 «Titoli di coda» con riepiloghi e storico, saghe TMDb, ticket PNG,
 temi automatici, PWA, audio/haptics opt-in e ciak loader.
@@ -287,7 +290,7 @@ Per le priorità precise leggere il master context aggiornato.
 ## Vincoli tecnici
 
 - Dipendenze ancora via CDN (Tailwind Play, Font Awesome, supabase-js).
-- PWA presente: manifest e service worker, cache corrente `v44`; domini API,
+- PWA presente: manifest e service worker, cache corrente `v45`; domini API,
   Supabase, poster e YouTube sempre esclusi dall'intercettazione. Le icone PWA
   sono provvisorie; non confondere l'app-shell offline con dati remoti disponibili.
 - HTML delle card generato come stringhe: usare `escapeHtml`/`jsAttrEscape`
@@ -341,8 +344,8 @@ Per le priorità precise leggere il master context aggiornato.
 
 ## Checkpoint verificato — 5 ottobre 2026
 
-- `node scripts/smoke.js`: **369/369 PASS**; service worker **12/12 PASS**;
-  controlli sintassi e diff check superati, cache PWA `v44`.
+- `node scripts/smoke.js`: **379/379 PASS**; service worker **12/12 PASS**;
+  controlli sintassi e diff check superati, cache PWA `v45`.
 - Chromium con fixture a 320/390/768 px per login/PIN/home, voti e Ricordi;
   pannello saghe anche a 320×568. Screenshot ispezionati, zero errori JS e
   nessun overflow orizzontale. Tool di verifica solo in directory temporanee.

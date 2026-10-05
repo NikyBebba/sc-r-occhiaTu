@@ -2,7 +2,7 @@
 
 Stato: **implementata nel codice locale; migration Step 10 applicata dall'utente e colonna verificata via REST** · 1 ottobre 2026
 
-## Posizione nella roadmap
+## Posizione storica nella roadmap
 
 Da affrontare dopo l'attuale Phase 8.2 e prima della Phase 22. È una regola
 della libreria e della scelta, non una statistica o un'estensione del Match Live.
@@ -15,17 +15,19 @@ della libreria e della scelta, non una statistica o un'estensione del Match Live
   ricercabile. Dalla sua scheda si può cambiare l'opzione quando diventa
   adatto a una serata a casa; non è un'informazione dedotta automaticamente
   dalla data di uscita o dalla disponibilità streaming.
-- La libreria parte da «Tutti i film, anche al cinema» e offre «Solo streaming»,
-  che esclude i film contrassegnati per il cinema. Il filtro usa solo questa
-  scelta manuale: non certifica la presenza del film su un servizio streaming.
+- Dal checkpoint del 5 ottobre la libreria parte da **Streaming** e offre
+  uno switch **Streaming / Al cinema / prossimamente**: viste disgiunte,
+  card cinema ambrate e tasti Oggi/Programma uniformi. Azzera filtri conserva
+  la categoria, contatori e opzioni seguono la vista. Il flag resta una scelta
+  manuale e non certifica la presenza del film su un servizio streaming.
 - Finché l'opzione è attiva, il film non entra nella Ruota né nelle card di
   Match Live. Il cambio deve valere anche per una sessione Match già aperta:
   il deck è salvato e non basta filtrare solo alla creazione della sessione.
   La semantica degli swipe e della Match % resta invariata.
 - Il film può comunque essere proposto per una serata con data e ora tramite
   il normale flusso `movie_nights`; l'altra persona conferma come oggi.
-  «Programma» è l'azione principale, ma «Stasera» resta disponibile per una
-  visita spontanea al cinema. Nessuna delle due azioni passa dalla Ruota.
+  «Oggi» e «Programma» hanno la stessa posizione e forma delle card streaming;
+  il popup chiede snack e luogo facoltativi anche per una visita spontanea al cinema. Nessuna delle due azioni passa dalla Ruota.
 - Se la serata viene conclusa, il film e l'evento seguono le normali regole di
   visione, recensione e storico. Il badge del film può essere modificato senza
   riscrivere le serate precedenti.
@@ -39,10 +41,10 @@ sulla disponibilità reale. I film esistenti hanno valore `false`; l'import bulk
 continua a creare film normali. Non riutilizzare `movies.status` (che descrive
 watchlist/serata/visto), `platform` (provider) o `matched` (metadati trovati).
 
-La programmazione usa `movie_nights` senza bisogno di una nuova tabella. Se si
-vuole ricordare nello storico **dove** si è svolta la serata, serve invece un
-campo separato sull'evento, per esempio `movie_nights.venue`; il flag del film
-non può essere usato come prova retrospettiva, perché può cambiare nel tempo.
+La programmazione usa `movie_nights` senza bisogno di una nuova tabella.
+Il luogo vive ora nel campo già applicato `movie_nights.location`, disponibile
+nel popup della programmazione e di Oggi e modificabile per ciascun evento.
+Il flag del film non è una prova retrospettiva del luogo: può cambiare nel tempo.
 Questo è un punto da decidere prima di estendere ticket e timeline.
 
 La nuova colonna `movies` è descritta nella migration additiva
@@ -75,3 +77,9 @@ su due telefoni dopo il deploy.
 ## Checkpoint corrente — 5 ottobre 2026
 
 Il flag resta invariato nel frontend corrente (cache PWA `v44`). Il pannello saghe aggiunge i capitoli con uscita futura come `cinema_watchlist: true`; restano in libreria/programmazione ed esclusi da Ruota e Match. Smoke complessivo **369/369 PASS**, service worker **12/12 PASS**. Migration Step 10 già applicata dall'utente e verificata in sola lettura; uso condiviso dopo il deploy da ricontrollare.
+
+## Revisione del 5 ottobre 2026
+
+Viste Streaming/Cinema e flusso proiezioni descritti in [PROIEZIONI.md](PROIEZIONI.md).
+Cache PWA `v45`, smoke **379/379 PASS**, service worker **12/12 PASS**;
+Chromium a 320/390/768 px senza errori o overflow. Nessuna nuova migration.
