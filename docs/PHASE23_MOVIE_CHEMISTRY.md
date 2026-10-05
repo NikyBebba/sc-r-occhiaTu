@@ -1,34 +1,52 @@
-# Phase 23 — I nostri numeri
+# Phase 23 — Ricordi / Titoli di coda
 
-Stato: **implementata nel codice locale; verifica visiva su due telefoni da eseguire** · 5 ottobre 2026
+Stato: revisione implementata e verificata localmente, 5 ottobre 2026.
+Prova su due telefoni dopo deploy ancora da fare.
 
-## Obiettivo
+## Revisione concordata
 
-Nel modale «Il Nostro Cinema» mostrare quattro conteggi retrospettivi. Non sono
-una nuova percentuale di compatibilità: la Match % resta esclusiva di Match Live.
-La sezione è di sola lettura e usa `movie_nights` e `movies` già caricati.
+Gli otto riquadri precedenti ripetevano più volte film visti e votati.
+Il modale «Titoli di coda» usa quattro riepiloghi sotto «In numeri»,
+prima dello storico «Serate concluse» e della sezione «Dopo il film».
+«In numeri» è accompagnato da un'icona chart-bar.
+Il tono è cinematografico e leggero: non ripetere continuamente noi/nostro/insieme.
 
-## Definizioni
+- **Voto medio**: solo voti condivisi dei film visti insieme, zero incluso;
+  niente voti personali. Un decimale nella media, fallback condiviso legacy.
+  Media calcolata in decimi per arrotondare correttamente (9,1 e 0 → 4,6).
+- **Voto più alto**: massimo dei voti condivisi visibili, con titolo del film.
+  In caso di ex aequo mostra quanti film hanno quel voto; nessun vincitore
+  scelto arbitrariamente. Zero valido, decimali e fallback legacy.
+  Sorprese non rivelate escluse, titoli escapati; senza voti mostra «—».
+- **Genere più visto**: generi dei film visti insieme; ogni film contribuisce
+  una volta per genere. Nessun conteggio di serate/rewatch in questa metrica.
+- **Film aggiunti**: tutti i film attualmente in libreria per `added_by` N/V,
+  inclusi watchlist, cinema, sorprese e visti. Zero esplicito; film eliminati
+  fuori dal totale, autore sconosciuto non attribuito, rewatch non moltiplicati.
 
-- **Serate concluse**: numero di eventi `movie_nights` con `status = completed`.
-  Una serata proposta, confermata o annullata non entra nel totale.
-- **Film diversi visti**: numero di `movie_id` distinti fra quelle serate.
-  L'evento rimane nel conteggio anche se il film collegato è stato rimosso.
-- **Serate di rewatch**: per ogni film, serate concluse oltre la prima;
-  la somma equivale a eventi conclusi con `movie_id` meno film distinti.
-- **Film con voto insieme**: film visti insieme con voto condiviso valido
-  (scala 0–10, zero incluso, testo facoltativo). È un conteggio di film,
-  indipendente dal numero di serate. `togetherRating()` include il fallback
-  delle vecchie valutazioni condivise. Aggiornamento del 5 ottobre 2026:
-  i voti personali non contribuiscono più a questo conteggio.
+Il totale delle serate resta accanto allo storico. Ogni serata conclusa,
+compresi i rewatch, conserva la propria card con data, snack e luogo.
+Il voto sulla card è identificato da N+V, usando i nomi configurati.
+In «Dopo il film» il voto è solo «★ x/10»; senza voto non si crea una riga
+vuota. Recensioni solo testuali e voti senza testo restano visibili.
 
-Un evento senza `movie_id` conta fra le serate concluse, ma non fra film diversi
-o rewatch. Con dati vuoti tutti i conteggi sono zero. La sezione non mostra
-titoli o poster e non svela i film sorpresa.
+## Conteggi precedenti
 
-## Verifica
+Rimossi dalla UI i riquadri «Serate concluse», «Film diversi visti»,
+«Serate di rewatch», «Film con voto insieme» e il secondo conteggio
+«Film visti insieme». Nessun dato storico cancellato o schema modificato.
+`movieChemistryStats` conserva le formule come helper interno DOM-free:
+serate = eventi completati, film = movie_id distinti, rewatch = eventi
+successivi al primo per film, votati = film condivisi con voto valido.
+Non sono più un blocco di statistiche visibile.
 
-Smoke test su più serate dello stesso film, film rimosso, serata annullata,
-voto insieme zero e stato vuoto: **329/329 PASS** nell'harness complessivo.
-`node scripts/verify-sw.js`: **12/12 PASS**. Cache PWA `v34`.
-Resta una prova visiva su due telefoni dopo il deploy.
+## Verifiche
+
+Smoke **369/369 PASS**, service worker **12/12 PASS**, controlli sintassi
+JS e `git diff --check` senza errori. Cache PWA `v42`.
+Test su quattro riquadri distinti, media con zero e decimali, voto massimo,
+ex aequo, input senza voto, titoli escapati, sorprese, intera libreria per
+conteggio aggiunte, storico N+V e recensioni senza etichette ripetute.
+Chromium con fixture a 320/390/768 px: riepiloghi, titoli lunghi, stato vuoto,
+nessun overflow orizzontale e zero errori JS; screenshot ispezionati.
+Nessuna dipendenza dell'app, migration o scrittura sul database reale.

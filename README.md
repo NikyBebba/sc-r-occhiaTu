@@ -42,7 +42,7 @@ node scripts/smoke.js
 node scripts/verify-sw.js
 ```
 
-Ultima verifica locale documentata: **365/365** smoke test e **12/12** controlli del service worker. «Il Nostro Cinema» calcola il voto medio solo dai voti condivisi dei film visti insieme; il luogo si modifica nella recensione scegliendo la serata, se ci sono rewatch. Le migration [voto insieme](database/supabase-migration-step-review-together.sql) e [luogo della serata](database/supabase-migration-step-night-location.sql) sono state applicate dall'utente; entrambe le colonne sono state verificate in Supabase in sola lettura (HTTP 200). La revisione grafica richiede ancora una verifica visiva su smartphone; il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni.
+Ultima verifica locale documentata: **369/369** smoke test e **12/12** controlli del service worker. «Il Nostro Cinema» calcola il voto medio solo dai voti condivisi dei film visti insieme; il luogo si modifica nella recensione scegliendo la serata, se ci sono rewatch. Le migration [voto insieme](database/supabase-migration-step-review-together.sql) e [luogo della serata](database/supabase-migration-step-night-location.sql) sono state applicate dall'utente; entrambe le colonne sono state verificate in Supabase in sola lettura (HTTP 200). La revisione grafica richiede ancora una verifica visiva su smartphone; il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni.
 
 Per aggiornare selettivamente i metadati di film già presenti, `scripts/refresh-movie-metadata.js` accetta `--ids=<uuid>` oppure `--titles=<titolo>`. Eseguire prima `--dry-run` per confrontare i valori; solo `--apply` scrive su Supabase. Include i rating OMDb e conserva quelli già salvati quando il servizio non ne fornisce di nuovi.
 
@@ -59,3 +59,7 @@ Voti decimali (Phase 38): implementati localmente, con punto/virgola e un decima
 Il pulsante «Modifica voto {nome utente}» segue quello insieme e usa il colore N/V. Per lasciare solo il voto, svuotare il testo della recensione e salvare: le altre recensioni e le date delle serate restano conservate.
 
 Voto condiviso e pulsante nelle card/scheda: N+V, in oro; le descrizioni delle statistiche mantengono «insieme». «Film aggiunti» conta tutta la libreria attuale per autore, con zero esplicito e senza raddoppiare i rewatch.
+
+Ricordi apre «Titoli di coda»: quattro riepiloghi (media, voto più alto, genere più visto, film aggiunti), storico con voto N+V e recensioni senza ripetere «insieme» su ogni voto. Eliminati i riquadri di conteggio duplicati; dati e rewatch conservati.
+
+Tono dell'app: cinema e leggerezza, anche in login e home, con meno ripetizioni di «nostro/vostro/insieme». «Due poltrone. Un solo telecomando.», «Che film si guarda?» e «Due sì fanno un Match». Le distinzioni personali/condivise restano nei flussi dove servono.

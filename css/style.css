@@ -1463,3 +1463,6 @@ textarea:focus-visible {
 
 .shared-vote-action { color: var(--color-oro); background: color-mix(in srgb, var(--color-oro) 12%, transparent); }
 .shared-vote-action:hover { background: color-mix(in srgb, var(--color-oro) 22%, transparent); }
+
+.cinema-stat-card { min-width: 0; }
+.cinema-stat-value, .cinema-stat-card p { overflow-wrap: anywhere; }

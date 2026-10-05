@@ -524,6 +524,7 @@ function markSeenUI(id) {
   const movie = movies.find(m => m.id === id);
   if (!movie || (currentUser !== 'N' && currentUser !== 'V')) return;
   document.getElementById('seenMovieId').value = id;
+  document.getElementById('seenTogetherButtonLabel').textContent = `Visto insieme? Vota ${sharedPeopleLabel()}`;
   const score = personalRating(movie, currentUser);
   document.getElementById('seenRating').value = formatMovieRating(score);
   document.getElementById('seenReview').value = reviewTextFor(movie, currentUser);

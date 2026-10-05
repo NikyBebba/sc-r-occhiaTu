@@ -100,7 +100,7 @@ function renderNextMovieBox() {
       <button onclick="confirmNightUI('${safeId}')" class="next-movie-action next-movie-primary">Conferma la serata</button>
       <button onclick="cancelNightUI('${safeId}', '${safeTitle}')" class="next-movie-action next-movie-secondary">Rifiuta</button>`;
   } else {
-    actionsHtml = `${tonight ? `<button onclick="${hasTogetherReview ? 'finishTogetherNightUI' : 'addReview'}('${safeId}')" class="next-movie-action next-movie-primary">${hasTogetherReview ? 'Segna serata vista' : 'Recensione insieme'}</button>` : ''}
+    actionsHtml = `${tonight ? `<button onclick="${hasTogetherReview ? 'finishTogetherNightUI' : 'addReview'}('${safeId}')" class="next-movie-action next-movie-primary">${hasTogetherReview ? 'Segna serata vista' : `Voto ${sharedPeopleLabel()}`}</button>` : ''}
       <button onclick="cancelNightUI('${safeId}', '${safeTitle}')" class="next-movie-action next-movie-secondary">Annulla serata</button>`;
   }
 
@@ -230,23 +230,6 @@ function movieChemistryStats(nights, films) {
   return { nights: completed.length, films: byMovie.size, rewatches, sharedRatings };
 }
 
-function renderMovieChemistry() {
-  const grid = document.getElementById('chemistryGrid');
-  if (!grid) return;
-  const stats = movieChemistryStats(movieNights, movies);
-  const cards = [
-    { icon: 'fa-ticket', label: 'Serate concluse', value: stats.nights },
-    { icon: 'fa-film', label: 'Film diversi visti', value: stats.films },
-    { icon: 'fa-rotate', label: 'Serate di rewatch', value: stats.rewatches },
-    { icon: 'fa-star', label: 'Film con voto insieme', value: stats.sharedRatings }
-  ];
-  grid.innerHTML = cards.map(c => `<div class="glass-card rounded-xl p-3 text-center">
-    <i class="fa-solid ${c.icon} text-sky-400" aria-hidden="true"></i>
-    <div class="text-xl font-bold text-cinema-testo-1 mt-1">${c.value}</div>
-    <div class="text-xs text-cinema-testo-3 mt-0.5">${c.label}</div>
-  </div>`).join('');
-}
-
 function completedNightLabel(entry) {
   if (!entry.timelineDate) return 'Data non registrata';
   if (entry.timelineDate.source === 'scheduled') {
@@ -292,7 +275,7 @@ function renderNightHistory() {
         <p>${escapeHtml(completedNightLabel({ night, timelineDate }))}</p>
         ${night.snack ? `<p>🍿 ${escapeHtml(night.snack)}</p>` : ''}
         ${night.location && !hidden ? `<p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${escapeHtml(night.location)}</p>` : ''}
-        ${movie && !hidden && togetherRating(movie) !== null ? `<p class="history-shared-score">I <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(togetherRating(movie))}/10</p>` : ''}
+        ${movie && !hidden && togetherRating(movie) !== null ? `<p class="history-shared-score">${escapeHtml(sharedPeopleLabel())} <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(togetherRating(movie))}/10</p>` : ''}
       </div>
     </article>`;
     }).join('');
@@ -309,12 +292,11 @@ function renderNightHistory() {
 // ---- Il Nostro Cinema — statistiche + recensioni senza data ----
 function renderStats() {
   renderNightHistory();
-  renderMovieChemistry();
   const watched = movies.filter(m => viewingState(m).together);
-  const totalWatched = watched.length;
   const allRatings = watched.map(togetherRating).filter(value => value !== null);
+  // Somma in decimi: evita che 9,1 e 0 producano 4,5 invece di 4,6.
   const avgRating = allRatings.length
-    ? (allRatings.reduce((sum, value) => sum + value, 0) / allRatings.length).toFixed(1).replace('.', ',')
+    ? (Math.round(allRatings.reduce((sum, value) => sum + Math.round(value * 10), 0) / allRatings.length) / 10).toFixed(1).replace('.', ',')
     : '—';
 
   // Genere più visto insieme: conta le occorrenze dei generi REALI sui film condivisi.
@@ -336,19 +318,26 @@ function renderStats() {
     return `${CONFIG.PEOPLE[person]?.label || person} ${count}`;
   }).join(' · ');
 
+  const visibleRated = watched.filter(movie => (!movie.surprise_by || movie.surprise_by === currentUser)
+    && togetherRating(movie) !== null);
+  const highestRating = visibleRated.length ? Math.max(...visibleRated.map(togetherRating)) : null;
+  const topRated = visibleRated.filter(movie => togetherRating(movie) === highestRating);
+  const highestTitle = topRated.length === 1 ? topRated[0].title || 'Film senza titolo'
+    : topRated.length > 1 ? `${topRated.length} film a pari voto` : '';
   const cards = [
-    { icon: 'fa-clapperboard', iconClass: 'text-rose-400', label: 'Film visti insieme', value: totalWatched },
-    { icon: 'fa-star', iconClass: 'text-amber-400', label: 'Voto medio insieme', value: avgRating === '—' ? '—' : `⭐ ${avgRating}/10` },
-    { icon: 'fa-tags', iconClass: 'text-sky-400', label: 'Genere più visto insieme', value: topGenreValue },
-    { icon: 'fa-users', iconClass: 'text-indigo-400', label: 'Film aggiunti', value: proposersValue }
+    { key: 'average', icon: 'fa-star', iconClass: 'text-amber-400', label: 'Voto medio', value: avgRating === '—' ? '—' : `${avgRating}/10` },
+    { key: 'highest', icon: 'fa-trophy', iconClass: 'text-amber-400', label: 'Voto più alto',
+      value: highestRating === null ? '—' : `${formatMovieRating(highestRating)}/10`, detail: highestTitle },
+    { key: 'genre', icon: 'fa-tags', iconClass: 'text-sky-400', label: 'Genere più visto', value: topGenreValue },
+    { key: 'added', icon: 'fa-users', iconClass: 'text-indigo-400', label: 'Film aggiunti', value: proposersValue }
   ];
   document.getElementById('statsGrid').innerHTML = cards.map(c => `
-    <div class="glass-card rounded-xl p-4 text-center">
-      <div class="mx-auto w-11 h-11 flex items-center justify-center rounded-lg bg-slate-900/70 border border-slate-800 ${c.iconClass} text-lg">
-        <i class="fa-solid ${c.icon}"></i>
+    <div class="cinema-stat-card glass-card rounded-xl p-4" data-stat="${c.key}">
+      <div class="flex items-center gap-2 text-xs text-cinema-testo-3">
+        <i class="fa-solid ${c.icon} ${c.iconClass}" aria-hidden="true"></i><span>${c.label}</span>
       </div>
-      <div class="text-xl font-bold text-cinema-testo-1 mt-2">${escapeHtml(c.value)}</div>
-      <div class="text-[10px] text-cinema-testo-3 mt-0.5">${c.label}</div>
+      <div class="cinema-stat-value text-lg font-bold text-cinema-testo-1 mt-3">${escapeHtml(c.value)}</div>
+      ${c.detail ? `<p class="text-xs text-cinema-testo-3 mt-1">${escapeHtml(c.detail)}</p>` : ''}
     </div>
   `).join('');
 
@@ -358,12 +347,12 @@ function renderStats() {
     .sort((a, b) => String(a.movie.title || '').localeCompare(String(b.movie.title || ''), 'it'));
   const timeline = document.getElementById('reviewTimeline');
   if (reviewed.length === 0) {
-    timeline.innerHTML = `<p class="text-xs text-slate-400 italic">Ancora nessun voto o recensione insieme.</p>`;
+    timeline.innerHTML = `<p class="text-xs text-slate-400 italic">Ancora nessun voto o recensione.</p>`;
   } else {
     timeline.innerHTML = reviewed.map(({ movie: m, text: review, score }) => `
       <div class="timeline-item">
         <div class="text-sm font-bold text-slate-100">${escapeHtml(m.title)}</div>
-        <div class="text-[11px] text-amber-300">Insieme${score !== null ? ` • ★ ${formatMovieRating(score)}/10` : ''}</div>
+        ${score !== null ? `<div class="text-xs text-amber-300">★ ${formatMovieRating(score)}/10</div>` : ''}
         ${review ? `<div class="text-xs text-slate-300 italic mt-1">“${escapeHtml(review)}”</div>` : ''}
       </div>
     `).join('');
@@ -399,10 +388,10 @@ function emptyListStateHtml() {
   const state = listFilterState();
   if (!hasActiveListFilters(state)) {
     const empty = {
-      all: ['fa-film', 'Il vostro cinema inizia qui', 'Aggiungete il primo film alla libreria.', 'Aggiungi un film', "openAddModal()"],
-      watchlist: ['fa-clapperboard', 'La lista è pronta', 'Aggiungete un film da scegliere insieme.', 'Aggiungi un film', "openAddModal()"],
+      all: ['fa-film', 'Lo scaffale è ancora vuoto', 'Aggiungi un film: il cartellone parte da lì.', 'Aggiungi un film', "openAddModal()"],
+      watchlist: ['fa-clapperboard', 'La lista è pronta', 'Manca il protagonista: aggiungi un film.', 'Aggiungi un film', "openAddModal()"],
       tonight: ['fa-calendar-plus', 'Nessuna serata in programma', 'Scegliete un film dalla lista e fissate la prossima serata.', 'Vai ai film da vedere', "setTab('watchlist')"],
-      watched: ['fa-ticket', 'Il vostro cinema è tutto da scrivere', 'Qui ritroverete i film visti e le recensioni.', 'Vai ai film da vedere', "setTab('watchlist')"]
+      watched: ['fa-ticket', 'I titoli di coda devono ancora scorrere', 'Qui finiscono i film visti, i voti e i commenti.', 'Vai ai film da vedere', "setTab('watchlist')"]
     }[currentTab] || ['fa-film', 'Nessun film', 'Aggiungi un film alla libreria.', 'Aggiungi un film', "openAddModal()"];
     return `<div class="empty-movie-state col-span-full">
       <span class="empty-movie-icon" aria-hidden="true"><i class="fa-solid ${empty[0]}"></i></span>
@@ -545,11 +534,11 @@ function renderDashboardHome() {
   const watchlist = document.getElementById('homeWatchlistCount');
   const waiting = movies.filter(m => m.status === 'watchlist').length;
   if (watchlist) watchlist.textContent = waiting
-    ? `${waiting} film aspettano la vostra scelta.` : 'La prossima storia la scegliete voi.';
+    ? `${waiting} film in attesa del ciak.` : 'La lista aspetta il primo titolo.';
   const watched = document.getElementById('homeWatchedCount');
   const seen = movies.filter(m => m.status === 'watched').length;
   if (watched) watched.textContent = seen
-    ? `${seen} ${seen === 1 ? 'film visto insieme' : 'film visti insieme'}.` : 'I film che vi sono rimasti.';
+    ? `${seen} ${seen === 1 ? 'film visto' : 'film visti'}.` : 'Qui finiscono i film già visti.';
 }
 
 function render() {
@@ -597,8 +586,8 @@ function render() {
   if (pageTitle) pageTitle.textContent = currentTab === 'calendar' ? 'Calendario'
     : currentTab === 'watched' ? 'Visti e recensioni' : 'Libreria';
   const pageEyebrow = document.getElementById('libraryPageEyebrow');
-  if (pageEyebrow) pageEyebrow.textContent = currentTab === 'calendar' ? 'LE VOSTRE SERATE'
-    : currentTab === 'watched' ? 'I FILM VISSUTI INSIEME' : 'I VOSTRI FILM';
+  if (pageEyebrow) pageEyebrow.textContent = currentTab === 'calendar' ? 'IL CARTELLONE'
+    : currentTab === 'watched' ? 'DOPO LA PROIEZIONE' : 'LO SCAFFALE DEI FILM';
   const libraryCount = document.getElementById('libraryCount');
   if (libraryCount) libraryCount.textContent = currentTab === 'calendar' ? ''
     : `${currentTab === 'watched' ? movies.filter(m => m.status === 'watched').length : movies.length} film`;

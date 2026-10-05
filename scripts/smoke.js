@@ -1743,7 +1743,7 @@ async function okA(name, fn) {
     movies.push({ id: 'stats-ghost', title: 'x', status: 'watched', genres: ['a<b'], rating: 5, review_text: '', review_by: 'both' });
     renderStats();
     const html = document.getElementById('statsGrid').innerHTML;
-    return html.indexOf('fa-clapperboard') !== -1
+    return html.indexOf('fa-trophy') !== -1
       && html.indexOf('fa-star') !== -1
       && html.indexOf('fa-tags') !== -1
       && html.indexOf('fa-users') !== -1
@@ -1781,8 +1781,8 @@ async function okA(name, fn) {
       ];
       renderStats();
       const html = document.getElementById('statsGrid').innerHTML;
-      return html.includes('Voto medio insieme') && html.includes('⭐ 4,0/10')
-        && !html.includes('⭐ 9,0/10');
+      return html.includes('Voto medio') && html.includes('4,0/10')
+        && !html.includes('9,0/10');
     } finally { movies = saved; }
   }));
   ok('Il Nostro Cinema: un biglietto per serata completata, incluso rewatch; annullate escluse', run(() => {
@@ -1861,10 +1861,10 @@ async function okA(name, fn) {
       movieNights = [{ movie_id: 'unseen', status: 'proposed' }];
       renderStats();
       const values = movieChemistryStats(movieNights, movies);
-      const html = document.getElementById('chemistryGrid').innerHTML;
+      const html = document.getElementById('statsGrid').innerHTML;
       return Object.values(values).every(value => value === 0)
-        && (html.match(/class="text-xl font-bold text-cinema-testo-1 mt-1">0</g) || []).length === 4
-        && html.includes('Film con voto insieme');
+        && (html.match(/data-stat=/g) || []).length === 4
+        && html.includes('Voto più alto') && !html.includes('Film con voto insieme');
     } finally { movies = oldMovies; movieNights = oldNights; }
   }));
   ok('Ricordi: solo recensioni e statistiche condivise, voto insieme zero anche senza testo', run(() => {
@@ -2312,7 +2312,7 @@ async function okA(name, fn) {
     currentTab = 'all';
     listQuery = '';
     render();
-    const plain = document.getElementById('movieGrid').innerHTML.includes('Il vostro cinema inizia qui');
+    const plain = document.getElementById('movieGrid').innerHTML.includes('Lo scaffale è ancora vuoto');
     currentTab = 'tonight'; render();
     const night = document.getElementById('movieGrid').innerHTML.includes('Nessuna serata in programma');
     currentTab = 'all';
@@ -2544,7 +2544,7 @@ async function okA(name, fn) {
     movieNights = [{ id: 'decimal-history', movie_id: 'decimal-stats1', status: 'completed', date: '2026-10-05' }];
     try {
       renderStats();
-      return document.getElementById('statsGrid').innerHTML.includes('⭐ 4,2/10')
+      return document.getElementById('statsGrid').innerHTML.includes('4,2/10')
         && document.getElementById('reviewTimeline').innerHTML.includes('8,3/10')
         && document.getElementById('nightHistory').innerHTML.includes('8,3/10');
     } finally { movies = previous; movieNights = nights; currentUser = user; }
@@ -2669,8 +2669,67 @@ async function okA(name, fn) {
       return html.includes('shared-vote-action') && html.includes('Modifica voto ' + joint)
         && html.includes(joint + ' <i class="fa-solid fa-star" aria-hidden="true"></i> 8,3/10')
         && html.includes('Recensione ' + joint) && !html.includes('Modifica voto insieme')
-        && document.getElementById('statsGrid').innerHTML.includes('Voto medio insieme');
+        && document.getElementById('statsGrid').innerHTML.includes('Voto medio');
     } finally { movies = previous; currentUser = user; currentTab = tab; }
+  }));
+
+  ok('Ricordi: quattro indicatori distinti, niente conteggi duplicati, N+V nello storico senza ripetere insieme nei voti', run(() => {
+    const previous = movies, nights = movieNights;
+    movies = [{ id: 'lean-stats', title: 'Film', status: 'watched', seen_rating_together: 8.3, review_text_together: 'Bello' }];
+    movieNights = [{ id: 'lean-night', movie_id: 'lean-stats', status: 'completed', date: '2026-10-05' }];
+    try {
+      renderStats();
+      const cards = document.getElementById('statsGrid').innerHTML;
+      const reviews = document.getElementById('reviewTimeline').innerHTML;
+      const history = document.getElementById('nightHistory').innerHTML;
+      return (cards.match(/data-stat=/g) || []).length === 4
+        && ['Voto medio', 'Voto più alto', 'Genere più visto', 'Film aggiunti'].every(label => cards.includes(label))
+        && ['Film visti insieme', 'Film diversi visti', 'Film con voto insieme'].every(label => !cards.includes(label))
+        && reviews.includes('★ 8,3/10') && !reviews.includes('Insieme') && !reviews.includes(' • ')
+        && history.includes(escapeHtml(sharedPeopleLabel()) + ' <i class="fa-solid fa-star" aria-hidden="true"></i> 8,3/10');
+    } finally { movies = previous; movieNights = nights; }
+  }));
+  ok('voto più alto: condiviso, decimali, pari voto, zero e titolo escapato senza svelare sorprese', run(() => {
+    const previous = movies, user = currentUser; currentUser = 'N';
+    movies = [
+      { id: 'highest', title: '<Film migliore>', status: 'watched', seen_rating_together: 8.3 },
+      { id: 'low', title: 'Secondo', status: 'watched', seen_rating_together: 8.2 },
+      { id: 'solo', title: 'Personale', status: 'watchlist', seen_rating_n: 10 },
+      { id: 'hidden', title: 'TITOLO SEGRETO', status: 'watched', surprise_by: 'V', seen_rating_together: 10 }
+    ];
+    const highest = () => document.getElementById('statsGrid').innerHTML.match(/data-stat="highest">([\s\S]*?)<\/div>\s*<\/div>/)?.[1] || '';
+    try {
+      renderStats();
+      const first = highest().includes('8,3/10') && highest().includes('&lt;Film migliore&gt;')
+        && !highest().includes('<Film migliore>') && !highest().includes('TITOLO SEGRETO');
+      movies[1].seen_rating_together = 8.3; renderStats();
+      const tied = highest().includes('2 film a pari voto');
+      movies = [{ title: 'Zero valido', status: 'watched', seen_rating_together: 0 }]; renderStats();
+      const zero = highest().includes('0/10') && highest().includes('Zero valido');
+      movies = [{ title: 'Solo personale', status: 'watched', seen_rating_n: 10 }]; renderStats();
+      return first && tied && zero && highest().includes('—') && !highest().includes('10/10');
+    } finally { movies = previous; currentUser = user; }
+  }));
+  ok('recensioni condivise: solo testo senza riga voto vuota, zero visibile e testo protetto', run(() => {
+    const previous = movies;
+    movies = [{ title: 'Solo testo', status: 'watched', review_text_together: '<Recensione>' },
+      { title: 'Solo voto', status: 'watched', seen_rating_together: 0 }];
+    try {
+      renderStats();
+      const html = document.getElementById('reviewTimeline').innerHTML;
+      return html.includes('&lt;Recensione&gt;') && !html.includes('<Recensione>')
+        && html.includes('★ 0/10') && (html.match(/text-amber-300/g) || []).length === 1 && !html.includes('Insieme');
+    } finally { movies = previous; }
+  }));
+
+  ok('media voti decimali: arrotondamento al decimo corretto sui mezzi, senza errore floating point', run(() => {
+    const previous = movies;
+    movies = [{ status: 'watched', seen_rating_together: 9.1 }, { status: 'watched', seen_rating_together: 0 }];
+    try {
+      renderStats();
+      const html = document.getElementById('statsGrid').innerHTML;
+      return html.includes('4,6/10') && !html.includes('4,5/10');
+    } finally { movies = previous; }
   }));
 
   console.log('\n[phase8.1 — stato di visione sulle card]');
@@ -3320,7 +3379,7 @@ async function okA(name, fn) {
       renderDashboardHome();
       return document.getElementById('sceltaTitle').textContent === `Ciao, ${CONFIG.PEOPLE.N.label}.`
         && document.getElementById('homeWatchlistCount').textContent.startsWith('1 film')
-        && document.getElementById('homeWatchedCount').textContent === '1 film visto insieme.';
+        && document.getElementById('homeWatchedCount').textContent === '1 film visto.';
     } finally { currentUser = prevUser; movies = prevMovies; }
   }));
 
