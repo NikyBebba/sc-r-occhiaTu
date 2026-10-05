@@ -2764,13 +2764,13 @@ async function okA(name, fn) {
   }));
 
   console.log('\n[renderScheduled — dedup next night]');
-  ok('scheduledList: una serata con pick → niente doppione (lista vuota)', run(() => {
+  ok('scheduledList: una serata con pick → niente doppione e pannello nascosto', run(() => {
     const savedM = movies, savedN = movieNights;
     movies = [{ id: 'ma', title: 'M A', status: 'tonight', scheduled_date: '2026-10-24', scheduled_time: '21:30', added_by: 'N', platform: 'P', poster: '' }];
     movieNights = [{ id: 'n1', movie_id: 'ma', date: '2026-10-24', time: '21:30', status: 'confirmed', proposed_by: 'N' }];
     renderScheduled();
     const html = document.getElementById('scheduledList').innerHTML;
-    const okR = html.indexOf('M A') === -1;
+    const okR = html.indexOf('M A') === -1 && document.getElementById('scheduledPanel').classList.contains('hidden');
     movies = savedM; movieNights = savedN;
     return okR;
   }));
@@ -2786,7 +2786,8 @@ async function okA(name, fn) {
     ];
     renderScheduled();
     const html = document.getElementById('scheduledList').innerHTML;
-    const okR = html.indexOf('M B') !== -1 && html.indexOf('M A') === -1;
+    const okR = html.indexOf('M B') !== -1 && html.indexOf('M A') === -1
+      && !document.getElementById('scheduledPanel').classList.contains('hidden');
     movies = savedM; movieNights = savedN;
     return okR;
   }));
@@ -2806,17 +2807,18 @@ async function okA(name, fn) {
     movieNights = [{ id: 'n1', movie_id: 'ma', date: '2026-10-24', time: '21:30', status: 'confirmed', proposed_by: 'N' }];
     renderScheduled();                         // secondo render: solo pick → vuoto
     const after = document.getElementById('scheduledList').innerHTML;
-    const okR = before.indexOf('M B') !== -1 && after === '';
+    const okR = before.indexOf('M B') !== -1 && after === ''
+      && document.getElementById('scheduledPanel').classList.contains('hidden');
     movies = savedM; movieNights = savedN;
     return okR;
   }));
-  ok('scheduledList: nulla di datato → "Nessun film programmato."', run(() => {
+  ok('scheduledList: nulla di datato → pannello nascosto', run(() => {
     const savedM = movies, savedN = movieNights;
     movies = [{ id: 'ma', title: 'M A', status: 'tonight', scheduled_date: null, added_by: 'N', platform: 'P', poster: '' }];
     movieNights = [{ id: 'n1', movie_id: 'ma', date: null, time: null, status: 'confirmed', proposed_by: 'N' }];
     renderScheduled();
     const html = document.getElementById('scheduledList').innerHTML;
-    const okR = html.indexOf('Nessun film programmato.') !== -1;
+    const okR = html === '' && document.getElementById('scheduledPanel').classList.contains('hidden');
     movies = savedM; movieNights = savedN;
     return okR;
   }));
@@ -2852,7 +2854,7 @@ async function okA(name, fn) {
     movies = savedM; movieNights = savedN;
     return okR;
   }));
-  ok('scheduledList: nessun altro caso cambia (watched+watchlist → solo watchlist; quick-only → messaggio)', run(() => {
+  ok('scheduledList: watched+watchlist → solo watchlist; quick-only → pannello nascosto', run(() => {
     const savedM = movies, savedN = movieNights;
     movies = [
       { id: 'm1', title: 'Seen', status: 'watched', scheduled_date: '2026-10-20', added_by: 'N', platform: 'P', poster: '' },
@@ -2866,7 +2868,7 @@ async function okA(name, fn) {
     movieNights = [{ id: 'nq', movie_id: 'q1', date: null, time: null, status: 'confirmed', proposed_by: 'N' }];
     renderScheduled();
     const quick = document.getElementById('scheduledList').innerHTML;
-    const ok2 = quick.indexOf('Nessun film programmato.') !== -1;
+    const ok2 = quick === '' && document.getElementById('scheduledPanel').classList.contains('hidden');
     movies = savedM; movieNights = savedN;
     return ok1 && ok2;
   }));

@@ -737,6 +737,7 @@ function render() {
 
 function renderScheduled() {
   const container = document.getElementById('scheduledList');
+  const panel = document.getElementById('scheduledPanel');
   container.innerHTML = '';
   // Dedup: il box "Prossimo Film" mostra già la serata corrente (da movie_nights).
   // Qui restano le ALTRE serate datate. I film legacy (scheduled_date senza riga
@@ -745,9 +746,8 @@ function renderScheduled() {
   const pick = tonightPick() || nextMoviePick();
   const pickId = (pick && activeNights().length > 0) ? pick.id : null;
   const scheduled = movies.filter(m => m.scheduled_date && m.status !== 'watched' && m.id !== pickId);
+  if (panel) panel.classList.toggle('hidden', scheduled.length === 0);
   if (scheduled.length === 0) {
-    const anyDated = movies.some(m => m.scheduled_date && m.status !== 'watched');
-    container.innerHTML = anyDated ? '' : `<p class="text-xs text-slate-400 italic">Nessun film programmato.</p>`;
     return;
   }
   scheduled.forEach(m => {

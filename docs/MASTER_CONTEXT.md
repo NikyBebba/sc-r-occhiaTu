@@ -2,6 +2,10 @@
 
 Ultimo aggiornamento: 5 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
 
+Navigazione essenziale — «Sorpresa» non occupa più la barra principale: resta disponibile come azione secondaria nel pannello della Ruota. La barra mobile mostra Ricordi e Aggiungi; la funzione e il flusso sorpresa restano invariati. «Ricordi» apre «Il Nostro Cinema» con storico, recensioni e statistiche, ed è leggibile anche su smartphone. Un'eventuale sezione futura per gli extra giocosi è solo un'idea, non implementata. Cache PWA `v33`.
+
+Passata mobile successiva al checkpoint `ef9dba1` — Input, select e textarea usano almeno 16 px su schermi sotto 640 px per evitare lo zoom automatico su iPhone. Filtri della Ruota, apertura dei filtri della libreria, inversione ordinamento e pulsanti dei modali hanno target tattili da almeno 44 px. Le righe dello storico serate sono più leggibili; i modali rispettano l'area sicura inferiore. Il riquadro «Altre serate» compare solo se contiene serate aggiuntive rispetto alla prossima mostrata nel hero. Cache PWA `v31`. Verifica visiva su smartphone ancora da fare.
+
 Aggiornamento navigazione — «Importa» non occupa più un posto nella barra principale: la funzione resta disponibile come link discreto nel form «Aggiungi un Film». Su mobile la barra usa tre azioni: Cinema, Sorpresa e Aggiungi. Cache PWA `v30`.
 
 Aggiornamento recensioni — Il form permette di assegnare o modificare un voto 0–10 insieme al testo, con errori di validazione e salvataggio visibili. La recensione insieme usa `movies.seen_rating_together`, separato da `seen_rating_n/v`. Il luogo facoltativo vive su `movie_nights.location`, quindi ogni rewatch conserva il proprio. Entrambe le migration additive (`database/supabase-migration-step-review-together.sql` e `database/supabase-migration-step-night-location.sql`) sono state applicate dall'utente; le due colonne sono state verificate via REST in sola lettura (HTTP 200). I film già visti espongono l’azione per aggiungere o modificare la recensione insieme; la scheda film la espone per le serate e i film visti. Anche il form «L’ho già visto» collega direttamente alla recensione insieme. Il luogo si corregge nel form della recensione, scegliendo la serata quando esistono rewatch; lo storico lo mostra senza pulsanti di modifica. «Il Nostro Cinema» calcola il voto medio solo dai voti condivisi dei film visti insieme, includendo 0/10 e ignorando i voti personali. Una recensione nuova senza serata programmata crea un evento completato al momento del salvataggio; se una recensione legacy non ha una serata storica, l’aggiunta del luogo crea un evento senza data registrata. Modificare una recensione conserva la data della serata storica e non conclude un rewatch attivo. Cache PWA `v29`. Smoke locale **327/327 PASS**.
@@ -80,9 +84,9 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 - Login differenziato N/V via PIN individuale, badge utente, logout
 - CRUD film, import bulk (JustWatch non ha export ufficiale → copia manuale); l'aggiunta singola cerca anche titoli omonimi e blocca con avviso soltanto l'ID TMDb già presente, l'import dalla UI salta gli ID duplicati nel riepilogo
-- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v30`), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
+- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v33`), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
 - **Design system** (Foundation): token CSS (`--color-*`, `--radius-*`, `--shadow-*`, `--duration-*`, `--ease-*`, `--fs-*`), tipografia Plus Jakarta Sans, otto temi con anteprima e preferenza locale (Cinema, Cinema Noir, VHS e cinque stagionali), `.glass-panel`/`.glass-card`, accessibilità baseline (focus-visible, ARIA su modali/segmented, `prefers-reduced-motion` globale). Le varianti cromatiche seguono le superfici principali e la Ruota; verifica visiva su smartphone ancora da fare.
-- **Header/nav**: barra mobile in due livelli con tema e persona sopra, Cinema/Sorpresa/Aggiungi sotto. «Importa» è un link secondario nel form di aggiunta singola. La dashboard ospita una CTA Match Live autonoma; la libreria ha cinque viste in un selettore nativo su mobile e nel segmented control su desktop. Match occupa la larghezza disponibile con ritorno alla vista precedente.
+- **Header/nav**: barra mobile in due livelli con tema e persona sopra, Ricordi/Aggiungi sotto. «Ricordi» apre «Il Nostro Cinema» e ha testo visibile anche su mobile. «Sorpresa» è un'azione secondaria nel pannello Ruota; «Importa» è un link nel form di aggiunta singola. La dashboard ospita una CTA Match Live autonoma; la libreria ha cinque viste in un selettore nativo su mobile e nel segmented control su desktop. Match occupa la larghezza disponibile con ritorno alla vista precedente.
 - **Match CTA**: stati idle/online/live letti solo da `matchChannelStatus`/`lobbyPresenceState`/`dbMode`/`currentTab` (nessuno stato duplicato); si aggiorna a ogni render, non su ogni evento presence in tempo reale se si è fermi su un altro tab (limite noto, accettato)
 - **Home CTA "Cosa guardiamo?"**: Match Live apre la sua vista dedicata; Ruota e Sfoglia la lista portano alle rispettive sezioni, senza nuovi stati di scelta
 - **Movie Card "biglietto cinema"** (`.movie-ticket`): bordo con effetto perforato, scrim sul poster, badge paternità come person-pill, rating "holographic" quando presente. Il footer su `watched` ora offre «Modifica recensione insieme»; lo status ignoto non mostra un footer vuoto. Gli indicatori N/V sono neutri, blu/rosa per visioni singole o separate, oro per la visione insieme. «L'ho già visto» apre il voto personale e collega alla recensione insieme. I voti 👍/👎 legacy non compaiono più sulle card.
@@ -105,7 +109,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - **Match Live** completo: lobby con presence, sessioni swipe Tinder-like con deck seedato, match detection, replay; tabelle `swipe_sessions` + `swipes`; realtime a 2 canali. Non scrive su `votes`. **Non modificare questa logica nel redesign: i pollici non entrano nel Match Live, che continua a usare esclusivamente lo swipe.**
 - Veto settimanale (1/persona/settimana), rimovibile solo dal proprietario, realtime su vetoes
 - Snack picker con opzione personalizzata (salvata in `movie_nights.snack`; gli snack già usati tornano fra le scelte su entrambi i telefoni, senza nuova tabella)
-- Modalità sorpresa (bottone regalo in navbar, modale, `surprise_by`, blur CSS, badge "tua sorpresa")
+- Modalità sorpresa (azione secondaria nella Ruota, modale, `surprise_by`, blur CSS, badge "tua sorpresa")
 - Smoke test locale: **327/327 PASS**; `scripts/verify-sw.js`: **12/12 PASS**. Il percorso storico dei test precedenti resta nella cronologia Git.
 
 ---
@@ -144,7 +148,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 31 — Accessibility baseline ✅
 
 ### ✅ PWA (COMPLETA)
-- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v30` nell'ultimo ciclo UI), toast di aggiornamento ✅
+- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v33` nell'ultimo ciclo UI), toast di aggiornamento ✅
 - Verificato: nessuna richiesta Supabase/TMDb/OMDb/poster/YouTube passa mai dalla cache (nessun `respondWith` su quei domini)
 
 ### STEP 2 — Core Layout (Phase 8.2 implementata)
@@ -202,6 +206,8 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 35 — Lightweight Gamification (Awards, no leaderboard)
 - Phase 36 — Poster Flip (dati `cast_names`/`overview` ora pronti da Step 3)
 - Phase 37 — Advanced Recommendation
+- Phase 38 — Voti decimali da tastierino (**idea, non implementata**): sostituire i menu 0–10 con un campo numerico per voto personale e condiviso, con tastierino mobile `inputmode="decimal"` e separatore decimale disponibile. Accettare `8.3` e `7,8`, normalizzare il valore e validare 0–10 con una cifra decimale. Prima dell'implementazione definire una migration additiva/alterazione verificata per `seen_rating_n`, `seen_rating_v` e `seen_rating_together`, oggi `smallint`, e adeguare salvataggio, statistiche, fallback legacy e test. Non cambiare il data model senza una fase dedicata.
+- Phase 39 — Spazio «Extra» (**idea, non implementata**): eventuale sezione compatta per le funzioni giocose usate di rado, a partire dalla Sorpresa; decidere contenuti e posizione dopo la verifica dell'uso reale. La Ruota resta centrale nella scelta del film.
 
 ---
 
