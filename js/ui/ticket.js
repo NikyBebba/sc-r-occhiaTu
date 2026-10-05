@@ -348,8 +348,7 @@ async function downloadTicket(movieId, origin) {
   const hidden = movie.surprise_by && movie.surprise_by !== currentUser;
   const img = await loadTicketPoster(hidden ? null : movie.poster);
   const night = activeNightForMovie(movieId);
-  const ticketMovie = night ? { ...movie, scheduled_date: night.date, scheduled_time: night.time,
-    snack: night.snack, location: night.location, proposed_by: night.proposed_by, status: 'tonight' } : movie;
+  const ticketMovie = night ? { ...movieProjection(movie, night), status: 'tonight' } : movie;
   const visibleMovie = hidden ? { ...ticketMovie, title: 'Film a sorpresa', poster: null, release_year: null, duration: null, platform: null } : ticketMovie;
   const canvas = drawTicketCanvas(visibleMovie, origin, pct, img);
   downloadTicketCanvas(canvas, ticketFileName(visibleMovie));

@@ -39,6 +39,8 @@ Il progetto usa **HTML, JavaScript vanilla ES6 e CSS**, senza framework o bundle
 
 La distinzione centrale è **film = contenuto, serata = evento**. Uno stesso film può avere più serate, senza perdere le date e i luoghi dei rewatch. I voti appartengono al film e restano separati tra personali e condiviso.
 
+I dettagli delle proiezioni sono letti dagli eventi `movie_nights`; i vecchi campi di programmazione sul film restano come mirror e fallback durante la transizione. Il precedente sistema di like/dislike `votes` è conservato per compatibilità e non alimenta l'interfaccia o il Match Live. [Audit e piano di dismissione](docs/DATA_MODEL_TRANSITION.md).
+
 L'implementazione attuale gestisce **uno spazio con due profili preconfigurati** e ingresso tramite PIN lato client. Non include registrazione o gestione di gruppi indipendenti. I profili e la configurazione dei servizi sono in `js/config.js`; chiavi e PIN non vanno riportati in documentazione o log. Il PIN è un deterrente locale, non un sistema di autenticazione server; le policy Supabase pubbliche fanno parte del modello attuale.
 
 ## Avvio locale
@@ -66,9 +68,12 @@ Aprire `http://localhost:8000`. Non è richiesto un passaggio di build. Per una 
 ```sh
 node scripts/smoke.js
 node scripts/verify-sw.js
+node scripts/audit-data-model.js --live
 ```
 
-Checkpoint del 5 ottobre 2026: **379/379 smoke test** e **15/15 controlli del service worker** superati, controlli sintassi e diff senza errori. Cache PWA `v46`. Store, azioni e renderer sono separati per dominio mantenendo le API esistenti. Proiezioni, cinema, voti e Ricordi sono stati verificati anche in Chromium con dati di prova a larghezze mobile e tablet; le verifiche precedenti di login, home e saghe sono documentate nel master context.
+Checkpoint del 5 ottobre 2026: **391/391 smoke test** e **15/15 controlli del service worker** superati, controlli sintassi e diff senza errori. Cache PWA `v47`. Store, azioni e renderer sono separati per dominio mantenendo le API esistenti. Proiezioni, cinema, voti e Ricordi sono stati verificati anche in Chromium con dati di prova a larghezze mobile e tablet; 144 scenari DOM coincidono con la baseline sui dati coerenti. Le verifiche precedenti di login, home e saghe sono documentate nel master context.
+
+L'audit esegue solo letture e stampa conteggi aggregati; accetta anche `--file=fixture.json` per dati di prova. Nel ciclo corrente non sono stati migrati o cancellati dati, né eseguiti push/deploy.
 
 La migration dei voti decimali è stata applicata sull'istanza di riferimento. Restano da verificare su due telefoni reali il tastierino nativo e la sincronizzazione degli ultimi flussi di voti, recensioni, saghe e proiezioni. Il dettaglio delle verifiche, delle migration e dei limiti è nel [master context](docs/MASTER_CONTEXT.md).
 

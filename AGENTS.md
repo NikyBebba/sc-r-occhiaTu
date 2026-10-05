@@ -42,7 +42,8 @@ chiare le distinzioni tra voto personale e condiviso e i messaggi d'errore.
 - **Tailwind CSS via CDN Play** + `css/style.css` custom;
 - **Font Awesome via CDN**;
 - **@supabase/supabase-js v2 via CDN** (tabelle: `movies`, `votes`, `vetoes`,
-  `movie_nights`, RLS aperte, **Realtime**: postgres_changes su tutte e 4);
+  `movie_nights`, RLS aperte, **Realtime core**: movies/vetoes/movie_nights;
+  votes resta legacy opzionale, senza binding nel nuovo client);
 - **TMDb API v3** (`language=it-IT`) per ricerca, dettagli, provider, trailer;
 - **OMDb API** come fallback e per rating (IMDb / RT / Metacritic);
 - **localStorage** come fallback offline di Supabase (mirror + modalità
@@ -56,7 +57,7 @@ NON introdurre framework/bundler/backend senza autorizzazione.
 Flusso di caricamento dei moduli (ordine in `index.html`):
 
 ```
-theme (head) → config → format → haptics → audio → api(omdb+tmdb → index) → store + store/{movies,viewing,choices,nights,match} → match → filters → wheel → ui(modals+navigation+actions e domini+sagas+render e domini+calendar+match+ticket+loading) → main
+theme (head) → config → format → haptics → audio → api(omdb+tmdb → index) → store + store/{movies,viewing,legacy,choices,nights,match} → match → filters → wheel → ui(modals+navigation+actions e domini+sagas+render e domini+calendar+match+ticket+loading) → main
 ```
 
 - `js/config.js` — chiavi runtime (TMDb/OMDb/Supabase) + `PEOPLE` (label + PIN).
@@ -72,8 +73,9 @@ theme (head) → config → format → haptics → audio → api(omdb+tmdb → i
 - `js/store.js` — client, stato globale, letture Supabase/localStorage,
   mirror, fallback e **Realtime core centralizzato**. I domini estratti
   conservano le API globali: `store/movies.js` (CRUD, dedup e sorpresa),
-  `store/viewing.js` (visioni, voti e recensioni), `store/choices.js`
-  (voti legacy e veto), `store/nights.js` (serate e pick),
+  `store/viewing.js` (visioni, voti e recensioni), `store/legacy.js`
+  (votes opzionale e API obsolete), `store/choices.js` (veto),
+  `store/nights.js` (serate, pick e adattatori proiezione),
   `store/match.js` (sessioni/swipe, canale Match e presence).
   (`subscribeRealtime`/`unsubscribeRealtime`: il canale del CORE è unico;
   il Match "live" usa un canale separato e temporaneo `scorochiatu-match`,
@@ -126,6 +128,9 @@ theme (head) → config → format → haptics → audio → api(omdb+tmdb → i
 - `scripts/smoke.js` — harness smoke-test (`node scripts/smoke.js`): carica
   tutti i moduli con DOM stub, verifica guardie/load, serate su `movie_nights`,
   vote/veto/sorpresa/recensione, metadati TMDb live, anti-XSS. Atteso green.
+- `scripts/audit-data-model.js` — audit solo GET paginati (`--live`) o fixture
+  (`--file=...`), output aggregato senza ID/titoli/credenziali. Distingue legacy
+  senza eventi, mirror divergenti/chiusi, multi-eventi e date mancanti; non migra.
 - `data/movie-watchlist.json` — lista ufficiale titoli (source of truth), N: 116
   + V: 15 = 131.
 
@@ -195,7 +200,7 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 ├── js/
 │   ├── config.js, format.js, theme.js, audio.js, haptics.js
 │   ├── store.js, match.js, filters.js, wheel.js, main.js
-│   ├── store/{movies,viewing,choices,nights,match}.js
+│   ├── store/{movies,viewing,legacy,choices,nights,match}.js
 │   ├── api/{omdb,tmdb,index}.js
 │   └── ui/
 │       ├── {modals,navigation,actions,sagas,render,calendar,match,ticket,loading}.js
@@ -231,7 +236,11 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
     sul film (`scheduled_*`, `proposed_by`, `night_confirmed`) restano
     alimentati in scrittura per compatibilità (strategia B), così vecchi
     dati/render continuano a funzionare.
-- `votes(id, movie_id FK, person, liked, unique(movie_id,person))`.
+- `votes(id, movie_id FK, person, liked, unique(movie_id,person))`: like/dislike
+  dismessi dalla UI, distinti dai voti decimali e dal Match Live. Snapshot/API
+  legacy preservati; errori di lettura/cache non degradano film e serate.
+  Non entra nella firma render né nel Realtime core. Non droppare/cancellare
+  senza verificare client, copie offline e archivio.
 - `vetoes(id, person, movie_id FK, week_key 'YYYY-W##', unique(person,
   week_key))`.
 - `movie_nights(id, movie_id FK, date, time, snack, proposed_by, status,
@@ -247,7 +256,7 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 ## UX principles
 
 - Due utenti, due telefoni: ogni azione di uno si riflette sull'altro via
-  **Realtime** (postgres_changes su movies/votes/vetoes/movie_nights) con
+  **Realtime core** (postgres_changes su movies/vetoes/movie_nights) con
   resync silenzioso e render solo su cambiamento reale; il refetch post-azione
   resta come rete di sicurezza.
 - Dark cinema, glass cards, accent indigo/sky, ruota + confetti + sorpresa
@@ -300,7 +309,7 @@ Per le priorità precise leggere il master context aggiornato.
 ## Vincoli tecnici
 
 - Dipendenze ancora via CDN (Tailwind Play, Font Awesome, supabase-js).
-- PWA presente: manifest e service worker, cache corrente `v46`; domini API,
+- PWA presente: manifest e service worker, cache corrente `v47`; domini API,
   Supabase, poster e YouTube sempre esclusi dall'intercettazione. Le icone PWA
   sono provvisorie; non confondere l'app-shell offline con dati remoti disponibili.
 - HTML delle card generato come stringhe: usare `escapeHtml`/`jsAttrEscape`
@@ -357,10 +366,17 @@ Per le priorità precise leggere il master context aggiornato.
 - Consolidation & Architecture: domini estratti incrementalmente da store,
   actions e render; stato globale e API esistenti conservati, nessuna modifica
   ad autenticazione/schema/UX. Mappa e dipendenze nel master context.
-- `node scripts/smoke.js`: **379/379 PASS** dopo ogni refactor; service worker
+- Transizione dati: adattatori event-first per proiezioni, mirror e status film
+  conservati; votes isolato/opzionale. [Inventario e limiti](docs/DATA_MODEL_TRANSITION.md).
+  Nessuna migration, cancellazione, scrittura DB reale, push o deploy.
+- Audit live: 94 film (93 watchlist, 1 watched), 30 serate (29 cancelled,
+  1 completed), 1 voto legacy; nessun evento attivo. Conteggi osservati,
+  non una prova del dual-write attivo o delle copie locali dei telefoni.
+- `node scripts/smoke.js`: **391/391 PASS**; service worker
   **15/15 PASS**, inclusa copertura offline dei nuovi moduli; controlli
-  sintassi e diff check superati, cache PWA `v46`.
-- Confronto baseline: 159 API conservate e 144 scenari DOM identici.
+  sintassi e diff check superati, cache PWA `v47`.
+- Confronto baseline corrente: 343 funzioni conservate e 144 scenari DOM identici
+  sui dati coerenti; mirror divergente coperto da test dedicato.
   Chromium con fixture per proiezioni/cinema/Ricordi a 320/390/768 px,
   recensioni N/V a 320/390 px, zero errori JS e overflow rilevato.
 - Baseline browser precedente: Chromium con fixture a 320/390/768 px per login/PIN/home, voti e Ricordi;

@@ -69,19 +69,6 @@ async function deleteMovie(id) {
   }
 }
 
-// ---- Proposte in app (un film proposto da uno, da accettare dall'altro) ----
-async function proposeMovie(movieData, proposedBy) {
-  await insertMovie({ ...movieData, status: 'proposal', proposed_by: proposedBy, added_by: proposedBy });
-}
-
-async function acceptProposal(id) {
-  await updateMovie(id, { status: 'watchlist' });
-}
-
-async function rejectProposal(id) {
-  await deleteMovie(id);
-}
-
 // ---- Modalità sorpresa ----
 async function setSurprise(id, person) {
   await updateMovie(id, { surprise_by: person });

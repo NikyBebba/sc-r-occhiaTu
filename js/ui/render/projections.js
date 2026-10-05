@@ -100,9 +100,7 @@ function projectionActionsHtml(pick) {
 
 function projectionInfoHtml(movie) {
   const night = activeNightForMovie(movie.id);
-  const pick = night ? { ...movie, scheduled_date: night.date, scheduled_time: night.time,
-    nightId: night.id, snack: night.snack, location: night.location, proposed_by: night.proposed_by,
-    night_confirmed: night.status === 'confirmed' } : { ...movie };
+  const pick = movieProjection(movie, night);
   if (movie.surprise_by && movie.surprise_by !== currentUser) pick.title = 'Film a sorpresa';
   const pending = pick.proposed_by && !pick.night_confirmed;
   return `<div class="projection-card-info"><p><i class="fa-solid ${pending ? 'fa-hourglass-half' : 'fa-calendar-check'}" aria-hidden="true"></i> ${pending ? 'Proposta da confermare' : 'Proiezione in programma'} · ${escapeHtml(formatNightDate(pick.scheduled_date, pick.scheduled_time))}</p>
@@ -120,11 +118,9 @@ function renderScheduled() {
   const entries = active.filter(n => n.id !== pick?.nightId)
     .map(n => {
       const movie = movies.find(m => m.id === n.movie_id);
-      return movie ? { ...movie, nightId: n.id, scheduled_date: n.date,
-        scheduled_time: n.time, snack: n.snack, location: n.location,
-        proposed_by: n.proposed_by, night_confirmed: n.status === 'confirmed' } : null;
+      return movie ? movieProjection(movie, n) : null;
     }).filter(Boolean);
-  // Mirror legacy solo per film senza evento attivo, mai per eventi conclusi.
+  // Fallback legacy solo per film senza alcun evento, neppure concluso.
   entries.push(...movies.filter(m => m.scheduled_date && m.status !== 'watched'
     && !movieNights.some(n => n.movie_id === m.id)));
   entries.sort((a, b) => (a.scheduled_date || '').localeCompare(b.scheduled_date || ''));

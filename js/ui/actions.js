@@ -205,6 +205,7 @@ async function bulkImportMovies() {
   }, unmatchedTitles.length || skippedTitles.length ? 3500 : 900);
 }
 
+// API di compatibilità senza chiamanti UI: le proiezioni usano store/nights.
 async function updateStatus(id, newStatus) {
   await updateMovie(id, { status: newStatus });
   loadMovies();

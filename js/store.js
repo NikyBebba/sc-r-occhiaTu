@@ -8,7 +8,7 @@ if (CONFIG.SUPABASE_URL && CONFIG.SUPABASE_URL.startsWith('http') &&
 }
 
 let movies = [];
-let votes = [];   // { id, movie_id, person, liked }
+let votes = [];   // snapshot legacy, solo per compatibilità (store/legacy.js)
 let vetoes = [];  // { id, person, movie_id, week_key }
 let movieNights = []; // { id, movie_id, date, time, snack, location, proposed_by, status, ... }
 
@@ -42,7 +42,7 @@ function saveLocal() {
 
 function loadLocal() {
   movies = JSON.parse(localStorage.getItem('scorochiatu_movies') || '[]');
-  votes = JSON.parse(localStorage.getItem('scorochiatu_votes') || '[]');
+  votes = readLegacyVotesMirror();
   vetoes = JSON.parse(localStorage.getItem('scorochiatu_vetoes') || '[]');
   movieNights = JSON.parse(localStorage.getItem('scorochiatu_movie_nights') || '[]');
   if (!Array.isArray(movieNights)) movieNights = [];
@@ -53,18 +53,18 @@ function loadLocal() {
 async function fetchAll() {
   if (!sb) return null;
   if (dbMode === 'local' && Date.now() - lastSupabaseFailAt < SUPABASE_RETRY_MS) return null;
-  const [moviesRes, votesRes, vetoesRes, nightsRes] = await Promise.all([
+  const [moviesRes, legacyVotes, vetoesRes, nightsRes] = await Promise.all([
     sb.from('movies').select('*').order('created_at', { ascending: false }),
-    sb.from('votes').select('*'),
+    fetchLegacyVotes(),
     sb.from('vetoes').select('*'),
     sb.from('movie_nights').select('*').order('created_at', { ascending: false })
   ]);
-  const coreFailed = moviesRes.error || votesRes.error || vetoesRes.error;
+  const coreFailed = moviesRes.error || vetoesRes.error;
   if (coreFailed) {
     dbMode = 'local';
     lastSupabaseFailAt = Date.now();
     console.error('[sc(r)occhiaTu] Errore lettura Supabase — attivo modalità locale (fallback).',
-      { movies: moviesRes.error, votes: votesRes.error, vetoes: vetoesRes.error, nights: nightsRes.error });
+      { movies: moviesRes.error, vetoes: vetoesRes.error, nights: nightsRes.error });
     return null;
   }
   dbMode = 'supabase';
@@ -84,14 +84,15 @@ async function fetchAll() {
   }
   return {
     movies: moviesRes.data || [],
-    votes: votesRes.data || [],
+    votes: legacyVotes,
     vetoes: vetoesRes.data || [],
     nights
   };
 }
 
 function dataSignature() {
-  return JSON.stringify([movies, votes, vetoes, movieNights]);
+  // I vecchi like/dislike non sono rappresentati da alcuna vista corrente.
+  return JSON.stringify([movies, vetoes, movieNights]);
 }
 
 async function loadMovies() {
@@ -141,7 +142,6 @@ function subscribeRealtime() {
   const channel = sb
     .channel('scorochiatu-db-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'movies' }, onDbChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'votes' }, onDbChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'vetoes' }, onDbChange);
   if (movieNightsAvailable) {
     channel.on('postgres_changes', { event: '*', schema: 'public', table: 'movie_nights' }, onDbChange);

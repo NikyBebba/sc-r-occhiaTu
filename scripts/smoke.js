@@ -15,6 +15,7 @@ const path = require('path');
 
 const REPO = path.resolve(__dirname, '..');
 const read = f => fs.readFileSync(path.join(REPO, f), 'utf8');
+const { analyzeDataModel } = require('./audit-data-model');
 
 // ---------- DOM / surface-stubs ----------
 function makeEl(id) {
@@ -514,6 +515,190 @@ async function okA(name, fn) {
   }));
 
   // --- 0b) formatNightDate (helper DOM-free) ---
+  console.log('\n[transizione movie_nights / compatibilità legacy]');
+  ok('proiezione: evento prevale sul mirror, compresi NULL e dettagli eliminati; nessuna mutazione', run(() => {
+    const movie = { id: 'projection', status: 'tonight', scheduled_date: '2000-01-01', scheduled_time: '21:30',
+      snack: 'Vecchio snack', location: 'Vecchio luogo', proposed_by: 'V', night_confirmed: false };
+    const night = { id: 'event', movie_id: movie.id, status: 'confirmed', date: null, time: null,
+      snack: null, location: null, proposed_by: 'N' };
+    const before = JSON.stringify([movie, night]);
+    const projection = movieProjection(movie, night);
+    return projection.nightId === night.id && projection.scheduled_date === null
+      && projection.scheduled_time === null && projection.snack === null && projection.location === null
+      && projection.proposed_by === 'N' && projection.night_confirmed === true
+      && JSON.stringify([movie, night]) === before;
+  }));
+  ok('proiezione: ultimo evento attivo per default; ID esplicito conserva il rewatch scelto', run(() => {
+    const old = movieNights;
+    const movie = { id: 'projection' };
+    const earlier = { id: 'earlier', movie_id: movie.id, status: 'confirmed', date: '2026-11-01', created_at: '2026-10-01' };
+    const latest = { id: 'latest', movie_id: movie.id, status: 'proposed', date: '2026-12-01', created_at: '2026-10-02' };
+    try {
+      movieNights = [earlier, latest, { id: 'closed', movie_id: movie.id, status: 'completed', created_at: '2026-10-03' }];
+      return movieProjection(movie).nightId === latest.id && movieProjection(movie, earlier).nightId === earlier.id
+        && movieProjection(movie).night_confirmed === false;
+    } finally { movieNights = old; }
+  }));
+  ok('proiezione: film senza evento conserva esattamente il fallback legacy', run(() => {
+    const old = movieNights;
+    const movie = { id: 'legacy-only', status: 'tonight', scheduled_date: '2026-11-01', scheduled_time: '20:00', snack: 'Legacy' };
+    try {
+      movieNights = [];
+      const projection = movieProjection(movie);
+      return JSON.stringify(projection) === JSON.stringify(movie) && projection !== movie;
+    } finally { movieNights = old; }
+  }));
+  ok('card programmata: badge e dettagli leggono entrambi la data dell’evento', run(() => {
+    const oldNights = movieNights, oldTab = currentTab;
+    const movie = { id: 'event-badge', title: 'Film', status: 'tonight', scheduled_date: '2000-01-01', scheduled_time: '20:00' };
+    try {
+      currentTab = 'tonight';
+      movieNights = [{ id: 'badge-night', movie_id: movie.id, status: 'confirmed', date: '2026-11-10', time: '13:00' }];
+      const html = createMovieCard(movie, []).innerHTML;
+      return html.includes('10 nov · 13:00') && !html.includes('1 gen · 20:00');
+    } finally { movieNights = oldNights; currentTab = oldTab; }
+  }));
+  ok('firma render: cambiamenti votes legacy ignorati, serate/veto/film sempre rilevati', run(() => {
+    const old = { movies, votes, vetoes, movieNights };
+    try {
+      movies = []; votes = []; vetoes = []; movieNights = [];
+      const initial = dataSignature();
+      votes = [{ movie_id: 'legacy', person: 'N', liked: true }];
+      const ignored = initial === dataSignature();
+      movieNights = [{ id: 'n', status: 'confirmed' }]; const nightChanged = initial !== dataSignature();
+      movieNights = []; vetoes = [{ id: 'v' }]; const vetoChanged = initial !== dataSignature();
+      vetoes = []; movies = [{ id: 'm' }];
+      return ignored && nightChanged && vetoChanged && initial !== dataSignature();
+    } finally { movies = old.movies; votes = old.votes; vetoes = old.vetoes; movieNights = old.movieNights; }
+  }));
+  await okA('votes opzionale: errori REST e query rifiutate non degradano film/serate né cancellano il mirror', runA(async () => {
+    const old = { sb, dbMode, lastSupabaseFailAt, votes, warn: console.warn };
+    const cached = localStorage.getItem('scorochiatu_votes');
+    let rejectVotes = false;
+    const rows = { movies: [{ id: 'remote-movie' }], movie_nights: [{ id: 'remote-night' }], vetoes: [] };
+    try {
+      console.warn = () => {};
+      votes = [];
+      localStorage.setItem('scorochiatu_votes', JSON.stringify([{ movie_id: 'old', person: 'N', liked: true }]));
+      sb = { from(table) { return { select() { return {
+        order() { return this; },
+        then(resolve, reject) {
+          if (table === 'votes' && rejectVotes) return Promise.reject(new Error('legacy offline')).then(resolve, reject);
+          return Promise.resolve(table === 'votes' ? { error: { code: '42P01' } } : { data: rows[table], error: null }).then(resolve, reject);
+        }
+      }; } }; } };
+      dbMode = 'supabase'; lastSupabaseFailAt = 0;
+      const first = await fetchAll();
+      rejectVotes = true;
+      const second = await fetchAll();
+      return first.movies[0].id === 'remote-movie' && second.nights[0].id === 'remote-night'
+        && first.votes[0].liked === true && second.votes[0].liked === true
+        && dbMode === 'supabase' && lastSupabaseFailAt === 0;
+    } finally {
+      sb = old.sb; dbMode = old.dbMode; lastSupabaseFailAt = old.lastSupabaseFailAt; votes = old.votes; console.warn = old.warn;
+      if (cached === null) localStorage.removeItem('scorochiatu_votes'); else localStorage.setItem('scorochiatu_votes', cached);
+    }
+  }));
+  await okA('votes legacy: lettura valida vuota prevale sul vecchio mirror; cache corrotta gestita', runA(async () => {
+    const old = { sb, votes, warn: console.warn };
+    const cached = localStorage.getItem('scorochiatu_votes');
+    try {
+      console.warn = () => {};
+      votes = [{ movie_id: 'old', liked: true }];
+      sb = { from: () => ({ select: async () => ({ data: [], error: null }) }) };
+      const empty = await fetchLegacyVotes();
+      votes = []; localStorage.setItem('scorochiatu_votes', '{bad-json');
+      sb = { from: () => ({ select: async () => ({ error: { code: '42P01' } }) }) };
+      const recovered = await fetchLegacyVotes();
+      return empty.length === 0 && recovered.length === 0;
+    } finally {
+      sb = old.sb; votes = old.votes; console.warn = old.warn;
+      if (cached === null) localStorage.removeItem('scorochiatu_votes'); else localStorage.setItem('scorochiatu_votes', cached);
+    }
+  }));
+  ok('offline: mirror votes corrotto non blocca film e serate né modifica gli altri dati', run(() => {
+    const old = { movies, votes, vetoes, movieNights };
+    const cached = ['movies', 'votes', 'vetoes', 'movie_nights'].map(key => [key, localStorage.getItem('scorochiatu_' + key)]);
+    try {
+      localStorage.setItem('scorochiatu_movies', '[{"id":"offline-film"}]');
+      localStorage.setItem('scorochiatu_movie_nights', '[{"id":"offline-night"}]');
+      localStorage.setItem('scorochiatu_votes', '{corrotto');
+      loadLocal();
+      return movies[0].id === 'offline-film' && movieNights[0].id === 'offline-night' && votes.length === 0
+        && localStorage.getItem('scorochiatu_votes') === '{corrotto';
+    } finally {
+      movies = old.movies; votes = old.votes; vetoes = old.vetoes; movieNights = old.movieNights;
+      cached.forEach(([key, value]) => value === null ? localStorage.removeItem('scorochiatu_' + key) : localStorage.setItem('scorochiatu_' + key, value));
+    }
+  }));
+  await okA('letture: errori film restano fatali, movie_nights assente conserva modalità Supabase e fallback legacy', runA(async () => {
+    const old = { sb, dbMode, lastSupabaseFailAt, movieNightsAvailable, warn: console.warn, error: console.error };
+    let failedTable = 'movies';
+    try {
+      console.warn = () => {}; console.error = () => {};
+      sb = { from(table) { return { select() { return { order() { return this; },
+        then(resolve) { return Promise.resolve(table === failedTable
+          ? { error: { message: 'tabella non disponibile' } } : { data: [], error: null }).then(resolve); }
+      }; } }; } };
+      dbMode = 'supabase'; lastSupabaseFailAt = 0;
+      const coreFailure = await fetchAll();
+      const degraded = coreFailure === null && dbMode === 'local';
+      dbMode = 'supabase'; lastSupabaseFailAt = 0; failedTable = 'movie_nights';
+      const legacyFallback = await fetchAll();
+      return degraded && legacyFallback.nights.length === 0 && movieNightsAvailable === false && dbMode === 'supabase';
+    } finally {
+      sb = old.sb; dbMode = old.dbMode; lastSupabaseFailAt = old.lastSupabaseFailAt;
+      movieNightsAvailable = old.movieNightsAvailable; console.warn = old.warn; console.error = old.error;
+    }
+  }));
+  await okA('resync: sole modifiche votes aggiornano snapshot senza render; evento cambiato produce un render', runA(async () => {
+    const old = { sb, dbMode, lastSupabaseFailAt, movies, votes, vetoes, movieNights, render };
+    const cached = ['movies', 'votes', 'vetoes', 'movie_nights'].map(key => [key, localStorage.getItem('scorochiatu_' + key)]);
+    let renders = 0;
+    const rows = { movies: [{ id: 'm' }], votes: [{ movie_id: 'm', person: 'N', liked: true }], vetoes: [], movie_nights: [] };
+    try {
+      movies = rows.movies; votes = []; vetoes = []; movieNights = []; dbMode = 'supabase'; lastSupabaseFailAt = 0;
+      render = () => { renders++; };
+      sb = { from(table) { return { select() { return { order() { return this; },
+        then(resolve) { return Promise.resolve({ data: rows[table], error: null }).then(resolve); }
+      }; } }; } };
+      await resyncQuiet();
+      const quiet = renders === 0 && votes[0].liked === true;
+      rows.movie_nights = [{ id: 'n', movie_id: 'm', status: 'proposed' }];
+      await resyncQuiet();
+      return quiet && renders === 1;
+    } finally {
+      sb = old.sb; dbMode = old.dbMode; lastSupabaseFailAt = old.lastSupabaseFailAt;
+      movies = old.movies; votes = old.votes; vetoes = old.vetoes; movieNights = old.movieNights; render = old.render;
+      cached.forEach(([key, value]) => value === null ? localStorage.removeItem('scorochiatu_' + key) : localStorage.setItem('scorochiatu_' + key, value));
+    }
+  }));
+  ok('audit dati: distingue legacy senza eventi, specchi chiusi, rewatch e dati senza data; non muta né espone titoli', (() => {
+    const data = {
+      movies: [
+        { id: 'dated', title: 'Titolo riservato', status: 'tonight', scheduled_date: '2026-11-01' },
+        { id: 'quick', status: 'tonight' },
+        { id: 'closed', status: 'tonight', scheduled_date: '2026-11-02' },
+        { id: 'multi', status: 'tonight', scheduled_date: '2026-11-03', scheduled_time: '21:30:00', snack: null, proposed_by: 'N', night_confirmed: true }
+      ],
+      movie_nights: [
+        { id: 'closed-event', movie_id: 'closed', status: 'completed', date: null, completed_at: null },
+        { id: 'first', movie_id: 'multi', status: 'proposed', date: '2026-11-01', created_at: '2026-10-01' },
+        { id: 'second', movie_id: 'multi', status: 'confirmed', date: '2026-11-03', time: '21:30', snack: null, proposed_by: 'N', created_at: '2026-10-02' }
+      ], votes: [{ movie_id: 'missing' }]
+    };
+    const before = JSON.stringify(data), report = analyzeDataModel(data);
+    return report.legacyOnlyDated === 1 && report.legacyOnlyUndated === 1
+      && report.closedEventsWithLegacySchedule === 1 && report.moviesWithMultipleActiveEvents === 1
+      && report.activeEventsWithDifferentMirror === 0 && report.completedWithoutDateOrTimestamp === 1
+      && report.orphanVotes === 1 && JSON.stringify(data) === before && !JSON.stringify(report).includes('Titolo riservato');
+  })());
+  ok('audit dati: mirror quick storico non è conflitto; mancata conferma temporale resta esplicita', (() => {
+    const report = analyzeDataModel({ movies: [{ id: 'q', status: 'tonight', proposed_by: null, night_confirmed: false }],
+      movie_nights: [{ id: 'n', movie_id: 'q', date: null, status: 'confirmed', proposed_by: 'N' }] });
+    return report.activeEventsWithDifferentMirror === 0 && report.undatedConfirmedWithoutTimestamp === 1 && report.legacyVotes === null;
+  })());
+
   console.log('\n[formatNightDate]');
   ok('date null → "Oggi" (con/senza time, stringa vuota)', run(() =>
     formatNightDate(null, '21:30') === 'Oggi' && formatNightDate(null, null) === 'Oggi'
@@ -4715,7 +4900,7 @@ async function okA(name, fn) {
     } finally { __matchRestore(p); }
   }));
 
-  ok('canale core: nessun binding match (solo movies/votes/vetoes/movie_nights)', run(() => {
+  ok('canale core: solo movies/vetoes/movie_nights; nessun binding votes o Match', run(() => {
     const mock = mockMatchSb({});
     const prevSb = sb, prevRtc = realtimeChannel;
     sb = mock; realtimeChannel = null;
@@ -4727,9 +4912,9 @@ async function okA(name, fn) {
       const tables = core.ch.bindings
         .filter(b => b.ev === 'postgres_changes')
         .map(b => b.filter.table);
-      const okTables = tables.every(t => ['movies', 'votes', 'vetoes', 'movie_nights'].includes(t));
+      const okTables = tables.every(t => ['movies', 'vetoes', 'movie_nights'].includes(t));
       return evs.indexOf('presence') === -1
-        && tables.indexOf('swipe_sessions') === -1 && tables.indexOf('swipes') === -1
+        && tables.indexOf('swipe_sessions') === -1 && tables.indexOf('swipes') === -1 && tables.indexOf('votes') === -1
         && okTables;
     } finally { sb = prevSb; realtimeChannel = prevRtc; }
   }));
@@ -5697,7 +5882,7 @@ async function okA(name, fn) {
     const iStore = scripts.indexOf('js/store.js');
     const iMatch = scripts.indexOf('js/match.js');
     const iUIMatch = scripts.indexOf('js/ui/match.js');
-    const domains = ['movies', 'viewing', 'choices', 'nights', 'match'].map(name => scripts.indexOf(`js/store/${name}.js`));
+    const domains = ['movies', 'viewing', 'legacy', 'choices', 'nights', 'match'].map(name => scripts.indexOf(`js/store/${name}.js`));
     return iStore !== -1 && domains.every(i => i > iStore && i < iMatch)
       && iUIMatch > iMatch && scripts.indexOf('js/main.js') === scripts.length - 1;
   })());

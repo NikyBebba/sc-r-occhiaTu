@@ -61,6 +61,7 @@ function reviewCardsHtml(movie) {
 // Nessun timbro d'origine: il ticket PNG non viene conservato nel database. ----
 // Costruzione della card e binding del dettaglio; il coordinatore la inserisce nella griglia.
 function createMovieCard(m, vetoedIds) {
+    const projection = movieProjection(m);
     const isSurpriseHidden = m.surprise_by && m.surprise_by !== currentUser;
     const poster = m.poster || 'https://via.placeholder.com/300x450/1e293b/64748b?text=No+Cover';
     const isVetoed = vetoedIds.includes(m.id);
@@ -110,7 +111,7 @@ function createMovieCard(m, vetoedIds) {
             ${genreChips(m)}
             ${m.cinema_watchlist ? '<span class="badge bg-amber-600/80">🎬 Al cinema / prossimamente</span>' : ''}
             ${m.status === 'tonight' && currentTab === 'all' ? `<span class="badge bg-sky-700/90">in programma</span>` : ''}
-            ${m.status === 'tonight' && currentTab === 'tonight' ? `<span class="badge bg-indigo-600/90"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatNightDate(m.scheduled_date, m.scheduled_time))}</span>` : ''}
+            ${m.status === 'tonight' && currentTab === 'tonight' ? `<span class="badge bg-indigo-600/90"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatNightDate(projection.scheduled_date, projection.scheduled_time))}</span>` : ''}
           </div>
           ${viewingStatusHtml(m)}
           ${m.matched === false ? `<button onclick="retryMatch('${m.id}', '${jsAttrEscape(m.title)}')" class="mt-1 text-[10px] text-amber-400 hover:text-amber-300 underline">Correggi titolo e ricerca di nuovo</button>` : ''}

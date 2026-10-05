@@ -17,6 +17,21 @@ function activeNightForMovie(movieId) {
     .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))[0] || null;
 }
 
+// Adattatore di sola lettura: i nomi scheduled_* sono il contratto dei
+// renderer/ticket, non una lettura del mirror su movies. Anche NULL e stringhe
+// vuote dell'evento prevalgono: non recuperare dettagli obsoleti dal film.
+function nightProjectionFields(night) {
+  return {
+    nightId: night.id, scheduled_date: night.date, scheduled_time: night.time,
+    snack: night.snack, location: night.location, proposed_by: night.proposed_by,
+    night_confirmed: night.status === 'confirmed'
+  };
+}
+
+function movieProjection(movie, night = activeNightForMovie(movie.id)) {
+  return night ? { ...movie, ...nightProjectionFields(night) } : { ...movie };
+}
+
 async function insertMovieNight(night) {
   if (sb) {
     const { data, error } = await sb.from('movie_nights').insert([night]).select();
@@ -144,17 +159,7 @@ function nextMoviePick() {
   for (const night of sorted) {
     const m = movies.find(x => x.id === night.movie_id);
     if (m) {
-      return {
-        id: m.id,
-        nightId: night.id,
-        title: m.title,
-        poster: m.poster,
-        snack: night.snack, location: night.location,
-        scheduled_date: night.date,
-        scheduled_time: night.time,
-        proposed_by: night.proposed_by,
-        night_confirmed: night.status === 'confirmed'
-      };
+      return { id: m.id, title: m.title, poster: m.poster, ...nightProjectionFields(night) };
     }
   }
 
@@ -199,11 +204,7 @@ function tonightPick(now = new Date()) {
   for (const night of matches) {
     const m = movies.find(movie => movie.id === night.movie_id);
     if (!m) continue;
-    return {
-      id: m.id, nightId: night.id, title: m.title, poster: m.poster,
-      snack: night.snack, location: night.location, scheduled_date: night.date, scheduled_time: night.time,
-      proposed_by: night.proposed_by, night_confirmed: night.status === 'confirmed'
-    };
+    return { id: m.id, title: m.title, poster: m.poster, ...nightProjectionFields(night) };
   }
   return null;
 }

@@ -1,4 +1,4 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.41
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.42
 
 Ultimo aggiornamento: 5 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
 
@@ -7,7 +7,7 @@ README riscritto come presentazione generale — L'utente chiede di spiegare il 
 
 ## Checkpoint corrente — 5 ottobre 2026
 
-Versione corrente dopo Consolidation & Architecture, cache PWA **`v46`**. I paragrafi storici sono
+Versione corrente dopo l'avvio della transizione dati, cache PWA **`v47`**. I paragrafi storici sono
 cronologia: statuette, vecchi nomi e conteggi non descrivono la UI attuale.
 
 - Libreria: Streaming come vista iniziale; switch a due pulsanti Streaming /
@@ -31,7 +31,7 @@ cronologia: statuette, vecchi nomi e conteggi non descrivono la UI attuale.
 - Ricordi → «Titoli di coda»: quattro riepiloghi, «In numeri» con icona,
   storico N+V e «Dopo il film» senza etichette ripetute. Film aggiunti contati
   su tutta la libreria; media calcolata in decimi con arrotondamento corretto.
-- **379/379 smoke PASS**, **15/15 service worker PASS**, controlli sintassi
+- **391/391 smoke PASS**, **15/15 service worker PASS**, controlli sintassi
   e diff check; browser fixture a 320/390/768 px con screenshot ispezionati,
   nessun errore JS/overflow. Tool di verifica solo fuori dal repository.
 - Dopo il push e il deploy: accettare l'aggiornamento PWA sui due telefoni e
@@ -41,6 +41,51 @@ cronologia: statuette, vecchi nomi e conteggi non descrivono la UI attuale.
 README e AGENTS allineati a questo checkpoint; le specifiche Phase 22/23/38/41
 documentano i rispettivi cicli funzionali precedenti. Le istruzioni di
 sicurezza e il contratto Match restano invariati.
+
+## Transizione dati — movie_nights e legacy, 5 ottobre 2026
+
+Prima fase implementata e verificata; [audit, dipendenze, dual-write e piano](DATA_MODEL_TRANSITION.md).
+`movie_nights` è la fonte dei dettagli della proiezione quando esiste un
+evento attivo: adattatori comuni `nightProjectionFields`/`movieProjection`
+per pick, cartellone, card e ticket. NULL e dettagli rimossi prevalgono sul
+mirror. Il badge data della card usa ora l'evento, coerente con le sue info
+quando il mirror diverge. Nessun cambio di markup, copy o flusso.
+
+I campi `movies.scheduled_date/time`, snack, proposed_by e night_confirmed
+restano come mirror/fallback per la compatibilità, con le stesse scritture
+sequenziali. `movies.status` resta essenziale per visioni, filtri, Ruota e
+Match: non è derivato dagli eventi. Fallback storici e semantica dei rewatch
+conservati; la completa rimozione dei mirror **non è completata**.
+
+Nuovo `js/store/legacy.js`: API votes/proposte film obsolete conservate,
+senza chiamanti UI. `votes` diventa lettura opzionale e mirror di compatibilità;
+un errore REST/query o una cache votes corrotta non bloccano più film/serate.
+Escluso dalla firma render e dal Realtime core, ora su movies/vetoes/movie_nights.
+Tabella, dati, API e pubblicazione DB mantenuti. Nessuna modifica a login,
+schema/credenziali, canale Match, sessioni, swipe, presence o logica di scelta.
+
+Audit live paginato in sola lettura: **94 film** (93 watchlist, 1 watched),
+**30 serate** (29 cancelled, 1 completed), **1 voto legacy**. Nessun evento
+attivo; zero programmazioni senza evento, mirror stale di eventi chiusi,
+orfani o altri casi diagnosticati. Conteggi osservati, non uno snapshot
+transazionale; senza eventi attivi non si certifica il dual-write live.
+I 131 titoli della watchlist iniziale restano una baseline storica. Script:
+`node scripts/audit-data-model.js --live` oppure `--file=fixture.json`, solo
+aggregati e nessun dato identificativo/credenziale nell'output.
+
+Nessuna migration o cancellazione eseguita/preparata: mancano una verifica
+dell'adozione dei client e delle copie offline e una strategia di archivio
+per il legacy. Non ricostruire date, autore o conferme ambigue. Tra i limiti
+conservati: dual-write non atomico e fallback di `nextMoviePick` che può
+ancora leggere il mirror se esistono soltanto eventi chiusi; l'audit lo segnala.
+
+Verifiche: baseline 379/379, prima suite 389/389, finale **391/391** con 12
+regressioni aggiunte; service worker **15/15**, sintassi completa e diff check.
+**343 funzioni esistenti conservate, 144 scenari DOM identici** sui dati
+coerenti; caso mirror divergente coperto separatamente. Chromium con fixture
+su proiezioni/Streaming-Cinema/Ricordi a 320/390/768 px e recensioni N/V a
+320/390 px: zero errori JS/overflow, screenshot rappresentativi ispezionati.
+Nessuna scrittura DB reale, push/deploy o prova di sincronizzazione tra telefoni.
 
 ## Consolidation & Architecture — 5 ottobre 2026
 
@@ -54,9 +99,10 @@ un nuovo sistema di moduli o un contenitore dello stato.
 | Modulo | Responsabilità corrente |
 | --- | --- |
 | `js/store.js` | Client, stato core, lettura Supabase, mirror locale, fallback e Realtime core |
-| `js/store/movies.js` | CRUD film, dedup TMDb, proposte legacy e sorpresa |
+| `js/store/movies.js` | CRUD film, dedup TMDb e sorpresa |
 | `js/store/viewing.js` | Stato visioni, voti/recensioni personali e fallback condivisi, scritture condizionate |
-| `js/store/choices.js` | Voti like/dislike legacy e veto settimanali |
+| `js/store/legacy.js` | Snapshot opzionale votes e API like/dislike/proposte obsolete |
+| `js/store/choices.js` | Veto settimanali |
 | `js/store/nights.js` | Eventi serata, mirror legacy, pick prossimo/oggi e data locale |
 | `js/store/match.js` | Stato/persistenza sessioni e swipe, reconcile, canale Match e presence |
 | `js/ui/actions.js` | Aggiunta, picker, import, correzione titolo e azioni libreria |
@@ -276,7 +322,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Veto settimanale (1/persona/settimana), rimovibile solo dal proprietario, realtime su vetoes
 - Snack picker con opzione personalizzata (salvata in `movie_nights.snack`; gli snack già usati tornano fra le scelte su entrambi i telefoni, senza nuova tabella)
 - Modalità sorpresa (azione secondaria nella Ruota, modale, `surprise_by`, blur CSS, badge "tua sorpresa")
-- Smoke test locale corrente: **379/379 PASS**; `scripts/verify-sw.js`: **15/15 PASS**. Il percorso storico dei test precedenti resta nella cronologia Git.
+- Smoke test locale corrente: **391/391 PASS**; `scripts/verify-sw.js`: **15/15 PASS**. Il percorso storico dei test precedenti resta nella cronologia Git.
 
 ---
 
@@ -314,7 +360,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 31 — Accessibility baseline ✅
 
 ### ✅ PWA (COMPLETA)
-- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v46` al checkpoint corrente), toast di aggiornamento ✅
+- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v47` al checkpoint corrente), toast di aggiornamento ✅
 - Verificato: nessuna richiesta Supabase/TMDb/OMDb/poster/YouTube passa mai dalla cache (nessun `respondWith` su quei domini)
 
 ### STEP 2 — Core Layout (Phase 8.2 implementata)
@@ -416,7 +462,8 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 - Origine del Ticket (Match Live/Ruota/diretta) tracciata solo in-memory (`markTicketOrigin`/`ticketOriginOf`), persa al refresh/nuova sessione di navigazione — lo storico Phase 21 mostra serate concluse senza attribuire un'origine non salvata
 - Colonna legacy `movies.genre` (ex mood) non più letta/scritta: valutare drop in una migration
-- Doppio livello `movie_nights` + mirror legacy su `movies` (`night_confirmed`, `scheduled_*`): tenere finché serve, poi dismettere
+- Doppio livello `movie_nights` + mirror legacy su `movies` (`night_confirmed`, `scheduled_*`): adattatori unificati, mirror ancora scritti e fallback conservati; dismissione e dual-write atomico da progettare dopo l'audit dei client. [Transizione](DATA_MODEL_TRANSITION.md).
+- `votes`: dato opzionale, fuori da render/Realtime core; resta 1 voto live osservato, API legacy e storage preservati. Nessun drop/archivio eseguito.
 - Stato globale e dipendenze tra script classici conservati dopo Consolidation; eventuale isolamento ulteriore richiede una fase dedicata. `AGENTS.md` allineato alla nuova mappa dei domini.
 - Icone PWA **provvisorie** (generate via script, non un asset di design reale) — da sostituire quando disponibile
 - `via.placeholder.com` (fallback poster) risulta irraggiungibile dall'ambiente di sviluppo — non blocca nulla oggi (il dettaglio usa un gradiente CSS quando manca il poster), ma va verificato in un contesto reale prima di contarci altrove
