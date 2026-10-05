@@ -24,16 +24,24 @@ function showLanding() {
 function selectUser(code) {
   pendingUser = code;
   document.getElementById('landingScreen').classList.add('hidden');
-  document.getElementById('pinGate').classList.remove('hidden');
+  const gate = document.getElementById('pinGate');
+  gate.dataset.person = code;
+  gate.classList.remove('hidden');
+  document.getElementById('pinPersonMark').textContent = code;
   document.getElementById('pinGateLabel').textContent = `Ciao ${CONFIG.PEOPLE[code].label}, inserisci il tuo PIN`;
   document.getElementById('pinError').classList.add('hidden');
-  document.getElementById('pinInput').value = '';
-  document.getElementById('pinInput').focus();
+  const input = document.getElementById('pinInput');
+  input.value = '';
+  input.setAttribute('aria-invalid', 'false');
+  input.focus();
 }
 
 function backToLanding() {
+  const previous = pendingUser;
   pendingUser = null;
   showLanding();
+  const choice = document.getElementById('landingUser' + previous);
+  if (choice) choice.focus();
 }
 
 function submitPin() {
@@ -42,13 +50,17 @@ function submitPin() {
   const expectedPin = CONFIG.PEOPLE[pendingUser]?.pin;
 
   if (expectedPin && input === expectedPin) {
+    document.getElementById('pinInput').setAttribute('aria-invalid', 'false');
     currentUser = pendingUser;
     sessionStorage.setItem('scorochiatu_user', currentUser);
     document.getElementById('pinGate').classList.add('hidden');
     showApp();
   } else {
     errorEl.classList.remove('hidden');
-    document.getElementById('pinInput').value = '';
+    const pin = document.getElementById('pinInput');
+    pin.value = '';
+    pin.setAttribute('aria-invalid', 'true');
+    pin.focus();
   }
 }
 

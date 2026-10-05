@@ -32,6 +32,10 @@ function closeModalNow(id) {
   const el = document.getElementById(id);
   if (el) el.classList.add('hidden');
   modalStack = modalStack.filter(x => x !== id);
+  if (id === 'themeModal') {
+    const trigger = document.getElementById('themePickerBtn');
+    if (trigger && typeof trigger.focus === 'function') trigger.focus();
+  }
   // Serata dal Match ("Programma"): alla chiusura del modale di programmazione
   // (annullo, X, backdrop, Esc oppure conferma) il pending va azzerato — se
   // restasse attivo, una programmazione dello stesso film dalla lista normale

@@ -11,7 +11,7 @@ if (CONFIG.SUPABASE_URL && CONFIG.SUPABASE_URL.startsWith('http') &&
 let movies = [];
 let votes = [];   // { id, movie_id, person, liked }
 let vetoes = [];  // { id, person, movie_id, week_key }
-let movieNights = []; // { id, movie_id, date, time, snack, proposed_by, status, ... }
+let movieNights = []; // { id, movie_id, date, time, snack, location, proposed_by, status, ... }
 
 // Modalità di persistenza corrente. 'supabase' = DB raggiungibile e usato.
 // 'local' = database degradato/non raggiungibile: usiamo il mirror in
@@ -231,6 +231,13 @@ function personalRating(movie, person) {
   // Le recensioni storiche avevano una scala 1–5: equivalenza visiva 2–10.
   const old = Number(movie.rating);
   return movie.review_by === person && Number.isInteger(old) && old >= 1 && old <= 5 ? old * 2 : null;
+}
+
+function togetherRating(movie) {
+  const value = movie.seen_rating_together;
+  if (Number.isInteger(value) && value >= 0 && value <= 10) return value;
+  const old = Number(movie.rating);
+  return movie.review_by === 'both' && Number.isInteger(old) && old >= 1 && old <= 5 ? old * 2 : null;
 }
 
 function reviewTextFor(movie, person) {
@@ -517,11 +524,13 @@ async function insertMovieNight(night) {
       dbMode = 'local';
       lastSupabaseFailAt = Date.now();
     }
-    if (data && data[0]) { movieNights.unshift(data[0]); saveLocal(); }
-    return;
+    if (data && data[0]) { movieNights.unshift(data[0]); saveLocal(); return data[0]; }
+    return null;
   }
-  movieNights.unshift({ id: Date.now().toString() + Math.random(), ...night, created_at: new Date().toISOString() });
+  const created = { id: Date.now().toString() + Math.random(), ...night, created_at: new Date().toISOString() };
+  movieNights.unshift(created);
   saveLocal();
+  return created;
 }
 
 async function updateMovieNight(id, patch) {
@@ -531,12 +540,15 @@ async function updateMovieNight(id, patch) {
       console.error('[sc(r)occhiaTu] updateMovieNight fallita su Supabase:', error.message);
       dbMode = 'local';
       lastSupabaseFailAt = Date.now();
+      return false;
     }
-    return;
+    return true;
   }
   const n = movieNights.find(x => x.id === id);
+  if (!n) return false;
   if (n) Object.assign(n, patch);
   saveLocal();
+  return true;
 }
 
 // "Stasera": pick veloce senza data fissa. Crea una serata già 'confirmed'
@@ -595,14 +607,19 @@ async function cancelNight(id) {
 
 // Serata "avvenuta": chiamata quando il film viene recensito come visto
 // insieme (by='both'), da ui.confirmReview.
-async function completeNight(id) {
+async function completeNight(id, location = null) {
   const nights = movieNights
     .filter(n => n.movie_id === id && (n.status === 'proposed' || n.status === 'confirmed'))
     .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
   const night = nights[0];
   if (night) {
-    await updateMovieNight(night.id, { status: 'completed', completed_at: new Date().toISOString() });
+    return updateMovieNight(night.id, { status: 'completed', completed_at: new Date().toISOString(), location });
   }
+  // Una recensione insieme senza programmazione è comunque una visione:
+  // registriamo l'evento ora, così il luogo ha un proprietario anche qui.
+  return !!(await insertMovieNight({ movie_id: id, date: null, time: null,
+    snack: null, location, proposed_by: null, status: 'completed',
+    completed_at: new Date().toISOString() }));
 }
 
 // Il film corrente per il box "Prossimo Film".

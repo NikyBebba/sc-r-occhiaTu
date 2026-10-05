@@ -57,6 +57,12 @@ const canvasCtx = new Proxy({}, {
 elementsById('wheelCanvas').getContext = () => canvasCtx;
 
 const documentStub = {
+  documentElement: {
+    _attrs: {},
+    setAttribute(k, v) { this._attrs[k] = v; },
+    removeAttribute(k) { delete this._attrs[k]; },
+    getAttribute(k) { return this._attrs[k] || null; }
+  },
   getElementById: elementsById,
   createElement: tag => makeEl('el-' + Math.random().toString(36).slice(2)),
   addEventListener() {},
@@ -157,6 +163,7 @@ async function okA(name, fn) {
 
 (async () => {
   const sources = [
+    'js/theme.js',
     'js/config.js',
     'js/format.js',
     'js/haptics.js',
@@ -191,6 +198,70 @@ async function okA(name, fn) {
   ok('unsubscribeRealtime no-crash', run(() => { unsubscribeRealtime(); return true; }));
   await okA('loadMovies (locale vuoto) non crasha', runA(async () => { await loadMovies(); return true; }));
   ok('render() non crasha su stato vuoto', run(() => { render(); return true; }));
+  ok('tema: palette scelta e preferenza locale', run(() => {
+    setTheme('autunno');
+    return document.documentElement.getAttribute('data-theme') === 'autunno'
+      && document.getElementById('themePickerLabel').textContent === 'Autunno'
+      && localStorage.getItem('scorochiatu_theme') === 'autunno';
+  }));
+  ok('tema: valore sconosciuto torna al cinema classico', run(() => {
+    setTheme('inesistente');
+    return document.documentElement.getAttribute('data-theme') === null
+      && document.getElementById('themePickerLabel').textContent === 'Cinema';
+  }));
+  ok('tema: otto anteprime e scelta che chiude il modale', run(() => {
+    openThemePicker();
+    const eight = (document.getElementById('themeOptions').innerHTML.match(/<button type="button" class="theme-option/g) || []).length === 8;
+    const opened = modalStackTop() === 'themeModal';
+    chooseTheme('vhs');
+    const closed = modalStackTop() !== 'themeModal';
+    const vhs = document.documentElement.getAttribute('data-theme') === 'vhs';
+    setTheme('cinema');
+    const cinema = document.documentElement.getAttribute('data-theme') === 'cinema';
+    setTheme('classic');
+    return eight && opened && closed && vhs && cinema
+      && document.documentElement.getAttribute('data-theme') === null;
+  }));
+  ok('ingresso: scelta persona, errore PIN e ritorno alla scelta', run(() => {
+    selectUser('N');
+    const gate = document.getElementById('pinGate');
+    const pin = document.getElementById('pinInput');
+    const chosen = gate.dataset.person === 'N'
+      && document.getElementById('pinPersonMark').textContent === 'N'
+      && pin['aria-invalid'] === 'false';
+    pin.value = 'PIN-non-valido';
+    submitPin();
+    const error = pin['aria-invalid'] === 'true'
+      && !document.getElementById('pinError').classList.contains('hidden');
+    backToLanding();
+    return chosen && error && pendingUser === null
+      && !document.getElementById('landingScreen').classList.contains('hidden');
+  }));
+  ok('sync: il banner locale spiega il limite e scompare al ritorno del DB', run(() => {
+    const oldMode = dbMode, oldSb = sb;
+    try {
+      sb = null; dbMode = 'local'; renderSyncStatus();
+      const notice = document.getElementById('syncNotice');
+      const local = !notice.classList.contains('hidden')
+        && notice.innerHTML.includes('Le modifiche non saranno condivise')
+        && !notice.innerHTML.includes('retrySyncUI');
+      sb = {}; renderSyncStatus();
+      const degraded = notice.innerHTML.includes('potrebbero non essere salvate o condivise')
+        && notice.innerHTML.includes('retrySyncUI');
+      dbMode = 'supabase'; renderSyncStatus();
+      return local && degraded && notice.classList.contains('hidden');
+    } finally { dbMode = oldMode; sb = oldSb; }
+  }));
+  await okA('sync: Riprova forza una lettura anche durante il tempo di attesa', runA(async () => {
+    const oldSb = sb, oldLoad = loadMovies, oldFail = lastSupabaseFailAt;
+    let seen = false;
+    try {
+      sb = {}; lastSupabaseFailAt = Date.now();
+      loadMovies = async () => { seen = lastSupabaseFailAt === 0; };
+      await retrySyncUI();
+      return seen;
+    } finally { sb = oldSb; loadMovies = oldLoad; lastSupabaseFailAt = oldFail; }
+  }));
   await okA('Phase 28: ciak e skeleton durante il caricamento, poi render senza flash tardivo', runA(async () => {
     const savedTab = currentTab;
     try {
@@ -1370,6 +1441,21 @@ async function okA(name, fn) {
       && html.indexOf('Azione (5)') === -1        // NON la somma delle occorrenze (5)
       && html.indexOf('undefined') === -1;
   }));
+  ok('Il Nostro Cinema: voto medio solo dei voti condivisi dei film visti insieme, zero incluso', run(() => {
+    const saved = movies;
+    try {
+      movies = [
+        { id: 'shared-zero', status: 'watched', review_by: 'both', seen_rating_together: 0, seen_rating_n: 10 },
+        { id: 'shared-eight', status: 'watched', review_by: 'both', seen_rating_together: 8, seen_rating_v: 10 },
+        { id: 'solo-ten', status: 'watchlist', watched_by: 'N', seen_rating_n: 10 },
+        { id: 'shared-unrated', status: 'watched', review_by: 'both', seen_rating_n: 10 }
+      ];
+      renderStats();
+      const html = document.getElementById('statsGrid').innerHTML;
+      return html.includes('Voto medio insieme') && html.includes('⭐ 4.0/10')
+        && !html.includes('⭐ 9.0/10');
+    } finally { movies = saved; }
+  }));
   ok('Il Nostro Cinema: un biglietto per serata completata, incluso rewatch; annullate escluse', run(() => {
     const oldMovies = movies, oldNights = movieNights;
     try {
@@ -1866,7 +1952,7 @@ async function okA(name, fn) {
     currentTab = prevTab; listQuery = prevQ; currentUser = prevUser; input.value = '';
     return afterRender;
   }));
-  ok('empty state: senza filtri messaggio storico; con filtri cita i filtri (query escapata) + Azzera', run(() => {
+  ok('empty state: messaggio per vista; filtri con query escapata + Azzera', run(() => {
     const saved = movies;
     const prevQ = listQuery; const prevTab = currentTab;
     const input = document.getElementById('movieSearchInput');
@@ -1874,7 +1960,10 @@ async function okA(name, fn) {
     currentTab = 'all';
     listQuery = '';
     render();
-    const plain = document.getElementById('movieGrid').innerHTML.includes('Nessun film in questa sezione.');
+    const plain = document.getElementById('movieGrid').innerHTML.includes('Il vostro cinema inizia qui');
+    currentTab = 'tonight'; render();
+    const night = document.getElementById('movieGrid').innerHTML.includes('Nessuna serata in programma');
+    currentTab = 'all';
     listQuery = '<script>zed';
     render();
     const html = document.getElementById('movieGrid').innerHTML;
@@ -1885,7 +1974,7 @@ async function okA(name, fn) {
     const afterReset = listQuery === '' && input.value === '';
     movies = saved;
     listQuery = prevQ; currentTab = prevTab;
-    return plain && withFilters && afterReset;
+    return plain && night && withFilters && afterReset;
   }));
   await okA('onSearchInput: aggiorna subito listQuery e ri-render dopo il debounce (~250ms)', runA(async () => {
     const saved = movies;
@@ -1931,7 +2020,7 @@ async function okA(name, fn) {
     render();
     html = document.getElementById('movieGrid').innerHTML;
     okAll = okAll && html.includes('Gamma Watched') && html.indexOf('Beta Tonight') === -1
-      && cnt(html, 'markSeenUI') === 0 && cnt(html, 'voteMovie') === 0 && cnt(html, 'addReview') === 0
+      && cnt(html, 'markSeenUI') === 0 && cnt(html, 'voteMovie') === 0 && cnt(html, 'addReview') === 1
       && cnt(html, 'quickTonightUI') === 0 && cnt(html, 'scheduleMovie') === 0 && cnt(html, 'vetoMovie') === 0;
     currentTab = prevTab;
     currentUser = prevUser;
@@ -1956,7 +2045,7 @@ async function okA(name, fn) {
       && html.includes('Gamma Watched') && html.includes('Delta Proposal')
       && cnt(html, 'markSeenUI') === 2 && cnt(html, 'voteMovie') === 0 // watchlist + tonight
       && cnt(html, 'quickTonightUI') === 1 && cnt(html, 'scheduleMovie') === 1 && cnt(html, 'vetoMovie') === 1
-      && cnt(html, 'addReview') === 1
+      && cnt(html, 'addReview') === 2
       && cnt(html, 'bg-sky-700/90') === 1 // badge "stasera" solo per il film tonight
       && cnt(html, 'deleteMovieConfirm') === 4; // ogni card ha comunque il cestino (nessun errore per status ignoto)
     currentTab = prevTab;
@@ -1986,7 +2075,7 @@ async function okA(name, fn) {
     movies = saved; currentUser = prevUser; currentTab = prevTab;
     return okTicket;
   }));
-  ok('card: BUGFIX footer — watched/status ignoto NON renderizza il footer azioni vuoto; watchlist/tonight sì', run(() => {
+  ok('card: film visto mostra la modifica della recensione insieme nel footer', run(() => {
     const prevUser = currentUser, prevTab = currentTab, saved = movies;
     currentUser = 'N'; currentTab = 'all';
     movies = [
@@ -1997,12 +2086,13 @@ async function okA(name, fn) {
     const grid = document.getElementById('movieGrid');
     const watchedCard = grid._children.find(c => c._innerHTML.indexOf('FD') !== -1);
     const watchCard = grid._children.find(c => c._innerHTML.indexOf('FW') !== -1);
-    const watchedNoFooter = watchedCard && watchedCard._innerHTML.indexOf('pt-2 border-t border-slate-800/80') === -1
+    const watchedHasReview = watchedCard && watchedCard._innerHTML.indexOf('pt-2 border-t border-slate-800/80') !== -1
+      && watchedCard._innerHTML.includes("addReview('f-d')")
       && watchedCard._innerHTML.indexOf('markSeenUI') === -1;
     const watchHasFooter = watchCard && watchCard._innerHTML.indexOf('pt-2 border-t border-slate-800/80') !== -1
       && watchCard._innerHTML.indexOf('markSeenUI') !== -1;
     movies = saved; currentUser = prevUser; currentTab = prevTab;
-    return !!watchedNoFooter && !!watchHasFooter;
+    return !!watchedHasReview && !!watchHasFooter;
   }));
   ok('card: rating assente → niente rating-holo; presente → container holo con testi piattaforma', run(() => {
     const prevUser = currentUser, prevTab = currentTab, saved = movies;
@@ -2027,11 +2117,12 @@ async function okA(name, fn) {
   }));
 
   console.log('\n[phase8.1 — stato di visione sulle card]');
-  ok('HTML: modale visto con voto 0–10 e recensione facoltativa; recensione successiva senza secondo voto', (() => {
+  ok('HTML: modali visto e recensione con voto 0–10 e validazione visibile', (() => {
     const html = read('index.html');
     return html.includes('id="seenModal"') && html.includes('id="seenRating"')
       && html.includes('<option value="0">0 / 10</option>') && html.includes('<option value="10">10 / 10</option>')
       && html.includes('id="seenReview"') && html.includes('id="reviewModal"')
+      && html.includes('id="reviewRating"') && html.includes('id="reviewError"')
       && !html.includes('id="reviewStars"');
   })());
   ok('indicatori: neutri, N blu, V rosa, N+V separati, insieme oro; fallback review legacy', run(() => {
@@ -2112,9 +2203,10 @@ async function okA(name, fn) {
       const first = JSON.parse(localStorage.getItem('scorochiatu_movies'))[0];
       addPersonalReview('seen-modal');
       el('reviewText').value = 'Ho cambiato idea';
+      const prefilled = el('reviewRating').value === '0';
       await confirmReview();
       const later = JSON.parse(localStorage.getItem('scorochiatu_movies'))[0];
-      return required && first.watched_by === 'N' && first.seen_rating_n === 0
+      return required && prefilled && first.watched_by === 'N' && first.seen_rating_n === 0
         && first.review_text_n === '<b>Molto male</b>'
         && reviewCardsHtml(first).includes('&lt;b&gt;Molto male&lt;/b&gt;')
         && !reviewCardsHtml(first).includes('<b>Molto male</b>')
@@ -2128,11 +2220,12 @@ async function okA(name, fn) {
     document.getElementById('reviewMovieId').value = 'legacy-review';
     document.getElementById('reviewBy').value = 'both';
     document.getElementById('reviewText').value = 'Nuova recensione insieme';
+    document.getElementById('reviewRating').value = '7';
     try {
       await confirmReview();
       const film = JSON.parse(localStorage.getItem('scorochiatu_movies'))[0];
       return film.review_text_n === 'Vecchia recensione N'
-        && film.seen_rating_n === 8 && film.review_text_together === 'Nuova recensione insieme'
+        && film.seen_rating_n === 8 && film.seen_rating_together === 7 && film.review_text_together === 'Nuova recensione insieme'
         && film.status === 'watched' && reviewCardsHtml(film).includes('Vecchia recensione N');
     } finally { movies = saved; saveLocal(); }
   }));
@@ -2146,20 +2239,199 @@ async function okA(name, fn) {
       await markMovieSeen('seen-review', 'V', 8);
       el('reviewMovieId').value = 'seen-review'; el('reviewText').value = 'Recensione V';
       el('reviewBy').value = 'V';
+      el('reviewRating').value = '9';
       await confirmReview();
       const separate = JSON.parse(localStorage.getItem('scorochiatu_movies'))[0];
       el('reviewText').value = 'Recensione insieme'; el('reviewBy').value = 'both';
+      el('reviewRating').value = '7';
       await confirmReview();
       const together = JSON.parse(localStorage.getItem('scorochiatu_movies'))[0];
       return separate.watched_by === 'both' && separate.review_text_n === 'Recensione N'
-        && separate.review_text_v === 'Recensione V' && separate.seen_rating_n === 6 && separate.seen_rating_v === 8
+        && separate.review_text_v === 'Recensione V' && separate.seen_rating_n === 6 && separate.seen_rating_v === 9
         && separate.status === 'watchlist' && !viewingState(separate).together
         && together.review_text_n === 'Recensione N' && together.review_text_v === 'Recensione V'
         && together.review_text_together === 'Recensione insieme'
-        && together.seen_rating_n === 6 && together.seen_rating_v === 8
+        && together.seen_rating_n === 6 && together.seen_rating_v === 9 && together.seen_rating_together === 7
         && together.status === 'watched' && viewingState(together).together
         && reviewCardsHtml(together).split('bg-slate-900/80 rounded-lg').length - 1 === 3;
     } finally { movies = saved; currentUser = savedUser; saveLocal(); }
+  }));
+  await okA('recensione insieme: voto 0 valido, testi e voti personali intatti, serata conclusa una volta', runA(async () => {
+    const savedMovies = movies, savedNights = movieNights, savedUser = currentUser;
+    currentUser = 'N';
+    movies = [{ id: 'joint-score', title: 'Film', status: 'tonight', watched_by: 'N',
+      seen_rating_n: 8, review_text_n: 'N pensiero' }];
+    movieNights = [{ id: 'night-score', movie_id: 'joint-score', status: 'confirmed', created_at: '2026-01-01T00:00:00Z' }];
+    const el = id => document.getElementById(id);
+    try {
+      addReview('joint-score');
+      const blank = el('reviewRating').value === '' && el('reviewMovieTitle').textContent === 'Film';
+      el('reviewRating').value = '0'; el('reviewText').value = 'Visione insieme';
+      await confirmReview();
+      const first = movies[0].seen_rating_together === 0 && movies[0].seen_rating_n === 8
+        && movies[0].review_text_n === 'N pensiero' && movieNights[0].status === 'completed';
+      const completedAt = movieNights[0].completed_at;
+      addReview('joint-score');
+      const prefilled = el('reviewRating').value === '0' && el('reviewText').value === 'Visione insieme';
+      el('reviewRating').value = '9'; el('reviewText').value = 'Rivista insieme';
+      await confirmReview();
+      return blank && first && prefilled && movies[0].seen_rating_together === 9
+        && movies[0].seen_rating_n === 8 && movieNights[0].completed_at === completedAt
+        && reviewCardsHtml(movies[0]).includes('Recensione Insieme · ★ 9/10');
+    } finally { movies = savedMovies; movieNights = savedNights; currentUser = savedUser; saveLocal(); }
+  }));
+  await okA('modifica recensione insieme: conserva la data storica e non conclude un rewatch attivo', runA(async () => {
+    const savedMovies = movies, savedNights = movieNights, savedUser = currentUser;
+    currentUser = 'V';
+    movies = [{ id: 'review-edit', title: 'Film', status: 'tonight', watched_by: 'both', review_by: 'both',
+      review_text_together: 'Prima recensione', seen_rating_together: 6 }];
+    const originalDate = '2026-02-14T22:00:00.000Z';
+    movieNights = [
+      { id: 'old-night', movie_id: 'review-edit', status: 'completed', completed_at: originalDate },
+      { id: 'new-night', movie_id: 'review-edit', status: 'confirmed', created_at: '2026-03-01T20:00:00.000Z' }
+    ];
+    const el = id => document.getElementById(id);
+    try {
+      addReview('review-edit');
+      const prefilled = el('reviewText').value === 'Prima recensione' && el('reviewRating').value === '6';
+      el('reviewText').value = 'Recensione corretta'; el('reviewRating').value = '8';
+      await confirmReview();
+      const editingKeptNight = prefilled && movies[0].review_text_together === 'Recensione corretta'
+        && movies[0].seen_rating_together === 8 && movies[0].status === 'tonight'
+        && movieNights[0].completed_at === originalDate && movieNights[1].status === 'confirmed'
+        && !movieNights[1].completed_at;
+      await finishTogetherNightUI('review-edit');
+      return editingKeptNight && movies[0].review_text_together === 'Recensione corretta'
+        && movies[0].status === 'watched' && movieNights[0].completed_at === originalDate
+        && movieNights[1].status === 'completed' && !!movieNights[1].completed_at;
+    } finally { movies = savedMovies; movieNights = savedNights; currentUser = savedUser; saveLocal(); }
+  }));
+  await okA('recensione: voto e testo richiesti, form aperto se manca un campo', runA(async () => {
+    const savedMovies = movies, savedUser = currentUser;
+    currentUser = 'V';
+    movies = [{ id: 'review-required', title: 'Film', status: 'watched', review_by: 'both' }];
+    const el = id => document.getElementById(id);
+    try {
+      addReview('review-required');
+      el('reviewRating').value = ''; el('reviewText').value = 'Testo';
+      await confirmReview();
+      const noRating = el('reviewError').textContent.includes('Scegli un voto')
+        && !el('reviewModal').classList.contains('hidden');
+      el('reviewRating').value = '6'; el('reviewText').value = '';
+      await confirmReview();
+      const noText = el('reviewError').textContent.includes('Scrivi la recensione')
+        && !el('reviewModal').classList.contains('hidden');
+      closeModal('reviewModal');
+      return noRating && noText && !movies[0].review_text_together;
+    } finally { movies = savedMovies; currentUser = savedUser; saveLocal(); }
+  }));
+  ok('dal form visto si apre la recensione insieme senza salvare un voto personale', run(() => {
+    const savedMovies = movies, savedUser = currentUser;
+    currentUser = 'N';
+    movies = [{ id: 'seen-to-both', title: 'Film insieme', status: 'watchlist', watched_by: null }];
+    try {
+      markSeenUI('seen-to-both');
+      reviewTogetherFromSeen();
+      return document.getElementById('seenModal').classList.contains('hidden')
+        && !document.getElementById('reviewModal').classList.contains('hidden')
+        && document.getElementById('reviewBy').value === 'both'
+        && movies[0].watched_by === null;
+    } finally { closeModal('reviewModal'); movies = savedMovies; currentUser = savedUser; }
+  }));
+  await okA('luogo facoltativo: la recensione lo salva sulla serata, non sul film, e la modifica conserva la data', runA(async () => {
+    const savedMovies = movies, savedNights = movieNights, savedUser = currentUser;
+    currentUser = 'N';
+    movies = [{ id: 'place-film', title: 'Film', status: 'tonight' }];
+    const originalDate = '2026-04-12';
+    movieNights = [{ id: 'place-night', movie_id: 'place-film', status: 'confirmed',
+      date: originalDate, created_at: '2026-04-01T00:00:00Z' }];
+    const el = id => document.getElementById(id);
+    try {
+      addReview('place-film');
+      el('reviewRating').value = '8'; el('reviewText').value = 'Bella serata';
+      el('reviewLocation').value = '  Cinema Centrale  ';
+      await confirmReview();
+      const completedAt = movieNights[0].completed_at;
+      const first = movieNights[0].location === 'Cinema Centrale'
+        && movieNights[0].date === originalDate && !movies[0].location;
+      addReview('place-film');
+      const prefilled = el('reviewLocation').value === 'Cinema Centrale';
+      el('reviewLocation').value = 'Sul divano'; el('reviewText').value = 'Ancora meglio';
+      await confirmReview();
+      return first && prefilled && movieNights[0].location === 'Sul divano'
+        && movieNights[0].date === originalDate && movieNights[0].completed_at === completedAt;
+    } finally { movies = savedMovies; movieNights = savedNights; currentUser = savedUser; saveLocal(); }
+  }));
+  await okA('rewatch: due luoghi distinti, selezionabili nella recensione senza alterare le date', runA(async () => {
+    const savedMovies = movies, savedNights = movieNights, savedUser = currentUser;
+    currentUser = 'V';
+    movies = [{ id: 'place-rewatch', title: 'Film', status: 'tonight', review_by: 'both',
+      review_text_together: 'Recensione', seen_rating_together: 7 }];
+    movieNights = [
+      { id: 'old-place', movie_id: 'place-rewatch', status: 'completed',
+        completed_at: '2026-01-15T23:00:00Z', location: 'Cinema' },
+      { id: 'new-place', movie_id: 'place-rewatch', status: 'confirmed',
+        created_at: '2026-05-01T20:00:00Z', location: null }
+    ];
+    const el = id => document.getElementById(id);
+    try {
+      await finishTogetherNightUI('place-rewatch');
+      const finished = movieNights[1].status === 'completed' && movieNights[0].location === 'Cinema';
+      const newDate = movieNights[1].completed_at;
+      addReview('place-rewatch');
+      const hasChoice = !el('reviewNightSelectWrap').classList.contains('hidden')
+        && el('reviewNightSelect').value === 'new-place';
+      el('reviewLocation').value = 'A casa di V';
+      await confirmReview();
+      const newSaved = movieNights[0].location === 'Cinema' && movieNights[1].location === 'A casa di V';
+      addReview('place-rewatch');
+      el('reviewNightSelect').value = 'old-place';
+      selectReviewNight();
+      const oldSelected = el('reviewNightId').value === 'old-place' && el('reviewLocation').value === 'Cinema';
+      el('reviewLocation').value = 'Cinema nuovo';
+      await confirmReview();
+      return finished && newSaved && oldSelected && movieNights[0].location === 'Cinema nuovo'
+        && movieNights[0].completed_at === '2026-01-15T23:00:00Z'
+        && movieNights[1].location === 'A casa di V' && movieNights[1].completed_at === newDate
+        && hasChoice
+        && renderNightHistory() === undefined
+        && el('nightHistory').innerHTML.includes('A casa di V');
+    } finally { movies = savedMovies; movieNights = savedNights; currentUser = savedUser; saveLocal(); }
+  }));
+  await okA('recensione senza programmazione crea una serata; una vecchia recensione senza data non riceve una data inventata', runA(async () => {
+    const savedMovies = movies, savedNights = movieNights, savedUser = currentUser;
+    currentUser = 'N';
+    movies = [{ id: 'unplanned', title: 'Film', status: 'watchlist' }];
+    movieNights = [];
+    const el = id => document.getElementById(id);
+    try {
+      addReview('unplanned');
+      el('reviewRating').value = '5'; el('reviewText').value = 'Recensione';
+      el('reviewLocation').value = 'A casa';
+      await confirmReview();
+      const created = movieNights.length === 1 && movieNights[0].status === 'completed'
+        && movieNights[0].location === 'A casa' && !!movieNights[0].completed_at;
+      movieNights = [];
+      addReview('unplanned');
+      el('reviewText').value = 'Testo corretto'; el('reviewLocation').value = 'In terrazza';
+      await confirmReview();
+      return created && movieNights.length === 1 && movieNights[0].location === 'In terrazza'
+        && movieNights[0].completed_at === null;
+    } finally { movies = savedMovies; movieNights = savedNights; currentUser = savedUser; saveLocal(); }
+  }));
+  ok('luogo nello storico: testo utente escapato, senza pulsanti di modifica', run(() => {
+    const savedMovies = movies, savedNights = movieNights, savedUser = currentUser;
+    currentUser = 'N';
+    movies = [{ id: 'place-safe', title: 'Film', status: 'watched' }];
+    movieNights = [{ id: 'place-safe-night', movie_id: 'place-safe', status: 'completed',
+      completed_at: '2026-05-02T20:00:00Z', location: '<img src=x onerror=alert(1)>' }];
+    try {
+      renderNightHistory();
+      const html = document.getElementById('nightHistory').innerHTML;
+      return html.includes('&lt;img src=x onerror=alert(1)&gt;')
+        && !html.includes('<img src=x onerror=alert(1)>')
+        && !html.includes('editNightLocation') && !html.includes('Modifica luogo');
+    } finally { movies = savedMovies; movieNights = savedNights; currentUser = savedUser; }
   }));
   await okA('due telefoni: scrittura V concorrente non viene persa dal tasto N', runA(async () => {
     const savedSb = sb, savedMovies = movies;
@@ -2293,6 +2565,16 @@ async function okA(name, fn) {
       && body.indexOf('NienteMeta') !== -1;
     movies = saved; currentUser = prevUser; currentTab = prevTab;
     return noSections;
+  }));
+  ok('dettaglio: locandina, storia, cast e trailer in ordine leggibile', run(() => {
+    renderMovieDetail({ id: 'detail-layout', title: 'Film prova', added_by: 'N', status: 'watchlist',
+      poster: 'https://example.test/poster.jpg', overview: 'Una storia da vedere.', cast_names: ['Attrice Uno'],
+      trailer_url: 'https://example.test/trailer', genres: ['Drama'] });
+    const html = document.getElementById('detailBody')._innerHTML;
+    return html.includes('detail-cover') && html.includes('Locandina di Film prova')
+      && html.indexOf('La storia') < html.indexOf('Nel cast')
+      && html.indexOf('Nel cast') < html.indexOf('Guarda il trailer')
+      && html.includes('detail-close');
   }));
   ok('premi: solo Oscar vinti espliciti, mai nomination o totali anonimi', run(() =>
     parseOscarWins('Won 1 Oscar. Another 12 wins') === 1
@@ -3936,7 +4218,8 @@ async function okA(name, fn) {
       __matchUI({ presence: ['N', 'N', 'V'], sessions: [{ id: 'sU', status: 'open', created_at: new Date().toISOString(), deck: ['ma'] }], movies: [{ id: 'ma', title: 'Geometria del terrore' }] });
       const present = matchPresentUsers();
       const html = matchViewHtml();
-      return present.join() === 'N,V' && html.indexOf('Nope') !== -1 && html.indexOf('Like') !== -1;
+      return present.join() === 'N,V' && html.indexOf('Nope') !== -1 && html.indexOf('Like') !== -1
+        && html.includes('role="progressbar"') && html.includes('class="match-poster');
     } finally { __matchRestore(p); }
   }));
 
@@ -4221,6 +4504,19 @@ async function okA(name, fn) {
   ok('phase19: senza ora il countdown non inventa 21:30', run(() => {
     const label = nextMovieTimeLabel({ scheduled_date: '2026-11-10', scheduled_time: null }, Date.UTC(2026, 9, 1));
     return label.includes('10 nov') && !label.includes('21:30') && !label.includes('⏳');
+  }));
+  ok('serata futura: data leggibile e countdown entrambi visibili', run(() => {
+    const prev = { m: movies, n: movieNights, tab: currentTab };
+    try {
+      const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 2);
+      const date = localDateKey(tomorrow);
+      currentTab = 'watchlist';
+      movies = [{ id: 'timed-film', title: 'Tra poco', status: 'tonight' }];
+      movieNights = [{ id: 'timed-night', movie_id: 'timed-film', date, time: '21:00', status: 'confirmed' }];
+      renderNextMovieBox();
+      const html = document.getElementById('nextMovieBox').innerHTML;
+      return html.includes('next-movie-when') && html.includes(formatNightDate(date, '21:00')) && html.includes('⏳');
+    } finally { movies = prev.m; movieNights = prev.n; currentTab = prev.tab; }
   }));
   ok('phase20: Tonight Mode solo per data odierna o quick pick confermato oggi', run(() => {
     const prev = { m: movies, n: movieNights };

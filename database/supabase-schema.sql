@@ -15,6 +15,7 @@ create table movies (
   rating integer default 0,
   seen_rating_n smallint check (seen_rating_n between 0 and 10),
   seen_rating_v smallint check (seen_rating_v between 0 and 10),
+  seen_rating_together smallint check (seen_rating_together between 0 and 10),
   scheduled_date date,
   scheduled_time time,
   snack text, -- snack abbinato alla serata programmata
@@ -58,6 +59,7 @@ create table movie_nights (
   date date,            -- null = pick veloce "stasera" (senza data fissa)
   time text,            -- es. "21:30"
   snack text,           -- snack abbinato alla serata
+  location text,        -- luogo facoltativo della singola visione (rewatch distinti)
   proposed_by text check (proposed_by in ('N', 'V')), -- chi ha proposto la serata
   status text not null default 'proposed'
     check (status in ('proposed', 'confirmed', 'cancelled', 'completed', 'skipped')),

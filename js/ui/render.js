@@ -20,12 +20,34 @@ function renderVetoInfo() {
 // Il fallback (localStorage) non deve essere silenzioso.
 function renderSyncStatus() {
   const el = document.getElementById('syncBadge');
-  if (!el) return;
+  const notice = document.getElementById('syncNotice');
   if (dbMode === 'local') {
-    el.textContent = 'modalità offline';
-    el.classList.remove('hidden');
+    if (el) { el.textContent = 'modalità offline'; el.classList.remove('hidden'); }
+    if (notice) {
+      const message = sb
+        ? 'Stai vedendo i dati salvati su questo telefono. Le modifiche fatte ora potrebbero non essere salvate o condivise.'
+        : 'Stai usando solo i dati di questo telefono. Le modifiche non saranno condivise.';
+      notice.innerHTML = `<i class="fa-solid fa-cloud-arrow-down" aria-hidden="true"></i>
+        <span>${message}</span>
+        ${sb ? '<button onclick="retrySyncUI()">Riprova la connessione</button>' : ''}`;
+      notice.classList.remove('hidden');
+    }
   } else {
-    el.classList.add('hidden');
+    if (el) el.classList.add('hidden');
+    if (notice) notice.classList.add('hidden');
+  }
+}
+
+async function retrySyncUI() {
+  if (!sb) return;
+  lastSupabaseFailAt = 0;
+  try { await loadMovies(); }
+  catch (_) {
+    dbMode = 'local';
+    lastSupabaseFailAt = Date.now();
+    console.error('[sc(r)occhiaTu] Riprova connessione fallita.');
+    try { loadLocal(); } catch (_) { /* conserva i dati già visibili */ }
+    render();
   }
 }
 
@@ -61,9 +83,12 @@ function renderNextMovieBox() {
   }
 
   const pending = pick.proposed_by && !pick.night_confirmed;
-  const countdownHtml = escapeHtml(nextMovieTimeLabel(pick));
+  const countdown = nextMovieTimeLabel(pick);
+  const countdownHtml = escapeHtml(countdown);
+  const dateHtml = pick.scheduled_date ? escapeHtml(formatNightDate(pick.scheduled_date, pick.scheduled_time)) : '';
   const safeId = jsAttrEscape(pick.id);
   const safeTitle = jsAttrEscape(pick.title);
+  const hasTogetherReview = !!reviewTextFor(movies.find(m => m.id === pick.id) || {}, 'both');
 
   let actionsHtml = '';
   if (pending && pick.proposed_by === currentUser) {
@@ -74,7 +99,7 @@ function renderNextMovieBox() {
       <button onclick="confirmNightUI('${safeId}')" class="next-movie-action next-movie-primary">Conferma la serata</button>
       <button onclick="cancelNightUI('${safeId}', '${safeTitle}')" class="next-movie-action next-movie-secondary">Rifiuta</button>`;
   } else {
-    actionsHtml = `${tonight ? `<button onclick="addReview('${safeId}')" class="next-movie-action next-movie-primary">Recensione insieme</button>` : ''}
+    actionsHtml = `${tonight ? `<button onclick="${hasTogetherReview ? 'finishTogetherNightUI' : 'addReview'}('${safeId}')" class="next-movie-action next-movie-primary">${hasTogetherReview ? 'Segna serata vista' : 'Recensione insieme'}</button>` : ''}
       <button onclick="cancelNightUI('${safeId}', '${safeTitle}')" class="next-movie-action next-movie-secondary">Annulla serata</button>`;
   }
 
@@ -93,9 +118,9 @@ function renderNextMovieBox() {
         ${pick.poster ? `<img src="${escapeHtml(pick.poster)}" alt="Locandina di ${escapeHtml(pick.title)}">` : '<i class="fa-solid fa-film" aria-hidden="true"></i>'}
       </div>
       <div class="next-movie-info">
-        <p class="dashboard-eyebrow">${tonight ? (pending ? 'STASERA · DA CONFERMARE' : 'STASERA · LA NOSTRA SERATA') : (pending ? 'IN ATTESA DI CONFERMA' : 'LA NOSTRA SERATA')}</p>
+        <p class="dashboard-eyebrow next-movie-status"><i class="fa-solid ${pending ? 'fa-hourglass-half' : tonight ? 'fa-star' : 'fa-ticket'}" aria-hidden="true"></i>${tonight ? (pending ? 'STASERA · DA CONFERMARE' : 'STASERA · LA NOSTRA SERATA') : (pending ? 'IN ATTESA DI CONFERMA' : 'LA NOSTRA SERATA')}</p>
         <h2>${escapeHtml(pick.title)}</h2>
-        <p class="next-movie-date">${countdownHtml}</p>
+        <div class="next-movie-timing"><p class="next-movie-date">${countdownHtml}</p>${dateHtml && countdown.startsWith('⏳') ? `<p class="next-movie-when"><i class="fa-regular fa-calendar" aria-hidden="true"></i> ${dateHtml}</p>` : ''}</div>
         ${pick.snack ? `<p class="next-movie-snack">🍿 ${escapeHtml(pick.snack)}</p>` : ''}
         <div class="next-movie-actions">${actionsHtml}</div>
       </div>
@@ -132,8 +157,9 @@ function reviewCardsHtml(movie) {
     const text = reviewTextFor(movie, person);
     if (!text) return '';
     const label = person === 'both' ? 'Insieme' : person;
+    const score = person === 'both' ? togetherRating(movie) : personalRating(movie, person);
     return `<div class="mt-2 p-2.5 bg-slate-900/80 rounded-lg border border-slate-800 text-xs text-slate-300">
-      <span class="text-[11px] font-bold text-indigo-300">Recensione ${label}</span>
+      <span class="text-[11px] font-bold text-indigo-300">Recensione ${label}${score !== null ? ` · ★ ${score}/10` : ''}</span>
       <p class="italic mt-1">“${escapeHtml(text)}”</p>
     </div>`;
   }).join('');
@@ -244,6 +270,7 @@ function renderNightHistory() {
         <h5>${escapeHtml(title)}</h5>
         <p>${escapeHtml(completedNightLabel({ night, timelineDate }))}</p>
         ${night.snack ? `<p>🍿 ${escapeHtml(night.snack)}</p>` : ''}
+        ${night.location && !hidden ? `<p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${escapeHtml(night.location)}</p>` : ''}
       </div>
     </article>`;
     }).join('');
@@ -261,12 +288,9 @@ function renderNightHistory() {
 function renderStats() {
   renderNightHistory();
   renderMovieChemistry();
-  const watched = movies.filter(m => m.status === 'watched');
+  const watched = movies.filter(m => viewingState(m).together);
   const totalWatched = watched.length;
-  const allRatings = movies.flatMap(m => {
-    const scores = ['N', 'V'].map(person => personalRating(m, person)).filter(value => value !== null);
-    return scores.length ? scores : (m.review_by === 'both' && m.rating > 0 ? [m.rating * 2] : []);
-  });
+  const allRatings = watched.map(togetherRating).filter(value => value !== null);
   const avgRating = allRatings.length
     ? (allRatings.reduce((sum, value) => sum + value, 0) / allRatings.length).toFixed(1)
     : '—';
@@ -298,7 +322,7 @@ function renderStats() {
 
   const cards = [
     { icon: 'fa-clapperboard', iconClass: 'text-rose-400', label: 'Film visti insieme', value: totalWatched },
-    { icon: 'fa-star', iconClass: 'text-amber-400', label: 'Voto medio', value: avgRating === '—' ? '—' : `⭐ ${avgRating}/10` },
+    { icon: 'fa-star', iconClass: 'text-amber-400', label: 'Voto medio insieme', value: avgRating === '—' ? '—' : `⭐ ${avgRating}/10` },
     { icon: 'fa-tags', iconClass: 'text-sky-400', label: 'Genere più amato', value: topGenreValue },
     { icon: 'fa-users', iconClass: 'text-indigo-400', label: 'Proposti da', value: proposersValue }
   ];
@@ -325,7 +349,7 @@ function renderStats() {
     timeline.innerHTML = reviewed.map(({ movie: m, person, text: review }) => `
       <div class="timeline-item">
         <div class="text-sm font-bold text-slate-100">${escapeHtml(m.title)}</div>
-        <div class="text-[11px] text-slate-400">${person === 'both' ? 'Insieme' : person}${person !== 'both' && personalRating(m, person) !== null ? ` • ★ ${personalRating(m, person)}/10` : ''}</div>
+        <div class="text-[11px] text-slate-400">${person === 'both' ? 'Insieme' : person}${(person === 'both' ? togetherRating(m) : personalRating(m, person)) !== null ? ` • ★ ${person === 'both' ? togetherRating(m) : personalRating(m, person)}/10` : ''}</div>
         <div class="text-xs text-slate-300 italic mt-1">“${escapeHtml(review)}”</div>
       </div>
     `).join('');
@@ -355,12 +379,22 @@ function renderPillCounters() {
     });
 }
 
-// Empty state della griglia. Senza filtri: il messaggio storico. Con filtri
-// attivi: elenca quelli in gioco (la query SEMPRE escapata) e "Azzera filtri".
+// Empty state della griglia: istruzione concreta per la vista corrente.
+// Con filtri attivi elenca quelli in gioco (query SEMPRE escapata) e li azzera.
 function emptyListStateHtml() {
   const state = listFilterState();
   if (!hasActiveListFilters(state)) {
-    return `<div class="col-span-full py-12 text-center text-slate-400 text-sm">Nessun film in questa sezione.</div>`;
+    const empty = {
+      all: ['fa-film', 'Il vostro cinema inizia qui', 'Aggiungete il primo film alla libreria.', 'Aggiungi un film', "openAddModal()"],
+      watchlist: ['fa-clapperboard', 'La lista è pronta', 'Aggiungete un film da scegliere insieme.', 'Aggiungi un film', "openAddModal()"],
+      tonight: ['fa-calendar-plus', 'Nessuna serata in programma', 'Scegliete un film dalla lista e fissate la prossima serata.', 'Vai ai film da vedere', "setTab('watchlist')"],
+      watched: ['fa-ticket', 'Il vostro cinema è tutto da scrivere', 'Qui ritroverete i film visti e le recensioni.', 'Vai ai film da vedere', "setTab('watchlist')"]
+    }[currentTab] || ['fa-film', 'Nessun film', 'Aggiungi un film alla libreria.', 'Aggiungi un film', "openAddModal()"];
+    return `<div class="empty-movie-state col-span-full">
+      <span class="empty-movie-icon" aria-hidden="true"><i class="fa-solid ${empty[0]}"></i></span>
+      <h3>${empty[1]}</h3><p>${empty[2]}</p>
+      <button onclick="${empty[4]}" class="empty-movie-action">${empty[3]} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+    </div>`;
   }
   const parts = [];
   if (state.query && String(state.query).trim()) parts.push(`"${escapeHtml(state.query)}"`);
@@ -369,10 +403,11 @@ function emptyListStateHtml() {
   if (state.availability === 'streaming') parts.push('solo streaming');
   if (state.proposer) parts.push(`proposto da ${escapeHtml(state.proposer)}`);
   return `
-    <div class="col-span-full py-12 text-center text-slate-400 text-sm space-y-3">
-      <p>Nessun film corrisponde ai filtri.</p>
-      <p class="text-slate-400 text-xs">${parts.join(' · ')}</p>
-      <button onclick="resetListFiltersUI()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition">Azzera filtri</button>
+    <div class="empty-movie-state col-span-full">
+      <span class="empty-movie-icon" aria-hidden="true"><i class="fa-solid fa-magnifying-glass"></i></span>
+      <h3>Nessun film corrisponde ai filtri</h3>
+      <p>${parts.join(' · ')}</p>
+      <button onclick="resetListFiltersUI()" class="empty-movie-action">Azzera filtri <i class="fa-solid fa-rotate-left" aria-hidden="true"></i></button>
     </div>`;
 }
 
@@ -647,9 +682,9 @@ function render() {
           ${reviewCardsHtml(m)}
           ${!isSurpriseHidden && viewingState(m)[currentUser] ? `<button onclick="addPersonalReview('${m.id}')" class="mt-2 min-h-9 px-2 py-1.5 text-xs text-indigo-300 hover:text-indigo-200 underline">${reviewTextFor(m, currentUser) ? 'Modifica la tua recensione' : 'Scrivi la tua recensione'}</button>` : ''}
         </div>
-        ${(m.status === 'watchlist' || m.status === 'tonight') ? `
-        <div class="flex flex-col gap-2 pt-2 border-t border-slate-800/80 text-xs">
-          ${isSurpriseHidden ? '' : !viewingState(m)[currentUser]
+        ${(m.status === 'watchlist' || m.status === 'tonight' || m.status === 'watched') ? `
+        <div class="card-action-row flex flex-col gap-2 pt-2 border-t border-slate-800/80 text-xs">
+          ${m.status === 'watched' || isSurpriseHidden ? '' : !viewingState(m)[currentUser]
             ? `<button onclick="markSeenUI('${m.id}')" class="w-full min-h-9 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium text-left"><i class="fa-solid fa-eye mr-1.5" aria-hidden="true"></i>L'ho già visto</button>`
             : `<div class="flex gap-2">
                 <button onclick="markSeenUI('${m.id}')" class="flex-1 min-h-9 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium">${personalRating(m, currentUser) === null ? 'Assegna voto' : 'Modifica voto'}</button>
@@ -668,7 +703,11 @@ function render() {
             ${!isSurpriseHidden ? `<button onclick="toggleCinemaWatchlist('${jsAttrEscape(m.id)}')" class="w-full min-h-9 px-2 py-1.5 text-xs text-amber-200 hover:text-amber-100 underline">${m.cinema_watchlist ? 'Disponibile per Ruota e Match' : 'Tieni per il cinema'}</button>` : ''}
           ` : ''}
           ${m.status === 'tonight' ? `
-            <button onclick="addReview('${m.id}')" class="flex-1 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">Visto insieme & recensione</button>
+            <button onclick="${reviewTextFor(m, 'both') ? 'finishTogetherNightUI' : 'addReview'}('${m.id}')" class="flex-1 min-h-11 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">${reviewTextFor(m, 'both') ? 'Segna serata vista' : 'Visto insieme & recensione'}</button>
+            ${reviewTextFor(m, 'both') ? `<button onclick="addReview('${m.id}')" class="w-full min-h-11 px-3 py-2 text-emerald-200 underline">Modifica recensione insieme</button>` : ''}
+          ` : ''}
+          ${m.status === 'watched' && !isSurpriseHidden ? `
+            <button onclick="addReview('${m.id}')" class="w-full min-h-11 px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded-lg font-medium">${reviewTextFor(m, 'both') ? 'Modifica recensione insieme' : 'Recensisci insieme'}</button>
           ` : ''}
         </div>
         ` : ''}
@@ -846,31 +885,33 @@ function renderMovieDetail(m) {
     ? `<p class="text-xs text-slate-400 leading-relaxed"><i class="fa-solid fa-masks-theater text-indigo-400 mr-1"></i>${m.cast_names.map(escapeHtml).join(', ')}</p>`
     : '';
   const trailerHtml = m.trailer_url
-    ? `<a href="${m.trailer_url}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-3 py-1.5 bg-red-600/80 hover:bg-red-500 rounded-lg text-xs text-white font-medium"><i class="fa-solid fa-play"></i> Trailer</a>`
+    ? `<a href="${m.trailer_url}" target="_blank" rel="noopener" class="detail-trailer"><i class="fa-solid fa-play" aria-hidden="true"></i> Guarda il trailer <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>`
     : '';
 
   body.innerHTML = `
-    <div class="flex items-start justify-between gap-3">
-      <div class="min-w-0">
-        <h3 id="detailModalTitle" class="text-xl font-bold text-slate-100 leading-snug">${escapeHtml(m.title)}</h3>
-        <p class="text-[10px] text-slate-400 mt-1">${metaParts.map(escapeHtml).join(' • ')}</p>
+    <div class="detail-head">
+      <div class="detail-cover">${m.poster ? `<img src="${escapeHtml(m.poster)}" alt="Locandina di ${escapeHtml(m.title)}">` : '<i class="fa-solid fa-film" aria-hidden="true"></i>'}</div>
+      <div class="detail-head-copy">
+        <div class="detail-head-top"><span class="dashboard-eyebrow">SCHEDA FILM</span><button onclick="closeModal('detailModal')" class="detail-close" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+        <h3 id="detailModalTitle" class="detail-title">${escapeHtml(m.title)}</h3>
+        <p class="detail-meta">${metaParts.map(escapeHtml).join(' • ')}</p>
+        <div class="detail-genres">${genreChipsHtml}</div>
       </div>
-      <button onclick="closeModal('detailModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition shrink-0" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
     </div>
-    ${genreChipsHtml}
     ${m.cinema_watchlist ? '<span class="badge bg-amber-600/80">🎬 Al cinema / prossimamente</span>' : ''}
-    ${viewingStatusHtml(m)}
-    ${reviewCardsHtml(m)}
+    ${overviewHtml ? `<section class="detail-section"><h4>La storia</h4>${overviewHtml}</section>` : ''}
+    ${castHtml ? `<section class="detail-section"><h4>Nel cast</h4>${castHtml}</section>` : ''}
+    ${trailerHtml}
     ${ratingsHtml}
     <div id="detailAwards" aria-live="polite"></div>
-    ${overviewHtml}
-    ${castHtml}
-    <div class="flex items-center gap-2 pt-1">
+    <div class="detail-viewing">${viewingStatusHtml(m)}</div>
+    ${reviewCardsHtml(m)}
+    ${m.status === 'tonight' || m.status === 'watched' ? `<button onclick="addReview('${jsAttrEscape(m.id)}')" class="w-full min-h-11 px-4 py-2 rounded-lg bg-emerald-600/20 text-emerald-200 font-medium">${reviewTextFor(m, 'both') ? 'Modifica recensione insieme' : 'Recensisci insieme'}</button>` : ''}
+    <div class="detail-footer">
       ${personBadge(m.added_by)}
       ${m.surprise_by ? `<span class="badge bg-indigo-600/90">🎁 sorpresa di ${escapeHtml(CONFIG.PEOPLE[m.surprise_by]?.label || m.surprise_by)}</span>` : ''}
       ${m.matched === false ? `<span class="badge bg-amber-700/90" title="Nessun riscontro trovato"><i class="fa-solid fa-triangle-exclamation"></i> verifica titolo</span>` : ''}
     </div>
-    ${trailerHtml}
   `;
   body.dataset.movieId = String(m.id);
 

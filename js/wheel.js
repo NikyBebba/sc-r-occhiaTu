@@ -75,6 +75,14 @@ function syncGenreFilterOptions() {
   }
 }
 
+function wheelPalette() {
+  const fallback = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+  if (typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') return fallback;
+  const style = window.getComputedStyle(document.documentElement);
+  const tokens = ['--color-accento-alto', '--color-cielo', '--color-successo', '--color-oro', '--color-persona-v', '--color-dettaglio'];
+  return tokens.map((token, i) => style.getPropertyValue(token).trim() || fallback[i]);
+}
+
 function drawWheel() {
   const canvas = document.getElementById('wheelCanvas');
   const ctx = canvas.getContext('2d');
@@ -96,7 +104,7 @@ function drawWheel() {
   }
 
   const sliceAngle = (Math.PI * 2) / available.length;
-  const colors = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+  const colors = wheelPalette();
 
   available.forEach((m, i) => {
     const angle = i * sliceAngle;
@@ -195,7 +203,7 @@ function closeWheelWinner() {
 function fireConfetti() {
   const container = document.getElementById('confettiLayer');
   if (!container) return;
-  const colors = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+  const colors = wheelPalette();
   const pieces = 60;
   for (let i = 0; i < pieces; i++) {
     const el = document.createElement('div');

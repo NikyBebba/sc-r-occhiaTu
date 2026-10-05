@@ -69,18 +69,19 @@ function renderMatchCta() {
 // ---- Viste ----
 function matchUnavailableHtml() {
   const tech = matchEnterErrorMsg
-    ? `<p class="text-slate-400 text-[10px] break-all">${escapeHtml(matchEnterErrorMsg)}</p>`
+    ? `<details class="match-error-details"><summary>Dettagli tecnici</summary><p class="text-slate-400 text-[10px] break-all">${escapeHtml(matchEnterErrorMsg)}</p></details>`
     : '';
-  return `<div class="col-span-full py-12 text-center text-slate-400 text-sm space-y-3">
-      <div class="text-3xl">🌀</div>
-      <p>Match non disponibile in questo momento.</p>
+  return `<div class="match-panel match-error-state col-span-full text-center text-slate-400 text-sm space-y-3">
+      <div class="match-error-icon" aria-hidden="true"><i class="fa-solid fa-wifi"></i></div>
+      <h3>Match non disponibile in questo momento</h3>
+      <p>Non riusciamo a collegare i due telefoni. Riprova tra poco.</p>
       ${tech}
-      <button onclick="tryMatchAgain()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition">Riprova</button>
+      <button onclick="tryMatchAgain()" class="match-panel-action match-retry-btn">Riprova</button>
     </div>`;
 }
 
 function matchConnectingHtml() {
-  return `<div class="col-span-full py-12 text-center text-slate-400 text-sm">
+  return `<div class="match-panel col-span-full text-center text-slate-400 text-sm">
       <div class="text-2xl mb-2"><i class="fa-solid fa-spinner fa-pulse"></i></div>
       <p>Connessione…</p>
     </div>`;
@@ -92,7 +93,7 @@ function matchNightCreatedHtml() {
     matchExitTimer = setTimeout(() => { matchExitTimer = null; exitMatchView(); }, 1400);
   }
   const title = matchNightCreated && matchNightCreated.title ? matchNightCreated.title : '';
-  return `<div class="col-span-full py-12 text-center text-emerald-400 text-sm space-y-3">
+  return `<div class="match-panel col-span-full text-center text-emerald-400 text-sm space-y-3">
       <div class="text-3xl">🎉</div>
       <p class="font-semibold text-base">Serata creata ✓</p>
       ${title ? `<p class="text-slate-400 text-xs">${escapeHtml(title)}</p>` : ''}
@@ -100,7 +101,7 @@ function matchNightCreatedHtml() {
 }
 
 function matchNewSessionBtn() {
-  return `<button onclick="newMatchSession()" class="flex-1 py-2.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded-xl text-sm font-medium transition">Nuova sessione</button>`;
+  return `<button onclick="newMatchSession()" class="match-panel-action flex-1 py-2.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded-xl text-sm font-medium transition">Nuova sessione</button>`;
 }
 
 // LOBBY_SOLO: attesa con chip di chi è online. "Nuova sessione" è ammessa qui.
@@ -114,7 +115,7 @@ function matchLobbyHtml(state) {
     ? `In attesa di ${missing.map(m => (CONFIG.PEOPLE[m] ? CONFIG.PEOPLE[m].label : escapeHtml(m))).join(' e ')}`
     : 'Siete entrambi online!';
   const sessionStarted = Boolean(state);
-  return `<div class="col-span-full py-10 text-center text-sm space-y-4">
+  return `<div class="match-panel col-span-full text-center text-sm space-y-4">
       <div class="text-3xl">👀</div>
       <p class="font-semibold text-slate-100 text-base">Chi c'è?</p>
       <div class="flex items-center justify-center gap-2">${chips}</div>
@@ -153,6 +154,7 @@ function matchSwipeHtml(state) {
     ? movie.genres.join(', ')
     : '';
   const deckLength = Array.isArray(swipeSessions[0] && swipeSessions[0].deck) ? swipeSessions[0].deck.length : 0;
+  const progress = deckLength ? Math.min(100, Math.round(((state.index + 1) / deckLength) * 100)) : 0;
   const agreement = sessionAgreement(swipes, movies);
   let agreementLine;
   if (agreement.total === 0) {
@@ -177,11 +179,11 @@ function matchSwipeHtml(state) {
       </div>`;
   }
 
-  return `<div class="col-span-full max-w-sm mx-auto space-y-3">
-      <div class="text-center text-[10px] uppercase tracking-wider text-slate-400">Swipe a due — card ${state.index + 1} di ${deckLength}</div>
+  return `<div class="match-stage col-span-full max-w-sm mx-auto space-y-3">
+      <div class="match-stage-progress"><span>Swipe a due — card ${state.index + 1} di ${deckLength}</span><div class="match-progress-track" role="progressbar" aria-label="Film del mazzo" aria-valuemin="0" aria-valuemax="${deckLength}" aria-valuenow="${state.index + 1}"><span style="width:${progress}%"></span></div></div>
       ${agreementLine}
       <div id="matchCard" class="swipe-card glass-card rounded-2xl border border-slate-800 overflow-hidden">
-        <div class="aspect-[2/3] bg-slate-900">${matchPoster(movie)}</div>
+        <div class="match-poster bg-slate-900">${matchPoster(movie)}</div>
         <div class="p-4 space-y-1">
           <div class="font-bold text-slate-100 text-lg leading-snug">${escapeHtml(movie.title)}</div>
           ${meta ? `<div class="text-xs text-slate-400">${escapeHtml(meta)}</div>` : ''}
@@ -203,7 +205,7 @@ function matchMatchHtml(state) {
   const pctLine = agreement.total === 0
     ? '<p class="text-xs text-slate-500">…% d\'accordo · in attesa di N/V</p>'
     : `<p class="text-xs text-slate-400">${agreement.pct}% d'accordo finora${agreement.total < 3 ? ' · poche risposte per un dato attendibile' : ''}</p>`;
-  return `<div class="col-span-full max-w-sm mx-auto text-center space-y-4">
+  return `<div class="match-panel col-span-full max-w-sm mx-auto text-center space-y-4">
       <div class="text-5xl">💘</div>
       <p class="text-xl font-bold text-slate-100">Match!</p>
       <p class="text-sm text-slate-400">Volete vedere <span class="font-semibold text-slate-100">${escapeHtml(title)}</span> insieme.</p>
@@ -230,7 +232,7 @@ function matchDoneHtml(state) {
   const pctLine = agreement.total === 0
     ? ''
     : `<p class="text-sm text-slate-400">${agreement.pct}% di gusti in comune${agreement.total < 3 ? ' <span class="text-slate-500">· poche risposte per un dato attendibile</span>' : ''}</p>`;
-  return `<div class="col-span-full max-w-sm mx-auto text-center space-y-4">
+  return `<div class="match-panel col-span-full max-w-sm mx-auto text-center space-y-4">
       <div class="text-5xl">🏁</div>
       <p class="text-xl font-bold text-slate-100">Mazzo finito!</p>
       <p class="text-sm text-slate-400">${state.matches} match in questa sessione.</p>

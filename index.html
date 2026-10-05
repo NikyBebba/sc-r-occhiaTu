@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>sc(r)occhiaTu</title>
+  <script src="js/theme.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -81,65 +82,77 @@
   <div id="confettiLayer"></div>
 
   <!-- LANDING: scelta persona -->
-  <div id="landingScreen" class="hidden fixed inset-0 flex items-center justify-center" style="background:var(--color-sala);">
-    <div class="text-center space-y-8 px-4">
-      <div>
-        <div class="p-4 bg-indigo-600/20 text-indigo-400 rounded-2xl inline-block mb-3"><i class="fa-solid fa-film text-3xl"></i></div>
-        <h1 class="text-3xl font-bold tracking-tight gradient-text">sc(r)occhiaTu</h1>
-        <p class="text-sm text-slate-400 mt-1">Chi sei?</p>
+  <div id="landingScreen" class="hidden fixed inset-0">
+    <main class="auth-scene" aria-labelledby="landingTitle">
+      <div class="auth-content">
+        <div class="auth-logo" aria-hidden="true"><i class="fa-solid fa-film"></i></div>
+        <p class="auth-eyebrow">IL VOSTRO CINEMA PRIVATO</p>
+        <h1 id="landingTitle" class="auth-title gradient-text">sc(r)occhiaTu</h1>
+        <p class="auth-intro">Due posti, una storia da scegliere insieme.</p>
+        <div class="auth-divider" aria-hidden="true"><span></span><i class="fa-solid fa-star"></i><span></span></div>
+        <h2 class="auth-question">Chi entra in sala?</h2>
+        <div class="auth-people">
+          <button id="landingUserN" onclick="selectUser('N')" class="auth-person auth-person-n" aria-label="Entra come N">
+            <span class="auth-person-initial" aria-hidden="true">N</span>
+            <span class="auth-person-label">Entra come N <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
+          </button>
+          <button id="landingUserV" onclick="selectUser('V')" class="auth-person auth-person-v" aria-label="Entra come V">
+            <span class="auth-person-initial" aria-hidden="true">V</span>
+            <span class="auth-person-label">Entra come V <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
+          </button>
+        </div>
+        <p class="auth-footnote">La serata comincia da qui.</p>
       </div>
-      <div class="flex gap-6 justify-center">
-        <button onclick="selectUser('N')" class="glass-card w-28 h-28 rounded-2xl border border-slate-800 hover:border-indigo-500 transition flex flex-col items-center justify-center gap-2">
-          <span class="text-3xl font-bold badge badge-n" style="padding:10px 16px; font-size:1.1rem;">N</span>
-        </button>
-        <button onclick="selectUser('V')" class="glass-card w-28 h-28 rounded-2xl border border-slate-800 hover:border-indigo-500 transition flex flex-col items-center justify-center gap-2">
-          <span class="text-3xl font-bold badge badge-v" style="padding:10px 16px; font-size:1.1rem;">V</span>
-        </button>
-      </div>
-    </div>
+    </main>
   </div>
 
   <!-- PIN GATE -->
   <div id="pinGate" class="hidden">
-    <div class="glass-panel p-8 rounded-2xl max-w-xs w-full mx-4 text-center space-y-4 border border-slate-800">
-      <i class="fa-solid fa-lock text-3xl text-indigo-400"></i>
-      <p id="pinGateLabel" class="text-sm text-slate-300 font-medium">Inserisci il PIN</p>
-      <input id="pinInput" aria-label="PIN segreto" type="password" inputmode="numeric" maxlength="8"
-        class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-100 focus:border-indigo-500"
-        onkeydown="if(event.key==='Enter') submitPin()">
-      <p id="pinError" class="hidden text-xs text-rose-400">PIN errato, riprova.</p>
-      <button onclick="submitPin()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm">Entra</button>
-      <button onclick="backToLanding()" class="text-xs text-slate-400 hover:text-slate-300 underline">Non sono io, torna indietro</button>
-    </div>
+    <main class="auth-scene" aria-labelledby="pinTitle">
+      <div class="auth-content auth-pin-content">
+        <div id="pinPersonMark" class="auth-pin-mark" aria-hidden="true">N</div>
+        <p class="auth-eyebrow">IL TUO POSTO È PRONTO</p>
+        <h1 id="pinTitle" class="auth-pin-title">Si entra in sala</h1>
+        <p id="pinGateLabel" class="auth-intro">Inserisci il PIN</p>
+        <div class="auth-pin-form">
+          <label for="pinInput" class="auth-pin-label">Il tuo PIN</label>
+          <input id="pinInput" type="password" inputmode="numeric" enterkeyhint="go" maxlength="8" autocomplete="off" aria-describedby="pinError"
+            onkeydown="if(event.key==='Enter') submitPin()">
+          <p id="pinError" class="hidden auth-pin-error" role="alert">PIN errato, riprova.</p>
+          <button onclick="submitPin()" class="auth-enter-btn">Entra <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+        </div>
+        <button onclick="backToLanding()" class="auth-back-btn"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Cambia persona</button>
+      </div>
+    </main>
   </div>
 
   <div id="appRoot" class="hidden">
     <!-- NAVBAR -->
-    <nav class="glass-panel sticky top-0 z-40 px-4 sm:px-6 py-3 sm:py-4 mb-8 flex justify-between items-center border-b border-slate-800">
-      <div class="flex items-center gap-3">
-        <div class="hidden sm:flex p-2 bg-indigo-600/20 text-indigo-400 rounded-xl"><i class="fa-solid fa-film text-xl"></i></div>
-        <h1 class="text-base sm:text-xl font-bold tracking-tight gradient-text">sc(r)occhiaTu</h1>
-      </div>
-      <div class="flex items-center gap-2 sm:gap-3">
-        <span id="syncBadge" class="hidden text-[10px] px-2 py-1 bg-amber-500/15 text-amber-300 rounded-md border border-amber-500/30" title="Supabase non raggiungibile: sto usando i dati salvati sul telefono"></span>
-        <span id="currentUserBadge"></span>
-        <button aria-label="Il Nostro Cinema" onclick="openModal('statsModal'); renderStats();" class="px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm transition flex items-center gap-2" title="Il Nostro Cinema">
-          <i class="fa-solid fa-chart-pie"></i>
-        </button>
-        <button aria-label="Scegli a sorpresa" onclick="openSurprisePicker()" class="px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm transition flex items-center gap-2" title="Scegli a sorpresa">
-          <i class="fa-solid fa-gift"></i>
-        </button>
-        <button aria-label="Importa film" onclick="openModal('importModal')" class="px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-sm transition flex items-center gap-2">
-          <i class="fa-solid fa-file-import"></i><span class="hidden sm:inline"> Importa</span>
-        </button>
-        <button onclick="openAddModal()" class="px-3 sm:px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm shadow-lg shadow-indigo-500/20 transition flex items-center gap-2">
-          <i class="fa-solid fa-plus"></i><span class="hidden sm:inline"> Aggiungi</span>
-        </button>
-        <button aria-label="Cambia utente" onclick="logout()" class="px-2 py-2 text-slate-400 hover:text-rose-400 transition" title="Cambia utente">
-          <i class="fa-solid fa-right-from-bracket"></i>
-        </button>
+    <nav class="site-nav glass-panel sticky top-0 z-40 mb-6" aria-label="Navigazione principale">
+      <div class="site-nav-inner">
+        <div class="site-nav-top">
+          <div class="site-nav-brand">
+            <span class="site-nav-mark" aria-hidden="true"><i class="fa-solid fa-film"></i></span>
+            <h1 class="gradient-text">sc(r)occhiaTu</h1>
+          </div>
+          <div class="site-nav-preferences">
+            <button id="themePickerBtn" type="button" class="theme-picker" onclick="openThemePicker()" aria-label="Scegli tema grafico" title="Scegli tema grafico"><i class="fa-solid fa-palette" aria-hidden="true"></i><span id="themePickerLabel">Cinema</span></button>
+            <span id="currentUserBadge"></span>
+            <button aria-label="Cambia utente" onclick="logout()" class="site-nav-icon site-nav-exit" title="Cambia utente"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i></button>
+          </div>
+        </div>
+        <div class="site-nav-bottom">
+          <span id="syncBadge" class="hidden site-nav-sync" title="Supabase non raggiungibile: sto usando i dati salvati sul telefono"></span>
+          <div class="site-nav-actions">
+            <button aria-label="Il Nostro Cinema" onclick="openModal('statsModal'); renderStats();" class="site-nav-icon" title="Il Nostro Cinema"><i class="fa-solid fa-chart-pie" aria-hidden="true"></i><span class="site-nav-action-label">Cinema</span></button>
+            <button aria-label="Scegli a sorpresa" onclick="openSurprisePicker()" class="site-nav-button site-nav-surprise" title="Scegli a sorpresa"><i class="fa-solid fa-gift" aria-hidden="true"></i><span>Sorpresa</span></button>
+            <button aria-label="Aggiungi film" onclick="openAddModal()" class="site-nav-button site-nav-add"><i class="fa-solid fa-plus" aria-hidden="true"></i><span>Aggiungi</span></button>
+          </div>
+        </div>
       </div>
     </nav>
+
+    <div id="syncNotice" class="hidden sync-notice max-w-6xl mx-auto" role="status" aria-live="polite"></div>
 
     <div id="initialLoadingBanner" class="hidden max-w-6xl mx-auto px-4 mb-5">
       <div class="loading-scene glass-panel rounded-2xl border border-slate-800" role="status" aria-live="polite">
@@ -192,7 +205,7 @@
             </div>
             <canvas id="wheelCanvas" width="256" height="256" class="w-full h-full rounded-full shadow-2xl"></canvas>
           </div>
-          <button onclick="spinWheel()" class="w-full py-3 bg-gradient-to-r from-indigo-600 to-sky-700 hover:from-indigo-700 hover:to-sky-800 text-white font-bold rounded-xl shadow-lg transition">
+          <button onclick="spinWheel()" class="wheel-spin-btn w-full py-3 text-white font-bold rounded-xl shadow-lg transition">
             GIRA LA RUOTA!
           </button>
           <div id="wheelWinner" class="mt-3 text-sm font-semibold text-emerald-400 hidden"></div>
@@ -221,7 +234,7 @@
       <section id="librarySection" class="md:col-span-2 space-y-5 min-w-0" aria-label="Libreria e Match Live">
         <div id="matchViewHeader" class="hidden glass-panel p-4 rounded-2xl border border-slate-800 items-center justify-between gap-3">
           <div><p class="dashboard-eyebrow">IN DUE, IN DIRETTA</p><h2 class="text-lg font-bold">Match Live</h2></div>
-          <button onclick="exitMatchView()" class="dashboard-choice-btn" aria-label="Esci da Match Live"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Torna alla libreria</button>
+          <button onclick="exitMatchView()" class="dashboard-choice-btn match-return" aria-label="Esci da Match Live"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Torna alla libreria</button>
         </div>
         <div id="libraryHeader" class="flex items-center justify-between gap-3">
           <div><p class="dashboard-eyebrow">I VOSTRI FILM</p><h2 class="text-lg font-bold text-slate-100">Libreria</h2></div>
@@ -292,9 +305,20 @@
     </main>
   </div>
 
+  <!-- Palette: anteprima e scelta locale al dispositivo -->
+  <div id="themeModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass-panel theme-modal-panel p-5 sm:p-6 rounded-2xl max-w-lg w-full border border-slate-800">
+      <div class="flex items-start justify-between gap-3 mb-4">
+        <div><p class="dashboard-eyebrow">LA TUA SALA</p><h2 class="text-lg font-bold text-slate-100">Scegli l’atmosfera</h2><p class="text-xs text-slate-400 mt-1">Il tema cambia solo su questo dispositivo.</p></div>
+        <button onclick="closeModal('themeModal')" class="site-nav-icon theme-modal-close" aria-label="Chiudi temi"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </div>
+      <div id="themeOptions" class="theme-options" role="group" aria-label="Temi disponibili"></div>
+    </div>
+  </div>
+
   <!-- MODALE AGGIUNGI FILM SINGOLO -->
   <div id="addModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-    <div class="glass-panel p-6 rounded-2xl max-w-md w-full border border-slate-800 space-y-4">
+    <div class="glass-panel p-6 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-slate-800 space-y-4">
       <div class="flex items-center justify-between gap-2">
         <h3 id="addModalTitle" class="text-lg font-bold text-slate-100">Aggiungi un Film</h3>
         <button onclick="closeModal('addModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
@@ -319,6 +343,7 @@
         <button onclick="closeModal('addModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
         <button id="addSaveBtn" onclick="initiateAddMovie()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">Cerca</button>
       </div>
+      <button type="button" onclick="closeModal('addModal'); openModal('importModal')" class="min-h-11 w-full text-xs text-slate-400 hover:text-slate-200 underline underline-offset-2">Hai una lista di titoli? Importala</button>
     </div>
   </div>
 
@@ -389,7 +414,7 @@
 
   <!-- MODALE VISIONE PERSONALE: voto 0–10 obbligatorio, recensione facoltativa -->
   <div id="seenModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-    <div class="glass-panel p-6 rounded-2xl max-w-md w-full border border-slate-800 space-y-4">
+    <div class="glass-panel p-6 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-slate-800 space-y-4">
       <div class="flex items-center justify-between gap-2">
         <h3 id="seenModalTitle" class="text-lg font-bold text-slate-100">L'ho già visto</h3>
         <button onclick="closeModal('seenModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi"><i class="fa-solid fa-xmark"></i></button>
@@ -412,6 +437,7 @@
         <label for="seenReview" class="block text-sm font-medium text-slate-200 mb-1">Recensione <span class="text-slate-400 font-normal">(facoltativa)</span></label>
         <textarea id="seenReview" rows="3" class="field w-full" placeholder="Cosa ne pensi?"></textarea>
       </div>
+      <button onclick="reviewTogetherFromSeen()" class="w-full min-h-11 px-3 py-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-200 text-sm font-medium text-left"><i class="fa-solid fa-people-group mr-2" aria-hidden="true"></i>L’abbiamo visto insieme? Recensiscilo insieme</button>
       <div class="flex justify-end gap-2 pt-2">
         <button onclick="closeModal('seenModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
         <button onclick="confirmSeen()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">Salva</button>
@@ -421,21 +447,45 @@
 
   <!-- MODALE RECENSIONE (sostituisce 3x prompt) -->
   <div id="reviewModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-    <div class="glass-panel p-6 rounded-2xl max-w-md w-full border border-slate-800 space-y-4">
+    <div class="glass-panel p-6 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-slate-800 space-y-4" role="dialog" aria-modal="true" aria-labelledby="reviewModalTitle">
       <div class="flex items-center justify-between gap-2">
         <h3 id="reviewModalTitle" class="text-lg font-bold text-slate-100">Recensione</h3>
         <button onclick="closeModal('reviewModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <input type="hidden" id="reviewMovieId">
       <input type="hidden" id="reviewBy">
+      <input type="hidden" id="reviewNightId">
+      <p id="reviewMovieTitle" class="text-sm text-slate-300"></p>
       <div>
-        <label for="reviewText" class="block text-xs font-medium text-slate-400 mb-1">Recensione</label>
-        <textarea id="reviewText" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500"></textarea>
+        <label for="reviewRating" id="reviewRatingLabel" class="block text-sm font-medium text-slate-200 mb-1">Il tuo voto <span class="text-amber-400">★</span></label>
+        <select id="reviewRating" class="field w-full" required>
+          <option value="">Scegli un voto da 0 a 10</option>
+          <option value="0">0 / 10</option><option value="1">1 / 10</option>
+          <option value="2">2 / 10</option><option value="3">3 / 10</option>
+          <option value="4">4 / 10</option><option value="5">5 / 10</option>
+          <option value="6">6 / 10</option><option value="7">7 / 10</option>
+          <option value="8">8 / 10</option><option value="9">9 / 10</option>
+          <option value="10">10 / 10</option>
+        </select>
       </div>
-      <p class="text-[11px] text-slate-400">Il voto 0–10 già assegnato resta invariato.</p>
+      <div>
+        <label for="reviewText" class="block text-sm font-medium text-slate-200 mb-1">La recensione</label>
+        <textarea id="reviewText" rows="4" class="field w-full" placeholder="Cosa vi è rimasto del film?"></textarea>
+      </div>
+      <div id="reviewLocationWrap">
+        <div id="reviewNightSelectWrap" class="hidden mb-3">
+          <label for="reviewNightSelect" class="block text-sm font-medium text-slate-200 mb-1">Serata del luogo</label>
+          <select id="reviewNightSelect" onchange="selectReviewNight()" class="field w-full"></select>
+        </div>
+        <label for="reviewLocation" class="block text-sm font-medium text-slate-200 mb-1">Dove l’avete visto? <span class="text-slate-400 font-normal">(facoltativo)</span></label>
+        <input id="reviewLocation" type="text" maxlength="120" autocomplete="off" class="field w-full" placeholder="Es. Sul divano, al cinema, in terrazza…">
+        <p class="text-xs text-slate-400 mt-1">Il luogo appartiene a questa serata, anche se rivedrete il film.</p>
+      </div>
+      <p id="reviewHelp" class="text-xs text-slate-400"></p>
+      <p id="reviewError" class="hidden text-sm text-rose-300" role="alert"></p>
       <div class="flex justify-end gap-2 pt-2">
         <button onclick="closeModal('reviewModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
-        <button onclick="confirmReview()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium">Salva recensione</button>
+        <button id="reviewSaveButton" onclick="confirmReview()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium">Salva recensione</button>
       </div>
     </div>
   </div>
@@ -498,7 +548,8 @@
   </div>
 
   <div id="addErrorModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-    <div class="glass-panel p-6 rounded-2xl max-w-sm w-full border border-slate-800 space-y-4 text-center">
+    <div class="glass-panel app-error-modal p-6 rounded-2xl max-w-sm w-full border border-slate-800 space-y-4 text-center">
+      <span class="app-error-icon" aria-hidden="true"><i class="fa-solid fa-circle-exclamation"></i></span>
       <h3 id="addErrorModalTitle" class="text-lg font-bold text-slate-100">Film non salvato</h3>
       <p id="addErrorMessage" class="text-sm text-slate-300"></p>
       <button onclick="closeModal('addErrorModal')" class="min-h-11 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium">Ho capito</button>
