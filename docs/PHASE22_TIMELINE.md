@@ -1,10 +1,10 @@
 # Phase 22 — Timeline delle serate per mese
 
-Stato: **implementata nel codice locale; verifica mobile su due telefoni da eseguire** · 1 ottobre 2026
+Stato: **implementata; checkpoint documentale 5 ottobre 2026, prova su due telefoni dopo deploy**
 
 ## Obiettivo
 
-Rendere «Il Nostro Cinema» una memoria leggibile delle serate condivise. La timeline
+Rendere «Titoli di coda» una memoria leggibile delle serate condivise. La timeline
 racconta gli eventi `movie_nights` completati, inclusi i rewatch, senza ricavare
 una cronologia fittizia dai campi del film.
 
@@ -29,8 +29,8 @@ Le date `YYYY-MM-DD` vanno lette per componenti locali, senza
 
 ## Interfaccia
 
-- Mantenere «Il Nostro Cinema» nel modale attuale. Sostituire la griglia piatta
-  «Le nostre serate» con gruppi mensili dal più recente al meno recente. Ogni
+- Mantenere «Titoli di coda» nel modale attuale. Sostituire la griglia piatta
+  «Serate concluse» con gruppi mensili dal più recente al meno recente. Ogni
   intestazione mostra mese, anno e numero di serate; sotto, le card biglietto
   già esistenti. «Data non registrata» resta in fondo.
 - Nelle card mostrare la data della serata. Se la data viene da
@@ -45,11 +45,7 @@ Le date `YYYY-MM-DD` vanno lette per componenti locali, senza
 
 ## Recensioni e privacy della sorpresa
 
-Le recensioni personali sono salvate sul film senza `reviewed_at`. Restano in
-una sezione separata «Recensioni», fuori dai gruppi mensili, senza data e senza
-pretendere un ordine cronologico. La vecchia ordinazione basata su
-`scheduled_date`/`created_at` va eliminata perché descrive altro. N, V e
-«Insieme» rimangono distinti.
+I voti e le recensioni condivise vivono sul film, senza timestamp di recensione: sono nella sezione «Dopo il film», separata dai gruppi mensili e ordinata per titolo. Ogni voto è solo «★ x/10», senza etichetta ripetuta. I testi personali rimangono sulle card e nella scheda film, distinti dal condiviso; non diventano una cronologia con date inventate. Le card serata mostrano il voto condiviso con N+V.
 
 Se un film è ancora una sorpresa per chi guarda, la timeline usa il titolo
 generico e non mostra poster o recensioni che rivelino il film. Va mantenuta
@@ -87,3 +83,5 @@ verificati. La prova manuale su due telefoni resta da fare dopo il deploy.
 La Phase 23 può aggiungere statistiche retrospettive calcolate sugli stessi
 eventi, con denominatori espliciti. La Phase 24 richiede una decisione di
 prodotto sulle motivazioni da mostrare; non deve riusare il vecchio `votes`.
+
+Checkpoint corrente: smoke **369/369 PASS**, service worker **12/12 PASS**, cache PWA `v44`; modale verificato con fixture Chromium a 320/390/768 px. [Riepilogo e definizioni delle statistiche](PHASE23_MOVIE_CHEMISTRY.md).

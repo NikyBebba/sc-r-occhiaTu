@@ -71,3 +71,7 @@ esclusione da Ruota e deck Match già aperto, programmazione di una serata
 cinema, filtro libreria e avviso di salvataggio fallito. Colonna verificata
 sul database remoto in sola lettura; resta da verificare il flusso completo
 su due telefoni dopo il deploy.
+
+## Checkpoint corrente — 5 ottobre 2026
+
+Il flag resta invariato nel frontend corrente (cache PWA `v44`). Il pannello saghe aggiunge i capitoli con uscita futura come `cinema_watchlist: true`; restano in libreria/programmazione ed esclusi da Ruota e Match. Smoke complessivo **369/369 PASS**, service worker **12/12 PASS**. Migration Step 10 già applicata dall'utente e verificata in sola lettura; uso condiviso dopo il deploy da ricontrollare.

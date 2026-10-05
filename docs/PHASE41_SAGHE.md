@@ -28,3 +28,7 @@ Risultati del ciclo: **351/351 smoke test PASS**, **12/12 service worker PASS**,
 Verifica browser Chromium con HTML/CSS e moduli reali, fixture di film e collection, a **320×568, 390×844 e 768×1024**: pannello sopra la scheda film, chiusura 44×44, nessun overflow orizzontale, checkbox inizialmente vuoti, selezione che abilita l'aggiunta, sorpresa protetta, Esc che chiude solo il pannello in cima e stato di errore con Riprova. Screenshot ispezionati; zero errori JavaScript nel browser. Playwright usato soltanto in una directory temporanea, senza dipendenze nel repository. Questa verifica non sostituisce l'uso su due telefoni con dati condivisi dopo il deploy.
 
 Correzione successiva: ripristinato «Continua la saga» anche sulle card della lista. Verifica di regressione sul mantenimento del pulsante dopo render e cambio stato, con sorprese protette: **352/352 smoke PASS**, service worker **12/12 PASS**, cache `v39`.
+
+## Checkpoint corrente — 5 ottobre 2026
+
+Il pannello e «Continua la saga» sulle card sono inclusi nel frontend aggiornato (cache PWA `v44`). Harness complessivo **369/369 PASS**, service worker **12/12 PASS**, sintassi e diff check superati. I numeri 351/352 sopra descrivono i cicli storici della feature. Prova di aggiunta e sincronizzazione su due telefoni da fare dopo il deploy; i test di inserimento finora usano fixture/localStorage/mock. Nessuna migration aggiuntiva per le saghe.

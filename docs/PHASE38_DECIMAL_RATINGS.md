@@ -40,13 +40,13 @@ WHERE table_schema = 'public' AND table_name = 'movies'
   AND column_name IN ('seen_rating_n', 'seen_rating_v', 'seen_rating_together');
 ```
 
-Frontend pronto per la pubblicazione (cache PWA ora `v41`). Un vecchio client
+Frontend incluso nel checkpoint del 5 ottobre 2026 (cache PWA `v44`). Un vecchio client
 accetta ancora solo gli interi e può non mostrare i nuovi decimali: aggiornare
 entrambi i telefoni. Nessuna modifica alle credenziali o alle serate.
 
 ## Verifiche
 
-- Smoke **358/358 PASS**, service worker **12/12 PASS**, controlli sintassi.
+- Checkpoint corrente: smoke **369/369 PASS**, service worker **12/12 PASS**, controlli sintassi. La prima implementazione aveva 358/358 test.
 - Tutti i 101 decimi, punto/virgola, input errati, zero, salvataggi personali
   e condivisi, modifica, persistenza locale, legacy, ordinamento e media.
 - Migration eseguita su PostgreSQL temporaneo PGlite: preserva valori,
@@ -56,11 +56,13 @@ entrambi i telefoni. Nessuna modifica alle credenziali o alle serate.
   punto/virgola, errori, riapertura, target voto ≥44 px, font mobile 16 px,
   nessun overflow orizzontale e zero errori JS; screenshot ispezionati.
 - Tastierino e salvataggio condiviso su due telefoni reali: da verificare
-  dopo migration e deploy.
+  dopo il deploy (migration già applicata dall'utente).
 
 Nessuna dipendenza aggiunta all'app. Browser e PostgreSQL di verifica
 sono installazioni temporanee fuori dal repository.
 
-Revisione successiva: pulsante personale sotto quello insieme, nome e colore N/V; testo personale facoltativo anche in modifica. Svuotare e salvare elimina il testo, incluso il mirror legacy del solo autore, mantenendo voto e serate. Testo omesso nelle chiamate dati conserva la recensione. Smoke aggiornato **365/365 PASS**, service worker **12/12 PASS**.
+Revisione successiva: pulsante personale sotto quello insieme, nome e colore N/V; testo personale facoltativo anche in modifica. Svuotare e salvare elimina il testo, incluso il mirror legacy del solo autore, mantenendo voto e serate. Testo omesso nelle chiamate dati conserva la recensione. Smoke del ciclo precedente **365/365 PASS**, service worker **12/12 PASS**.
 
 Il voto condiviso nelle card e nella scheda è identificato da N+V (nomi configurati), con azione nello stesso oro del voto. Il pulsante personale segue quello condiviso con colore N/V. Chromium a 320/390 px verifica ordine, colori e cancellazione del testo per entrambi gli utenti, con screenshot ispezionati e nessun errore JS. Il widget «Film aggiunti» ora conta tutti i film presenti per autore, includendo watchlist, cinema e visti; nessun raddoppio dai rewatch.
+
+La media ora usa la somma dei decimi per arrotondare correttamente (9,1 e 0 → 4,6). Il riepilogo finale è documentato nella [revisione Ricordi](PHASE23_MOVIE_CHEMISTRY.md); niente ripetizioni di «insieme» su ogni voto.

@@ -7,13 +7,15 @@ Uno spazio cinema condiviso per N e V: scegliere un film, organizzare la serata 
 - Watchlist comune con ricerca TMDb, metadati dei film e avviso se la locandina scelta corrisponde a un film già presente (stesso ID TMDb).
 - Home con saluto personale, tre card per Match Live, Ruota e Libreria, e accessi compatti a Visti e recensioni e Calendario. Le viste sono centrate e tutti i pulsanti di uscita da Match tornano alla home, conservando la sessione.
 - Serate da proporre e confermare, scelta rapida «Stasera», snack personalizzati e promemoria della prossima serata.
-- Stato «visto» indipendente per N e V, visione insieme, voti personali e voto condiviso da 0 a 10 anche senza testo; il voto insieme appare come «I ★ voto/10» in oro. Recensioni modificabili e luogo facoltativo per ogni serata.
-- «Ricordi» / «Il Nostro Cinema» con statistiche e recensioni condivise e storico delle serate concluse, inclusi i rewatch. Il calendario mostra anche le scelte rapide concluse usando la data di completamento, e nasconde le annullate.
+- Stato «visto» indipendente per N e V; voti personali e condiviso 0–10 con un decimale da tastierino, punto o virgola. Il voto N+V e la sua azione sono in oro, il pulsante personale usa il colore N/V. Il testo è facoltativo: svuotarlo e salvare conserva il voto. Luogo distinto per ogni serata e rewatch.
+- «Ricordi» apre «Titoli di coda»: quattro riepiloghi (media, voto più alto, genere più visto, film aggiunti per autore), storico mensile con N+V accanto al voto e sezione «Dopo il film» per voti e recensioni. Il calendario include le scelte rapide concluse nel giorno di completamento ed esclude le annullate; i rewatch conservano eventi distinti.
 - Saghe TMDb: gli altri capitoli in ordine di uscita, suggerimento dopo una nuova visione e aggiunta esplicita alla lista. Film già presenti/visti riconoscibili, sorprese protette e future uscite segnate «Al cinema / prossimamente».
 - Ticket PNG da scaricare dopo la scelta, con locandina protagonista, titolo adattivo e talloncino con origine, data e snack; modalità sorpresa, veto settimanale e PWA installabile.
-- Otto temi con anteprima e cambio automatico per periodo (Estate, Inverno, Primavera, Autunno, Halloween, Natale, Pasqua e Capodanno); la scelta manuale dura fino al prossimo periodo. Barra mobile con «Ricordi» e «Aggiungi» visibili, primo ingresso cinematografico, scheda film e Match Live più leggibili, e messaggi utili negli stati vuoti e negli errori. «Ricordi» apre storico, recensioni e statistiche; «Sorpresa» è un'azione secondaria accanto alla Ruota; l'importazione in blocco resta un link nel form «Aggiungi un Film». I campi su smartphone usano testo da 16 px e i controlli principali hanno target tattili da almeno 44 px.
+- Otto temi con anteprima e cambio automatico per periodo (Primavera, Estate, Autunno, Inverno, Pasqua, Halloween, Natale e Capodanno); la scelta manuale dura fino al prossimo periodo. Barra mobile con «Ricordi» e «Aggiungi» visibili, primo ingresso cinematografico, scheda film e Match Live più leggibili, e messaggi utili negli stati vuoti e negli errori. «Ricordi» apre storico, recensioni e statistiche; «Sorpresa» è un'azione secondaria accanto alla Ruota; l'importazione in blocco resta un link nel form «Aggiungi un Film». I campi su smartphone usano testo da 16 px e i controlli principali hanno target tattili da almeno 44 px.
 
 I temi festivi hanno precedenza sulle stagioni: Natale dal 22 dicembre al 6 gennaio, Halloween dal 27 ottobre al 2 novembre, Pasqua dal Venerdì Santo a Pasquetta (quattro giorni, data calcolata ogni anno). Capodanno, nero con inserti dorati, si attiva dal 30 dicembre al 2 gennaio e ha precedenza su Natale. Il selettore permette di tornare subito ad «Automatico»; VHS e Default sono stati rimossi.
+
+Il tono è cinematografico e leggero: «Due poltrone. Un solo telecomando.», «Che film si guarda?» e «Due sì fanno un Match». La scritta in home ha due ciak uguali; il PIN ha «Ciak, si entra», titolo «Biglietto, prego» e una battuta originale da agente segreto. Evitare di ripetere nostro/vostro/insieme quando il contesto è già chiaro.
 
 Le modifiche condivise si sincronizzano tramite Supabase Realtime. In assenza di connessione, l'app segnala la modalità locale e usa `localStorage`.
 
@@ -42,7 +44,9 @@ node scripts/smoke.js
 node scripts/verify-sw.js
 ```
 
-Ultima verifica locale documentata: **369/369** smoke test e **12/12** controlli del service worker. «Il Nostro Cinema» calcola il voto medio solo dai voti condivisi dei film visti insieme; il luogo si modifica nella recensione scegliendo la serata, se ci sono rewatch. Le migration [voto insieme](database/supabase-migration-step-review-together.sql) e [luogo della serata](database/supabase-migration-step-night-location.sql) sono state applicate dall'utente; entrambe le colonne sono state verificate in Supabase in sola lettura (HTTP 200). La revisione grafica richiede ancora una verifica visiva su smartphone; il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni.
+Checkpoint del 5 ottobre 2026: **369/369** smoke test e **12/12** controlli del service worker, sintassi JS e diff check superati. Cache PWA **`v44`**. Chromium con fixture e screenshot ispezionati a 320/390/768 px per login, PIN, home, Ricordi e modali; pannello saghe verificato anche sopra la scheda film. Nessuna scrittura sul DB reale durante queste prove.
+
+La [migration dei voti decimali](database/supabase-migration-step38-decimal-ratings.sql) è stata applicata dall'utente. La verifica indipendente dei tipi via OpenAPI ha restituito HTTP 401; lo stato è registrato sulla sua conferma. Le precedenti migration voto condiviso e luogo serata erano state applicate e verificate in lettura. Restano da provare dopo il deploy il tastierino nativo, i salvataggi decimali e la rimozione del solo testo su due telefoni, oltre all'aggiunta dei capitoli di una saga. Le prove browser non sostituiscono quelle con dati condivisi reali.
 
 Per aggiornare selettivamente i metadati di film già presenti, `scripts/refresh-movie-metadata.js` accetta `--ids=<uuid>` oppure `--titles=<titolo>`. Eseguire prima `--dry-run` per confrontare i valori; solo `--apply` scrive su Supabase. Include i rating OMDb e conserva quelli già salvati quando il servizio non ne fornisce di nuovi.
 
@@ -52,14 +56,8 @@ Database locali, dump e backup sono esclusi da Git tramite `.gitignore`. I file 
 
 ## Prossimi passi
 
-Le Phase 8.3 «Al cinema / prossimamente», 22 «Timeline delle serate per mese» e [23 «I nostri numeri»](docs/PHASE23_MOVIE_CHEMISTRY.md) sono implementate localmente. Sono presenti anche la transizione card/scheda film (Phase 25), i suoni facoltativi (Phase 26), la vibrazione facoltativa (Phase 27), il ciak con skeleton (Phase 28) e una prima revisione della barra mobile e dei temi stagionali. Restano la revisione visiva su smartphone e la verifica dei flussi su due telefoni dopo il deploy. Tra le idee future: voti decimali 0–10 scritti con tastierino mobile al posto dei menu; richiedono una fase dedicata per adeguare le colonne oggi intere. Per stato dettagliato, limiti e dipendenze, usare il [context unico](docs/MASTER_CONTEXT.md).
+Dopo il push, verificare il nuovo frontend sui due telefoni e accettare l'aggiornamento PWA, se proposto. Provare i voti `8,3`/`8.3`, le recensioni senza testo e il pannello saghe, controllando che le modifiche arrivino sull'altro dispositivo. Confermare anche la resa di home, temi e «Titoli di coda».
 
-Voti decimali (Phase 38): implementati localmente, con punto/virgola e un decimale per N, V e insieme. La [migration dei voti](database/supabase-migration-step38-decimal-ratings.sql) è stata applicata dall'utente; salvataggi su due telefoni da verificare dopo deploy. [Specifiche e verifiche](docs/PHASE38_DECIMAL_RATINGS.md).
+Voti decimali e saghe sono implementati; non appartengono più alle idee future. Gamification, raccomandazioni avanzate, statistiche personali e l'eventuale spazio Extra restano da progettare in fasi dedicate. Per priorità, decisioni e vincoli usare il [master context](docs/MASTER_CONTEXT.md).
 
-Il pulsante «Modifica voto {nome utente}» segue quello insieme e usa il colore N/V. Per lasciare solo il voto, svuotare il testo della recensione e salvare: le altre recensioni e le date delle serate restano conservate.
-
-Voto condiviso e pulsante nelle card/scheda: N+V, in oro; le descrizioni delle statistiche mantengono «insieme». «Film aggiunti» conta tutta la libreria attuale per autore, con zero esplicito e senza raddoppiare i rewatch.
-
-Ricordi apre «Titoli di coda»: quattro riepiloghi (media, voto più alto, genere più visto, film aggiunti), storico con voto N+V e recensioni senza ripetere «insieme» su ogni voto. Eliminati i riquadri di conteggio duplicati; dati e rewatch conservati.
-
-Tono dell'app: cinema e leggerezza, anche in login e home, con meno ripetizioni di «nostro/vostro/insieme». «Due poltrone. Un solo telecomando.», «Che film si guarda?» e «Due sì fanno un Match». Le distinzioni personali/condivise restano nei flussi dove servono.
+Specifiche aggiornate: [saghe](docs/PHASE41_SAGHE.md), [voti decimali](docs/PHASE38_DECIMAL_RATINGS.md), [Ricordi e statistiche](docs/PHASE23_MOVIE_CHEMISTRY.md), [timeline mensile](docs/PHASE22_TIMELINE.md).

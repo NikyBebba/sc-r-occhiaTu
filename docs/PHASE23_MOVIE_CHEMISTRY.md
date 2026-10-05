@@ -43,7 +43,7 @@ Non sono più un blocco di statistiche visibile.
 ## Verifiche
 
 Smoke **369/369 PASS**, service worker **12/12 PASS**, controlli sintassi
-JS e `git diff --check` senza errori. Cache PWA `v42`.
+JS e `git diff --check` senza errori. Cache PWA corrente `v44`.
 Test su quattro riquadri distinti, media con zero e decimali, voto massimo,
 ex aequo, input senza voto, titoli escapati, sorprese, intera libreria per
 conteggio aggiunte, storico N+V e recensioni senza etichette ripetute.

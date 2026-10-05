@@ -1,6 +1,11 @@
 # AGENTS.md — sc(r)occhiaTu
 
-Progetto di riferimento (contesto permanente per le sessioni di sviluppo).
+Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 5 ottobre 2026.
+Prima di progettare una fase leggere [docs/MASTER_CONTEXT.md](docs/MASTER_CONTEXT.md):
+è la fonte dello stato corrente, delle decisioni UX e della roadmap. Le sezioni
+storiche del master context descrivono cicli precedenti, non lo stato finale.
+Per modelli e flussi specifici consultare anche le specifiche Phase 22/23/38/41.
+Vincoli, sicurezza e contratto Match di questo file restano applicabili.
 
 ## Project purpose
 
@@ -11,15 +16,19 @@ Web app condivisa per **due persone, N e V**, che permette di:
 - usare una ruota della fortuna per scegliere a caso;
 - gestire veto settimanali (1 film escluso a testa a settimana);
 - pianificare una serata (data/ora/snack) con proposta e conferma a due;
-- recensire i film (testo + stelle 1-5, "visto da N / V / insieme");
+- segnare visioni N/V/condivise, votare 0–10 con un decimale e recensire con testo facoltativo;
 - gestire sorprese (poster sfocato finché l'altra persona non rivela);
-- vedere statistiche e storico ("Il Nostro Cinema").
+- consultare «Ricordi» / «Titoli di coda», storico mensile e quattro riepiloghi;
+- consultare gli altri capitoli di una saga TMDb e aggiungerli esplicitamente.
 
 La direzione del prodotto è: **un piccolo spazio condiviso per due persone
 che trasforma la scelta di un film in una piccola esperienza/rituale**.
 
 L'esperienza deve essere: semplice, mobile-first, condivisa, veloce, ludica,
-cinematografica, personale.
+cinematografica, personale. Il tono deve essere leggero e giocoso, con riferimenti
+al cinema; evitare di ripetere nostro/vostro/insieme quando non aggiunge significato.
+Non impostare l'app come esclusivamente romantica o troppo seria. Mantenere
+chiare le distinzioni tra voto personale e condiviso e i messaggi d'errore.
 
 ## Nomi ufficiali
 
@@ -47,11 +56,11 @@ NON introdurre framework/bundler/backend senza autorizzazione.
 Flusso di caricamento dei moduli (ordine in `index.html`):
 
 ```
-config → format → api(omdb+tmdb → index) → store → match → filters → wheel → ui(modals+navigation+actions+render+calendar+match) → main
+theme (head) → config → format → haptics → audio → api(omdb+tmdb → index) → store → match → filters → wheel → ui(modals+navigation+actions+sagas+render+calendar+match+ticket+loading) → main
 ```
 
 - `js/config.js` — chiavi runtime (TMDb/OMDb/Supabase) + `PEOPLE` (label + PIN).
-- `js/format.js` — helper DOM-free: `formatNightDate(date, time)` (data serata
+- `js/format.js` — helper DOM-free dei voti decimali (validazione, parsing punto/virgola, formato italiano) e delle date: `formatNightDate(date, time)` (data serata
   leggibile "24 ott · 21:30", senza `new Date('YYYY-MM-DD')`, fallback al dato
   grezzo, mai orari inventati, `date NULL` → "Stasera").
 - `js/api/omdb.js` — OMDb: `omdbConfigured`, `extractRatings`, `fetchOmdbByTitle`,
@@ -94,6 +103,14 @@ config → format → api(omdb+tmdb → index) → store → match → filters �
 - `js/ui/render.js` — `render`, `renderScheduled`, `renderStats`,
   `renderVetoInfo`, `renderSyncStatus`, `renderNextMovieBox` (countdown 30s),
   `drawWheel` invocata dal render.
+- `js/ui/sagas.js` — collection TMDb su richiesta, ordine di uscita, suggerimento
+  dopo nuova visione, aggiunta esplicita con dedup, retry e protezione sorpresa.
+- `js/ui/ticket.js` — ticket PNG via canvas nativo, poster e talloncino; origine
+  solo in memoria, nessun nuovo campo DB.
+- `js/theme.js` — otto temi automatici per stagioni/festività; override manuale
+  locale fino al cambio di periodo (finestre e precedenze nel master context).
+- `js/audio.js` / `js/haptics.js` — preferenze locali opt-in per suoni/vibrazioni;
+  `js/ui/loading.js` — ciak loader e skeleton iniziali.
 - `js/main.js` — login (landing → persona → PIN → `sessionStorage`) e
   attivazione Realtime all'ingresso.
 - `scripts/import-movies.js` — import/aggiornamento massivo dei film da
@@ -161,35 +178,20 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 
 ## Struttura del progetto
 
-```
+```text
 /
-├── index.html
-├── AGENTS.md
-├── database/
-│   ├── supabase-schema.sql
-│   └── supabase-migration-step*.sql
-├── data/
-│   └── movie-watchlist.json
-├── scripts/
-│   ├── import-movies.js
-│   └── smoke.js
+├── index.html, AGENTS.md, README.md
+├── manifest.json, service-worker.js, icons/
+├── database/                    # schema e migration, nessun dump
+├── data/movie-watchlist.json    # lista iniziale ufficiale
+├── docs/                       # MASTER_CONTEXT e specifiche delle fasi
+├── scripts/                    # import, metadati, smoke, verify-sw
 ├── js/
-│   ├── config.js
-│   ├── format.js
-│   ├── store.js
-│   ├── wheel.js
-│   ├── main.js
-│   ├── api/
-│   │   ├── index.js
-│   │   ├── omdb.js
-│   │   └── tmdb.js
-│   └── ui/
-│       ├── actions.js
-│       ├── modals.js
-│       ├── navigation.js
-│       └── render.js
-└── css/
-    └── style.css
+│   ├── config.js, format.js, theme.js, audio.js, haptics.js
+│   ├── store.js, match.js, filters.js, wheel.js, main.js
+│   ├── api/{omdb,tmdb,index}.js
+│   └── ui/{modals,navigation,actions,sagas,render,calendar,match,ticket,loading}.js
+└── css/style.css
 ```
 
 ## Modello dati
@@ -198,11 +200,21 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
   trailer_url, matched, imdb_rating, rt_rating, metacritic_rating, rating,
   scheduled_date, scheduled_time, snack, review_text, review_by, watched_by,
   genre, proposed_by, night_confirmed, surprise_by, tmdb_id, collection_id,
-  collection_name, created_at)`
+  collection_name, cinema_watchlist, seen_rating_n, seen_rating_v,
+  seen_rating_together, review_text_n, review_text_v, review_text_together,
+  genres, release_year, director, overview, cast_names, created_at)`
   - `status`: `watchlist` | `tonight` | `watched`.
   - `tmdb_id`/`collection_id`/`collection_name` (step 2): identificativo
-    stabile TMDb + saga/collection, per future feature (saghe,
-    raccomandazioni). `null` per film aggiunti prima/fallback OMDb.
+    stabile TMDb + saga/collection, usati dal pannello saghe e disponibili
+    per future raccomandazioni. `null` per film aggiunti prima/fallback OMDb.
+  - `seen_rating_n/v/together`: numeric 0–10 con al massimo un decimale;
+    NULL = assente, zero valido. Migration Phase 38 applicata dall'utente;
+    verifica indipendente dei tipi OpenAPI non riuscita (HTTP 401), non
+    dichiarare test di scrittura reale che non sono stati eseguiti.
+  - Testi N/V/condiviso distinti e facoltativi; stringa vuota esplicita rimuove
+    solo il testo, preservando voto e dati degli altri autori. Testo omesso nel
+    livello dati conserva la recensione; non far riapparire il mirror legacy.
+  - `cinema_watchlist` esclude da Ruota e Match; libreria e programmazione restano.
   - La "serata" VIVE sull'entità separata `movie_nights`. I flag legacy
     sul film (`scheduled_*`, `proposed_by`, `night_confirmed`) restano
     alimentati in scrittura per compatibilità (strategia B), così vecchi
@@ -211,7 +223,7 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 - `vetoes(id, person, movie_id FK, week_key 'YYYY-W##', unique(person,
   week_key))`.
 - `movie_nights(id, movie_id FK, date, time, snack, proposed_by, status,
-  created_at, confirmed_at, cancelled_at, completed_at)`
+  location, created_at, confirmed_at, cancelled_at, completed_at)`
   - `status`: `proposed` | `confirmed` | `cancelled` | `completed` |
     `skipped` (quest'ultimo RISERVATO a future feature streak/calendario,
     oggi nessun flusso lo scrive).
@@ -231,14 +243,21 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 - Testi piccoli (`text-[10px]`) usati per info complementari: da tenere sotto
   controllo su mobile; i target tattili principali devono restare usabili.
 
-## Feature implementate OGGI
+## Feature implementate al checkpoint corrente
 
-Login PIN per persone, watchlist + aggiunta singola con picker TMDb + import
-bulk + controllo duplicati per ID TMDb dopo la scelta della locandina nell'aggiunta singola, voto like/dislike + "Match %", ruota
-(canvas + confetti + filtri durata e genere reale), veto settimanale ISO-week
-(esclusione dalla ruota), serata: "Stasera" / programmazione data-ora-snack /
-proposta-conferma rifiuto-annullamento / countdown box "Prossimo Film",
-recensioni, sorpresa, statistiche + timeline, fix anti-XSS su campi utente.
+Login persona/PIN, home Match/Ruota/Libreria, watchlist con picker TMDb,
+import bulk, dedup per ID e UNIQUE, Match Live a swipe con presence e Match %,
+Ruota canvas con filtri e confetti, veto settimanale, sorprese, serate con
+proposta/conferma e rewatch, snack/luogo, calendario mensile,
+voti personali/condivisi 0–10 con decimali e recensioni facoltative,
+«Titoli di coda» con riepiloghi e storico, saghe TMDb, ticket PNG,
+temi automatici, PWA, audio/haptics opt-in e ciak loader.
+Il voto condiviso e la sua azione usano N+V in oro; il pulsante personale segue
+quello condiviso nel colore N/V. «Film aggiunti» conta l'intera libreria per autore.
+Le metriche di compatibilità restano esclusiva di Match Live.
+
+Le verifiche locali non sostituiscono il test condiviso su due telefoni dopo
+il deploy. Ticket e temi erano già stati provati dall'utente dopo il push precedente.
 
 **Step 2 — fondazione dati condivisa**: verifica live database Supabase,
 metadati TMDb persistiti (`tmdb_id`, `collection_id`, `collection_name`),
@@ -257,16 +276,20 @@ bonus sottotitolo-prefisso + alias documentati, fallback OMDb, idempotente).
 
 ## Feature pianificate (NON implementate)
 
-Calendario mensile, export .ics, giorno fisso settimanale, saghe/collection
-TMDb, streak, ticket cards, tema stagionale, audio, swipe voting, citazione
-casuale, PWA, wildcard "🎲 Sorpresa TMDb" nella ruota, raccomandazioni, easter
-egg. **Nessuna di queste va implementata senza una fase dedicata.**
+Hot Picks (richiede ulteriori dati e migration autorizzata), export .ics, giorno fisso
+settimanale, streak, gamification senza leaderboard, Poster Flip,
+raccomandazioni avanzate, statistiche personali, eventuale spazio Extra,
+citazione casuale, wildcard TMDb nella Ruota ed easter egg.
+**Nessuna va implementata senza una fase dedicata.** Non riproporre come
+future saghe, ticket, calendario, audio, temi, PWA o voti decimali: sono presenti.
+Per le priorità precise leggere il master context aggiornato.
 
 ## Vincoli tecnici
 
-- Dipendenze via CDN (Tailwind Play, Font Awesome, supabase-js): per una futura
-  PWA andranno internalizzate.
-- Nessun service worker / manifest oggi.
+- Dipendenze ancora via CDN (Tailwind Play, Font Awesome, supabase-js).
+- PWA presente: manifest e service worker, cache corrente `v44`; domini API,
+  Supabase, poster e YouTube sempre esclusi dall'intercettazione. Le icone PWA
+  sono provvisorie; non confondere l'app-shell offline con dati remoti disponibili.
 - HTML delle card generato come stringhe: usare `escapeHtml`/`jsAttrEscape`
   per qualsiasi dato proveniente dall'utente.
 - Storage locale chiavi prefisse `scorochiatu_*` (inclusa
@@ -287,7 +310,7 @@ egg. **Nessuna di queste va implementata senza una fase dedicata.**
    feature future: segnalare invece nel report.
 7. NON fare push force, reset distruttivi o cancellazioni di branch.
 
-## Stato verificato (baseline stabile)
+## Baseline storica (Step 2/2.5, non un nuovo test live)
 
 - Guard logic `tmdbConfigured()`/`omdbConfigured()` corrette: TMDb e OMDb
   attivi con le chiavi reali in `config.js`; verificati live (ricerca,
@@ -311,7 +334,20 @@ egg. **Nessuna di queste va implementata senza una fase dedicata.**
   `js/ui/{actions,modals,navigation,render}.js` (f.To `js/api.js`/`js/ui.js`
   rimossi), ordine script in `index.html` allineato, `store.js`/`config.js`
   centralizzati.
-- Harness smoke (`scripts/smoke.js`): **32/32 PASS** (guards + load, serate
+- Harness smoke alla baseline Step 2/2.5 (`scripts/smoke.js`): **32/32 PASS** (guards + load, serate
   su `movie_nights`, vote/veto/sorpresa/recensione, metadati TMDb live
   incluse collection+aliasing titoli IT, ui add/retry, anti-XSS).
 - `node --check` OK su tutti i moduli `js/**/*.js` + `scripts/`.
+
+## Checkpoint verificato — 5 ottobre 2026
+
+- `node scripts/smoke.js`: **369/369 PASS**; service worker **12/12 PASS**;
+  controlli sintassi e diff check superati, cache PWA `v44`.
+- Chromium con fixture a 320/390/768 px per login/PIN/home, voti e Ricordi;
+  pannello saghe anche a 320×568. Screenshot ispezionati, zero errori JS e
+  nessun overflow orizzontale. Tool di verifica solo in directory temporanee.
+- Migration Phase 38 applicata dall'utente; nessuna scrittura reale nei test
+  del ciclo corrente. Tastierino e sincronizzazione su due telefoni da provare
+  dopo il deploy, incluse aggiunte saghe e cancellazione del testo recensito.
+- Home: due ciak ai lati della scritta; PIN: «Ciak, si entra», «Biglietto, prego»
+  e battuta originale da agente. Non reintrodurre le statuette scartate.

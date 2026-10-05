@@ -1,6 +1,34 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.37
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.38
 
 Ultimo aggiornamento: 5 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
+
+## Checkpoint corrente — 5 ottobre 2026
+
+Versione finale del ciclo, cache PWA **`v44`**. I paragrafi successivi sono
+cronologia: statuette, vecchi nomi e conteggi non descrivono la UI attuale.
+
+- Home con due ciak uguali e copy cinematografico; ingresso persona/PIN
+  con «Ciak, si entra», «Biglietto, prego» e battuta originale da agente.
+- Saghe implementate: «Continua la saga» anche sulle card, ordine di uscita,
+  aggiunta esplicita, dedup e sorprese protette.
+- Decimali 0–10 per N/V/N+V: punto/virgola, colore personale e oro condiviso;
+  testo eliminabile senza perdere il voto. Migration Phase 38 applicata
+  dall'utente, conferma indipendente dei tipi OpenAPI non disponibile (401).
+- Ricordi → «Titoli di coda»: quattro riepiloghi, «In numeri» con icona,
+  storico N+V e «Dopo il film» senza etichette ripetute. Film aggiunti contati
+  su tutta la libreria; media calcolata in decimi con arrotondamento corretto.
+- **369/369 smoke PASS**, **12/12 service worker PASS**, controlli sintassi
+  e diff check; browser fixture a 320/390/768 px con screenshot ispezionati,
+  nessun errore JS/overflow. Tool di verifica solo fuori dal repository.
+- Dopo il push e il deploy: accettare l'aggiornamento PWA sui due telefoni e
+  provare decimali, rimozione del testo e saghe con sincronizzazione reale.
+  Non dichiarare verificato questo passaggio prima della prova dell'utente.
+
+README, AGENTS e specifiche Phase 22/23/38/41 allineati a questo checkpoint;
+le istruzioni di sicurezza e il contratto Match restano invariati.
+
+## Cronologia del ciclo
+
 
 Rifinitura successiva — L'utente preferisce due icone del ciak alle statuette: «Luci basse, schermo acceso» è affiancata da due `fa-clapperboard` uguali. Rimossi SVG e relativo stile; Font Awesome già incluso, nessuna dipendenza. PIN spy invariato. Cache PWA `v44`.
 
@@ -140,7 +168,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 - Login differenziato N/V via PIN individuale, badge utente, logout
 - CRUD film, import bulk (JustWatch non ha export ufficiale → copia manuale); l'aggiunta singola cerca anche titoli omonimi e blocca con avviso soltanto l'ID TMDb già presente, l'import dalla UI salta gli ID duplicati nel riepilogo
-- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v39`), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
+- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v44`), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
 - **Design system** (Foundation): token CSS (`--color-*`, `--radius-*`, `--shadow-*`, `--duration-*`, `--ease-*`, `--fs-*`), tipografia Plus Jakarta Sans, otto temi con anteprima e calendario automatico locale (Estate, Inverno, Primavera, Autunno, Halloween, Natale, Pasqua e Capodanno), scelta manuale temporanea, `.glass-panel`/`.glass-card`, accessibilità baseline (focus-visible, ARIA su modali/segmented, `prefers-reduced-motion` globale). Le varianti cromatiche seguono le superfici principali e la Ruota; verifica visiva su smartphone ancora da fare.
 - **Header/nav**: barra mobile con marca e gruppo persona/uscita sopra, tema/Ricordi/Aggiungi sotto. «Ricordi» apre «Il Nostro Cinema» e ha testo visibile anche su mobile. «Sorpresa» è un'azione secondaria nel pannello Ruota; «Importa» è un link nel form di aggiunta singola. La home ospita tre scelte ingrandite per Match, Ruota e Libreria, aperte in viste dedicate; la libreria filtra Tutti / Da vedere / In programma, mentre Calendario e Visti e recensioni hanno accessi dalla home e viste dedicate. Match e Libreria occupano la larghezza disponibile; ogni modalità permette di tornare alle scelte.
 - **Match CTA**: stati idle/online/live letti solo da `matchChannelStatus`/`lobbyPresenceState`/`dbMode`/`currentTab` (nessuno stato duplicato); si aggiorna a ogni render, non su ogni evento presence in tempo reale se si è fermi su un altro tab (limite noto, accettato)
@@ -153,21 +181,21 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - **Match % di sessione** (Phase 16): `sessionAgreement(swipes, moviesList)` in `match.js` — agreement% = film con giudizio identico (doppio-like O doppio-dislike) / film risolti da entrambi; soglia 3 risposte per un dato "attendibile" (sotto soglia mostrato comunque con nota), placeholder "…%" se denominatore 0, nessuna % su sessione `closed`; calcolo client-side, nessuna migration, nessuna modifica a `votes`
 - **Match Reveal** (Phase 17): celebrazione full-screen con tear CSS-only e coriandoli (`fireConfetti()`, già esistente), si riapre per sessione nuova sullo stesso film o per un secondo match nella stessa sessione, non si riapre su semplice re-render/resync; reset esplicito allo "Esci"
 - **Final Ticket Generator** (Phase 18, composizione grafica rivista nel ciclo v2.27): `js/ui/ticket.js`, export PNG 1080×1920 via canvas nativo (nessuna libreria), poster con `crossOrigin="anonymous"` (stesso pattern di Phase 9.2), fallback a gradiente se poster assente/CORS fallito; timbro per origine — Match Live → Match %, Ruota → "Scelto con la Ruota", proposta diretta → "Proposto da N/V"; **origine tracciata solo in-memory** per la sessione di navigazione corrente (`markTicketOrigin`/`ticketOriginOf`), nessun campo persistito su `movie_nights`
-- Hero "La nostra serata" in cima alla dashboard (poster, countdown con ora valida, snack, conferma/rifiuto/annullamento secondo lo stato); se esiste una serata attiva di oggi assume lo stato Tonight Mode e offre "Recensione insieme" per la serata confermata. Nascosto se non c'è una serata o nelle viste Match/Calendario
+- Hero della prossima proiezione in cima alla dashboard (poster, countdown con ora valida, snack, conferma/rifiuto/annullamento secondo lo stato); se esiste una serata attiva di oggi assume lo stato Tonight Mode e offre «Voto N+V» o «Segna serata vista» per la serata confermata. Nascosto se non c'è una serata o nelle viste Match/Calendario
 - Serate come entità `movie_nights` (proposed → confirmed → completed/cancelled/skipped) con mirror legacy su `movies`
 - Conferma serata solo sulla data specifica, non sull'aggiunta del film; il quick pick "Stasera" crea una serata già confirmed (atto unilaterale, comportamento storico)
 - Tracking visto N / V / insieme: `watched_by` e le recensioni alimentano gli indicatori; la visione insieme porta il film a `watched` e completa la serata, mentre le visioni singole restano proponibili per rewatch
-- `votes` legacy: mantenuti per compatibilità, ma non rappresentati nella UI delle Movie Card né usati per il nuovo stato di visione. `movies.watched_by` accumula chi ha visto il film; `review_by`/`review_text`/`rating` restano come fallback storico. `seen_rating_n/v` sono i voti personali; `seen_rating_together` è il voto condiviso, tutti 0–10 con zero valido. `review_text_n/v/together` sono tre testi indipendenti. Il luogo facoltativo sta in `movie_nights.location`, distinto per ogni rewatch; si modifica dal form della recensione scegliendo la serata. Le migration aggiuntive sono applicate e le colonne verificate via REST.
+- `votes` legacy: mantenuti per compatibilità, ma non rappresentati nella UI delle Movie Card né usati per il nuovo stato di visione. `movies.watched_by` accumula chi ha visto il film; `review_by`/`review_text`/`rating` restano come fallback storico. `seen_rating_n/v` sono i voti personali; `seen_rating_together` è il voto condiviso, tutti numeric 0–10 con un decimale e zero valido (migration Phase 38 applicata dall'utente). `review_text_n/v/together` sono tre testi indipendenti. Il luogo facoltativo sta in `movie_nights.location`, distinto per ogni rewatch; si modifica dal form della recensione scegliendo la serata. Le migration aggiuntive sono applicate e le colonne verificate via REST.
 - **Saghe (Phase 41)**: `js/ui/sagas.js` gestisce collection su richiesta, capitoli in ordine di uscita, suggerimento dopo nuova visione e aggiunta esplicita; nessuna nuova tabella/colonna.
 - Ricerca (titolo, regista, generi), filtri (disponibilità manuale cinema, proposto da, genere, piattaforma), sort per anno, anno/regista in card
 - Generi reali da TMDb in `movies.genres text[]`, nessun residuo di `genres.js`/mood picker
 - **`movies.overview` e `movies.cast_names text[]`** (migration step7, backfill completato: 131/131 film con `tmdb_id`, 129/131 con overview — 2 senza traduzione it-IT su TMDb — 131/131 con cast_names, 1 caso con solo 2 nomi); popolati anche per i nuovi inserimenti (app + import CLI)
 - Ruota della fortuna con ordine casuale ad ogni sessione e filtro genere; il vincitore può essere scelto per "Stasera" o "Programma" (Phase 15)
-- **Match Live** completo: lobby con presence, sessioni swipe Tinder-like con deck seedato, match detection, replay; tabelle `swipe_sessions` + `swipes`; realtime a 2 canali. Non scrive su `votes`. **Non modificare questa logica nel redesign: i pollici non entrano nel Match Live, che continua a usare esclusivamente lo swipe.**
+- **Match Live** completo: lobby con presence, sessioni swipe Tinder-like con deck seedato, match detection, replay; tabelle `swipe_sessions` + `swipes`; realtime a 2 canali. Non scrive su `votes`. **Non modificare questa logica nel redesign: i voti legacy delle card non entrano nel Match Live, che continua a usare gli swipe. Il pollice decorativo nella home non cambia i flussi.**
 - Veto settimanale (1/persona/settimana), rimovibile solo dal proprietario, realtime su vetoes
 - Snack picker con opzione personalizzata (salvata in `movie_nights.snack`; gli snack già usati tornano fra le scelte su entrambi i telefoni, senza nuova tabella)
 - Modalità sorpresa (azione secondaria nella Ruota, modale, `surprise_by`, blur CSS, badge "tua sorpresa")
-- Smoke test locale: **352/352 PASS**; `scripts/verify-sw.js`: **12/12 PASS**. Il percorso storico dei test precedenti resta nella cronologia Git.
+- Smoke test locale corrente: **369/369 PASS**; `scripts/verify-sw.js`: **12/12 PASS**. Il percorso storico dei test precedenti resta nella cronologia Git.
 
 ---
 
@@ -205,7 +233,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 31 — Accessibility baseline ✅
 
 ### ✅ PWA (COMPLETA)
-- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v39` nell'ultimo ciclo UI), toast di aggiornamento ✅
+- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v44` al checkpoint corrente), toast di aggiornamento ✅
 - Verificato: nessuna richiesta Supabase/TMDb/OMDb/poster/YouTube passa mai dalla cache (nessun `respondWith` su quei domini)
 
 ### STEP 2 — Core Layout (Phase 8.2 implementata)
