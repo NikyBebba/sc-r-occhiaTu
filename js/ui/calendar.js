@@ -12,10 +12,9 @@ let calendarSelectedKey = null; // 'YYYY-MM-DD' del giorno espanso nel riepilogo
 // Mappa esplicita status → classi Tailwind COMPLETE (mai concatenate in JS).
 // Ogni entrata è una stringa finita, interpolata così com'è nel template.
 const NIGHT_STATUS_UI = {
-  proposed:  { label: 'Proposta',   dot: 'bg-amber-400',   chip: 'text-amber-300 bg-amber-500/15 border-amber-500/40' },
+  proposed:  { label: 'Proposta',   dot: 'bg-sky-400',   chip: 'text-sky-300 bg-sky-500/15 border-sky-500/40' },
   confirmed: { label: 'Confermata', dot: 'bg-indigo-400',  chip: 'text-indigo-300 bg-indigo-500/15 border-indigo-500/40' },
-  cancelled: { label: 'Annullata',  dot: 'bg-rose-400',    chip: 'text-rose-300 bg-rose-500/15 border-rose-500/40' },
-  completed: { label: 'Fatta',      dot: 'bg-emerald-400', chip: 'text-emerald-300 bg-emerald-500/15 border-emerald-500/40' }
+  completed: { label: 'Vista insieme', dot: 'bg-amber-400', chip: 'text-amber-300 bg-amber-500/15 border-amber-500/40' }
 };
 
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
@@ -75,19 +74,25 @@ function monthGrid(year, month) {
 }
 
 // Mappa le serate di un mese per giorno ('YYYY-MM-DD' → [{ night, movie }]).
-// Le night con date=NULL (quick "Stasera") non sono agganciabili a un giorno:
-// finiscono in `undated` e non rompono la griglia. Il join sul film è
+// I quick pick conclusi usano completed_at locale; gli attivi senza data
+// finiscono in undated. Le annullate restano nei dati ma non in questa vista.
+// Il join sul film è
 // opzionale: se il film è stato eliminato restiamo comunque in piedi.
 function nightsByDayKey(movieNightsList, moviesList, year, month) {
   const byDay = {};
   const undated = [];
   const prefix = dayKey(year, month + 1, 1).slice(0, 7); // 'YYYY-MM'
   movieNightsList.forEach(n => {
+    if (n.status === 'cancelled' || n.status === 'skipped') return;
     const movie = moviesList.find(m => m.id === n.movie_id) || null;
     const entry = { night: n, movie };
-    if (n.date && /^\d{4}-\d{2}-\d{2}$/.test(n.date) && n.date.startsWith(prefix)) {
-      (byDay[n.date] = byDay[n.date] || []).push(entry);
-    } else if (!n.date) {
+    const completed = n.status === 'completed' && n.completed_at ? new Date(n.completed_at) : null;
+    const completionKey = completed && Number.isFinite(completed.getTime())
+      ? dayKey(completed.getFullYear(), completed.getMonth() + 1, completed.getDate()) : null;
+    const key = n.date && /^\d{4}-\d{2}-\d{2}$/.test(n.date) ? n.date : completionKey;
+    if (key && key.startsWith(prefix)) {
+      (byDay[key] = byDay[key] || []).push(entry);
+    } else if (!key && n.status !== 'completed') {
       undated.push(entry);
     }
   });
@@ -121,13 +126,12 @@ function formatDayLabel(key) {
 function nightRowHtml(entry) {
   const ui = nightStatusUI(entry.night.status);
   const title = entry.movie ? entry.movie.title : 'Film rimosso';
-  const time = entry.night.time || '21:30';
+  const time = entry.night.time || '';
   const proposer = entry.night.proposed_by
     ? (CONFIG.PEOPLE[entry.night.proposed_by]?.label || entry.night.proposed_by)
     : null;
-  const metaHtml = proposer
-    ? `<div class="text-[10px] text-slate-400">${escapeHtml(time)} • proposto da ${escapeHtml(proposer)}</div>`
-    : `<div class="text-[10px] text-slate-400">${escapeHtml(time)}</div>`;
+  const meta = [time, proposer ? `proposto da ${proposer}` : ''].filter(Boolean).join(' • ');
+  const metaHtml = meta ? `<div class="text-[10px] text-slate-400">${escapeHtml(meta)}</div>` : '';
   return `<div class="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-slate-800/80 last:border-0">
       <div class="min-w-0">
         <div class="text-xs font-semibold text-slate-100 truncate">${escapeHtml(title)}</div>

@@ -3,6 +3,7 @@
 // ============================================
 
 let currentTab = 'watchlist'; // 'all' | 'watchlist' | 'tonight' | 'watched' | 'calendar' | 'match'
+let dashboardView = 'home'; // 'home' | 'wheel' | 'library'
 // Tab da cui si è entrati nel Match (per "Esci" = pausa). Default 'watchlist'.
 let matchPrevTab = 'watchlist';
 
@@ -28,9 +29,11 @@ function syncLibraryNavigation() {
 
 function setTab(tab) {
   if (!TAB_KEYS.includes(tab)) return;
+  if (tab === 'match' && dbMode !== 'supabase') return;
+  const enteringView = dashboardView !== 'library';
+  dashboardView = 'library';
   if (tab === 'match') {
     // La pill è visibile solo con Supabase; guardia anche qui (mai entrare offline).
-    if (dbMode !== 'supabase') return;
     if (currentTab !== 'match') matchPrevTab = currentTab;
     currentTab = tab;
     syncLibraryNavigation();
@@ -41,6 +44,7 @@ function setTab(tab) {
     // non gestito: console.error + vista "Match non disponibile").
     enterMatch().catch(e => reportMatchEnterError(e));
     render();
+    if (enteringView) window.scrollTo?.({ top: 0, behavior: 'smooth' });
     return;
   }
   // Uscendo dal Match (qualsiasi altro tab): leaveMatch fa SOLO untrack della
@@ -53,6 +57,23 @@ function setTab(tab) {
   currentTab = tab;
   syncLibraryNavigation();
   render();
+  if (enteringView) window.scrollTo?.({ top: 0, behavior: 'smooth' });
+}
+
+function openWheelView() {
+  if (currentTab === 'match') { clearMatchState(); leaveMatch(); currentTab = matchPrevTab; }
+  dashboardView = 'wheel';
+  syncLibraryNavigation();
+  render();
+  window.scrollTo?.({ top: 0, behavior: 'smooth' });
+}
+
+function openDashboardHome() {
+  if (currentTab === 'match') { clearMatchState(); leaveMatch(); currentTab = matchPrevTab; }
+  dashboardView = 'home';
+  syncLibraryNavigation();
+  render();
+  window.scrollTo?.({ top: 0, behavior: 'smooth' });
 }
 
 // Pillola animata della libreria: #tabIndicator (absolute inside

@@ -184,13 +184,14 @@ body {
 }
 .site-nav-top { justify-content: space-between; gap: 8px; }
 .site-nav-brand { gap: 9px; min-width: 0; }
-.site-nav-brand h1 { font-size: clamp(15px, 4.5vw, 20px); font-weight: 800; letter-spacing: -0.045em; white-space: nowrap; }
+.site-nav-home { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; text-align: left; }
+.site-nav-name { font-size: clamp(15px, 4.5vw, 20px); font-weight: 800; letter-spacing: -0.045em; white-space: nowrap; }
 .site-nav-mark {
   display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px;
   border-radius: 11px; background: color-mix(in srgb, var(--color-accento) 22%, transparent);
   color: var(--color-dettaglio);
 }
-.site-nav-preferences { gap: 6px; flex: 0 0 auto; }
+.site-nav-preferences { gap: 6px; flex: 0 0 auto; padding-left: 10px; border: 1px solid var(--color-bordo); border-radius: 14px; background: var(--color-chip); }
 .site-nav-preferences #currentUserBadge { display: inline-flex; align-items: center; }
 .theme-picker {
   display: inline-flex; align-items: center; gap: 5px; min-height: 44px;
@@ -200,7 +201,7 @@ body {
 .theme-picker span { color: var(--color-testo-1); font-size: 12px; font-weight: 700; }
 .theme-picker:hover { border-color: var(--color-dettaglio); }
 .site-nav-bottom { margin-top: 9px; }
-.site-nav-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 8px; }
+.site-nav-actions { display: grid; grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1.15fr); gap: 8px; }
 .site-nav-icon, .site-nav-button {
   display: inline-flex; justify-content: center; align-items: center; gap: 7px;
   min-height: 44px; border-radius: 12px; font-size: 13px; font-weight: 700;
@@ -209,6 +210,8 @@ body {
 .site-nav-icon { border: 1px solid var(--color-bordo-forte); background: var(--color-chip); color: var(--color-testo-2); }
 .site-nav-icon:hover { border-color: var(--color-dettaglio); color: var(--color-testo-1); }
 .site-nav-actions .site-nav-icon { padding: 0 8px; white-space: nowrap; }
+.site-nav-actions .theme-picker { width: 44px; padding: 0; justify-content: center; }
+.site-nav-actions .theme-picker span { display: none; }
 .site-nav-exit { width: 44px; border-color: transparent; background: transparent; color: var(--color-testo-3); }
 .site-nav-exit:hover { color: var(--color-rosso); }
 .site-nav-button { padding: 0 9px; border: 1px solid transparent; white-space: nowrap; }
@@ -246,8 +249,6 @@ body {
 }
 @media (max-width: 480px) {
   .site-nav-preferences { gap: 3px; }
-  .theme-picker { width: 44px; padding: 0; justify-content: center; }
-  .theme-picker span { display: none; }
 }
 @media (max-width: 360px) {
   .site-nav-actions { gap: 6px; }
@@ -257,6 +258,8 @@ body {
   .site-nav-mark { width: 40px; height: 40px; flex-basis: 40px; }
   .site-nav-bottom { margin-top: 10px; }
   .site-nav-actions { display: flex; justify-content: flex-end; }
+  .site-nav-actions .theme-picker { width: auto; padding: 0 11px; }
+  .site-nav-actions .theme-picker span { display: inline; }
   .site-nav-actions .site-nav-icon { padding: 0 14px; }
   .site-nav-icon .site-nav-action-label { display: inline; }
   .site-nav-button { padding: 0 16px; }
@@ -603,6 +606,7 @@ body {
 }
 .viewing-score-n { color: var(--color-persona-n); }
 .viewing-score-v { color: var(--color-persona-v); }
+.viewing-score-together { color: var(--color-oro); }
 
 /* Storico: ogni serata conclusa ha il proprio biglietto, anche nei rewatch. */
 .history-ticket {
@@ -629,6 +633,7 @@ body {
 .history-ticket-kicker { color: var(--color-oro); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; }
 .history-ticket-info h5 { color: var(--color-testo-1); font-size: var(--fs-sm); font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; margin: 4px 0; }
 .history-ticket-info p { color: var(--color-testo-3); font-size: 11px; line-height: 1.35; margin-top: 2px; }
+.history-ticket-info .history-shared-score { color: var(--color-oro); font-weight: 700; }
 
 /* Controlli su telefono: testo leggibile durante la compilazione e target
    tattili sufficienti anche nei modali. I campi a 14px causano lo zoom
@@ -1190,6 +1195,18 @@ textarea:focus-visible {
               linear-gradient(125deg, color-mix(in srgb, var(--color-accento) 26%, var(--color-superficie)), var(--color-superficie) 70%);
   box-shadow: 0 24px 56px -40px var(--color-accento-alto);
 }
+.dashboard-choice.is-home { min-height: min(62vh, 580px); align-content: center; text-align: center; }
+.dashboard-choice.is-home .dashboard-choice-actions { gap: 14px; }
+.dashboard-choice.is-home .dashboard-match-btn { min-height: 78px; font-size: 16px; }
+.dashboard-choice.is-home .dashboard-choice-btn { min-height: 68px; font-size: 14px; }
+.dashboard-choice.is-home .dashboard-choice-btn span { display: flex; flex-direction: column; gap: 3px; }
+.dashboard-choice.is-home .dashboard-choice-btn small { color: var(--color-testo-3); font-size: 11px; font-weight: 500; }
+.dashboard-back {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px;
+  padding: 0 6px; color: var(--color-testo-2); font-size: 13px; font-weight: 700;
+}
+.dashboard-back:hover { color: var(--color-dettaglio); }
+#wheelPanel { max-width: 620px; margin-inline: auto; }
 #sceltaCta.hidden { display: none; }
 .dashboard-eyebrow {
   color: var(--color-cielo);
@@ -1238,6 +1255,10 @@ textarea:focus-visible {
   .dashboard-choice { grid-template-columns: minmax(0, 1fr) minmax(360px, 1.25fr); align-items: center; padding: 24px; }
   .dashboard-choice-actions { grid-template-columns: 1.3fr 1fr 1fr; }
   .dashboard-match-btn { grid-column: auto; }
+  .dashboard-choice.is-home { grid-template-columns: 1fr; padding: 32px; }
+  .dashboard-choice.is-home .dashboard-choice-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dashboard-choice.is-home .dashboard-choice-actions:has(> #tabMatch.hidden) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-choice.is-home .dashboard-match-btn, .dashboard-choice.is-home .dashboard-choice-btn { min-height: 120px; }
 }
 
 #wheelPanel {

@@ -370,15 +370,18 @@ function openReviewFor(id, by) {
   if (movie.surprise_by && movie.surprise_by !== currentUser) return;
   document.getElementById('reviewMovieId').value = id;
   const existingText = reviewTextFor(movie, by);
+  const existingScore = by === 'both' ? togetherRating(movie) : personalRating(movie, by);
+  const hasReview = !!existingText || existingScore !== null;
   document.getElementById('reviewText').value = existingText;
   document.getElementById('reviewBy').value = by;
+  document.getElementById('reviewTextOptional').classList.toggle('hidden', by !== 'both');
   document.getElementById('reviewModalTitle').textContent = by === 'both'
-    ? (existingText ? 'Modifica recensione insieme' : 'Recensione insieme')
+    ? (hasReview ? 'Modifica voto o recensione insieme' : 'Voto e recensione insieme')
     : (existingText ? 'Modifica la tua recensione' : 'La tua recensione');
   document.getElementById('reviewMovieTitle').textContent = movie.title;
-  const completedNights = by === 'both' && existingText ? completedNightsForMovie(id) : [];
+  const completedNights = by === 'both' && hasReview ? completedNightsForMovie(id) : [];
   const reviewNight = by === 'both'
-    ? (existingText ? completedNights[0] : activeNightForMovie(id)) : null;
+    ? (hasReview ? completedNights[0] : activeNightForMovie(id)) : null;
   document.getElementById('reviewNightId').value = reviewNight?.id || '';
   document.getElementById('reviewLocation').value = reviewNight?.location || '';
   document.getElementById('reviewLocationWrap').classList.toggle('hidden', by !== 'both');
@@ -388,17 +391,16 @@ function openReviewFor(id, by) {
   ).join('') : '';
   nightSelect.value = reviewNight?.id || '';
   document.getElementById('reviewNightSelectWrap').classList.toggle('hidden', completedNights.length <= 1);
-  const score = by === 'both' ? togetherRating(movie) : personalRating(movie, by);
-  document.getElementById('reviewRating').value = score === null ? '' : String(score);
+  document.getElementById('reviewRating').value = existingScore === null ? '' : String(existingScore);
   document.getElementById('reviewRatingLabel').textContent = by === 'both' ? 'Il vostro voto ★' : 'Il tuo voto ★';
   document.getElementById('reviewHelp').textContent = by === 'both'
-    ? (existingText
+    ? (hasReview
       ? 'Le modifiche non cambiano la data della serata registrata nello storico.'
-      : 'Il voto e la recensione saranno condivisi. Se c’è una serata attiva, verrà segnata come conclusa.')
+      : 'Il voto è condiviso, il testo è facoltativo. Se c’è una serata attiva, verrà segnata come conclusa.')
     : 'Puoi aggiornare il tuo voto e la tua recensione senza cambiare quelli dell’altra persona.';
   document.getElementById('reviewError').classList.add('hidden');
   document.getElementById('reviewSaveButton').disabled = false;
-  document.getElementById('reviewSaveButton').textContent = existingText ? 'Salva modifiche' : 'Salva recensione';
+  document.getElementById('reviewSaveButton').textContent = hasReview ? 'Salva modifiche' : 'Salva voto';
   if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
   openModal('reviewModal');
 }
@@ -413,7 +415,7 @@ function reviewTogetherFromSeen() {
 
 async function finishTogetherNightUI(id) {
   const movie = movies.find(m => m.id === id);
-  if (!movie || !reviewTextFor(movie, 'both') || !activeNightForMovie(id)) return;
+  if (!movie || (reviewTextFor(movie, 'both') === '' && togetherRating(movie) === null) || !activeNightForMovie(id)) return;
   if (!(await updateMovie(id, { status: 'watched', watched_by: 'both' }))) return;
   await completeNight(id);
   await loadMovies();
@@ -446,7 +448,7 @@ async function confirmReview() {
     document.getElementById('reviewRating').focus();
     return;
   }
-  if (!text) {
+  if (!text && by !== 'both') {
     error.textContent = 'Scrivi la recensione prima di salvarla.';
     error.classList.remove('hidden');
     document.getElementById('reviewText').focus();
@@ -457,7 +459,7 @@ async function confirmReview() {
   saveButton.disabled = true;
   let saved = false;
   if (by === 'both') {
-    const editingTogether = !!reviewTextFor(movie, 'both');
+    const editingTogether = !!reviewTextFor(movie, 'both') || togetherRating(movie) !== null;
     const patch = { review_text_together: text, seen_rating_together: rating, review_text: text,
       review_by: 'both', ...(editingTogether ? {} : { watched_by: 'both', status: 'watched' }) };
     // Prima di sostituire il mirror legacy, preserviamo l'eventuale recensione

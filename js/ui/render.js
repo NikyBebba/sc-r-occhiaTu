@@ -74,7 +74,7 @@ function renderNextMovieBox() {
   const tonight = tonightPick();
   const pick = tonight || nextMoviePick();
   if (hero) {
-    hero.classList.toggle('hidden', !pick || currentTab === 'match' || currentTab === 'calendar');
+    hero.classList.toggle('hidden', !pick || currentTab === 'match' || (dashboardView === 'library' && currentTab === 'calendar'));
     hero.classList.toggle('is-tonight', !!tonight);
   }
   if (!pick) {
@@ -88,7 +88,8 @@ function renderNextMovieBox() {
   const dateHtml = pick.scheduled_date ? escapeHtml(formatNightDate(pick.scheduled_date, pick.scheduled_time)) : '';
   const safeId = jsAttrEscape(pick.id);
   const safeTitle = jsAttrEscape(pick.title);
-  const hasTogetherReview = !!reviewTextFor(movies.find(m => m.id === pick.id) || {}, 'both');
+  const pickMovie = movies.find(m => m.id === pick.id) || {};
+  const hasTogetherReview = !!reviewTextFor(pickMovie, 'both') || togetherRating(pickMovie) !== null;
 
   let actionsHtml = '';
   if (pending && pick.proposed_by === currentUser) {
@@ -148,8 +149,10 @@ function viewingStatusHtml(movie) {
   const scores = ['N', 'V'].map(key => {
     const rating = personalRating(movie, key);
     return rating === null ? '' : `<span class="viewing-score viewing-score-${key.toLowerCase()}">${key} <i class="fa-solid fa-star" aria-hidden="true"></i> ${rating}/10</span>`;
-  }).filter(Boolean).join('');
-  return `<div class="viewing-status" role="group" aria-label="${label}"><span class="viewing-label" aria-hidden="true">Visto da</span>${person('N')}${person('V')}</div>${scores ? `<div class="viewing-scores" aria-label="Voti personali">${scores}</div>` : ''}`;
+  }).filter(Boolean);
+  const shared = togetherRating(movie);
+  if (shared !== null && seen.together) scores.push(`<span class="viewing-score viewing-score-together" aria-label="Voto insieme: ${shared} su 10">I <i class="fa-solid fa-star" aria-hidden="true"></i> ${shared}/10</span>`);
+  return `<div class="viewing-status" role="group" aria-label="${label}"><span class="viewing-label" aria-hidden="true">Visto da</span>${person('N')}${person('V')}</div>${scores.length ? `<div class="viewing-scores" aria-label="Voti del film">${scores.join('')}</div>` : ''}`;
 }
 
 function reviewCardsHtml(movie) {
@@ -197,7 +200,7 @@ function completedNightEntries() {
 
 // Phase 23: conteggi retrospettivi. Un rewatch è ogni serata conclusa
 // successiva alla prima sullo stesso movie_id; un film rimosso resta conteggiato
-// perché l'evento esiste ancora. Le valutazioni N/V sono per film, non per serata.
+// perché l'evento esiste ancora. Il voto insieme è per film, non per serata.
 function movieChemistryStats(nights, films) {
   const completed = nights.filter(n => n.status === 'completed');
   const byMovie = new Map();
@@ -205,8 +208,8 @@ function movieChemistryStats(nights, films) {
     if (n.movie_id != null) byMovie.set(n.movie_id, (byMovie.get(n.movie_id) || 0) + 1);
   });
   const rewatches = [...byMovie.values()].reduce((sum, count) => sum + Math.max(0, count - 1), 0);
-  const ratedByBoth = films.filter(m => personalRating(m, 'N') !== null && personalRating(m, 'V') !== null).length;
-  return { nights: completed.length, films: byMovie.size, rewatches, ratedByBoth };
+  const sharedRatings = films.filter(m => viewingState(m).together && togetherRating(m) !== null).length;
+  return { nights: completed.length, films: byMovie.size, rewatches, sharedRatings };
 }
 
 function renderMovieChemistry() {
@@ -217,7 +220,7 @@ function renderMovieChemistry() {
     { icon: 'fa-ticket', label: 'Serate concluse', value: stats.nights },
     { icon: 'fa-film', label: 'Film diversi visti', value: stats.films },
     { icon: 'fa-rotate', label: 'Serate di rewatch', value: stats.rewatches },
-    { icon: 'fa-star', label: 'Film votati da entrambi', value: stats.ratedByBoth }
+    { icon: 'fa-star', label: 'Film con voto insieme', value: stats.sharedRatings }
   ];
   grid.innerHTML = cards.map(c => `<div class="glass-card rounded-xl p-3 text-center">
     <i class="fa-solid ${c.icon} text-sky-400" aria-hidden="true"></i>
@@ -271,6 +274,7 @@ function renderNightHistory() {
         <p>${escapeHtml(completedNightLabel({ night, timelineDate }))}</p>
         ${night.snack ? `<p>🍿 ${escapeHtml(night.snack)}</p>` : ''}
         ${night.location && !hidden ? `<p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${escapeHtml(night.location)}</p>` : ''}
+        ${movie && !hidden && togetherRating(movie) !== null ? `<p class="history-shared-score">I <i class="fa-solid fa-star" aria-hidden="true"></i> ${togetherRating(movie)}/10</p>` : ''}
       </div>
     </article>`;
     }).join('');
@@ -295,11 +299,11 @@ function renderStats() {
     ? (allRatings.reduce((sum, value) => sum + value, 0) / allRatings.length).toFixed(1)
     : '—';
 
-  // Genere "più amato": conta le occorrenze dei generi REALI su tutti i film.
+  // Genere più visto insieme: conta le occorrenze dei generi REALI sui film condivisi.
   // Un film multi-genere contribuisce a ogni genere (come i dropdown filtri);
   // il valore mostrato è il COUNT del genere in testa, mai una somma di film.
   const genreCounts = {};
-  movies.forEach(m => (m.genres || []).forEach(g => {
+  watched.forEach(m => (m.genres || []).forEach(g => {
     if (g && typeof g === 'string') genreCounts[g] = (genreCounts[g] || 0) + 1;
   }));
   const topGenres = Object.keys(genreCounts)
@@ -312,18 +316,18 @@ function renderStats() {
   // swipe N↔V nel tab Match e la card resta la fonte per i gusti a coppia.
   const proposers = Object.keys(CONFIG.PEOPLE || {})
     .map(p => {
-      const n = movies.filter(m => m.added_by === p).length;
+      const n = watched.filter(m => m.added_by === p).length;
       const label = CONFIG.PEOPLE[p]?.label || p;
       return n ? `${label} ${n}` : null;
     })
     .filter(Boolean)
     .join(' · ');
-  const proposersValue = movies.length ? (proposers || '—') : '—';
+  const proposersValue = watched.length ? (proposers || '—') : '—';
 
   const cards = [
     { icon: 'fa-clapperboard', iconClass: 'text-rose-400', label: 'Film visti insieme', value: totalWatched },
     { icon: 'fa-star', iconClass: 'text-amber-400', label: 'Voto medio insieme', value: avgRating === '—' ? '—' : `⭐ ${avgRating}/10` },
-    { icon: 'fa-tags', iconClass: 'text-sky-400', label: 'Genere più amato', value: topGenreValue },
+    { icon: 'fa-tags', iconClass: 'text-sky-400', label: 'Genere più visto insieme', value: topGenreValue },
     { icon: 'fa-users', iconClass: 'text-indigo-400', label: 'Proposti da', value: proposersValue }
   ];
   document.getElementById('statsGrid').innerHTML = cards.map(c => `
@@ -336,21 +340,19 @@ function renderStats() {
     </div>
   `).join('');
 
-  const reviewed = movies.filter(m => !m.surprise_by || m.surprise_by === currentUser)
-    .flatMap(m => ['N', 'V', 'both'].map(person => ({
-    movie: m, person, text: reviewTextFor(m, person)
-  })).filter(entry => entry.text))
-    .sort((a, b) => String(a.movie.title || '').localeCompare(String(b.movie.title || ''), 'it')
-      || ['N', 'V', 'both'].indexOf(a.person) - ['N', 'V', 'both'].indexOf(b.person));
+  const reviewed = watched.filter(m => !m.surprise_by || m.surprise_by === currentUser)
+    .map(m => ({ movie: m, text: reviewTextFor(m, 'both'), score: togetherRating(m) }))
+    .filter(entry => entry.text || entry.score !== null)
+    .sort((a, b) => String(a.movie.title || '').localeCompare(String(b.movie.title || ''), 'it'));
   const timeline = document.getElementById('reviewTimeline');
   if (reviewed.length === 0) {
-    timeline.innerHTML = `<p class="text-xs text-slate-400 italic">Ancora nessuna recensione.</p>`;
+    timeline.innerHTML = `<p class="text-xs text-slate-400 italic">Ancora nessun voto o recensione insieme.</p>`;
   } else {
-    timeline.innerHTML = reviewed.map(({ movie: m, person, text: review }) => `
+    timeline.innerHTML = reviewed.map(({ movie: m, text: review, score }) => `
       <div class="timeline-item">
         <div class="text-sm font-bold text-slate-100">${escapeHtml(m.title)}</div>
-        <div class="text-[11px] text-slate-400">${person === 'both' ? 'Insieme' : person}${(person === 'both' ? togetherRating(m) : personalRating(m, person)) !== null ? ` • ★ ${person === 'both' ? togetherRating(m) : personalRating(m, person)}/10` : ''}</div>
-        <div class="text-xs text-slate-300 italic mt-1">“${escapeHtml(review)}”</div>
+        <div class="text-[11px] text-amber-300">Insieme${score !== null ? ` • ★ ${score}/10` : ''}</div>
+        ${review ? `<div class="text-xs text-slate-300 italic mt-1">“${escapeHtml(review)}”</div>` : ''}
       </div>
     `).join('');
   }
@@ -532,18 +534,27 @@ function render() {
   // Match Live ha un ingresso dedicato nella dashboard, disponibile online.
   const tabMatch = document.getElementById('tabMatch');
   if (tabMatch) tabMatch.classList.toggle('hidden', dbMode !== 'supabase');
-  // Home CTA "Cosa Guardiamo?": visibile nelle viste di lista, nascosta in
-  // Calendario e Match, che occupano una vista dedicata.
-  const sceltaCta = document.getElementById('sceltaCta');
-  if (sceltaCta) sceltaCta.classList.toggle('hidden', currentTab === 'match' || currentTab === 'calendar');
   const inMatch = currentTab === 'match';
+  const inHome = dashboardView === 'home' && !inMatch;
+  const inWheel = dashboardView === 'wheel' && !inMatch;
+  const inLibrary = !inHome && !inWheel;
+  const sceltaCta = document.getElementById('sceltaCta');
+  if (sceltaCta) {
+    sceltaCta.classList.toggle('hidden', !inHome);
+    sceltaCta.classList.toggle('is-home', inHome);
+  }
   const sidebar = document.getElementById('dashboardSidebar');
-  if (sidebar) sidebar.classList.toggle('!hidden', inMatch);
+  if (sidebar) {
+    sidebar.classList.toggle('!hidden', !inWheel);
+    sidebar.classList.toggle('md:col-span-3', inWheel);
+  }
   const library = document.getElementById('librarySection');
   if (library) {
-    library.classList.toggle('md:col-span-3', inMatch);
-    library.classList.toggle('md:col-span-2', !inMatch);
+    library.classList.toggle('!hidden', !inLibrary);
+    library.classList.add('md:col-span-3');
   }
+  const libraryBack = document.getElementById('libraryBack');
+  if (libraryBack) libraryBack.classList.toggle('hidden', inMatch);
   const matchHeader = document.getElementById('matchViewHeader');
   if (matchHeader) {
     matchHeader.classList.toggle('hidden', !inMatch);
@@ -703,11 +714,11 @@ function render() {
             ${!isSurpriseHidden ? `<button onclick="toggleCinemaWatchlist('${jsAttrEscape(m.id)}')" class="w-full min-h-9 px-2 py-1.5 text-xs text-amber-200 hover:text-amber-100 underline">${m.cinema_watchlist ? 'Disponibile per Ruota e Match' : 'Tieni per il cinema'}</button>` : ''}
           ` : ''}
           ${m.status === 'tonight' ? `
-            <button onclick="${reviewTextFor(m, 'both') ? 'finishTogetherNightUI' : 'addReview'}('${m.id}')" class="flex-1 min-h-11 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">${reviewTextFor(m, 'both') ? 'Segna serata vista' : 'Visto insieme & recensione'}</button>
-            ${reviewTextFor(m, 'both') ? `<button onclick="addReview('${m.id}')" class="w-full min-h-11 px-3 py-2 text-emerald-200 underline">Modifica recensione insieme</button>` : ''}
+            <button onclick="${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? 'finishTogetherNightUI' : 'addReview'}('${m.id}')" class="flex-1 min-h-11 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? 'Segna serata vista' : 'Visto insieme e voto'}</button>
+            ${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? `<button onclick="addReview('${m.id}')" class="w-full min-h-11 px-3 py-2 text-emerald-200 underline">Modifica voto insieme</button>` : ''}
           ` : ''}
           ${m.status === 'watched' && !isSurpriseHidden ? `
-            <button onclick="addReview('${m.id}')" class="w-full min-h-11 px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded-lg font-medium">${reviewTextFor(m, 'both') ? 'Modifica recensione insieme' : 'Recensisci insieme'}</button>
+            <button onclick="addReview('${m.id}')" class="w-full min-h-11 px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded-lg font-medium">${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? 'Modifica voto insieme' : 'Vota insieme'}</button>
           ` : ''}
         </div>
         ` : ''}
@@ -906,7 +917,7 @@ function renderMovieDetail(m) {
     <div id="detailAwards" aria-live="polite"></div>
     <div class="detail-viewing">${viewingStatusHtml(m)}</div>
     ${reviewCardsHtml(m)}
-    ${m.status === 'tonight' || m.status === 'watched' ? `<button onclick="addReview('${jsAttrEscape(m.id)}')" class="w-full min-h-11 px-4 py-2 rounded-lg bg-emerald-600/20 text-emerald-200 font-medium">${reviewTextFor(m, 'both') ? 'Modifica recensione insieme' : 'Recensisci insieme'}</button>` : ''}
+    ${m.status === 'tonight' || m.status === 'watched' ? `<button onclick="addReview('${jsAttrEscape(m.id)}')" class="w-full min-h-11 px-4 py-2 rounded-lg bg-emerald-600/20 text-emerald-200 font-medium">${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? 'Modifica voto insieme' : 'Vota insieme'}</button>` : ''}
     <div class="detail-footer">
       ${personBadge(m.added_by)}
       ${m.surprise_by ? `<span class="badge bg-indigo-600/90">🎁 sorpresa di ${escapeHtml(CONFIG.PEOPLE[m.surprise_by]?.label || m.surprise_by)}</span>` : ''}

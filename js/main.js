@@ -105,6 +105,7 @@ function applySwUpdate() {
 }
 
 function showApp() {
+  dashboardView = 'home';
   document.getElementById('appRoot').classList.remove('hidden');
   loadHapticsPreference();
   loadAudioPreference();

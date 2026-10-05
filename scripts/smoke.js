@@ -1522,8 +1522,8 @@ async function okA(name, fn) {
       { movie_id: 'a', status: 'completed' },
       { movie_id: 'removed', status: 'completed' },
       { movie_id: 'b', status: 'cancelled' }
-    ], [{ id: 'a', seen_rating_n: 0, seen_rating_v: 8 }, { id: 'b', seen_rating_n: 7 }]);
-    return result.nights === 4 && result.films === 2 && result.rewatches === 2 && result.ratedByBoth === 1;
+    ], [{ id: 'a', status: 'watched', seen_rating_together: 8 }, { id: 'b', seen_rating_n: 7 }]);
+    return result.nights === 4 && result.films === 2 && result.rewatches === 2 && result.sharedRatings === 1;
   }));
   ok('phase23: vuoto e dati non conclusi mostrano zero senza attribuire visioni', run(() => {
     const oldMovies = movies, oldNights = movieNights;
@@ -1535,8 +1535,23 @@ async function okA(name, fn) {
       const html = document.getElementById('chemistryGrid').innerHTML;
       return Object.values(values).every(value => value === 0)
         && (html.match(/class="text-xl font-bold text-cinema-testo-1 mt-1">0</g) || []).length === 4
-        && html.includes('Film votati da entrambi');
+        && html.includes('Film con voto insieme');
     } finally { movies = oldMovies; movieNights = oldNights; }
+  }));
+  ok('Ricordi: solo recensioni e statistiche condivise, voto insieme zero anche senza testo', run(() => {
+    const saved = movies;
+    try {
+      movies = [
+        { title: 'Personale', review_by: 'N', seen_rating_n: 9, review_text_n: 'Testo solo N', genres: ['Horror'] },
+        { title: 'Condiviso', status: 'watched', seen_rating_together: 0, genres: ['Commedia'] }
+      ];
+      renderStats();
+      const timeline = document.getElementById('reviewTimeline').innerHTML;
+      const stats = document.getElementById('statsGrid').innerHTML;
+      return !timeline.includes('Personale') && !timeline.includes('Testo solo N')
+        && timeline.includes('Condiviso') && timeline.includes('★ 0/10')
+        && stats.includes('Commedia') && !stats.includes('Horror');
+    } finally { movies = saved; }
   }));
   ok('card: chip generi reali max 3, dedup, null-safe, escapati', run(() => {
     const full = genreChips({ genres: ['Azione', 'Commedia', 'Dramma', 'Horror'] });
@@ -1592,9 +1607,17 @@ async function okA(name, fn) {
       && undated.some(e => e.night.id === 'cal3');
   }));
   ok('nightsByDayKey: film presente risolto, film mancante -> null (no crash)', run(() => {
-    const found = nightsByDayKey([{ id: 'x', movie_id: movies[0].id, date: '2026-09-05', status: 'cancelled' }], movies, 2026, 8);
-    const missing = nightsByDayKey([{ id: 'y', movie_id: 'ghost', date: '2026-09-06', status: 'cancelled' }], movies, 2026, 8);
+    const found = nightsByDayKey([{ id: 'x', movie_id: movies[0].id, date: '2026-09-05', status: 'confirmed' }], movies, 2026, 8);
+    const missing = nightsByDayKey([{ id: 'y', movie_id: 'ghost', date: '2026-09-06', status: 'completed' }], movies, 2026, 8);
     return found.byDay['2026-09-05'][0].movie?.id === movies[0].id && missing.byDay['2026-09-06'][0].movie === null;
+  }));
+  ok('calendario: serate annullate escluse, quick pick concluso nel giorno effettivo', run(() => {
+    const result = nightsByDayKey([
+      { id: 'cancel', movie_id: 'x', date: '2026-09-04', status: 'cancelled' },
+      { id: 'done', movie_id: 'x', date: null, status: 'completed', completed_at: '2026-09-05T12:00:00Z' }
+    ], [], 2026, 8);
+    const done = localDateKey(new Date('2026-09-05T12:00:00Z'));
+    return result.byDay['2026-09-04'] === undefined && result.byDay[done]?.[0].night.id === 'done';
   }));
   ok('renderCalendar: primo open = mese corrente, senza crash', run(() => {
     calendarYear = null; calendarMonth = null; calendarSelectedKey = null;
@@ -2306,10 +2329,11 @@ async function okA(name, fn) {
         && movieNights[1].status === 'completed' && !!movieNights[1].completed_at;
     } finally { movies = savedMovies; movieNights = savedNights; currentUser = savedUser; saveLocal(); }
   }));
-  await okA('recensione: voto e testo richiesti, form aperto se manca un campo', runA(async () => {
-    const savedMovies = movies, savedUser = currentUser;
+  await okA('recensione insieme: voto richiesto, testo facoltativo e punteggio oro visibile', runA(async () => {
+    const savedMovies = movies, savedNights = movieNights, savedUser = currentUser;
     currentUser = 'V';
-    movies = [{ id: 'review-required', title: 'Film', status: 'watched', review_by: 'both' }];
+    movies = [{ id: 'review-required', title: 'Film', status: 'tonight' }];
+    movieNights = [{ id: 'rated-night', movie_id: 'review-required', status: 'confirmed', date: '2026-09-12' }];
     const el = id => document.getElementById(id);
     try {
       addReview('review-required');
@@ -2319,11 +2343,17 @@ async function okA(name, fn) {
         && !el('reviewModal').classList.contains('hidden');
       el('reviewRating').value = '6'; el('reviewText').value = '';
       await confirmReview();
-      const noText = el('reviewError').textContent.includes('Scrivi la recensione')
-        && !el('reviewModal').classList.contains('hidden');
-      closeModal('reviewModal');
-      return noRating && noText && !movies[0].review_text_together;
-    } finally { movies = savedMovies; currentUser = savedUser; saveLocal(); }
+      const firstSaved = el('reviewModal').classList.contains('hidden')
+        && movies[0].seen_rating_together === 6 && !movies[0].review_text_together
+        && viewingStatusHtml(movies[0]).includes('viewing-score-together')
+        && viewingStatusHtml(movies[0]).includes('I <i class="fa-solid fa-star" aria-hidden="true"></i> 6/10');
+      const completion = movieNights[0].completed_at;
+      addReview('review-required'); el('reviewRating').value = '7';
+      await confirmReview();
+      return noRating && firstSaved && movies[0].seen_rating_together === 7
+        && movieNights.length === 1 && movieNights[0].completed_at === completion
+        && movieNights[0].date === '2026-09-12';
+    } finally { movies = savedMovies; movieNights = savedNights; currentUser = savedUser; saveLocal(); }
   }));
   ok('dal form visto si apre la recensione insieme senza salvare un voto personale', run(() => {
     const savedMovies = movies, savedUser = currentUser;
@@ -2681,18 +2711,26 @@ async function okA(name, fn) {
     applyPosterAccent('');
     return !panel.classList.contains('detail-accent') && prev.accent === '';
   }));
-  ok('HOME CTA: visibile nei tab di lista, nascosta in calendario (via render)', run(() => {
-    const prevTab = currentTab, prevMode = dbMode;
+  ok('dashboard: home contiene solo le scelte, ruota e libreria hanno viste dedicate', run(() => {
+    const prevTab = currentTab, prevMode = dbMode, prevView = dashboardView;
     dbMode = 'local';
-    currentTab = 'watchlist'; render();
+    currentTab = 'watchlist'; dashboardView = 'home'; render();
     const cta = document.getElementById('sceltaCta');
-    const visibleOnList = !cta.classList.contains('hidden');
-    currentTab = 'calendar'; render();
-    const hiddenOnCalendar = cta.classList.contains('hidden');
-    currentTab = 'watchlist'; render();
-    const visibleAgain = !cta.classList.contains('hidden');
-    currentTab = prevTab; dbMode = prevMode;
-    return visibleOnList && hiddenOnCalendar && visibleAgain;
+    const home = !cta.classList.contains('hidden')
+      && document.getElementById('dashboardSidebar').classList.contains('!hidden')
+      && document.getElementById('librarySection').classList.contains('!hidden');
+    openWheelView();
+    const wheel = cta.classList.contains('hidden')
+      && !document.getElementById('dashboardSidebar').classList.contains('!hidden');
+    setTab('calendar');
+    const library = cta.classList.contains('hidden')
+      && !document.getElementById('librarySection').classList.contains('!hidden');
+    openDashboardHome();
+    const backHome = !cta.classList.contains('hidden')
+      && document.getElementById('dashboardSidebar').classList.contains('!hidden')
+      && document.getElementById('librarySection').classList.contains('!hidden');
+    currentTab = prevTab; dbMode = prevMode; dashboardView = prevView;
+    return home && wheel && library && backHome;
   }));
   ok('dashboard: CTA Match Live unica e separata dalle viste, nascosta offline', run(() => {
     const prevTab = currentTab, prevMode = dbMode;
@@ -2709,17 +2747,17 @@ async function okA(name, fn) {
     dashboardHtml.indexOf('id="tabMatch"') < dashboardHtml.indexOf('id="segControl"')
       && !dashboardHtml.includes('id="ctaMatch"') && dashboardHtml.includes('id="libraryViewSelect"'));
   ok('dashboard: Match occupa la vista, nasconde sidebar e menu libreria', run(() => {
-    const prevTab = currentTab;
+    const prevTab = currentTab, prevView = dashboardView;
     currentTab = 'match'; render();
     const hiddenSidebar = document.getElementById('dashboardSidebar').classList.contains('!hidden');
     const hiddenLibraryMenu = document.getElementById('libraryTools').classList.contains('!hidden')
       && document.getElementById('segControl').classList.contains('!hidden')
       && document.getElementById('libraryViewSelect').classList.contains('!hidden');
     const visibleReturn = !document.getElementById('matchViewHeader').classList.contains('hidden');
-    currentTab = 'watchlist'; render();
-    const restored = !document.getElementById('dashboardSidebar').classList.contains('!hidden')
+    currentTab = 'watchlist'; dashboardView = 'library'; render();
+    const restored = !document.getElementById('librarySection').classList.contains('!hidden')
       && document.getElementById('matchViewHeader').classList.contains('hidden');
-    currentTab = prevTab;
+    currentTab = prevTab; dashboardView = prevView;
     return hiddenSidebar && hiddenLibraryMenu && visibleReturn && restored;
   }));
   ok('dashboard: selettore mobile segue la vista attiva della libreria', run(() => {
