@@ -920,6 +920,30 @@ async function okA(name, fn) {
         && !canShowSaga({ collection_id: 9, surprise_by: 'V' });
     } finally { movies = old.movies; currentUser = old.currentUser; sagaPanel = old.sagaPanel; }
   }));
+  ok('saghe: Continua la saga resta sulle card dopo render e cambio stato, senza rivelare sorprese', run(() => {
+    const old = { movies, currentUser, currentTab, dashboardView, listQuery, listProposer,
+      listGenre, listPlatform, listAvailability, listSortKey, listSortDir };
+    try {
+      currentUser = 'N'; currentTab = 'all'; dashboardView = 'library'; resetListFilters();
+      movies = [
+        { id: 'saga-card', title: 'Primo capitolo', status: 'watchlist', added_by: 'N', collection_id: 263 },
+        { id: 'saga-watched', title: 'Capitolo visto', status: 'watched', added_by: 'N', collection_id: 263 },
+        { id: 'saga-hidden', title: 'Sorpresa', status: 'watchlist', added_by: 'V', collection_id: 263, surprise_by: 'V' },
+        { id: 'no-saga', title: 'Film singolo', status: 'watchlist', added_by: 'N' }
+      ];
+      const html = () => document.getElementById('movieGrid').innerHTML;
+      const button = id => html().includes("openMovieSaga('" + id + "')");
+      render();
+      const first = button('saga-card') && button('saga-watched') && !button('saga-hidden') && !button('no-saga');
+      render();
+      const resync = button('saga-card') && button('saga-watched');
+      movies[0].status = 'watched'; currentTab = 'watched'; render();
+      return first && resync && button('saga-card') && button('saga-watched');
+    } finally {
+      ({ movies, currentUser, currentTab, dashboardView, listQuery, listProposer,
+        listGenre, listPlatform, listAvailability, listSortKey, listSortDir } = old);
+    }
+  }));
   await okA('saghe UI: risposta vecchia non sovrascrive un altro film e errore mostra Riprova', runA(async () => {
     const old = { movies, currentUser, sagaPanel, fetchTmdbCollection };
     const pending = {};

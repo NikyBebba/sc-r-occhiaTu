@@ -1,10 +1,12 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.29
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.30
 
 Ultimo aggiornamento: 5 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
 
+Ripristino pulsante saghe sulle card — «Continua la saga» torna anche nelle card della libreria e dei film visti, oltre che nella scheda dettaglio e nei flussi di scelta. Resta visibile dopo i render e il passaggio a visto; assente per film senza collection nota e sorprese non rivelate. Cache PWA `v39`. Verifica di regressione sul render delle card superata; smoke **352/352 PASS**, service worker **12/12 PASS**.
+
 Revisione Phase 18 — Ticket PNG ridisegnato nel codice locale: locandina protagonista senza distorsione, titolo adattivo in sovrimpressione, intestazione sc(r)occhiaTu, bordo pellicola e talloncino chiaro con perforazione, origine della scelta, data/ora e snack. Match senza percentuale mostra «Match Live»; un'origine assente non viene inventata. Film non programmati mostrano «Da programmare», senza ora fittizia. Poster assente: illustrazione geometrica su gradiente. Il download attende brevemente il font dell'app prima della misura dei testi. Nessuna libreria aggiunta all'app o migration; cache PWA `v36`. Smoke **332/332 PASS**, service worker **12/12 PASS** e controllo sintassi superato. PNG reali 1080×1920 generati e ispezionati con poster, fallback e testi lunghi tramite canvas nativo di verifica temporaneo (font di fallback); download su smartphone ancora da verificare.
 
-Phase 41 — Saghe implementate nel codice locale. «Continua la saga» nella scheda film, nel risultato Ruota, nella celebrazione inline del Match e nel hero della serata apre un pannello con i capitoli TMDb in ordine di uscita. Dopo una nuova visione personale/insieme o la conclusione di una serata, il pannello viene proposto solo sul telefono che ha eseguito l'azione; modificare un voto non lo riapre e Realtime non genera suggerimenti. Primo capitolo successivo già uscito e non visto insieme evidenziato solo quando le date lo consentono. Nessun film preselezionato: aggiunta esplicita, metadati recuperati per ID, dedup e UNIQUE esistente, future uscite con `cinema_watchlist`. Film già in lista o visti riconoscibili, sorprese non rivelate protette. Collection con cache in memoria di 15 minuti, timeout, Riprova e protezione dalle risposte obsolete; salvataggi parziali ritentabili, modalità locale esplicita. Nuovo modulo `js/ui/sagas.js`, nessuna migration o dipendenza dell'app. Cache PWA `v38`; smoke **351/351 PASS**, service worker **12/12 PASS**. [Specifica e verifiche](PHASE41_SAGHE.md). Pannello verificato in Chromium a 320/390/768 px con fixture, screenshot ispezionati e zero errori JS; uso su due telefoni da verificare dopo il deploy.
+Phase 41 — Saghe implementate nel codice locale. «Continua la saga» nelle card della lista e nella scheda film, nel risultato Ruota, nella celebrazione inline del Match e nel hero della serata apre un pannello con i capitoli TMDb in ordine di uscita. Dopo una nuova visione personale/insieme o la conclusione di una serata, il pannello viene proposto solo sul telefono che ha eseguito l'azione; modificare un voto non lo riapre e Realtime non genera suggerimenti. Primo capitolo successivo già uscito e non visto insieme evidenziato solo quando le date lo consentono. Nessun film preselezionato: aggiunta esplicita, metadati recuperati per ID, dedup e UNIQUE esistente, future uscite con `cinema_watchlist`. Film già in lista o visti riconoscibili, sorprese non rivelate protette. Collection con cache in memoria di 15 minuti, timeout, Riprova e protezione dalle risposte obsolete; salvataggi parziali ritentabili, modalità locale esplicita. Nuovo modulo `js/ui/sagas.js`, nessuna migration o dipendenza dell'app. Cache PWA `v38`; smoke **351/351 PASS**, service worker **12/12 PASS**. [Specifica e verifiche](PHASE41_SAGHE.md). Pannello verificato in Chromium a 320/390/768 px con fixture, screenshot ispezionati e zero errori JS; uso su due telefoni da verificare dopo il deploy.
 
 Verifica utente del ciclo precedente — Ticket e temi sono stati pubblicati con push su `main` e l'utente ha confermato di averli testati prima di autorizzare la fase saghe. Le verifiche automatiche e i limiti del ciclo precedente restano documentati qui sotto.
 
@@ -61,7 +63,7 @@ Phase 28 — Ciak Loader e skeleton implementata localmente: al primo ingresso, 
 | Film e recensioni | Indicatori N/V/insieme, voti personali e condiviso 0–10, tre testi distinti, luogo facoltativo per serata; aggiunta con avviso duplicati | La recensione insieme è un testo per film; il luogo resta per evento |
 | Il Nostro Cinema | Serate concluse per mese, una card per evento anche nei rewatch; voto medio dei soli film visti insieme | Nessun archivio dei PNG generati |
 
-Verifiche locali dell'ultima revisione: `node scripts/smoke.js` **351/351 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Le migration Step 8, Step 9, Step 10, voto condiviso e luogo per serata sono state applicate; le due nuove colonne sono state verificate via REST in sola lettura (HTTP 200). Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
+Verifiche locali dell'ultima revisione: `node scripts/smoke.js` **352/352 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Le migration Step 8, Step 9, Step 10, voto condiviso e luogo per serata sono state applicate; le due nuove colonne sono state verificate via REST in sola lettura (HTTP 200). Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
 
 Regola repository: database locali, dump e backup sono esclusi da Git. I file SQL in `database/` descrivono schema e migration, senza esportazioni dei dati.
 
@@ -114,7 +116,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 - Login differenziato N/V via PIN individuale, badge utente, logout
 - CRUD film, import bulk (JustWatch non ha export ufficiale → copia manuale); l'aggiunta singola cerca anche titoli omonimi e blocca con avviso soltanto l'ID TMDb già presente, l'import dalla UI salta gli ID duplicati nel riepilogo
-- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v38`), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
+- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v39`), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
 - **Design system** (Foundation): token CSS (`--color-*`, `--radius-*`, `--shadow-*`, `--duration-*`, `--ease-*`, `--fs-*`), tipografia Plus Jakarta Sans, otto temi con anteprima e calendario automatico locale (Estate, Inverno, Primavera, Autunno, Halloween, Natale, Pasqua e Capodanno), scelta manuale temporanea, `.glass-panel`/`.glass-card`, accessibilità baseline (focus-visible, ARIA su modali/segmented, `prefers-reduced-motion` globale). Le varianti cromatiche seguono le superfici principali e la Ruota; verifica visiva su smartphone ancora da fare.
 - **Header/nav**: barra mobile con marca e gruppo persona/uscita sopra, tema/Ricordi/Aggiungi sotto. «Ricordi» apre «Il Nostro Cinema» e ha testo visibile anche su mobile. «Sorpresa» è un'azione secondaria nel pannello Ruota; «Importa» è un link nel form di aggiunta singola. La home ospita tre scelte ingrandite per Match, Ruota e Libreria, aperte in viste dedicate; la libreria filtra Tutti / Da vedere / In programma, mentre Calendario e Visti e recensioni hanno accessi dalla home e viste dedicate. Match e Libreria occupano la larghezza disponibile; ogni modalità permette di tornare alle scelte.
 - **Match CTA**: stati idle/online/live letti solo da `matchChannelStatus`/`lobbyPresenceState`/`dbMode`/`currentTab` (nessuno stato duplicato); si aggiorna a ogni render, non su ogni evento presence in tempo reale se si è fermi su un altro tab (limite noto, accettato)
@@ -141,7 +143,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Veto settimanale (1/persona/settimana), rimovibile solo dal proprietario, realtime su vetoes
 - Snack picker con opzione personalizzata (salvata in `movie_nights.snack`; gli snack già usati tornano fra le scelte su entrambi i telefoni, senza nuova tabella)
 - Modalità sorpresa (azione secondaria nella Ruota, modale, `surprise_by`, blur CSS, badge "tua sorpresa")
-- Smoke test locale: **351/351 PASS**; `scripts/verify-sw.js`: **12/12 PASS**. Il percorso storico dei test precedenti resta nella cronologia Git.
+- Smoke test locale: **352/352 PASS**; `scripts/verify-sw.js`: **12/12 PASS**. Il percorso storico dei test precedenti resta nella cronologia Git.
 
 ---
 
@@ -179,7 +181,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 31 — Accessibility baseline ✅
 
 ### ✅ PWA (COMPLETA)
-- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v38` nell'ultimo ciclo UI), toast di aggiornamento ✅
+- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v39` nell'ultimo ciclo UI), toast di aggiornamento ✅
 - Verificato: nessuna richiesta Supabase/TMDb/OMDb/poster/YouTube passa mai dalla cache (nessun `respondWith` su quei domini)
 
 ### STEP 2 — Core Layout (Phase 8.2 implementata)

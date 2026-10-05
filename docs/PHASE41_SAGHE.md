@@ -4,7 +4,7 @@ Fase dedicata autorizzata dall'utente dopo la verifica di ticket e temi. Stato: 
 
 ## Esperienza
 
-- Entrata discreta «Continua la saga» nella scheda del film, nel risultato della Ruota, nella celebrazione inline del Match e nella prossima serata, solo per un film con collection TMDb nota e accessibile.
+- Entrata discreta «Continua la saga» nelle card della libreria e dei film visti, nella scheda del film, nel risultato della Ruota, nella celebrazione inline del Match e nella prossima serata, solo per un film con collection TMDb nota e accessibile.
 - Dopo una nuova visione personale, una nuova recensione insieme o la conclusione di una serata, proporre il pannello «Continuiamo la saga?». La modifica di un voto/recensione non lo riapre. Nessun suggerimento provocato dal Realtime.
 - Un pannello mostra i capitoli in **ordine di uscita**, senza assumere un ordine narrativo. Evidenzia il primo capitolo successivo già uscito e non visto insieme, quando riconoscibile; i capitoli precedenti restano consultabili. Se la data del film di riferimento non è nota, non inventare quale film sia il prossimo.
 - Nessun film preselezionato. L'utente sceglie quali aggiungere e conferma; il proponente è la persona corrente. I film già in libreria non si aggiungono di nuovo, anche se visti. Mostrare gli stati N/V/insieme già noti.
@@ -26,3 +26,5 @@ Collection IT live in sola lettura; normalizzazione, ordine di uscita, dati asse
 Risultati del ciclo: **351/351 smoke test PASS**, **12/12 service worker PASS**, controllo sintassi JS e `git diff --check` senza errori. Collection della trilogia del Cavaliere oscuro verificata live in sola lettura; test di inserimento solo con dati locali o mock, nessuna scrittura al DB reale.
 
 Verifica browser Chromium con HTML/CSS e moduli reali, fixture di film e collection, a **320×568, 390×844 e 768×1024**: pannello sopra la scheda film, chiusura 44×44, nessun overflow orizzontale, checkbox inizialmente vuoti, selezione che abilita l'aggiunta, sorpresa protetta, Esc che chiude solo il pannello in cima e stato di errore con Riprova. Screenshot ispezionati; zero errori JavaScript nel browser. Playwright usato soltanto in una directory temporanea, senza dipendenze nel repository. Questa verifica non sostituisce l'uso su due telefoni con dati condivisi dopo il deploy.
+
+Correzione successiva: ripristinato «Continua la saga» anche sulle card della lista. Verifica di regressione sul mantenimento del pulsante dopo render e cambio stato, con sorprese protette: **352/352 smoke PASS**, service worker **12/12 PASS**, cache `v39`.

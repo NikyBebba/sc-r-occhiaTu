@@ -714,6 +714,7 @@ function render() {
             </div>
           ` : ''}
           ${reviewCardsHtml(m)}
+          ${sagaButtonHtml(m)}
           ${!isSurpriseHidden && viewingState(m)[currentUser] ? `<button onclick="addPersonalReview('${m.id}')" class="mt-2 min-h-9 px-2 py-1.5 text-xs text-indigo-300 hover:text-indigo-200 underline">${reviewTextFor(m, currentUser) ? 'Modifica la tua recensione' : 'Scrivi la tua recensione'}</button>` : ''}
         </div>
         ${(m.status === 'watchlist' || m.status === 'tonight' || m.status === 'watched') ? `
