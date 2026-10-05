@@ -4459,6 +4459,42 @@ async function okA(name, fn) {
       // match SENZA pct condiviso (total 0) cade sul timbro placeholder
       && ticketStampText('match', null).main === 'Proposto da N/V';
   }));
+  ok('ticket: titolo lungo e parola senza spazi restano leggibili entro la larghezza', run(() => {
+    const ctx = { font: '', measureText(text) {
+      const size = Number(this.font.match(/(\d+)px/)[1]);
+      return { width: String(text).length * size * 0.6 };
+    } };
+    return ['Il Signore degli Anelli: il ritorno del re', 'Una lunghissima storia '.repeat(20),
+      'TitoloSenzaSpazi'.repeat(30)].every(text => {
+      const fitted = ticketFitText(ctx, text, 840, 3, 76, 48);
+      return fitted.lines.length > 0 && fitted.lines.length <= 3
+        && fitted.size >= 48 && fitted.lines.every(line => ctx.measureText(line).width <= 840);
+    });
+  }));
+  ok('ticket: PNG senza poster, data o origine non inventa una scelta; quick pick e Match restano distinti', run(() => {
+    const originalCreate = document.createElement;
+    let text = [];
+    const ctx = new Proxy({
+      measureText: value => ({ width: String(value).length * 20 }),
+      createLinearGradient: () => ({ addColorStop() {} }),
+      fillText: value => text.push(String(value))
+    }, { get: (target, key) => key in target ? target[key] : () => {} });
+    document.createElement = () => ({ getContext: () => ctx });
+    try {
+      const canvas = drawTicketCanvas({ title: 'Un film' }, null, null, null);
+      const empty = canvas.width === 1080 && canvas.height === 1920
+        && text.includes('Da programmare') && !text.some(t => t.includes('Proposto da') || t.includes('Stasera'));
+      text = [];
+      drawTicketCanvas({ title: 'Un film', status: 'tonight' }, 'match', null, null);
+      const match = text.includes('Match Live') && text.includes('Stasera')
+        && !text.some(t => t.includes('%') || t.includes('Proposto da'));
+      text = [];
+      drawTicketCanvas({ title: 'Un film', scheduled_date: '2026-10-24', scheduled_time: null }, 'wheel', null, null);
+      const dated = text.includes('24 ott') && text.includes('Scelto con la Ruota')
+        && !text.some(t => t.includes('21:30'));
+      return empty && match && dated;
+    } finally { document.createElement = originalCreate; }
+  }));
   ok('phase18: markTicketOrigin/ticketOriginOf — flag in-memory, mai URL/persistenza', run(() => {
     markTicketOrigin('t1', 'match'); markTicketOrigin('t2', 'wheel'); markTicketOrigin('t3', 'manual');
     const okSet = ticketOriginOf('t1') === 'match' && ticketOriginOf('t2') === 'wheel' && ticketOriginOf('t3') === 'manual';

@@ -1,6 +1,10 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.25
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.27
 
 Ultimo aggiornamento: 5 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
+
+Revisione Phase 18 — Ticket PNG ridisegnato nel codice locale: locandina protagonista senza distorsione, titolo adattivo in sovrimpressione, intestazione sc(r)occhiaTu, bordo pellicola e talloncino chiaro con perforazione, origine della scelta, data/ora e snack. Match senza percentuale mostra «Match Live»; un'origine assente non viene inventata. Film non programmati mostrano «Da programmare», senza ora fittizia. Poster assente: illustrazione geometrica su gradiente. Il download attende brevemente il font dell'app prima della misura dei testi. Nessuna libreria aggiunta all'app o migration; cache PWA `v36`. Smoke **332/332 PASS**, service worker **12/12 PASS** e controllo sintassi superato. PNG reali 1080×1920 generati e ispezionati con poster, fallback e testi lunghi tramite canvas nativo di verifica temporaneo (font di fallback); download su smartphone ancora da verificare.
+
+Nuove richieste di progettazione — Il primo intervento sul ticket è implementato localmente e resta da valutare visivamente dall'utente. Restano da progettare i suggerimenti per aggiungere altri film di una saga dopo averne selezionato o visto uno e l'attivazione automatica dei temi in base al periodo. Rinominare i temi attuali: «Cinema» → «Default», «Estate» → «Inverno», «Cinema Noir» → «Estate», mantenendo le rispettive palette. Saghe, automatismo e rinomine sono **pianificati, non implementati**; dettagli nella sezione «Cose da sistemare prima dei prossimi step».
 
 Home personale e pagine centrate — Saluto dal nome utente configurato, scena di benvenuto e tre card con icone grandi per Match, Ruota e Libreria. Una sezione compatta apre direttamente Visti e recensioni e Calendario; queste viste hanno titolo e navigazione propri. La Libreria conserva i soli filtri Tutti / Da vedere / In programma, ricerca e ordinamento. Il contenitore delle pagine è ora una colonna unica centrata, senza la vecchia griglia laterale. Tutte le uscite interne da Match (`exitMatchView`, inclusi gli «Esci» e la chiusura automatica) tornano alla home, rimuovendo la presence ma conservando sessione e canale. Nessuna modifica al modello dati. Cache PWA `v35`, smoke **330/330 PASS**, service worker **12/12 PASS**; resa visiva su smartphone da verificare.
 
@@ -51,13 +55,21 @@ Phase 28 — Ciak Loader e skeleton implementata localmente: al primo ingresso, 
 | Film e recensioni | Indicatori N/V/insieme, voti personali e condiviso 0–10, tre testi distinti, luogo facoltativo per serata; aggiunta con avviso duplicati | La recensione insieme è un testo per film; il luogo resta per evento |
 | Il Nostro Cinema | Serate concluse per mese, una card per evento anche nei rewatch; voto medio dei soli film visti insieme | Nessun archivio dei PNG generati |
 
-Verifiche locali dell'ultima revisione: `node scripts/smoke.js` **330/330 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Le migration Step 8, Step 9, Step 10, voto condiviso e luogo per serata sono state applicate; le due nuove colonne sono state verificate via REST in sola lettura (HTTP 200). Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
+Verifiche locali dell'ultima revisione: `node scripts/smoke.js` **332/332 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Le migration Step 8, Step 9, Step 10, voto condiviso e luogo per serata sono state applicate; le due nuove colonne sono state verificate via REST in sola lettura (HTTP 200). Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
 
 Regola repository: database locali, dump e backup sono esclusi da Git. I file SQL in `database/` descrivono schema e migration, senza esportazioni dei dati.
 
 ## Prossimo lavoro
 
-Priorità concordata: continuare la revisione UI/UX mobile delle viste principali. Verificare disposizione e otto temi su smartphone, poi rifinire gli stati d'errore e la serata senza cambiare i loro flussi dati. I controlli su due telefoni e gli interventi tecnici successivi restano attività separate.
+Priorità aggiornata: valutare il ticket ridisegnato e progettare saghe e temi automatici nella sezione seguente prima di passare ai prossimi step. Resta aperta la revisione UI/UX mobile delle viste principali: verificare disposizione e temi su smartphone, poi rifinire gli stati d'errore e la serata senza cambiare i loro flussi dati. I controlli su due telefoni e gli interventi tecnici successivi restano attività separate.
+
+### Cose da sistemare prima dei prossimi step
+
+Il ticket è **implementato localmente, da valutare visivamente**. Saghe e temi automatici sono **richieste concordate da progettare e implementare**.
+
+1. **Ticket PNG più accattivante — revisione della Phase 18, implementata localmente.** Il ticket giudicato troppo spoglio ora ha locandina a copertura, titolo adattivo, intestazione del brand, cornice pellicola, talloncino chiaro perforato e due sedute stilizzate. Origine, data/ora e snack hanno aree separate; testi lunghi limitati con ellissi e poster mancante con fallback grafico. Conservati export PNG e origine solo in-memory. PNG verificati con poster reale, Match, Ruota, proposta diretta, titolo lungo e parola senza spazi. Restano la valutazione estetica dell'utente e la prova del download su smartphone.
+2. **Saghe — suggerire gli altri film dopo una scelta o una visione (Phase 41).** Quando un film selezionato o appena visto appartiene a una collection, proporre i film successivi e permettere di consultare e aggiungere anche gli altri capitoli alla lista. Usare come base i metadati TMDb già presenti (`tmdb_id`, `collection_id`, `collection_name`); nessuna aggiunta automatica. Mostrare quali titoli sono già in libreria o già visti e riusare il controllo duplicati per ID TMDb. Da definire nella fase dedicata: punto esatto del suggerimento nei flussi di scelta/recensione, ordine dei capitoli (uscita o altro criterio esplicito), comportamento per film futuri e collection incomplete o assenti. La disponibilità dei dettagli della collection va verificata durante l'analisi tecnica; eventuali nuove colonne richiedono una valutazione e autorizzazione separata.
+3. **Temi automatici per periodo — estensione della Phase 34.** All'arrivo del periodo previsto, il tema corrispondente deve impostarsi automaticamente. Rinominare nella UI i temi mantenendo le palette attuali: **«Cinema» → «Default»** (ID `classic`), **«Estate» → «Inverno»** (ID `estate`), **«Cinema Noir» → «Estate»** (ID `cinema`). Conservare gli identificativi interni per compatibilità con le preferenze salvate; le regole automatiche dovranno seguire il nuovo significato stagionale, non il nome dell'ID. Definire finestre temporali, precedenza fra festività e stagioni, ritorno a Default fuori dai periodi previsti e rapporto con la selezione manuale di VHS e degli altri temi. Prevedere il ricalcolo all'apertura e al ritorno nell'app, così una preferenza salvata non impedisce il cambio di periodo. Oggi i temi sono ancora manuali e locali al dispositivo: l'automatismo e i nuovi nomi non sono implementati.
 
 1. **Phase 8.3 — Film al cinema e prossimamente**: [specifica e stato](PHASE8_3_CINEMA_WATCHLIST.md). Implementata localmente; migration Step 10 applicata, verificare su due telefoni dopo il deploy.
 2. **Phase 22 — Timeline per mese**: [specifica e stato](PHASE22_TIMELINE.md). Implementata localmente; verificare il modale su smartphone dopo il deploy.
@@ -88,7 +100,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 - Login differenziato N/V via PIN individuale, badge utente, logout
 - CRUD film, import bulk (JustWatch non ha export ufficiale → copia manuale); l'aggiunta singola cerca anche titoli omonimi e blocca con avviso soltanto l'ID TMDb già presente, l'import dalla UI salta gli ID duplicati nel riepilogo
-- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v35`), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
+- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v36`), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
 - **Design system** (Foundation): token CSS (`--color-*`, `--radius-*`, `--shadow-*`, `--duration-*`, `--ease-*`, `--fs-*`), tipografia Plus Jakarta Sans, otto temi con anteprima e preferenza locale (Cinema, Cinema Noir, VHS e cinque stagionali), `.glass-panel`/`.glass-card`, accessibilità baseline (focus-visible, ARIA su modali/segmented, `prefers-reduced-motion` globale). Le varianti cromatiche seguono le superfici principali e la Ruota; verifica visiva su smartphone ancora da fare.
 - **Header/nav**: barra mobile con marca e gruppo persona/uscita sopra, tema/Ricordi/Aggiungi sotto. «Ricordi» apre «Il Nostro Cinema» e ha testo visibile anche su mobile. «Sorpresa» è un'azione secondaria nel pannello Ruota; «Importa» è un link nel form di aggiunta singola. La home ospita tre scelte ingrandite per Match, Ruota e Libreria, aperte in viste dedicate; la libreria filtra Tutti / Da vedere / In programma, mentre Calendario e Visti e recensioni hanno accessi dalla home e viste dedicate. Match e Libreria occupano la larghezza disponibile; ogni modalità permette di tornare alle scelte.
 - **Match CTA**: stati idle/online/live letti solo da `matchChannelStatus`/`lobbyPresenceState`/`dbMode`/`currentTab` (nessuno stato duplicato); si aggiorna a ogni render, non su ogni evento presence in tempo reale se si è fermi su un altro tab (limite noto, accettato)
@@ -100,7 +112,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - **Ruota → programmabile** (Phase 15): il vincitore mostra i bottoni "Stasera"/"Programma" (riuso di `quickTonightUI`/`scheduleMovie`, nessun aggancio automatico) e l'accesso alla scheda film con trama/trailer; per una sorpresa ancora nascosta invita prima alla rivelazione dalla lista. `lockWheelWinner` risolto/rimosso in questo giro (dead code non più presente)
 - **Match % di sessione** (Phase 16): `sessionAgreement(swipes, moviesList)` in `match.js` — agreement% = film con giudizio identico (doppio-like O doppio-dislike) / film risolti da entrambi; soglia 3 risposte per un dato "attendibile" (sotto soglia mostrato comunque con nota), placeholder "…%" se denominatore 0, nessuna % su sessione `closed`; calcolo client-side, nessuna migration, nessuna modifica a `votes`
 - **Match Reveal** (Phase 17): celebrazione full-screen con tear CSS-only e coriandoli (`fireConfetti()`, già esistente), si riapre per sessione nuova sullo stesso film o per un secondo match nella stessa sessione, non si riapre su semplice re-render/resync; reset esplicito allo "Esci"
-- **Final Ticket Generator** (Phase 18): `js/ui/ticket.js`, export PNG 1080×1920 via canvas nativo (nessuna libreria), poster con `crossOrigin="anonymous"` (stesso pattern di Phase 9.2), fallback a gradiente se poster assente/CORS fallito; timbro per origine — Match Live → Match %, Ruota → "Scelto con la Ruota", proposta diretta → "Proposto da N/V"; **origine tracciata solo in-memory** per la sessione di navigazione corrente (`markTicketOrigin`/`ticketOriginOf`), nessun campo persistito su `movie_nights`
+- **Final Ticket Generator** (Phase 18, composizione grafica rivista nel ciclo v2.27): `js/ui/ticket.js`, export PNG 1080×1920 via canvas nativo (nessuna libreria), poster con `crossOrigin="anonymous"` (stesso pattern di Phase 9.2), fallback a gradiente se poster assente/CORS fallito; timbro per origine — Match Live → Match %, Ruota → "Scelto con la Ruota", proposta diretta → "Proposto da N/V"; **origine tracciata solo in-memory** per la sessione di navigazione corrente (`markTicketOrigin`/`ticketOriginOf`), nessun campo persistito su `movie_nights`
 - Hero "La nostra serata" in cima alla dashboard (poster, countdown con ora valida, snack, conferma/rifiuto/annullamento secondo lo stato); se esiste una serata attiva di oggi assume lo stato Tonight Mode e offre "Recensione insieme" per la serata confermata. Nascosto se non c'è una serata o nelle viste Match/Calendario
 - Serate come entità `movie_nights` (proposed → confirmed → completed/cancelled/skipped) con mirror legacy su `movies`
 - Conferma serata solo sulla data specifica, non sull'aggiunta del film; il quick pick "Stasera" crea una serata già confirmed (atto unilaterale, comportamento storico)
@@ -114,7 +126,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Veto settimanale (1/persona/settimana), rimovibile solo dal proprietario, realtime su vetoes
 - Snack picker con opzione personalizzata (salvata in `movie_nights.snack`; gli snack già usati tornano fra le scelte su entrambi i telefoni, senza nuova tabella)
 - Modalità sorpresa (azione secondaria nella Ruota, modale, `surprise_by`, blur CSS, badge "tua sorpresa")
-- Smoke test locale: **330/330 PASS**; `scripts/verify-sw.js`: **12/12 PASS**. Il percorso storico dei test precedenti resta nella cronologia Git.
+- Smoke test locale: **332/332 PASS**; `scripts/verify-sw.js`: **12/12 PASS**. Il percorso storico dei test precedenti resta nella cronologia Git.
 
 ---
 
@@ -152,7 +164,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 31 — Accessibility baseline ✅
 
 ### ✅ PWA (COMPLETA)
-- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v35` nell'ultimo ciclo UI), toast di aggiornamento ✅
+- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v36` nell'ultimo ciclo UI), toast di aggiornamento ✅
 - Verificato: nessuna richiesta Supabase/TMDb/OMDb/poster/YouTube passa mai dalla cache (nessun `respondWith` su quei domini)
 
 ### STEP 2 — Core Layout (Phase 8.2 implementata)
@@ -177,7 +189,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 15 — Ruota → serata ✅ (bottoni Stasera/Programma sul vincitore, riuso funzioni esistenti, nessun aggancio automatico)
 - Phase 16 — Match % di sessione ✅ (`sessionAgreement()`, client-side, nessuna migration)
 - Phase 17 — Match Reveal ✅ (full-screen, tear CSS-only, coriandoli riusati, reset esplicito allo Esci)
-- Phase 18 — Final Ticket Generator ✅ (canvas nativo 1080×1920, tre timbri d'origine, origine solo in-memory)
+- Phase 18 — Final Ticket Generator ✅ (canvas nativo 1080×1920, origine solo in-memory; revisione grafica v2.27 implementata, valutazione estetica e download mobile da verificare)
 
 ### STEP 5 — Home Intelligence
 - Phase 19 — Hero "Prossimo Film / La nostra serata" ✅: usa `nextMoviePick()` (con priorità alla serata di oggi in Phase 20) e le azioni serata già esistenti; nessuna nuova migration. La CTA di scelta resta il primo elemento quando non c'è una serata.
@@ -198,6 +210,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 32 — Cinema Mode (Cinema Noir aggiunto come atmosfera visiva locale; verifica su smartphone da fare)
 - Phase 33 — VHS Mode (palette e trama statica aggiunte; verifica su smartphone da fare)
 - Phase 34 — Seasonal Polish (prima applicazione dei token e selettore completati; rifinitura visiva su tutte le viste ancora da fare)
+- Estensione Phase 34 — Temi automatici per periodo e rinomina Cinema → Default, Estate → Inverno, Cinema Noir → Estate, con palette conservate: richiesta concordata, da progettare; oggi il selettore resta manuale (vedi «Cose da sistemare prima dei prossimi step»).
 
 ### STEP 8 — Micro-interactions
 - Phase 26 — Audio Manager ✅ nel codice locale (opt-in per dispositivo; Match e Ruota)
@@ -213,6 +226,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 38 — Voti decimali da tastierino (**idea, non implementata**): sostituire i menu 0–10 con un campo numerico per voto personale e condiviso, con tastierino mobile `inputmode="decimal"` e separatore decimale disponibile. Accettare `8.3` e `7,8`, normalizzare il valore e validare 0–10 con una cifra decimale. Prima dell'implementazione definire una migration additiva/alterazione verificata per `seen_rating_n`, `seen_rating_v` e `seen_rating_together`, oggi `smallint`, e adeguare salvataggio, statistiche, fallback legacy e test. Non cambiare il data model senza una fase dedicata.
 - Phase 39 — Spazio «Extra» (**idea, non implementata**): eventuale sezione compatta per le funzioni giocose usate di rado, a partire dalla Sorpresa; decidere contenuti e posizione dopo la verifica dell'uso reale. La Ruota resta centrale nella scelta del film.
 - Phase 40 — Statistiche personali (**idea, non implementata**): sezione dedicata ai voti, alle visioni e alle recensioni del singolo, distinta da Ricordi; definire metriche e navigazione in una fase dedicata.
+- Phase 41 — Suggerimenti saghe (**richiesta concordata, non implementata**): proporre gli altri capitoli dopo la selezione o visione di un film, con aggiunta esplicita alla libreria e controllo duplicati; progettazione prioritaria descritta sopra.
 
 ---
 
