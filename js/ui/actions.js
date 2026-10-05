@@ -374,10 +374,10 @@ function openReviewFor(id, by) {
   const hasReview = !!existingText || existingScore !== null;
   document.getElementById('reviewText').value = existingText;
   document.getElementById('reviewBy').value = by;
-  document.getElementById('reviewTextOptional').classList.toggle('hidden', by !== 'both');
+  document.getElementById('reviewTextOptional').classList.remove('hidden');
   document.getElementById('reviewModalTitle').textContent = by === 'both'
-    ? (hasReview ? 'Modifica voto o recensione insieme' : 'Voto e recensione insieme')
-    : (existingText ? 'Modifica la tua recensione' : 'La tua recensione');
+    ? `${hasReview ? 'Modifica voto o recensione' : 'Voto e recensione'} ${sharedPeopleLabel()}`
+    : `Modifica voto ${CONFIG.PEOPLE[currentUser]?.label || currentUser}`;
   document.getElementById('reviewMovieTitle').textContent = movie.title;
   const completedNights = by === 'both' && hasReview ? completedNightsForMovie(id) : [];
   const reviewNight = by === 'both'
@@ -392,12 +392,12 @@ function openReviewFor(id, by) {
   nightSelect.value = reviewNight?.id || '';
   document.getElementById('reviewNightSelectWrap').classList.toggle('hidden', completedNights.length <= 1);
   document.getElementById('reviewRating').value = formatMovieRating(existingScore);
-  document.getElementById('reviewRatingLabel').textContent = by === 'both' ? 'Il vostro voto ★' : 'Il tuo voto ★';
+  document.getElementById('reviewRatingLabel').textContent = by === 'both' ? `Il voto ${sharedPeopleLabel()} ★` : 'Il tuo voto ★';
   document.getElementById('reviewHelp').textContent = by === 'both'
     ? (hasReview
       ? 'Le modifiche non cambiano la data della serata registrata nello storico.'
       : 'Il voto è condiviso, il testo è facoltativo. Se c’è una serata attiva, verrà segnata come conclusa.')
-    : 'Puoi aggiornare il tuo voto e la tua recensione senza cambiare quelli dell’altra persona.';
+    : 'Il testo è facoltativo: svuotalo e salva per lasciare solo il voto. I voti dell’altra persona restano invariati.';
   document.getElementById('reviewError').classList.add('hidden');
   document.getElementById('reviewSaveButton').disabled = false;
   document.getElementById('reviewSaveButton').textContent = hasReview ? 'Salva modifiche' : 'Salva voto';
@@ -447,12 +447,6 @@ async function confirmReview() {
     error.textContent = 'Scegli un voto da 0 a 10, con al massimo un decimale (es. 8,3).';
     error.classList.remove('hidden');
     document.getElementById('reviewRating').focus();
-    return;
-  }
-  if (!text && by !== 'both') {
-    error.textContent = 'Scrivi la recensione prima di salvarla.';
-    error.classList.remove('hidden');
-    document.getElementById('reviewText').focus();
     return;
   }
   const movie = movies.find(m => m.id === id);

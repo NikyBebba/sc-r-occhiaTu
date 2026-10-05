@@ -141,6 +141,16 @@ function genreChips(m) {
   ).join('');
 }
 
+function sharedPeopleLabel() {
+  return ['N', 'V'].map(person => CONFIG.PEOPLE[person]?.label || person).join('+');
+}
+
+function sharedVoteButtonHtml(movie) {
+  if (movie.surprise_by && movie.surprise_by !== currentUser) return '';
+  const label = (reviewTextFor(movie, 'both') || togetherRating(movie) !== null) ? 'Modifica voto' : 'Vota';
+  return `<button onclick="addReview('${jsAttrEscape(movie.id)}')" class="shared-vote-action w-full min-h-11 px-3 py-2 rounded-lg font-medium">${label} ${escapeHtml(sharedPeopleLabel())}</button>`;
+}
+
 function viewingStatusHtml(movie) {
   const seen = viewingState(movie);
   const label = seen.together ? 'Visto insieme da N e V'
@@ -152,15 +162,22 @@ function viewingStatusHtml(movie) {
     return rating === null ? '' : `<span class="viewing-score viewing-score-${key.toLowerCase()}">${key} <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(rating)}/10</span>`;
   }).filter(Boolean);
   const shared = togetherRating(movie);
-  if (shared !== null && seen.together) scores.push(`<span class="viewing-score viewing-score-together" aria-label="Voto insieme: ${formatMovieRating(shared)} su 10">I <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(shared)}/10</span>`);
+  if (shared !== null && seen.together) scores.push(`<span class="viewing-score viewing-score-together" aria-label="Voto insieme: ${formatMovieRating(shared)} su 10">${escapeHtml(sharedPeopleLabel())} <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(shared)}/10</span>`);
   return `<div class="viewing-status" role="group" aria-label="${label}"><span class="viewing-label" aria-hidden="true">Visto da</span>${person('N')}${person('V')}</div>${scores.length ? `<div class="viewing-scores" aria-label="Voti del film">${scores.join('')}</div>` : ''}`;
+}
+
+function personalVoteButtonHtml(movie) {
+  if ((currentUser !== 'N' && currentUser !== 'V') || !viewingState(movie)[currentUser]
+      || (movie.surprise_by && movie.surprise_by !== currentUser)) return '';
+  const name = CONFIG.PEOPLE[currentUser]?.label || currentUser;
+  return `<button onclick="addPersonalReview('${jsAttrEscape(movie.id)}')" class="personal-vote-action personal-vote-${currentUser.toLowerCase()} w-full min-h-11 px-3 py-2 rounded-lg font-medium">Modifica voto ${escapeHtml(name)}</button>`;
 }
 
 function reviewCardsHtml(movie) {
   return ['N', 'V', 'both'].map(person => {
     const text = reviewTextFor(movie, person);
     if (!text) return '';
-    const label = person === 'both' ? 'Insieme' : person;
+    const label = person === 'both' ? escapeHtml(sharedPeopleLabel()) : person;
     const score = person === 'both' ? togetherRating(movie) : personalRating(movie, person);
     return `<div class="mt-2 p-2.5 bg-slate-900/80 rounded-lg border border-slate-800 text-xs text-slate-300">
       <span class="text-[11px] font-bold text-indigo-300">Recensione ${label}${score !== null ? ` · ★ ${formatMovieRating(score)}/10` : ''}</span>
@@ -312,24 +329,18 @@ function renderStats() {
   const topGenre = topGenres[0];
   const topGenreValue = topGenre ? `${topGenre} (${genreCounts[topGenre]})` : '—';
 
-  // "Proposti da N / V": conta i film per persona che li ha AGGIUNTI
-  // (movies.added_by). NON è un giudizio sui gusti — il Match % è la sessione
-  // swipe N↔V nel tab Match e la card resta la fonte per i gusti a coppia.
-  const proposers = Object.keys(CONFIG.PEOPLE || {})
-    .map(p => {
-      const n = watched.filter(m => m.added_by === p).length;
-      const label = CONFIG.PEOPLE[p]?.label || p;
-      return n ? `${label} ${n}` : null;
-    })
-    .filter(Boolean)
-    .join(' · ');
-  const proposersValue = watched.length ? (proposers || '—') : '—';
+  // Film aggiunti: intera libreria, attribuzione persistita sul film.
+  // Non è un conteggio delle serate: i rewatch non moltiplicano i film.
+  const proposersValue = ['N', 'V'].map(person => {
+    const count = movies.filter(movie => movie.added_by === person).length;
+    return `${CONFIG.PEOPLE[person]?.label || person} ${count}`;
+  }).join(' · ');
 
   const cards = [
     { icon: 'fa-clapperboard', iconClass: 'text-rose-400', label: 'Film visti insieme', value: totalWatched },
     { icon: 'fa-star', iconClass: 'text-amber-400', label: 'Voto medio insieme', value: avgRating === '—' ? '—' : `⭐ ${avgRating}/10` },
     { icon: 'fa-tags', iconClass: 'text-sky-400', label: 'Genere più visto insieme', value: topGenreValue },
-    { icon: 'fa-users', iconClass: 'text-indigo-400', label: 'Proposti da', value: proposersValue }
+    { icon: 'fa-users', iconClass: 'text-indigo-400', label: 'Film aggiunti', value: proposersValue }
   ];
   document.getElementById('statsGrid').innerHTML = cards.map(c => `
     <div class="glass-card rounded-xl p-4 text-center">
@@ -715,16 +726,12 @@ function render() {
           ` : ''}
           ${reviewCardsHtml(m)}
           ${sagaButtonHtml(m)}
-          ${!isSurpriseHidden && viewingState(m)[currentUser] ? `<button onclick="addPersonalReview('${m.id}')" class="mt-2 min-h-9 px-2 py-1.5 text-xs text-indigo-300 hover:text-indigo-200 underline">${reviewTextFor(m, currentUser) ? 'Modifica la tua recensione' : 'Scrivi la tua recensione'}</button>` : ''}
         </div>
         ${(m.status === 'watchlist' || m.status === 'tonight' || m.status === 'watched') ? `
         <div class="card-action-row flex flex-col gap-2 pt-2 border-t border-slate-800/80 text-xs">
           ${m.status === 'watched' || isSurpriseHidden ? '' : !viewingState(m)[currentUser]
             ? `<button onclick="markSeenUI('${m.id}')" class="w-full min-h-9 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium text-left"><i class="fa-solid fa-eye mr-1.5" aria-hidden="true"></i>L'ho già visto</button>`
-            : `<div class="flex gap-2">
-                <button onclick="markSeenUI('${m.id}')" class="flex-1 min-h-9 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium">${personalRating(m, currentUser) === null ? 'Assegna voto' : 'Modifica voto'}</button>
-                ${canUndoSeen(m, currentUser) ? `<button onclick="undoSeenUI('${m.id}')" class="min-h-9 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium" aria-label="Annulla l'ho già visto">Annulla</button>` : ''}
-              </div>`}
+            : (canUndoSeen(m, currentUser) ? `<button onclick="undoSeenUI('${jsAttrEscape(m.id)}')" class="min-h-9 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium" aria-label="Annulla l'ho già visto">Annulla</button>` : '')}
           ${m.status === 'watchlist' ? `
             <div class="flex gap-2">
               <button onclick="quickTonightUI('${m.id}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded font-medium">Stasera</button>
@@ -738,12 +745,13 @@ function render() {
             ${!isSurpriseHidden ? `<button onclick="toggleCinemaWatchlist('${jsAttrEscape(m.id)}')" class="w-full min-h-9 px-2 py-1.5 text-xs text-amber-200 hover:text-amber-100 underline">${m.cinema_watchlist ? 'Disponibile per Ruota e Match' : 'Tieni per il cinema'}</button>` : ''}
           ` : ''}
           ${m.status === 'tonight' ? `
-            <button onclick="${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? 'finishTogetherNightUI' : 'addReview'}('${m.id}')" class="flex-1 min-h-11 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? 'Segna serata vista' : 'Visto insieme e voto'}</button>
-            ${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? `<button onclick="addReview('${m.id}')" class="w-full min-h-11 px-3 py-2 text-emerald-200 underline">Modifica voto insieme</button>` : ''}
+            ${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? `<button onclick="finishTogetherNightUI('${jsAttrEscape(m.id)}')" class="flex-1 min-h-11 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">Segna serata vista</button>` : sharedVoteButtonHtml(m)}
+            ${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? sharedVoteButtonHtml(m) : ''}
           ` : ''}
           ${m.status === 'watched' && !isSurpriseHidden ? `
-            <button onclick="addReview('${m.id}')" class="w-full min-h-11 px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded-lg font-medium">${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? 'Modifica voto insieme' : 'Vota insieme'}</button>
+            ${sharedVoteButtonHtml(m)}
           ` : ''}
+          ${personalVoteButtonHtml(m)}
         </div>
         ` : ''}
       </div>
@@ -942,7 +950,8 @@ function renderMovieDetail(m) {
     <div class="detail-viewing">${viewingStatusHtml(m)}</div>
     ${reviewCardsHtml(m)}
     ${sagaButtonHtml(m)}
-    ${m.status === 'tonight' || m.status === 'watched' ? `<button onclick="addReview('${jsAttrEscape(m.id)}')" class="w-full min-h-11 px-4 py-2 rounded-lg bg-emerald-600/20 text-emerald-200 font-medium">${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? 'Modifica voto insieme' : 'Vota insieme'}</button>` : ''}
+    ${m.status === 'tonight' || m.status === 'watched' ? sharedVoteButtonHtml(m) : ''}
+    ${personalVoteButtonHtml(m)}
     <div class="detail-footer">
       ${personBadge(m.added_by)}
       ${m.surprise_by ? `<span class="badge bg-indigo-600/90">🎁 sorpresa di ${escapeHtml(CONFIG.PEOPLE[m.surprise_by]?.label || m.surprise_by)}</span>` : ''}

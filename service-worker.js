@@ -5,7 +5,7 @@
 // Aggiornamento: niente skipWaiting (prompt "nuova versione" lato client).
 // ============================================
 
-const CACHE_REV = 'scorochiatu-shell-v40';
+const CACHE_REV = 'scorochiatu-shell-v41';
 const CACHE_PREFIX = 'scorochiatu-shell-';
 
 const PRECACHE = [

@@ -1454,3 +1454,12 @@ textarea:focus-visible {
 .saga-chapter input { width: 24px; height: 24px; flex: 0 0 24px; accent-color: var(--color-accento); }
 .saga-add { width: 100%; min-height: 48px; padding: 12px; border-radius: 12px; color: #fff; background: var(--color-accento); font-size: 14px; font-weight: 800; }
 .saga-add:disabled { opacity: .5; cursor: default; }
+
+/* Azione voto personale: stessa gerarchia del voto insieme, colore N/V. */
+.personal-vote-action { color: var(--personal-vote-color); background: color-mix(in srgb, var(--personal-vote-color) 12%, transparent); }
+.personal-vote-action:hover { background: color-mix(in srgb, var(--personal-vote-color) 22%, transparent); }
+.personal-vote-n { --personal-vote-color: var(--color-persona-n); }
+.personal-vote-v { --personal-vote-color: var(--color-persona-v); }
+
+.shared-vote-action { color: var(--color-oro); background: color-mix(in srgb, var(--color-oro) 12%, transparent); }
+.shared-vote-action:hover { background: color-mix(in srgb, var(--color-oro) 22%, transparent); }

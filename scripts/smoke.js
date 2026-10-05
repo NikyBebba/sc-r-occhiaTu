@@ -1748,7 +1748,7 @@ async function okA(name, fn) {
       && html.indexOf('fa-tags') !== -1
       && html.indexOf('fa-users') !== -1
       && html.indexOf('fa-heart') === -1
-      && html.indexOf('Proposti da') !== -1
+      && html.indexOf('Film aggiunti') !== -1
       && html.indexOf('a&lt;b (1)') !== -1
       && html.indexOf('a<b (1)') === -1
       && html.indexOf('a<b)') === -1
@@ -2550,6 +2550,129 @@ async function okA(name, fn) {
     } finally { movies = previous; movieNights = nights; currentUser = user; }
   }));
 
+  ok('azioni voto: personale sotto insieme, nome/colore utente, nessun duplicato e sorpresa protetta', run(() => {
+    const previous = movies, user = currentUser, tab = currentTab;
+    currentTab = 'watched';
+    movies = [{ id: 'review-actions', title: 'Film', status: 'watched', seen_rating_n: 8.3, seen_rating_v: 7.8, seen_rating_together: 9.1 }];
+    try {
+      for (const person of ['N', 'V']) {
+        currentUser = person; render();
+        const html = document.getElementById('movieGrid')._children[0].innerHTML;
+        const name = escapeHtml(CONFIG.PEOPLE[person]?.label || person);
+        if (!html.includes('personal-vote-' + person.toLowerCase())
+          || !html.includes('Modifica voto ' + name)
+          || html.indexOf('Modifica voto ' + escapeHtml(sharedPeopleLabel())) > html.indexOf('Modifica voto ' + name)
+          || (html.match(/addPersonalReview\(/g) || []).length !== 1
+          || html.includes('Modifica la tua recensione')) return false;
+      }
+      return personalVoteButtonHtml({ status: 'watched', surprise_by: 'N' }) === ''
+        && personalVoteButtonHtml({ status: 'watchlist' }) === '';
+    } finally { movies = previous; currentUser = user; currentTab = tab; }
+  }));
+  await okA('recensione personale: svuotare testo mantiene decimale, altra persona e serata; edit solo voto', runA(async () => {
+    const previous = movies, user = currentUser, nights = movieNights, client = sb;
+    sb = null; currentUser = 'N';
+    movies = [{ id: 'clear-personal', title: 'Film', status: 'watched', watched_by: 'both', review_by: 'both',
+      seen_rating_n: 8.3, seen_rating_v: 7.8, seen_rating_together: 9.1,
+      review_text_n: 'N testo', review_text_v: 'V testo', review_text_together: 'Testo insieme', review_text: 'Testo insieme' }];
+    movieNights = [{ id: 'clear-night', movie_id: 'clear-personal', status: 'completed', completed_at: '2026-10-05T20:00:00Z' }];
+    const el = id => document.getElementById(id);
+    try {
+      addPersonalReview('clear-personal'); el('reviewText').value = '  '; await confirmReview();
+      const stored = JSON.parse(localStorage.getItem('scorochiatu_movies'))[0];
+      const cleared = reviewTextFor(stored, 'N') === '' && stored.seen_rating_n === 8.3
+        && stored.review_text_v === 'V testo' && stored.seen_rating_v === 7.8
+        && stored.review_text_together === 'Testo insieme' && stored.seen_rating_together === 9.1
+        && stored.review_text === 'Testo insieme';
+      addPersonalReview('clear-personal');
+      const reopened = el('reviewText').value === '' && el('reviewRating').value === '8,3'
+        && !el('reviewTextOptional').classList.contains('hidden');
+      el('reviewRating').value = '8,5'; await confirmReview();
+      return cleared && reopened && movies[0].seen_rating_n === 8.5
+        && movieNights.length === 1 && movieNights[0].completed_at === '2026-10-05T20:00:00Z';
+    } finally { movies = previous; currentUser = user; movieNights = nights; sb = client; saveLocal(); }
+  }));
+  await okA('recensione personale: testo omesso conservato, vuoto esplicito elimina anche fallback legacy', runA(async () => {
+    const previous = movies, client = sb, user = currentUser; sb = null; currentUser = 'N';
+    movies = [{ id: 'clear-legacy', title: 'Film', status: 'watchlist', watched_by: 'N', review_by: 'N', rating: 4,
+      review_text: 'Testo legacy', review_text_n: 'Testo N' }];
+    try {
+      await markMovieSeen('clear-legacy', 'N', 8.3);
+      const kept = movies[0].review_text_n === 'Testo N' && movies[0].review_text === 'Testo legacy';
+      await markMovieSeen('clear-legacy', 'N', 8.3, '');
+      const cleared = reviewTextFor(movies[0], 'N') === '' && movies[0].review_text === '';
+      movies[0].review_text_n = 'Nuovo testo'; saveLocal();
+      markSeenUI('clear-legacy'); document.getElementById('seenReview').value = ''; await confirmSeen();
+      return kept && cleared && reviewTextFor(movies[0], 'N') === '' && movies[0].seen_rating_n === 8.3;
+    } finally { movies = previous; sb = client; currentUser = user; saveLocal(); }
+  }));
+  await okA('recensione insieme: svuotare testo conserva voto, personale e data, senza concludere rewatch', runA(async () => {
+    const previous = movies, nights = movieNights, client = sb; sb = null;
+    movies = [{ id: 'clear-shared', title: 'Film', status: 'tonight', watched_by: 'both', review_by: 'both',
+      seen_rating_together: 8.3, seen_rating_n: 7.8, review_text_n: 'Personale', review_text_together: 'Testo insieme', review_text: 'Testo insieme' }];
+    movieNights = [{ id: 'old-clear', movie_id: 'clear-shared', status: 'completed', completed_at: '2026-01-01T21:00:00Z' },
+      { id: 'new-clear', movie_id: 'clear-shared', status: 'confirmed', date: '2026-10-05' }];
+    try {
+      addReview('clear-shared'); document.getElementById('reviewText').value = ''; await confirmReview();
+      return reviewTextFor(movies[0], 'both') === '' && movies[0].seen_rating_together === 8.3
+        && movies[0].seen_rating_n === 7.8 && movies[0].review_text_n === 'Personale'
+        && movies[0].status === 'tonight' && movieNights[1].status === 'confirmed'
+        && movieNights[0].completed_at === '2026-01-01T21:00:00Z';
+    } finally { movies = previous; movieNights = nights; sb = client; saveLocal(); }
+  }));
+  await okA('recensione personale: patch Supabase vuota esplicita preserva voto e mirror di altri autori', runA(async () => {
+    const previous = movies, client = sb;
+    let patch;
+    movies = [{ id: 'clear-remote', watched_by: 'both', review_by: 'both', seen_rating_n: 8.3, review_text_n: 'N', review_text: 'Insieme' }];
+    sb = { from() { return { update(value) { patch=value; return this; }, eq() { return this; }, select() { return Promise.resolve({data:[{id:'clear-remote'}], error:null}); } }; } };
+    try {
+      const saved = await markMovieSeen('clear-remote', 'N', 8.3, '');
+      return saved && patch.review_text_n === '' && patch.seen_rating_n === 8.3
+        && !Object.hasOwn(patch, 'review_text') && !Object.hasOwn(patch, 'seen_rating_v');
+    } finally { movies = previous; sb = client; }
+  }));
+
+  ok('film aggiunti: tutta la libreria per autore, zero, nessun raddoppio rewatch e aggiornamento al render', run(() => {
+    const previous = movies, nights = movieNights;
+    movies = [
+      { id: 'added-n1', added_by: 'N', status: 'watchlist' },
+      { id: 'added-n2', added_by: 'N', status: 'tonight', cinema_watchlist: true },
+      { id: 'added-n3', added_by: 'N', status: 'watched' },
+      { id: 'added-v1', added_by: 'V', status: 'watchlist', surprise_by: 'V' },
+      { id: 'added-v2', added_by: 'V', status: 'watched' },
+      { id: 'added-unknown', status: 'watchlist' }
+    ];
+    movieNights = [{ movie_id: 'added-n3', status: 'completed' }, { movie_id: 'added-n3', status: 'completed' }];
+    const values = () => document.getElementById('statsGrid').innerHTML;
+    const label = (n, v) => escapeHtml(`${CONFIG.PEOPLE.N?.label || 'N'} ${n} · ${CONFIG.PEOPLE.V?.label || 'V'} ${v}`);
+    try {
+      renderStats();
+      const first = values().includes('Film aggiunti') && values().includes(label(3, 2));
+      movies.push({ id: 'added-v3', status: 'watchlist', added_by: 'V' }); renderStats();
+      const inserted = values().includes(label(3, 3));
+      movies = movies.filter(movie => movie.id !== 'added-n1'); renderStats();
+      const removed = values().includes(label(2, 3));
+      movies = [{ id: 'only-unseen', status: 'watchlist', added_by: 'N' }]; renderStats();
+      const unseen = values().includes(label(1, 0));
+      movies = []; renderStats();
+      return first && inserted && removed && unseen && values().includes(label(0, 0));
+    } finally { movies = previous; movieNights = nights; }
+  }));
+  ok('voto condiviso: N+V su card/recensione e pulsante oro, statistiche mantengono insieme', run(() => {
+    const previous = movies, user = currentUser, tab = currentTab;
+    currentUser = 'N'; currentTab = 'watched';
+    movies = [{ id: 'shared-button', title: 'Film', status: 'watched', added_by: 'N', seen_rating_together: 8.3, seen_rating_n: 7.8, review_text_together: 'Testo' }];
+    try {
+      render();
+      const html = document.getElementById('movieGrid')._children[0].innerHTML;
+      const joint = escapeHtml(sharedPeopleLabel());
+      return html.includes('shared-vote-action') && html.includes('Modifica voto ' + joint)
+        && html.includes(joint + ' <i class="fa-solid fa-star" aria-hidden="true"></i> 8,3/10')
+        && html.includes('Recensione ' + joint) && !html.includes('Modifica voto insieme')
+        && document.getElementById('statsGrid').innerHTML.includes('Voto medio insieme');
+    } finally { movies = previous; currentUser = user; currentTab = tab; }
+  }));
+
   console.log('\n[phase8.1 — stato di visione sulle card]');
   ok('HTML: modali visto e recensione con voto 0–10 e validazione visibile', (() => {
     const html = read('index.html');
@@ -2712,7 +2835,7 @@ async function okA(name, fn) {
       await confirmReview();
       return blank && first && prefilled && movies[0].seen_rating_together === 9
         && movies[0].seen_rating_n === 8 && movieNights[0].completed_at === completedAt
-        && reviewCardsHtml(movies[0]).includes('Recensione Insieme · ★ 9/10');
+        && reviewCardsHtml(movies[0]).includes('Recensione ' + escapeHtml(sharedPeopleLabel()) + ' · ★ 9/10');
     } finally { movies = savedMovies; movieNights = savedNights; currentUser = savedUser; saveLocal(); }
   }));
   await okA('modifica recensione insieme: conserva la data storica e non conclude un rewatch attivo', runA(async () => {
@@ -2758,7 +2881,7 @@ async function okA(name, fn) {
       const firstSaved = el('reviewModal').classList.contains('hidden')
         && movies[0].seen_rating_together === 6 && !movies[0].review_text_together
         && viewingStatusHtml(movies[0]).includes('viewing-score-together')
-        && viewingStatusHtml(movies[0]).includes('I <i class="fa-solid fa-star" aria-hidden="true"></i> 6/10');
+        && viewingStatusHtml(movies[0]).includes(escapeHtml(sharedPeopleLabel()) + ' <i class="fa-solid fa-star" aria-hidden="true"></i> 6/10');
       const completion = movieNights[0].completed_at;
       addReview('review-required'); el('reviewRating').value = '7';
       await confirmReview();
@@ -2922,7 +3045,8 @@ async function okA(name, fn) {
     movies = savedMovies; votes = savedVotes; currentUser = prevUser; currentTab = prevTab;
     return before.includes('markSeenUI') && before.includes("L'ho già visto")
       && !before.includes('voteMovie') && !before.includes('Match!')
-      && after.includes('Assegna voto') && after.includes('undoSeenUI');
+      && after.includes('Modifica voto ' + escapeHtml(CONFIG.PEOPLE.N?.label || 'N'))
+      && after.includes('addPersonalReview') && after.includes('undoSeenUI');
   }));
 
   console.log('\n[step3 phase9 — dettaglio film modale]');

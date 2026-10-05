@@ -1,8 +1,9 @@
 # Phase 38 — Voti decimali da tastierino
 
 Scelta dell'utente: proseguire con i voti decimali, personali e insieme.
-Codice implementato localmente; migration Supabase preparata, **non applicata**.
-Non pubblicare il frontend prima della migration.
+Codice implementato localmente; migration Supabase **applicata dall'utente**.
+La lettura indipendente dei tipi via OpenAPI ha restituito HTTP 401;
+lo stato del DB è registrato sulla conferma dell'utente, senza scritture live.
 
 I due menu voto diventano campi con `inputmode="decimal"`: da 0 a 10,
 con un decimale facoltativo. Si accettano `8.3` e `8,3`, con spazi esterni;
@@ -29,8 +30,8 @@ I vincoli dedicati vengono ricreati con gli stessi nomi alla riesecuzione.
 Schema iniziale aggiornato; nessun backfill, nuova colonna o tabella.
 Notifica PostgREST per riallineare la cache dello schema.
 
-Applicare lo script dal SQL Editor Supabase dopo l'autorizzazione
-dell'utente, poi controllare i tre tipi con:
+Lo script è stato applicato dall'utente dal SQL Editor Supabase.
+I tre tipi sono controllabili con:
 
 ```sql
 SELECT column_name, data_type
@@ -39,7 +40,7 @@ WHERE table_schema = 'public' AND table_name = 'movies'
   AND column_name IN ('seen_rating_n', 'seen_rating_v', 'seen_rating_together');
 ```
 
-Solo dopo pubblicare il frontend (cache PWA `v40`). Un vecchio client
+Frontend pronto per la pubblicazione (cache PWA ora `v41`). Un vecchio client
 accetta ancora solo gli interi e può non mostrare i nuovi decimali: aggiornare
 entrambi i telefoni. Nessuna modifica alle credenziali o alle serate.
 
@@ -59,3 +60,7 @@ entrambi i telefoni. Nessuna modifica alle credenziali o alle serate.
 
 Nessuna dipendenza aggiunta all'app. Browser e PostgreSQL di verifica
 sono installazioni temporanee fuori dal repository.
+
+Revisione successiva: pulsante personale sotto quello insieme, nome e colore N/V; testo personale facoltativo anche in modifica. Svuotare e salvare elimina il testo, incluso il mirror legacy del solo autore, mantenendo voto e serate. Testo omesso nelle chiamate dati conserva la recensione. Smoke aggiornato **365/365 PASS**, service worker **12/12 PASS**.
+
+Il voto condiviso nelle card e nella scheda è identificato da N+V (nomi configurati), con azione nello stesso oro del voto. Il pulsante personale segue quello condiviso con colore N/V. Chromium a 320/390 px verifica ordine, colori e cancellazione del testo per entrambi gli utenti, con screenshot ispezionati e nessun errore JS. Il widget «Film aggiunti» ora conta tutti i film presenti per autore, includendo watchlist, cinema e visti; nessun raddoppio dai rewatch.

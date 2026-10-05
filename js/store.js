@@ -264,20 +264,24 @@ function watchedByAfterUndo(movie, person) {
   return viewingState(movie)[other] ? other : null;
 }
 
-// "L'ho già visto" è idempotente e non modifica recensione né serata.
+// "L'ho già visto" è idempotente e non modifica la serata.
+// Testo omesso = conserva la recensione; stringa vuota = rimuove il testo.
 // La condizione sul valore precedente evita di perdere il segno dell'altro
 // telefono se N e V premono quasi nello stesso momento.
-async function markMovieSeen(id, person, rating = null, reviewText = '') {
+async function markMovieSeen(id, person, rating = null, reviewText = null) {
   if (person !== 'N' && person !== 'V') return false;
   if (rating !== null && !validMovieRating(rating)) return false;
   let movie = movies.find(m => m.id === id);
   if (!movie) return false;
   const ratingField = person === 'N' ? 'seen_rating_n' : 'seen_rating_v';
   const reviewField = person === 'N' ? 'review_text_n' : 'review_text_v';
+  const hasReviewText = typeof reviewText === 'string';
+  const text = hasReviewText ? reviewText.trim() : null;
   const patchFor = row => ({ watched_by: mergedWatchedBy(row, person),
     ...(rating !== null ? { [ratingField]: rating } : {}),
-    ...(reviewText.trim() ? { [reviewField]: reviewText.trim() } : {}) });
-  if (rating === null && !reviewText.trim() && movie.watched_by === mergedWatchedBy(movie, person)) return true;
+    ...(hasReviewText ? { [reviewField]: text,
+      ...(row.review_by === person ? { review_text: text } : {}) } : {}) });
+  if (rating === null && !hasReviewText && movie.watched_by === mergedWatchedBy(movie, person)) return true;
 
   if (!sb) {
     Object.assign(movie, patchFor(movie));
@@ -301,7 +305,7 @@ async function markMovieSeen(id, person, rating = null, reviewText = '') {
       return false;
     }
     movie = latest.data;
-    if (rating === null && !reviewText.trim() && movie.watched_by === mergedWatchedBy(movie, person)) return true;
+    if (rating === null && !hasReviewText && movie.watched_by === mergedWatchedBy(movie, person)) return true;
   }
   console.error('[sc(r)occhiaTu] markMovieSeen: conflitto persistente sul film', id);
   return false;
