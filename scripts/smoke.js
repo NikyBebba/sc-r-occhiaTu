@@ -170,7 +170,7 @@ async function okA(name, fn) {
     'js/audio.js',
     'js/api/omdb.js', 'js/api/tmdb.js', 'js/api/index.js',
     'js/store.js', 'js/match.js', 'js/filters.js', 'js/wheel.js',
-    'js/ui/modals.js', 'js/ui/navigation.js', 'js/ui/actions.js', 'js/ui/render.js', 'js/ui/calendar.js',
+    'js/ui/modals.js', 'js/ui/navigation.js', 'js/ui/actions.js', 'js/ui/sagas.js', 'js/ui/render.js', 'js/ui/calendar.js',
     'js/ui/match.js',
     'js/ui/ticket.js',
     'js/ui/loading.js',
@@ -863,6 +863,168 @@ async function okA(name, fn) {
   await okA('candidati picker hanno id numerico', runA(async () => {
     const c = await searchTmdbCandidates('Interstellar');
     return Array.isArray(c) && c.length > 0 && typeof c[0].id === 'number';
+  }));
+
+  console.log('\n[Phase 41 — saghe]');
+  await okA('saghe: collection TMDb live in italiano, con i capitoli della trilogia del Cavaliere oscuro', runA(async () => {
+    const c = await fetchTmdbCollection(263);
+    return !!(c && c.parts.some(p => p.id === 155) && c.parts.some(p => p.id === 49026)
+      && c.parts.some(p => p.id === 272) && c.parts.every(p => p.title && typeof p.id === 'number'));
+  }));
+  ok('saghe: ordine di uscita, ID duplicati e date mancanti/non valide', run(() => {
+    const c = normalizeTmdbCollection({ id: 90001, name: 'Saga', parts: [null,
+      { id: 2, title: 'Secondo', release_date: '2020-01-01' }, { id: 1, title: 'Primo', release_date: '2010-01-01' },
+      { id: 2, title: 'Duplicato' }, { id: -1 }, { id: 3, release_date: '2026-02-30' }] });
+    return c.parts.map(p => p.id).join() === '1,2,3' && c.parts[2].release_date === null
+      && normalizeTmdbCollection({ id: 1 }) === null && tmdbCollectionReleaseDate('2028-02-29') === '2028-02-29';
+  }));
+  ok('saghe: prossimo capitolo da uscita, visione individuale/insieme e nessun ordine inventato senza data', run(() => {
+    const c = normalizeTmdbCollection({ id: 9, parts: [
+      { id: 1, release_date: '2010-01-01' }, { id: 2, release_date: '2012-01-01' },
+      { id: 3, release_date: '2014-01-01' }, { id: 4, release_date: '2080-01-01' }] });
+    const source = { tmdb_id: 1 };
+    const chapters = sagaChapterStates(c, source, [{ tmdb_id: 2, status: 'watched' },
+      { tmdb_id: 3, watched_by: 'N', status: 'watchlist' }], 'N', '2026-10-05');
+    const missing = sagaChapterStates(c, { tmdb_id: 99 }, [], 'N', '2026-10-05');
+    return chapters[0].sourceChapter && !chapters[1].next && chapters[1].state.together
+      && chapters[2].next && chapters[2].state.N && !chapters[2].state.V
+      && chapters[3].upcoming && !chapters[3].next && missing.every(ch => !ch.next);
+  }));
+  await okA('saghe API: errore ritentabile, cache dei successi e HTTP non-200 rifiutato', runA(async () => {
+    const oldFetch = fetch; let calls = 0;
+    try {
+      tmdbCollectionCache.delete(90002);
+      fetch = async () => { calls++; return calls === 1 ? { ok: false } : { ok: true, json: async () => ({ id: 90002, parts: [] }) }; };
+      const failed = await fetchTmdbCollection(90002);
+      const retry = await fetchTmdbCollection(90002);
+      const cached = await fetchTmdbCollection(90002);
+      return failed === null && retry && retry === cached && calls === 2;
+    } finally { fetch = oldFetch; tmdbCollectionCache.delete(90002); }
+  }));
+  ok('saghe UI: dati esterni escapati, sorpresa senza titolo/poster/anno e nessun capitolo preselezionato', run(() => {
+    const old = { movies, currentUser, sagaPanel };
+    try {
+      currentUser = 'N';
+      movies = [{ id: 'saga-source', title: 'Primo', tmdb_id: 1, collection_id: 9 },
+        { id: 'hidden', tmdb_id: 2, surprise_by: 'V', title: 'SEGRETO', poster: 'SECRET.jpg' }];
+      sagaPanel = { movieId: 'saga-source', user: 'N', selected: new Set(),
+        collection: normalizeTmdbCollection({ id: 9, name: '<script>bad</script>', parts: [
+          { id: 1, title: 'Primo', release_date: '2010-01-01' },
+          { id: 2, title: 'SEGRETO', poster_path: '/SECRET.jpg', release_date: '2012-01-01' },
+          { id: 3, title: '<img onerror=bad>', release_date: '2014-01-01' }] }) };
+      renderSagaPanel();
+      const html = document.getElementById('sagaBody').innerHTML;
+      return !html.includes('SEGRETO') && !html.includes('SECRET.jpg') && !html.includes('2012')
+        && html.includes('Film a sorpresa') && html.includes('&lt;script&gt;')
+        && html.includes('&lt;img onerror=bad&gt;') && !html.includes(' checked')
+        && !canShowSaga({ collection_id: 9, surprise_by: 'V' });
+    } finally { movies = old.movies; currentUser = old.currentUser; sagaPanel = old.sagaPanel; }
+  }));
+  await okA('saghe UI: risposta vecchia non sovrascrive un altro film e errore mostra Riprova', runA(async () => {
+    const old = { movies, currentUser, sagaPanel, fetchTmdbCollection };
+    const pending = {};
+    try {
+      currentUser = 'N'; movies = [{ id: 'sa', title: 'A', collection_id: 901 }, { id: 'sb', title: 'B', collection_id: 902 }];
+      fetchTmdbCollection = id => new Promise(resolve => { pending[id] = resolve; });
+      const first = openMovieSaga('sa'); const second = openMovieSaga('sb');
+      pending[902](normalizeTmdbCollection({ id: 902, name: 'Saga B', parts: [] })); await second;
+      pending[901](normalizeTmdbCollection({ id: 901, name: 'Saga A', parts: [] })); await first;
+      const fresh = sagaPanel.movieId === 'sb' && document.getElementById('sagaBody').innerHTML.includes('Saga B');
+      const retry = openMovieSaga('sb'); pending[902](null); await retry;
+      return fresh && document.getElementById('sagaBody').innerHTML.includes('Riprova');
+    } finally { closeModal('sagaModal'); movies = old.movies; currentUser = old.currentUser;
+      sagaPanel = old.sagaPanel; fetchTmdbCollection = old.fetchTmdbCollection; }
+  }));
+  await okA('saghe: aggiunta esplicita con metadati, futuri fuori da Ruota/Match, duplicati simultanei e retry parziale', runA(async () => {
+    const old = { movies, votes, vetoes, movieNights, currentUser, sagaPanel, sb, dbMode, fetchTmdbDetailsById, insertMovie };
+    let calls = 0;
+    try {
+      sb = null; dbMode = 'local'; currentUser = 'N';
+      movies = [{ id: 'source', title: 'Primo', tmdb_id: 1, collection_id: 9, status: 'watchlist' }];
+      votes = []; vetoes = []; movieNights = []; saveLocal();
+      const collection = normalizeTmdbCollection({ id: 9, name: 'Saga', parts: [
+        { id: 1 }, { id: 2, title: 'Futuro', release_date: '2080-01-01' }, { id: 3 }, { id: 4 }, { id: 5 }] });
+      sagaPanel = { movieId: 'source', user: 'N', collection, selected: new Set(), busy: false };
+      fetchTmdbDetailsById = async id => {
+        calls++;
+        if (id === 4) { movies.push({ id: 'phone-4', tmdb_id: 4 }); saveLocal(); }
+        return { tmdb_id: id, title: 'Film ' + id, matched: id !== 3, collection_id: 9, collection_name: 'Saga',
+          genres: ['Avventura'], duration: '100 min', overview: 'Trama', cast_names: ['Attore'], release_year: 2080, director: 'Regista', poster: 'poster.jpg' };
+      };
+      insertMovie = async row => {
+        if (row.tmdb_id === 5) { movies.push({ id: 'phone-5', tmdb_id: 5 }); saveLocal(); return null; }
+        return old.insertMovie(row);
+      };
+      await addSagaChapters();
+      const explicit = calls === 0;
+      for (const id of [2, 3, 4, 5]) toggleSagaChapter(id, true);
+      await Promise.all([addSagaChapters(), addSagaChapters()]);
+      const added = findDuplicateByTmdbId(2);
+      return explicit && calls === 4 && added && added.added_by === 'N' && added.cinema_watchlist === true
+        && added.overview === 'Trama' && added.cast_names[0] === 'Attore' && added.genres[0] === 'Avventura'
+        && movies.filter(row => Number(row.tmdb_id) === 2).length === 1
+        && !wheelPool().some(row => row.id === added.id) && !resolveDeckMovie(movies, added.id)
+        && sagaPanel.selected.size === 1 && sagaPanel.selected.has(3) && !sagaPanel.busy
+        && sagaPanel.message.includes('non salvati') && sagaPanel.message.includes('già in lista');
+    } finally {
+      movies = old.movies; votes = old.votes; vetoes = old.vetoes; movieNights = old.movieNights; currentUser = old.currentUser;
+      sagaPanel = old.sagaPanel; sb = old.sb; dbMode = old.dbMode;
+      fetchTmdbDetailsById = old.fetchTmdbDetailsById; insertMovie = old.insertMovie; saveLocal();
+    }
+  }));
+  await okA('saghe: nuova visione personale/insieme propone, modifica del voto non ripropone', runA(async () => {
+    const old = { movies, votes, vetoes, movieNights, currentUser, sb, dbMode, suggestSagaAfterViewing };
+    let suggestions = 0;
+    try {
+      sb = null; dbMode = 'local'; currentUser = 'N'; votes = []; vetoes = []; movieNights = [];
+      movies = [{ id: 'view-saga', title: 'Primo', status: 'watchlist', tmdb_id: 1, collection_id: 9 }]; saveLocal();
+      suggestSagaAfterViewing = () => { suggestions++; };
+      document.getElementById('seenMovieId').value = 'view-saga';
+      document.getElementById('seenRating').value = '7'; document.getElementById('seenReview').value = '';
+      await confirmSeen();
+      document.getElementById('seenRating').value = '8'; await confirmSeen();
+      const personal = suggestions === 1;
+      document.getElementById('reviewMovieId').value = 'view-saga'; document.getElementById('reviewBy').value = 'both';
+      document.getElementById('reviewRating').value = '9'; document.getElementById('reviewText').value = '';
+      document.getElementById('reviewLocation').value = ''; document.getElementById('reviewNightId').value = '';
+      document.getElementById('reviewSaveButton').disabled = false;
+      await confirmReview(); await confirmReview();
+      return personal && suggestions === 2 && viewingState(movies[0]).together && movieNights.length === 1;
+    } finally {
+      movies = old.movies; votes = old.votes; vetoes = old.vetoes; movieNights = old.movieNights;
+      currentUser = old.currentUser; sb = old.sb; dbMode = old.dbMode; suggestSagaAfterViewing = old.suggestSagaAfterViewing; saveLocal();
+    }
+  }));
+
+  await okA('saghe API: timeout termina la richiesta senza memorizzare un fallimento', runA(async () => {
+    const oldFetch = fetch, oldTimeout = setTimeout;
+    try {
+      tmdbCollectionCache.delete(90003);
+      fetch = () => new Promise(() => {});
+      setTimeout = (fn, ms) => oldTimeout(fn, ms === 8000 ? 1 : ms);
+      return await fetchTmdbCollection(90003) === null && !tmdbCollectionCache.has(90003);
+    } finally { fetch = oldFetch; setTimeout = oldTimeout; }
+  }));
+  await okA('saghe: un inserimento temporaneo dopo errore DB non viene dichiarato salvato e resta ritentabile', runA(async () => {
+    const old = { movies, currentUser, sagaPanel, sb, dbMode, fetchTmdbDetailsById, insertMovie, loadMovies };
+    try {
+      currentUser = 'N'; sb = {}; dbMode = 'supabase';
+      movies = [{ id: 'source-error', title: 'Primo', tmdb_id: 1, collection_id: 9 }];
+      sagaPanel = { movieId: 'source-error', user: 'N', selected: new Set([2]), busy: false,
+        collection: normalizeTmdbCollection({ id: 9, name: 'Saga', parts: [{ id: 1 }, { id: 2, title: 'Secondo' }] }) };
+      fetchTmdbDetailsById = async () => ({ tmdb_id: 2, title: 'Secondo', matched: true });
+      insertMovie = async row => { const temp = { ...row, id: 'temporary' }; movies.push(temp); dbMode = 'local'; return temp; };
+      loadMovies = async () => { if (dbMode === 'local') movies = movies.filter(row => row.id !== 'temporary'); };
+      await addSagaChapters();
+      const failed = sagaPanel.message.includes('non salvati') && !sagaPanel.message.includes('film aggiunto')
+        && sagaPanel.selected.has(2) && !findDuplicateByTmdbId(2);
+      insertMovie = async row => { const saved = { ...row, id: 'server-row' }; movies.push(saved); dbMode = 'supabase'; return saved; };
+      await addSagaChapters();
+      return failed && sagaPanel.message.includes('film aggiunto') && !sagaPanel.selected.size && findDuplicateByTmdbId(2).collection_id === 9;
+    } finally {
+      movies = old.movies; currentUser = old.currentUser; sagaPanel = old.sagaPanel; sb = old.sb; dbMode = old.dbMode;
+      fetchTmdbDetailsById = old.fetchTmdbDetailsById; insertMovie = old.insertMovie; loadMovies = old.loadMovies;
+    }
   }));
 
   // --- 3b) api generi/durata: oggetti canned, nessuna rete ---

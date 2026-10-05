@@ -138,3 +138,53 @@ async function fetchTmdbDetailsByTitle(title) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { buildTmdbDetails };
 }
+
+// Phase 41 — collection su richiesta; fallimenti non memorizzati e log senza URL/chiavi.
+const tmdbCollectionCache = new Map();
+function tmdbCollectionReleaseDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  if (year < 100) return null;
+  const date = new Date(year, month - 1, day, 12);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? value : null;
+}
+
+function normalizeTmdbCollection(data) {
+  if (!data || !Number.isInteger(Number(data.id)) || Number(data.id) <= 0 || !Array.isArray(data.parts)) return null;
+  const seen = new Set();
+  const parts = data.parts.filter(part => {
+    if (!part) return false;
+    const id = Number(part.id);
+    if (!Number.isInteger(id) || id <= 0 || seen.has(id)) return false;
+    seen.add(id); return true;
+  }).map(part => ({
+    id: Number(part.id), title: part.title || part.original_title || 'Titolo non disponibile',
+    release_date: tmdbCollectionReleaseDate(part.release_date),
+    poster: part.poster_path ? 'https://image.tmdb.org/t/p/w200' + part.poster_path : ''
+  })).sort((a, b) => (a.release_date || '9999').localeCompare(b.release_date || '9999') || a.id - b.id);
+  return { id: Number(data.id), name: data.name || 'La saga', parts };
+}
+
+async function fetchTmdbCollection(id) {
+  id = Number(id);
+  if (!tmdbConfigured() || !Number.isInteger(id) || id <= 0) return null;
+  const cached = tmdbCollectionCache.get(id);
+  if (cached && Date.now() - cached.at < 15 * 60 * 1000) return cached.data;
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  let timer;
+  try {
+    const timeout = new Promise(resolve => {
+      timer = setTimeout(() => { if (controller) controller.abort(); resolve(null); }, 8000);
+    });
+    const request = (async () => {
+      const response = await fetch(`https://api.themoviedb.org/3/collection/${id}?api_key=${CONFIG.TMDB_API_KEY}&language=it-IT`,
+        controller ? { signal: controller.signal } : {});
+      if (!response.ok) return null;
+      const data = normalizeTmdbCollection(await response.json());
+      return data && data.id === id ? data : null;
+    })().catch(() => null);
+    const data = await Promise.race([request, timeout]);
+    if (data) tmdbCollectionCache.set(id, { data, at: Date.now() });
+    return data;
+  } finally { clearTimeout(timer); }
+}

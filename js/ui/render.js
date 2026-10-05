@@ -124,6 +124,7 @@ function renderNextMovieBox() {
         <div class="next-movie-timing"><p class="next-movie-date">${countdownHtml}</p>${dateHtml && countdown.startsWith('⏳') ? `<p class="next-movie-when"><i class="fa-regular fa-calendar" aria-hidden="true"></i> ${dateHtml}</p>` : ''}</div>
         ${pick.snack ? `<p class="next-movie-snack">🍿 ${escapeHtml(pick.snack)}</p>` : ''}
         <div class="next-movie-actions">${actionsHtml}</div>
+        ${sagaButtonHtml(pickMovie)}
       </div>
     </div>
   `;
@@ -543,6 +544,7 @@ function renderDashboardHome() {
 function render() {
   finishInitialLoading();
   renderDashboardHome();
+  if (typeof renderSagaPanel === 'function' && !document.getElementById('sagaModal').classList.contains('hidden')) renderSagaPanel();
   renderPillCounters();
   const statsModal = document.getElementById('statsModal');
   if (statsModal && !statsModal.classList.contains('hidden')) renderStats();
@@ -938,6 +940,7 @@ function renderMovieDetail(m) {
     <div id="detailAwards" aria-live="polite"></div>
     <div class="detail-viewing">${viewingStatusHtml(m)}</div>
     ${reviewCardsHtml(m)}
+    ${sagaButtonHtml(m)}
     ${m.status === 'tonight' || m.status === 'watched' ? `<button onclick="addReview('${jsAttrEscape(m.id)}')" class="w-full min-h-11 px-4 py-2 rounded-lg bg-emerald-600/20 text-emerald-200 font-medium">${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? 'Modifica voto insieme' : 'Vota insieme'}</button>` : ''}
     <div class="detail-footer">
       ${personBadge(m.added_by)}

@@ -219,6 +219,7 @@ function matchMatchHtml(state) {
         <button onclick="downloadTicket('${movie ? jsAttrEscape(movie.id) : ''}', 'match')" class="flex-1 py-2.5 bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-indigo-300 rounded-xl text-sm font-medium transition">🎟️ Ticket</button>
         <button onclick="continueFromMatch()" class="flex-1 py-2.5 bg-sky-600/20 hover:bg-sky-600/40 text-sky-300 rounded-xl text-sm font-medium transition">Continua a swipare</button>
       </div>
+      ${sagaButtonHtml(movie)}
       <div class="flex gap-2">
         ${matchNewSessionBtn()}
         <button onclick="exitMatchView()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-medium transition">Esci</button>

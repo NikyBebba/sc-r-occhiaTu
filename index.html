@@ -322,6 +322,14 @@
     </div>
   </div>
 
+  <!-- Phase 41 — altri capitoli della saga, nessuna aggiunta automatica -->
+  <div id="sagaModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
+    <div class="glass-panel saga-panel rounded-2xl border border-slate-800">
+      <div class="saga-header"><div><h2>Continuiamo la saga?</h2><p id="sagaIntro"></p></div><button type="button" onclick="closeModal('sagaModal')" class="site-nav-icon" aria-label="Chiudi saga"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+      <div id="sagaBody"></div>
+    </div>
+  </div>
+
   <!-- MODALE AGGIUNGI FILM SINGOLO -->
   <div id="addModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass-panel p-6 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-slate-800 space-y-4">
@@ -638,6 +646,7 @@
   <script src="js/ui/modals.js"></script>
   <script src="js/ui/navigation.js"></script>
   <script src="js/ui/actions.js"></script>
+  <script src="js/ui/sagas.js"></script>
   <script src="js/ui/render.js"></script>
   <script src="js/ui/calendar.js"></script>
   <script src="js/ui/match.js"></script>

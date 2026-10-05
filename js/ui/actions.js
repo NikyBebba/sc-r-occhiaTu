@@ -417,8 +417,9 @@ async function finishTogetherNightUI(id) {
   const movie = movies.find(m => m.id === id);
   if (!movie || (reviewTextFor(movie, 'both') === '' && togetherRating(movie) === null) || !activeNightForMovie(id)) return;
   if (!(await updateMovie(id, { status: 'watched', watched_by: 'both' }))) return;
-  await completeNight(id);
+  const completed = await completeNight(id);
   await loadMovies();
+  if (completed) suggestSagaAfterViewing(id);
 }
 
 function addPersonalReview(id) {
@@ -456,6 +457,7 @@ async function confirmReview() {
   }
   const movie = movies.find(m => m.id === id);
   if (!movie || saveButton.disabled) return;
+  const newTogetherViewing = by === 'both' && !viewingState(movie).together;
   saveButton.disabled = true;
   let saved = false;
   if (by === 'both') {
@@ -494,6 +496,7 @@ async function confirmReview() {
   }
   closeModal('reviewModal');
   await loadMovies();
+  if (newTogetherViewing) suggestSagaAfterViewing(id);
 }
 
 // ---- Modalità sorpresa ----
@@ -545,6 +548,8 @@ async function confirmSeen() {
     return;
   }
   const reviewText = document.getElementById('seenReview').value.trim();
+  const movie = movies.find(row => row.id === id);
+  const newViewing = movie && !viewingState(movie)[currentUser];
   const saved = await markMovieSeen(id, currentUser, rating, reviewText);
   if (!saved) {
     error.textContent = 'Non siamo riusciti a salvare. Riprova.';
@@ -553,6 +558,7 @@ async function confirmSeen() {
   }
   closeModal('seenModal');
   await loadMovies();
+  if (newViewing) suggestSagaAfterViewing(id);
 }
 
 async function undoSeenUI(id) {
