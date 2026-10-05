@@ -1,10 +1,12 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.27
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.28
 
 Ultimo aggiornamento: 5 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
 
 Revisione Phase 18 — Ticket PNG ridisegnato nel codice locale: locandina protagonista senza distorsione, titolo adattivo in sovrimpressione, intestazione sc(r)occhiaTu, bordo pellicola e talloncino chiaro con perforazione, origine della scelta, data/ora e snack. Match senza percentuale mostra «Match Live»; un'origine assente non viene inventata. Film non programmati mostrano «Da programmare», senza ora fittizia. Poster assente: illustrazione geometrica su gradiente. Il download attende brevemente il font dell'app prima della misura dei testi. Nessuna libreria aggiunta all'app o migration; cache PWA `v36`. Smoke **332/332 PASS**, service worker **12/12 PASS** e controllo sintassi superato. PNG reali 1080×1920 generati e ispezionati con poster, fallback e testi lunghi tramite canvas nativo di verifica temporaneo (font di fallback); download su smartphone ancora da verificare.
 
-Nuove richieste di progettazione — Il primo intervento sul ticket è implementato localmente e resta da valutare visivamente dall'utente. Restano da progettare i suggerimenti per aggiungere altri film di una saga dopo averne selezionato o visto uno e l'attivazione automatica dei temi in base al periodo. Rinominare i temi attuali: «Cinema» → «Default», «Estate» → «Inverno», «Cinema Noir» → «Estate», mantenendo le rispettive palette. Saghe, automatismo e rinomine sono **pianificati, non implementati**; dettagli nella sezione «Cose da sistemare prima dei prossimi step».
+Estensione Phase 34 — Temi automatici implementati localmente prima delle saghe, come richiesto. Cinema Noir → Estate (`cinema`) ed Estate → Inverno (`estate`), con palette conservate. Default (ex Cinema) e VHS sono rimossi dal selettore; rimossa anche la trama VHS. Nuovi temi Pasqua (salvia scura, lavanda, menta e oro tenue) e Capodanno (superfici nere e inserti dorati). Gli otto temi seguono il calendario locale del dispositivo; selezione manuale temporanea fino al prossimo cambio di periodo e pulsante «Automatico» per ripristinare subito il calendario. Ricalcolo all'ingresso, al ritorno nella pagina e ogni minuto quando visibile; la Ruota si ridisegna solo se il tema cambia e dopo l'inizializzazione dei moduli. Una festività trascorsa ad app chiusa fa comunque scadere la scelta precedente. Capodanno (30 dicembre–2 gennaio) ha precedenza su Natale (22 dicembre–6 gennaio). Cache PWA `v37`; smoke **341/341 PASS**, service worker **12/12 PASS** e controlli sintassi superati; nessuna migration o dipendenza aggiunta. Resa visiva su smartphone ancora da verificare.
+
+Priorità richieste — Ticket ridisegnato e temi automatici implementati localmente. Le saghe sono il prossimo lavoro di progettazione: suggerire gli altri capitoli dopo aver selezionato o visto un film, con aggiunta esplicita alla libreria.
 
 Home personale e pagine centrate — Saluto dal nome utente configurato, scena di benvenuto e tre card con icone grandi per Match, Ruota e Libreria. Una sezione compatta apre direttamente Visti e recensioni e Calendario; queste viste hanno titolo e navigazione propri. La Libreria conserva i soli filtri Tutti / Da vedere / In programma, ricerca e ordinamento. Il contenitore delle pagine è ora una colonna unica centrata, senza la vecchia griglia laterale. Tutte le uscite interne da Match (`exitMatchView`, inclusi gli «Esci» e la chiusura automatica) tornano alla home, rimuovendo la presence ma conservando sessione e canale. Nessuna modifica al modello dati. Cache PWA `v35`, smoke **330/330 PASS**, service worker **12/12 PASS**; resa visiva su smartphone da verificare.
 
@@ -55,21 +57,29 @@ Phase 28 — Ciak Loader e skeleton implementata localmente: al primo ingresso, 
 | Film e recensioni | Indicatori N/V/insieme, voti personali e condiviso 0–10, tre testi distinti, luogo facoltativo per serata; aggiunta con avviso duplicati | La recensione insieme è un testo per film; il luogo resta per evento |
 | Il Nostro Cinema | Serate concluse per mese, una card per evento anche nei rewatch; voto medio dei soli film visti insieme | Nessun archivio dei PNG generati |
 
-Verifiche locali dell'ultima revisione: `node scripts/smoke.js` **332/332 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Le migration Step 8, Step 9, Step 10, voto condiviso e luogo per serata sono state applicate; le due nuove colonne sono state verificate via REST in sola lettura (HTTP 200). Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
+Verifiche locali dell'ultima revisione: `node scripts/smoke.js` **341/341 PASS**, `node scripts/verify-sw.js` **12/12 PASS**, `node --check` sui moduli JS modificati senza errori. Le migration Step 8, Step 9, Step 10, voto condiviso e luogo per serata sono state applicate; le due nuove colonne sono state verificate via REST in sola lettura (HTTP 200). Il comportamento dell'ultimo ciclo non è stato ricontrollato manualmente su due telefoni o su Vercel.
 
 Regola repository: database locali, dump e backup sono esclusi da Git. I file SQL in `database/` descrivono schema e migration, senza esportazioni dei dati.
 
 ## Prossimo lavoro
 
-Priorità aggiornata: valutare il ticket ridisegnato e progettare saghe e temi automatici nella sezione seguente prima di passare ai prossimi step. Resta aperta la revisione UI/UX mobile delle viste principali: verificare disposizione e temi su smartphone, poi rifinire gli stati d'errore e la serata senza cambiare i loro flussi dati. I controlli su due telefoni e gli interventi tecnici successivi restano attività separate.
+Priorità aggiornata: valutare ticket e temi implementati, poi progettare le saghe nella sezione seguente prima degli altri step. Resta aperta la revisione UI/UX mobile delle viste principali: verificare disposizione e temi su smartphone, poi rifinire gli stati d'errore e la serata senza cambiare i loro flussi dati. I controlli su due telefoni e gli interventi tecnici successivi restano attività separate.
 
 ### Cose da sistemare prima dei prossimi step
 
-Il ticket è **implementato localmente, da valutare visivamente**. Saghe e temi automatici sono **richieste concordate da progettare e implementare**.
+Ticket e temi automatici sono **implementati localmente, da verificare visivamente su smartphone**. Le saghe sono **la prossima richiesta da progettare e implementare**.
 
 1. **Ticket PNG più accattivante — revisione della Phase 18, implementata localmente.** Il ticket giudicato troppo spoglio ora ha locandina a copertura, titolo adattivo, intestazione del brand, cornice pellicola, talloncino chiaro perforato e due sedute stilizzate. Origine, data/ora e snack hanno aree separate; testi lunghi limitati con ellissi e poster mancante con fallback grafico. Conservati export PNG e origine solo in-memory. PNG verificati con poster reale, Match, Ruota, proposta diretta, titolo lungo e parola senza spazi. Restano la valutazione estetica dell'utente e la prova del download su smartphone.
 2. **Saghe — suggerire gli altri film dopo una scelta o una visione (Phase 41).** Quando un film selezionato o appena visto appartiene a una collection, proporre i film successivi e permettere di consultare e aggiungere anche gli altri capitoli alla lista. Usare come base i metadati TMDb già presenti (`tmdb_id`, `collection_id`, `collection_name`); nessuna aggiunta automatica. Mostrare quali titoli sono già in libreria o già visti e riusare il controllo duplicati per ID TMDb. Da definire nella fase dedicata: punto esatto del suggerimento nei flussi di scelta/recensione, ordine dei capitoli (uscita o altro criterio esplicito), comportamento per film futuri e collection incomplete o assenti. La disponibilità dei dettagli della collection va verificata durante l'analisi tecnica; eventuali nuove colonne richiedono una valutazione e autorizzazione separata.
-3. **Temi automatici per periodo — estensione della Phase 34.** All'arrivo del periodo previsto, il tema corrispondente deve impostarsi automaticamente. Rinominare nella UI i temi mantenendo le palette attuali: **«Cinema» → «Default»** (ID `classic`), **«Estate» → «Inverno»** (ID `estate`), **«Cinema Noir» → «Estate»** (ID `cinema`). Conservare gli identificativi interni per compatibilità con le preferenze salvate; le regole automatiche dovranno seguire il nuovo significato stagionale, non il nome dell'ID. Definire finestre temporali, precedenza fra festività e stagioni, ritorno a Default fuori dai periodi previsti e rapporto con la selezione manuale di VHS e degli altri temi. Prevedere il ricalcolo all'apertura e al ritorno nell'app, così una preferenza salvata non impedisce il cambio di periodo. Oggi i temi sono ancora manuali e locali al dispositivo: l'automatismo e i nuovi nomi non sono implementati.
+3. **Temi automatici per periodo — estensione della Phase 34, implementata localmente.** Nomi e palette: Estate (`cinema`, ex Cinema Noir), Inverno (`estate`, ex Estate), Primavera, Autunno, Halloween, Natale, Pasqua e Capodanno. Default (`classic`, ex Cinema) e VHS rimossi; Capodanno usa nero e oro. Il calendario usa il giorno locale del dispositivo, senza richieste di rete. Le finestre concordate con l'utente sono inclusive:
+   - **Capodanno:** 30 dicembre–2 gennaio, con precedenza su Natale.
+   - **Natale:** 22 dicembre–6 gennaio, esclusi i quattro giorni di Capodanno.
+   - **Halloween:** 27 ottobre–2 novembre.
+   - **Pasqua:** Venerdì Santo–Pasquetta, quattro giorni (da due giorni prima a un giorno dopo la domenica di Pasqua). Data calcolata annualmente con l'[algoritmo gregoriano USNO](https://aa.usno.navy.mil/faq/easter).
+   - **Stagioni:** Primavera marzo–maggio, Estate giugno–agosto, Autunno settembre–novembre, Inverno dicembre–febbraio; le festività hanno precedenza. Default non è più selezionabile; una data non valida usa Inverno come fallback.
+   - **Ordine del selettore:** Primavera, Estate, Autunno, Inverno, poi Pasqua, Halloween, Natale, Capodanno. Nessuna intestazione o scritta per distinguere stagioni e festività; solo ordine delle card. Simboli identificativi: germoglio, sole, foglia, fiocco di neve, uovo, fantasma, albero e calici; anche il pulsante nella barra mostra il simbolo del tema attivo.
+   - **Scelta manuale:** locale e temporanea fino al successivo periodo; salvata in `scorochiatu_theme_override` con identificativo del periodo. Il vecchio `scorochiatu_theme` resta come mirror del tema attivo e non blocca l'automatismo, inclusi vecchi valori VHS/Default. Capodanno attraversa il 1° gennaio come unico periodo; Natale prima e dopo Capodanno sono periodi separati; rientrare dopo una festività trascorsa fa scadere una scelta della stagione precedente. «Automatico» ripristina subito il calendario.
+   - **Verifiche:** date limite, anno bisestile, Pasqua mobile anche tra marzo/aprile, scadenza manuale, storage assente/corrotto, inizializzazione in head, cambio a mezzanotte e ritorno nella pagina. Palette Pasqua/Capodanno e selettore restano da provare visivamente su smartphone.
 
 1. **Phase 8.3 — Film al cinema e prossimamente**: [specifica e stato](PHASE8_3_CINEMA_WATCHLIST.md). Implementata localmente; migration Step 10 applicata, verificare su due telefoni dopo il deploy.
 2. **Phase 22 — Timeline per mese**: [specifica e stato](PHASE22_TIMELINE.md). Implementata localmente; verificare il modale su smartphone dopo il deploy.
@@ -100,8 +110,8 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 - Login differenziato N/V via PIN individuale, badge utente, logout
 - CRUD film, import bulk (JustWatch non ha export ufficiale → copia manuale); l'aggiunta singola cerca anche titoli omonimi e blocca con avviso soltanto l'ID TMDb già presente, l'import dalla UI salta gli ID duplicati nel riepilogo
-- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v36`), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
-- **Design system** (Foundation): token CSS (`--color-*`, `--radius-*`, `--shadow-*`, `--duration-*`, `--ease-*`, `--fs-*`), tipografia Plus Jakarta Sans, otto temi con anteprima e preferenza locale (Cinema, Cinema Noir, VHS e cinque stagionali), `.glass-panel`/`.glass-card`, accessibilità baseline (focus-visible, ARIA su modali/segmented, `prefers-reduced-motion` globale). Le varianti cromatiche seguono le superfici principali e la Ruota; verifica visiva su smartphone ancora da fare.
+- **PWA**: manifest, icone (192/512/maskable/apple-touch, **provvisorie**, da sostituire con asset reale), service worker con cache app-shell versionata (`scorochiatu-shell-v37`), whitelist esplicita che esclude sempre Supabase/TMDb/OMDb/poster/YouTube dall'intercettazione, toast di aggiornamento non invasivo
+- **Design system** (Foundation): token CSS (`--color-*`, `--radius-*`, `--shadow-*`, `--duration-*`, `--ease-*`, `--fs-*`), tipografia Plus Jakarta Sans, otto temi con anteprima e calendario automatico locale (Estate, Inverno, Primavera, Autunno, Halloween, Natale, Pasqua e Capodanno), scelta manuale temporanea, `.glass-panel`/`.glass-card`, accessibilità baseline (focus-visible, ARIA su modali/segmented, `prefers-reduced-motion` globale). Le varianti cromatiche seguono le superfici principali e la Ruota; verifica visiva su smartphone ancora da fare.
 - **Header/nav**: barra mobile con marca e gruppo persona/uscita sopra, tema/Ricordi/Aggiungi sotto. «Ricordi» apre «Il Nostro Cinema» e ha testo visibile anche su mobile. «Sorpresa» è un'azione secondaria nel pannello Ruota; «Importa» è un link nel form di aggiunta singola. La home ospita tre scelte ingrandite per Match, Ruota e Libreria, aperte in viste dedicate; la libreria filtra Tutti / Da vedere / In programma, mentre Calendario e Visti e recensioni hanno accessi dalla home e viste dedicate. Match e Libreria occupano la larghezza disponibile; ogni modalità permette di tornare alle scelte.
 - **Match CTA**: stati idle/online/live letti solo da `matchChannelStatus`/`lobbyPresenceState`/`dbMode`/`currentTab` (nessuno stato duplicato); si aggiorna a ogni render, non su ogni evento presence in tempo reale se si è fermi su un altro tab (limite noto, accettato)
 - **Home CTA "Cosa guardiamo?"**: Match Live apre la sua vista dedicata; Ruota e Sfoglia la lista portano alle rispettive sezioni, senza nuovi stati di scelta
@@ -126,7 +136,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Veto settimanale (1/persona/settimana), rimovibile solo dal proprietario, realtime su vetoes
 - Snack picker con opzione personalizzata (salvata in `movie_nights.snack`; gli snack già usati tornano fra le scelte su entrambi i telefoni, senza nuova tabella)
 - Modalità sorpresa (azione secondaria nella Ruota, modale, `surprise_by`, blur CSS, badge "tua sorpresa")
-- Smoke test locale: **332/332 PASS**; `scripts/verify-sw.js`: **12/12 PASS**. Il percorso storico dei test precedenti resta nella cronologia Git.
+- Smoke test locale: **341/341 PASS**; `scripts/verify-sw.js`: **12/12 PASS**. Il percorso storico dei test precedenti resta nella cronologia Git.
 
 ---
 
@@ -164,7 +174,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 31 — Accessibility baseline ✅
 
 ### ✅ PWA (COMPLETA)
-- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v36` nell'ultimo ciclo UI), toast di aggiornamento ✅
+- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v37` nell'ultimo ciclo UI), toast di aggiornamento ✅
 - Verificato: nessuna richiesta Supabase/TMDb/OMDb/poster/YouTube passa mai dalla cache (nessun `respondWith` su quei domini)
 
 ### STEP 2 — Core Layout (Phase 8.2 implementata)
@@ -207,10 +217,10 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 25 — Shared Element Transitions (card libreria ↔ scheda film ✅ nel codice locale; altri passaggi non definiti)
 
 ### STEP 7 — Themes
-- Phase 32 — Cinema Mode (Cinema Noir aggiunto come atmosfera visiva locale; verifica su smartphone da fare)
-- Phase 33 — VHS Mode (palette e trama statica aggiunte; verifica su smartphone da fare)
+- Phase 32 — Cinema Mode (palette ex Cinema Noir ora denominata Estate; ID `cinema` conservato, verifica visiva su smartphone da fare)
+- Phase 33 — VHS Mode rimossa su richiesta dell'utente nel ciclo v2.28; sostituita da Pasqua, senza trama analogica
 - Phase 34 — Seasonal Polish (prima applicazione dei token e selettore completati; rifinitura visiva su tutte le viste ancora da fare)
-- Estensione Phase 34 — Temi automatici per periodo e rinomina Cinema → Default, Estate → Inverno, Cinema Noir → Estate, con palette conservate: richiesta concordata, da progettare; oggi il selettore resta manuale (vedi «Cose da sistemare prima dei prossimi step»).
+- Estensione Phase 34 — Temi automatici, nomi concordati, Pasqua al posto di VHS e Capodanno nero/oro al posto di Default: implementati localmente, calendario e preferenze verificati; prova visiva su smartphone da fare (vedi «Cose da sistemare prima dei prossimi step»).
 
 ### STEP 8 — Micro-interactions
 - Phase 26 — Audio Manager ✅ nel codice locale (opt-in per dispositivo; Match e Ruota)

@@ -204,24 +204,167 @@ async function okA(name, fn) {
       && document.getElementById('themePickerLabel').textContent === 'Autunno'
       && localStorage.getItem('scorochiatu_theme') === 'autunno';
   }));
-  ok('tema: valore sconosciuto torna al cinema classico', run(() => {
+  ok('tema: valore sconosciuto torna a Inverno senza ripristinare Default', run(() => {
     setTheme('inesistente');
-    return document.documentElement.getAttribute('data-theme') === null
-      && document.getElementById('themePickerLabel').textContent === 'Cinema';
+    return document.documentElement.getAttribute('data-theme') === 'estate'
+      && document.getElementById('themePickerLabel').textContent === 'Inverno';
   }));
   ok('tema: otto anteprime e scelta che chiude il modale', run(() => {
     openThemePicker();
     const eight = (document.getElementById('themeOptions').innerHTML.match(/<button type="button" class="theme-option/g) || []).length === 8;
     const opened = modalStackTop() === 'themeModal';
-    chooseTheme('vhs');
+    chooseTheme('pasqua');
     const closed = modalStackTop() !== 'themeModal';
-    const vhs = document.documentElement.getAttribute('data-theme') === 'vhs';
+    const pasqua = document.documentElement.getAttribute('data-theme') === 'pasqua';
     setTheme('cinema');
     const cinema = document.documentElement.getAttribute('data-theme') === 'cinema';
-    setTheme('classic');
-    return eight && opened && closed && vhs && cinema
-      && document.documentElement.getAttribute('data-theme') === null;
+    chooseAutomaticTheme();
+    return eight && opened && closed && pasqua && cinema;
   }));
+  ok('temi: nomi concordati, Pasqua e Capodanno disponibili; Default e VHS rimossi', run(() => {
+    return THEME_OPTIONS.find(t => t.id === 'cinema').label === 'Estate'
+      && THEME_OPTIONS.find(t => t.id === 'estate').label === 'Inverno'
+      && THEME_OPTIONS.some(t => t.id === 'pasqua') && THEME_OPTIONS.some(t => t.id === 'capodanno')
+      && !THEME_OPTIONS.some(t => t.id === 'vhs' || t.id === 'classic');
+  }));
+  ok('temi: simboli distinti nelle otto card e icona del tema attivo nella barra', run(() => {
+    const symbols = THEME_OPTIONS.map(t => t.icon);
+    renderThemeOptions();
+    const html = document.getElementById('themeOptions').innerHTML;
+    const cards = symbols.length === 8 && new Set(symbols).size === 8 && symbols.every(icon => html.includes(icon));
+    setTheme('capodanno');
+    const header = document.getElementById('themePickerIcon').className === 'fa-solid fa-champagne-glasses';
+    chooseAutomaticTheme();
+    return cards && header;
+  }));
+  ok('temi automatici: stagioni e finestre precise Natale/Halloween, inclusi i confini', run(() => {
+    const cases = [[2026, 1, 6, 'natale'], [2026, 1, 7, 'estate'], [2026, 2, 28, 'estate'],
+      [2026, 3, 1, 'primavera'], [2026, 5, 31, 'primavera'], [2026, 6, 1, 'cinema'],
+      [2026, 8, 31, 'cinema'], [2026, 9, 1, 'autunno'], [2026, 10, 26, 'autunno'],
+      [2026, 10, 27, 'halloween'], [2026, 11, 2, 'halloween'], [2026, 11, 3, 'autunno'],
+      [2026, 11, 30, 'autunno'], [2026, 12, 1, 'estate'], [2026, 12, 21, 'estate'],
+      [2026, 12, 22, 'natale'], [2026, 12, 29, 'natale'], [2026, 12, 30, 'capodanno'], [2026, 12, 31, 'capodanno'],
+      [2027, 1, 1, 'capodanno'], [2027, 1, 2, 'capodanno'], [2027, 1, 3, 'natale'], [2027, 1, 6, 'natale'],
+      [2027, 1, 7, 'estate'], [2028, 2, 29, 'estate']];
+    return cases.every(([y, m, d, theme]) => automaticThemeFor(new Date(y, m - 1, d)) === theme)
+      && automaticThemeFor(new Date(NaN)) === 'estate';
+  }));
+  ok('Pasqua: data mobile, quattro giorni dal venerdì a lunedì, anche attraverso marzo/aprile', run(() => {
+    // Date di Pasqua note: include gli estremi gregoriani e l'eccezione del 2049.
+    const dates = [[2024, 3, 31], [2025, 4, 20], [2026, 4, 5], [2027, 3, 28],
+      [2028, 4, 16], [2038, 4, 25], [2049, 4, 18], [1818, 3, 22]];
+    return dates.every(([year, month, day]) => {
+      const easter = themeEasterDate(year);
+      if (easter.getFullYear() !== year || easter.getMonth() !== month - 1
+        || easter.getDate() !== day || easter.getDay() !== 0) return false;
+      return [-3, -2, -1, 0, 1, 2].every(offset => {
+        const date = new Date(year, month - 1, day + offset, 23, 59);
+        return automaticThemeFor(date) === (offset >= -2 && offset <= 1 ? 'pasqua' : 'primavera');
+      });
+    });
+  }));
+  ok('temi: scelta manuale conservata al refresh, scade al cambio periodo e ritorno automatico esplicito', run(() => {
+    const before = new Date(2026, 9, 26);
+    const after = new Date(2026, 9, 27);
+    try {
+      chooseTheme('pasqua', before);
+      const manual = currentTheme === 'pasqua' && !themeIsAutomatic;
+      loadTheme(before);
+      const retained = currentTheme === 'pasqua' && !themeIsAutomatic;
+      refreshTheme(after);
+      const expired = currentTheme === 'halloween' && themeIsAutomatic
+        && localStorage.getItem(THEME_OVERRIDE_KEY) === null;
+      chooseTheme('pasqua');
+      chooseAutomaticTheme();
+      return manual && retained && expired && themeIsAutomatic && currentTheme === automaticThemeFor();
+    } finally { chooseAutomaticTheme(); }
+  }));
+  ok('temi: Capodanno attraversa il 1° gennaio, poi scade; Natale riprende fino al 6', run(() => {
+    try {
+      chooseTheme('pasqua', new Date(2026, 11, 30));
+      loadTheme(new Date(2027, 0, 1));
+      const newYear = currentTheme === 'pasqua' && !themeIsAutomatic;
+      loadTheme(new Date(2027, 0, 3));
+      const christmas = currentTheme === 'natale' && themeIsAutomatic;
+      chooseTheme('pasqua', new Date(2027, 0, 4));
+      loadTheme(new Date(2027, 0, 7));
+      const winter = currentTheme === 'estate' && themeIsAutomatic;
+      chooseTheme('pasqua', new Date(2026, 11, 24));
+      loadTheme(new Date(2027, 0, 4));
+      const skippedNewYear = currentTheme === 'natale' && themeIsAutomatic;
+      chooseTheme('pasqua', new Date(2027, 0, 4));
+      loadTheme(new Date(2027, 11, 24));
+      return newYear && christmas && winter && skippedNewYear && currentTheme === 'natale' && themeIsAutomatic;
+    } finally { chooseAutomaticTheme(); }
+  }));
+  ok('temi: una festa trascorsa ad app chiusa fa scadere la scelta, anche tornando alla stessa stagione', run(() => {
+    try {
+      chooseTheme('pasqua', new Date(2026, 9, 5));
+      loadTheme(new Date(2026, 10, 3));
+      const autumn = currentTheme === 'autunno' && themeIsAutomatic;
+      chooseTheme('pasqua', new Date(2026, 2, 15));
+      loadTheme(new Date(2026, 3, 7));
+      const spring = currentTheme === 'primavera' && themeIsAutomatic;
+      chooseTheme('pasqua', new Date(2026, 0, 10));
+      loadTheme(new Date(2026, 11, 10));
+      return autumn && spring && currentTheme === 'estate' && themeIsAutomatic;
+    } finally { chooseAutomaticTheme(); }
+  }));
+  ok('temi: vecchi VHS/Default, override malformato o storage indisponibile non bloccano il calendario', run(() => {
+    const get = localStorage.getItem;
+    const set = localStorage.setItem;
+    const remove = localStorage.removeItem;
+    const date = new Date(2026, 6, 1);
+    try {
+      localStorage.setItem(THEME_KEY, 'vhs');
+      localStorage.removeItem(THEME_OVERRIDE_KEY);
+      loadTheme(date);
+      const legacy = currentTheme === 'cinema' && themeIsAutomatic;
+      localStorage.setItem(THEME_OVERRIDE_KEY, '{rotto');
+      loadTheme(date);
+      const corrupt = currentTheme === 'cinema' && themeIsAutomatic;
+      localStorage.setItem(THEME_OVERRIDE_KEY, JSON.stringify({ theme: 'classic', period: themePeriodKey(date, 'cinema') }));
+      loadTheme(date);
+      const removedDefault = currentTheme === 'cinema' && themeIsAutomatic;
+      localStorage.getItem = localStorage.setItem = localStorage.removeItem = () => { throw new Error('storage denied'); };
+      loadTheme(date);
+      return legacy && corrupt && removedDefault && currentTheme === 'cinema' && themeIsAutomatic;
+    } finally {
+      localStorage.getItem = get; localStorage.setItem = set; localStorage.removeItem = remove;
+      chooseAutomaticTheme();
+    }
+  }));
+  ok('temi: avvio in head sicuro, cambio a mezzanotte e aggiornamento al ritorno nella pagina', (() => {
+    const events = {}, windowEvents = {};
+    const store = new Map();
+    const dom = { documentElement: { setAttribute() {}, removeAttribute() {} },
+      getElementById: () => null, hidden: false, addEventListener: (name, cb) => { events[name] = cb; } };
+    let clock = new Date(2026, 9, 26, 23, 59), draws = 0, ready = false, tick;
+    class ThemeClock extends Date {
+      constructor(...args) { super(...(args.length ? args : [clock.getTime()])); }
+    }
+    const isolated = {
+      Date: ThemeClock, document: dom, localStorage: storageStub(store),
+      window: { addEventListener: (name, cb) => { windowEvents[name] = cb; }, setInterval: cb => { tick = cb; } },
+      drawWheel: () => { if (!ready) throw new Error('wheel called before store'); draws++; }
+    };
+    vm.createContext(isolated);
+    vm.runInContext(read('js/theme.js'), isolated);
+    const initial = vm.runInContext('currentTheme', isolated) === 'autunno' && draws === 0;
+    ready = true; events.DOMContentLoaded();
+    clock = new Date(2026, 9, 27); tick();
+    const midnight = vm.runInContext('currentTheme', isolated) === 'halloween' && draws === 1;
+    tick(); const noRepeat = draws === 1;
+    dom.hidden = true; clock = new Date(2026, 10, 3); tick();
+    const hidden = vm.runInContext('currentTheme', isolated) === 'halloween';
+    dom.hidden = false; events.visibilitychange();
+    const resumed = vm.runInContext('currentTheme', isolated) === 'autunno' && draws === 2;
+    clock = new Date(2026, 11, 22); windowEvents.pageshow();
+    const pageshow = vm.runInContext('currentTheme', isolated) === 'natale';
+    clock = new Date(2027, 0, 7); windowEvents.focus();
+    const focus = vm.runInContext('currentTheme', isolated) === 'estate';
+    return initial && midnight && noRepeat && hidden && resumed && pageshow && focus;
+  })());
   ok('ingresso: scelta persona, errore PIN e ritorno alla scelta', run(() => {
     selectUser('N');
     const gate = document.getElementById('pinGate');

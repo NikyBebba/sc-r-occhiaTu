@@ -142,7 +142,7 @@
         <div class="site-nav-bottom">
           <span id="syncBadge" class="hidden site-nav-sync" title="Supabase non raggiungibile: sto usando i dati salvati sul telefono"></span>
           <div class="site-nav-actions">
-            <button id="themePickerBtn" type="button" class="theme-picker" onclick="openThemePicker()" aria-label="Scegli tema grafico" title="Scegli tema grafico"><i class="fa-solid fa-palette" aria-hidden="true"></i><span id="themePickerLabel">Cinema</span></button>
+            <button id="themePickerBtn" type="button" class="theme-picker" onclick="openThemePicker()" aria-label="Scegli tema grafico" title="Scegli tema grafico"><i id="themePickerIcon" class="fa-solid fa-snowflake" aria-hidden="true"></i><span id="themePickerLabel">Inverno</span></button>
             <button aria-label="Apri ricordi, recensioni e statistiche" onclick="openModal('statsModal'); renderStats();" class="site-nav-icon" title="Ricordi, recensioni e statistiche"><i class="fa-solid fa-ticket" aria-hidden="true"></i><span class="site-nav-action-label">Ricordi</span></button>
             <button aria-label="Aggiungi film" onclick="openAddModal()" class="site-nav-button site-nav-add"><i class="fa-solid fa-plus" aria-hidden="true"></i><span>Aggiungi</span></button>
           </div>
@@ -309,13 +309,15 @@
     </main>
   </div>
 
-  <!-- Palette: anteprima e scelta locale al dispositivo -->
+  <!-- Temi automatici per periodo e scelta temporanea locale -->
   <div id="themeModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass-panel theme-modal-panel p-5 sm:p-6 rounded-2xl max-w-lg w-full border border-slate-800">
       <div class="flex items-start justify-between gap-3 mb-4">
         <div><p class="dashboard-eyebrow">LA TUA SALA</p><h2 class="text-lg font-bold text-slate-100">Scegli l’atmosfera</h2><p class="text-xs text-slate-400 mt-1">Il tema cambia solo su questo dispositivo.</p></div>
         <button onclick="closeModal('themeModal')" class="site-nav-icon theme-modal-close" aria-label="Chiudi temi"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
       </div>
+      <button id="themeAutoBtn" type="button" class="theme-auto-btn" onclick="chooseAutomaticTheme()" aria-pressed="true"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i><span>Automatico · segue il calendario</span><i class="fa-solid fa-circle-check theme-auto-check" aria-hidden="true"></i></button>
+      <p id="themeModeStatus" class="theme-mode-status" role="status">Il tema segue le stagioni e le festività.</p>
       <div id="themeOptions" class="theme-options" role="group" aria-label="Temi disponibili"></div>
     </div>
   </div>

@@ -292,7 +292,7 @@ body {
 [data-theme] .site-nav-add, [data-theme] .empty-movie-action { background: color-mix(in srgb, var(--color-accento) 70%, #000); }
 [data-theme] .site-nav-add:hover, [data-theme] .empty-movie-action:hover { background: color-mix(in srgb, var(--color-accento-alto) 70%, #000); }
 
-/* Selettore temi: sei piccole sale con anteprima cromatica. */
+/* Selettore temi: otto atmosfere con anteprima cromatica e simbolo dedicato. */
 .theme-modal-panel { max-height: min(90dvh, 720px); overflow-y: auto; }
 .theme-modal-close { width: 44px; flex: 0 0 44px; }
 .theme-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -714,8 +714,8 @@ body {
   .match-panel { padding: 22px 16px; }
 }
 
-/* Cinema Noir e VHS aggiungono due atmosfere al tema Cinema di base.
-   Restano solo scelte visive locali: stessi film, azioni e gerarchie. */
+/* Estate (ID storico cinema): palette rosso/oro conservata.
+   Inverno conserva l'ID estate; gli ID non descrivono il calendario. */
 [data-theme="cinema"] {
   --color-sala: #08090d;
   --color-superficie: #11131a;
@@ -748,45 +748,69 @@ body {
 [data-theme="cinema"] .site-nav { border-bottom-color: rgba(251, 191, 36, 0.28); }
 [data-theme="cinema"] .dashboard-choice { border-color: rgba(251, 191, 36, 0.25); }
 
-[data-theme="vhs"] {
-  --color-sala: #100b1b;
-  --color-superficie: #1d1430;
-  --color-vetro: rgba(30, 20, 48, 0.82);
-  --color-chip: #2f2048;
-  --color-bordo: #45305e;
-  --color-bordo-forte: #61457c;
-  --color-testo-1: #fdf8ff;
-  --color-testo-2: #ead9f3;
-  --color-testo-3: #bea7ce;
-  --color-testo-4: #8f789f;
-  --color-accento: #be185d;
-  --color-accento-alto: #db2777;
-  --color-dettaglio: #67e8f9;
+/* Pasqua: salvia scura, lavanda e menta, senza trama analogica. */
+[data-theme="pasqua"] {
+  --color-sala: #101a19;
+  --color-superficie: #172723;
+  --color-vetro: rgba(23, 39, 35, 0.83);
+  --color-chip: #273b33;
+  --color-bordo: #3b5147;
+  --color-bordo-forte: #586d61;
+  --color-testo-1: #faf8ee;
+  --color-testo-2: #e2e8d6;
+  --color-testo-3: #b7c7b1;
+  --color-testo-4: #8b9e89;
+  --color-accento: #7c3aed;
+  --color-accento-alto: #8b5cf6;
+  --color-dettaglio: #a7f3d0;
   --color-rosso: #e11d48;
-  --color-oro: #fbbf24;
-  --color-successo: #10b981;
-  --color-cielo: #22d3ee;
+  --color-oro: #f5d88c;
+  --color-successo: #34d399;
+  --color-cielo: #a7f3d0;
   --color-persona-n: #38bdf8;
   --color-persona-v: #f472b6;
   --color-persona-n-muto: rgba(56, 189, 248, 0.8);
   --color-persona-v-muto: rgba(244, 114, 182, 0.8);
-  --color-match-si: #34d399;
+  --color-match-si: #6ee7b7;
   --color-match-no: #fb7185;
-  --color-accento-percorso: rgba(219, 39, 119, 0.36);
-  --gradiente-logo: linear-gradient(135deg, #22d3ee, #f472b6);
-  --bordo-vetro: rgba(244, 114, 182, 0.12);
-  --overlay-modal: rgba(12, 5, 25, 0.82);
+  --color-accento-percorso: rgba(167, 139, 250, 0.35);
+  --gradiente-logo: linear-gradient(135deg, #c4b5fd, #a7f3d0);
+  --bordo-vetro: rgba(167, 243, 208, 0.16);
+  --overlay-modal: rgba(6, 15, 12, 0.82);
 }
-/* Trama analogica statica: opacità bassa, nessuno sfarfallio né input coperto. */
-[data-theme="vhs"] #appRoot::after {
-  content: ''; position: fixed; inset: 0; z-index: 45; pointer-events: none;
-  opacity: .07; background: repeating-linear-gradient(0deg, transparent 0 3px, #fff 4px 5px);
+
+/* Capodanno: superfici nere, bordi e riflessi dorati. */
+[data-theme="capodanno"] {
+  --color-sala: #050505;
+  --color-superficie: #11100e;
+  --color-vetro: rgba(17, 16, 14, 0.9);
+  --color-chip: #252016;
+  --color-bordo: #423722;
+  --color-bordo-forte: #6b5732;
+  --color-testo-1: #fcf8ef;
+  --color-testo-2: #e1d5ba;
+  --color-testo-3: #bcaa82;
+  --color-testo-4: #958467;
+  --color-accento: #936820;
+  --color-accento-alto: #ad7f2d;
+  --color-dettaglio: #e7c477;
+  --color-rosso: #dc2626;
+  --color-oro: #f4d78b;
+  --color-successo: #22c55e;
+  --color-cielo: #efd8a0;
+  --color-persona-n: #38bdf8;
+  --color-persona-v: #f472b6;
+  --color-persona-n-muto: rgba(56, 189, 248, 0.8);
+  --color-persona-v-muto: rgba(244, 114, 182, 0.8);
+  --color-match-si: #4ade80;
+  --color-match-no: #fb7185;
+  --color-accento-percorso: rgba(231, 196, 119, 0.28);
+  --gradiente-logo: linear-gradient(135deg, #fff1bf, #c39740);
+  --bordo-vetro: rgba(231, 196, 119, 0.2);
+  --overlay-modal: rgba(0, 0, 0, 0.88);
 }
-[data-theme="vhs"] .auth-scene::after {
-  height: 100%; opacity: .07;
-  background: repeating-linear-gradient(0deg, transparent 0 3px, #fff 4px 5px);
-  mask-image: none;
-}
+[data-theme="capodanno"] .site-nav { border-bottom-color: rgba(231, 196, 119, 0.3); }
+[data-theme="capodanno"] .dashboard-choice { border-color: rgba(231, 196, 119, 0.3); }
 
 /* ---- Phase 1.3/34 — palette stagionali selezionate da js/theme.js.
    I valori sovrascrivono i token semantici definiti su :root. ---- */
@@ -1393,3 +1417,15 @@ textarea:focus-visible {
   .next-movie-content { grid-template-columns: 150px minmax(0, 1fr); gap: 28px; padding: 24px; align-items: center; }
   .next-movie-poster { width: 150px; height: 210px; }
 }
+
+/* Scelta automatica e spiegazione della durata della scelta manuale. */
+.theme-auto-btn {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px;
+  padding: 12px 16px; margin-bottom: 10px; border-radius: 14px;
+  border: 1px solid var(--color-bordo-forte); background: var(--color-chip);
+  color: var(--color-testo-1); font-size: 14px; font-weight: 700; text-align: left;
+}
+.theme-auto-btn.is-selected { border-color: var(--color-dettaglio); }
+.theme-auto-btn .theme-auto-check { margin-left: auto; opacity: 0; }
+.theme-auto-btn.is-selected .theme-auto-check { opacity: 1; color: var(--color-dettaglio); }
+.theme-mode-status { color: var(--color-testo-2); font-size: 13px; line-height: 1.5; margin: 0 0 16px; }
