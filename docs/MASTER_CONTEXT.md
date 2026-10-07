@@ -1,11 +1,95 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.43
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.47
 
-Ultimo aggiornamento: 5 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
+Ultimo aggiornamento: 8 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
+
+## Candidato Auth completo — 8 ottobre 2026 (checkpoint locale pre-cutover)
+
+AUTH_EMAILS configurato con le due email reali N/V fornite dall’utente;
+nessun PIN/password, UUID reale o secret introdotto. Verifica runtime aggiunta:
+email valide/distinte, login N/V via signInWithPassword e mapping app_members,
+assenza di PIN/secret nella configurazione. Test Chromium Auth usa le email
+runtime senza esporre chiavi API reali al browser di test.
+
+Suite rieseguite: **400/400 smoke**, **43/43 Auth**, **40/40 RLS PostgreSQL
+locale**, **15/15 PWA**, **18/18 Chromium Auth**; **345 API** e **144 scenari
+DOM** invariati. Programmazione/cinema/Ricordi 320/390/768 px e recensioni
+N/V 320/390 px verificati, zero errori JS/overflow; screenshot ispezionati.
+Sintassi completa e diff check PASS. Auth SDK e schema hosted simulati;
+smoke consulta TMDb/OMDb, nessun login/query o modifica Supabase live.
+
+Candidato completo e pronto al cutover coordinato, checkpoint Git locale
+richiesto dall’utente. Cutover SQL, Dashboard Realtime, push e deploy NON
+eseguiti. Restano necessari attivazione e collaudo reale N/V su due dispositivi
+secondo [checklist](AUTH_SUPABASE.md). Gli impedimenti email e il divieto di
+commit dei checkpoint precedenti sono storici e superati dalla richiesta corrente.
+
+## Checkpoint publication votes — 8 ottobre 2026 (solo locale)
+
+L'utente conferma pre-cutover: account/mapping corretti, signup pubblico e
+anonymous disabilitati, Realtime ON e Allow public access ancora ON; publication
+con sei tabelle, inclusa votes storica. Nessuna verifica remota dell'agente.
+Cutover locale aggiornato: salva la membership originaria in
+app_security_backup.auth_publication e rimuove solo votes dalla publication.
+Rollback ripristina lo stato salvato, preservando le altre membership e i dati.
+Entrambe le operazioni sono transazionali; publication assente o FOR ALL TABLES
+blocca l'operazione. Nessun DROP di tabella/colonna o modifica frontend/Match.
+Verifiche di questo aggiornamento: RLS PostgreSQL locale **40/40**, Auth SDK
+simulato **42/42**, PWA **15/15**, sintassi harness e diff check PASS.
+Test aggiunti per membership presente/assente, rollback ripetuto, drift,
+conservazione dei dati e annullamento transazionale dopo errore.
+Le verifiche browser/DOM del 7 ottobre sotto restano baseline precedenti.
+CUTOVER, impostazioni live, commit/push/deploy non eseguiti. Configurazione
+email runtime ancora da completare come indicato sotto.
 
 README riscritto come presentazione generale — L'utente chiede di spiegare il progetto per **due utenti**, senza usare N/V come identità nella descrizione pubblica. README ora separa scopo, percorso di utilizzo, funzioni, architettura, avvio, stato e possibili evoluzioni; niente dettagli delle rifiniture o diario della sessione. Resta esplicito il limite attuale: uno spazio con due profili preconfigurati, senza registrazione/gruppi indipendenti. L'apertura a più spazi è una possibilità da progettare, non implementata. Nessuna modifica ai profili runtime, al modello dati o alla UI.
 
 
-## Checkpoint corrente — 5 ottobre 2026
+## Checkpoint Auth pre-cutover — 7 ottobre 2026 (locale)
+
+Cache PWA **v50**. L'utente conferma PREPARE applicato manualmente sul
+Supabase live: migration prepare riuscita, due account confermati, esattamente
+due mapping UUID → N/V verificati via SQL. Nessuna verifica remota indipendente
+in questo ciclo. CUTOVER non eseguito; impostazioni Realtime e frontend live
+non modificati dall'agente. Nessun commit, push, deploy o scrittura live.
+
+Il backup CLI è stato abbandonato e ripulito su richiesta; l'utente conserva
+CSV dei dati applicativi. Non sono un backup di schema, Auth o policy. I CSV
+non sono stati modificati e csvbackup/ è esclusa da Git.
+
+Nuovo login N/V → PIN di otto cifre, Ricordami, identità esclusivamente da
+Auth + app_members. **Email effettive ancora da chiarire**: EMAIL_N/EMAIL_V
+sono segnaposto; AUTH_EMAILS resta vuoto. Non dichiarare la configurazione
+completata né il candidato distribuibile finché non arrivano le email reali.
+Password/PIN mai forniti all'agente o inseriti nel frontend.
+
+Due regressioni Auth individuate con test aggiunti e corrette: un errore
+getSession obsoleto non può invalidare una sessione successiva; l'errore
+AuthSessionMissingError senza status HTTP non può diventare fallback offline.
+Avvio offline non autorizza ingresso; mirror ammesso solo dopo verifica online
+nel runtime con JWT valido. Logout locale chiude socket/canali e rimuove
+mirror/token, conserva preferenze. Refresh JWT aggiorna scadenza e trasporto
+senza nuovo ingresso o duplicare i canali. Match puro/UI/dati invariati.
+
+Migration cutover/rollback restano preparate localmente. Il cutover conserva
+policy/grants effettivi prima di revocarli, impone membership e identità nelle
+scritture personali, nega votes; nessun DROP o riscrittura autori storici.
+API votes senza I/O remoto. Gli script manutenzione richiedono JWT membro.
+
+Suite rieseguite: **400/400 smoke**, **42/42 Auth**, **32/32 RLS PostgreSQL
+locale**, **15/15 PWA**, **18/18 Chromium Auth**; **345 API** e **144 scenari
+DOM** conservati. Proiezioni/cinema/Ricordi a 320/390/768 px, recensioni N/V
+a 320/390 px, nessun errore JS/overflow. SDK/DB simulati; niente login o
+subscription reali a Supabase per i test. Sicurezza hosted/refresh nativo/PWA
+sui due telefoni da collaudare dopo cutover autorizzato.
+
+[Checklist precisa, limiti e rollback](AUTH_SUPABASE.md): email locali →
+verifiche Dashboard dell'utente → finestra/chiusura vecchi client → intero
+cutover SQL e verifica COMMIT → Realtime Allow public access disabilitato →
+deploy autorizzato → app-shell v50 sui due dispositivi → collaudo N/V, sessioni,
+sincronizzazione, Match e dinieghi. Nessuna azione di questa sequenza live viene
+eseguita dall'agente in questa fase.
+
+## Checkpoint precedente — 5 ottobre 2026
 
 Versione corrente dopo il cleanup applicativo, cache PWA **`v48`**. I paragrafi storici sono
 cronologia: statuette, vecchi nomi e conteggi non descrivono la UI attuale.

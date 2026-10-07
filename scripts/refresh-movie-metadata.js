@@ -2,6 +2,7 @@
 'use strict';
 
 const fs = require('fs');
+const { supabaseAuthHeaders } = require('./supabase-auth-headers');
 const path = require('path');
 const { extractRatings } = require(path.join(__dirname, '..', 'js', 'api', 'omdb.js'));
 const { buildTmdbDetails } = require(path.join(__dirname, '..', 'js', 'api', 'tmdb.js'));
@@ -102,7 +103,7 @@ function restUrl(config, query) {
 function sbHeaders(config, extra = {}) {
   return {
     apikey: config.supabaseAnon,
-    Authorization: `Bearer ${config.supabaseAnon}`,
+    ...supabaseAuthHeaders(config.supabaseAnon),
     ...extra
   };
 }

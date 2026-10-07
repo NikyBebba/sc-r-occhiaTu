@@ -32,8 +32,12 @@ function movieProjection(movie, night = activeNightForMovie(movie.id)) {
 }
 
 async function insertMovieNight(night) {
+  requireAppIdentity();
+  const operationEpoch = authEpoch;
   if (sb) {
     const { data, error } = await sb.from('movie_nights').insert([night]).select();
+    assertAuthEpoch(operationEpoch);
+    handleDataAuthError(error);
     if (error) {
       console.error('[sc(r)occhiaTu] insertMovieNight fallita su Supabase:', error.message);
       dbMode = 'local';
@@ -49,8 +53,12 @@ async function insertMovieNight(night) {
 }
 
 async function updateMovieNight(id, patch) {
+  requireAppIdentity();
+  const operationEpoch = authEpoch;
   if (sb) {
     const { error } = await sb.from('movie_nights').update(patch).eq('id', id);
+    assertAuthEpoch(operationEpoch);
+    handleDataAuthError(error);
     if (error) {
       console.error('[sc(r)occhiaTu] updateMovieNight fallita su Supabase:', error.message);
       dbMode = 'local';
@@ -68,6 +76,7 @@ async function updateMovieNight(id, patch) {
 
 // Scelta rapida di oggi, confermata direttamente; data NULL resta il contratto.
 async function setQuickTonight(id, snack = null, location = null) {
+  requireAppIdentity();
   const night = await insertMovieNight({
     movie_id: id, date: null, time: null, snack, location,
     proposed_by: currentUser, status: 'confirmed', confirmed_at: new Date().toISOString()
@@ -79,6 +88,7 @@ async function setQuickTonight(id, snack = null, location = null) {
 
 // La proposta programmata conserva snack e luogo sull'evento, anche nei rewatch.
 async function proposeNight(id, person, date, time, snack, location = null) {
+  requireAppIdentity();
   const night = await insertMovieNight({
     movie_id: id, date, time: time || '21:30', snack, location,
     proposed_by: person, status: 'proposed'
@@ -89,6 +99,7 @@ async function proposeNight(id, person, date, time, snack, location = null) {
 }
 
 async function confirmNight(id, nightId) {
+  requireAppIdentity();
   const night = nightId ? activeNights().find(n => n.id === nightId && n.movie_id === id) : activeNightForMovie(id);
   if (!night) return false;
   if (night && night.status === 'proposed') {
@@ -100,6 +111,7 @@ async function confirmNight(id, nightId) {
 // Annulla/rifiuta: la serata attiva passa a 'cancelled', il film torna in
 // watchlist, oppure resta tonight se esistono altri eventi attivi.
 async function cancelNight(id, nightId) {
+  requireAppIdentity();
   const night = nightId ? activeNights().find(n => n.id === nightId && n.movie_id === id) : activeNightForMovie(id);
   if (!night) return false;
   if (night) {
@@ -114,6 +126,7 @@ async function cancelNight(id, nightId) {
 // Serata "avvenuta": chiamata quando il film viene recensito come visto
 // insieme (by='both'), da ui.confirmReview.
 async function completeNight(id, location = undefined) {
+  requireAppIdentity();
   const nights = movieNights
     .filter(n => n.movie_id === id && (n.status === 'proposed' || n.status === 'confirmed'))
     .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));

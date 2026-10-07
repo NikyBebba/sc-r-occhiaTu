@@ -2,7 +2,7 @@
 // MATCH LIVE (step 6) — sessione di swipe condivisa N/V
 //
 // Canale PERSISTENTE e dedicato ('scorochiatu-match'), SEPARATO dal canale
-// del core (movies/votes/vetoes/movie_nights). Motivo: un guasto del Match
+// del core (movies/vetoes/movie_nights). Motivo: un guasto del Match
 // (tabella non pubblicata su Realtime, presence, CHANNEL_ERROR) non deve mai
 // trasformarsi in CHANNEL_ERROR del canale core. La sonda cold-start verifica
 // l'esistenza delle tabelle PRIMA di creare il canale; bindings match+presence
@@ -38,11 +38,13 @@ let matchEnterErrorMsg = null;       // ultimo errore reale dell'ingresso → vi
 let matchEnterErrorLogged = false;   // deduplica il console.error (UNA volta per entrata)
 
 function saveMatchLocal() {
+  requireAppIdentity();
   localStorage.setItem('scorochiatu_swipe_sessions', JSON.stringify(swipeSessions));
   localStorage.setItem('scorochiatu_swipes', JSON.stringify(swipes));
 }
 
 function loadMatchLocal() {
+  requireAppIdentity();
   swipeSessions = JSON.parse(localStorage.getItem('scorochiatu_swipe_sessions') || '[]');
   swipes = JSON.parse(localStorage.getItem('scorochiatu_swipes') || '[]');
   if (!Array.isArray(swipeSessions)) swipeSessions = [];
@@ -50,6 +52,7 @@ function loadMatchLocal() {
 }
 
 function applyMatchState(state) {
+  requireAppIdentity();
   swipeSessions = state && state.session ? [state.session] : [];
   swipes = filterSwipes(state ? state.swipes : []);
   saveMatchLocal();
@@ -82,13 +85,17 @@ function reportMatchEnterError(e) {
 // Fallita → matchAvailable = false e nessun canale. Il canale del core non
 // viene MAI toccato (la sonda riguarda solo il canale Match).
 function probeMatchTables() {
-  if (!sb) return Promise.resolve(false);
+  if (!sb || !isAppAuthorized()) return Promise.resolve(false);
+  const probeEpoch = authEpoch;
   const attempt = (async () => {
     try {
       const [a, b] = await Promise.all([
         sb.from('swipe_sessions').select('id').limit(1),
         sb.from('swipes').select('id').limit(1)
       ]);
+      assertAuthEpoch(probeEpoch);
+      handleDataAuthError(a?.error);
+      handleDataAuthError(b?.error);
       return !(a && a.error) && !(b && b.error);
     } catch (e) {
       return false;
@@ -104,15 +111,20 @@ function probeMatchTables() {
 // Il resync segue sempre l'ultima sessione, non un id fisso: se il partner ha
 // chiuso e iniziato un giro nuovo, il nostro stato si aggancia al nuovo.
 async function fetchLatestMatchState() {
-  if (!sb || dbMode === 'local') return null;
+  if (!sb || dbMode === 'local' || !isAppAuthorized()) return null;
+  const fetchEpoch = authEpoch;
   try {
     const sessionRes = await sb.from('swipe_sessions')
       .select('*').order('created_at', { ascending: false }).limit(1);
+    assertAuthEpoch(fetchEpoch);
+    handleDataAuthError(sessionRes.error);
     if (sessionRes.error) { warnMatch('fetch session: ' + sessionRes.error.message); return null; }
     const session = (sessionRes.data && sessionRes.data[0]) || null;
     let sessionSwipes = [];
     if (session) {
       const swipesRes = await sb.from('swipes').select('*').eq('session_id', session.id);
+      assertAuthEpoch(fetchEpoch);
+      handleDataAuthError(swipesRes.error);
       if (swipesRes.error) { warnMatch('fetch swipes: ' + swipesRes.error.message); return null; }
       sessionSwipes = swipesRes.data || [];
     }
@@ -144,7 +156,8 @@ async function ensureActiveSession() {
 // Su corsa 23505 (indice unico parziale: un'altra attiva è appena nata) si
 // aggancia alla sessione attiva esistente, senza errori in UI.
 async function startNewSession() {
-  if (!sb || dbMode === 'local' || !matchAvailable) return null;
+  if (!sb || dbMode === 'local' || !matchAvailable || !isAppAuthorized()) return null;
+  const operationEpoch = authEpoch;
   const deckInfo = buildDeck(movies, {
     vetoedIds: vetoedMovieIdsThisWeek(),
     excludeIds: activeNights().map(n => n.movie_id)
@@ -152,6 +165,8 @@ async function startNewSession() {
   const { data, error } = await sb.from('swipe_sessions')
     .insert([{ status: 'open', created_by: currentUser, seed: deckInfo.seed, deck: deckInfo.deck }])
     .select();
+  assertAuthEpoch(operationEpoch);
+  handleDataAuthError(error);
   if (error) {
     if (error.code === '23505') {
       const state = await fetchLatestMatchState();
@@ -172,12 +187,15 @@ async function startNewSession() {
 // Chiude SOLO quella sessione e SOLO se attiva (open|matched): un update in
 // ritardo non deve mai toccare sessioni già done/closed.
 async function closeSession(id) {
-  if (!sb || dbMode === 'local') return null;
+  if (!sb || dbMode === 'local' || !isAppAuthorized()) return null;
+  const operationEpoch = authEpoch;
   const { data, error } = await sb.from('swipe_sessions')
     .update({ status: 'closed' })
     .eq('id', id)
     .in('status', ['open', 'matched'])
     .select();
+  assertAuthEpoch(operationEpoch);
+  handleDataAuthError(error);
   if (error) { warnMatch('closeSession: ' + error.message); return null; }
   const row = data && data[0];
   if (row) {
@@ -192,9 +210,12 @@ async function closeSession(id) {
 // non è in allowedStatuses (un reconcile tardivo non riapre/modifica sessioni
 // già chiuse o celebrate altrove).
 async function updateSessionConditional(id, patch, allowedStatuses) {
-  if (!sb || dbMode === 'local') return null;
+  if (!sb || dbMode === 'local' || !isAppAuthorized()) return null;
+  const operationEpoch = authEpoch;
   const { data, error } = await sb.from('swipe_sessions')
     .update(patch).eq('id', id).in('status', allowedStatuses).select();
+  assertAuthEpoch(operationEpoch);
+  handleDataAuthError(error);
   if (error) { warnMatch('update session: ' + error.message); return null; }
   const row = data && data[0];
   if (row) {
@@ -208,11 +229,14 @@ async function updateSessionConditional(id, patch, allowedStatuses) {
 // Upsert idempotente (ignoreDuplicates → ON CONFLICT DO NOTHING), poi refresh
 // locale e reconcile sull'ULTIMA sessione. Lo swipe non tocca votes/vetoes.
 async function recordSwipe(session, movieId, person, liked) {
-  if (!session || !sb || dbMode === 'local') return;
+  if (!session || !sb || dbMode === 'local' || !isAppAuthorized()) return;
+  const operationEpoch = authEpoch;
   const { error } = await sb.from('swipes').upsert(
     [{ session_id: session.id, movie_id: movieId, person, liked: !!liked }],
     { onConflict: 'session_id,movie_id,person', ignoreDuplicates: true }
   );
+  assertAuthEpoch(operationEpoch);
+  handleDataAuthError(error);
   if (error) { warnMatch('recordSwipe: ' + error.message); return; }
   const state = await fetchLatestMatchState();
   if (!state) return;
@@ -388,7 +412,7 @@ function removeMatchChannel(channel) {
 // rientro = track() + refetch dello stato. La ricreazione avviene SOLO dopo
 // rimozione VERIFICATA (getChannels() senza il topic) — mai istanze parallele.
 function openMatchChannel() {
-  if (!sb || !matchAvailable) return null;
+  if (!sb || !matchAvailable || !isAppAuthorized()) return null;
   if (matchChannel) {
     // Già creato: L'OBIETTIVO del rientro è riallacciare presence e stato,
     // non ricreare il canale (evita il topic duplicato per definizione).
@@ -417,7 +441,7 @@ function openMatchChannel() {
     leftovers.forEach(c => { try { sb.removeChannel(c); } catch (e) {} });
   }
   const channel = sb
-    .channel(MATCH_TOPIC, { config: { presence: { key: currentUser } } })
+    .channel(MATCH_TOPIC, { config: { private: true, presence: { key: currentUser } } })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'swipe_sessions' }, onMatchChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'swipes' }, onMatchChange)
     .on('presence', { event: 'sync' }, onPresenceChange)
@@ -484,7 +508,7 @@ async function enterMatch() {
   matchEnterErrorMsg = null;
   matchEnterErrorLogged = false;
   try {
-    if (!sb || dbMode === 'local' || !currentUser) {
+    if (!sb || dbMode === 'local' || !isAppAuthorized()) {
       matchAvailable = false;
       renderMatchArea();
       return;

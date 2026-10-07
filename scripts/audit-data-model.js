@@ -3,6 +3,7 @@
 // Oppure --file=fixture.json con { movies, movie_nights, votes }.
 // Output solo aggregati; mai titoli, PIN, chiavi o URL autenticati.
 const fs = require('fs');
+const { supabaseAuthHeaders } = require('./supabase-auth-headers');
 const path = require('path');
 const vm = require('vm');
 
@@ -67,6 +68,7 @@ async function readLiveData() {
     + '\n;this.connection = { url: CONFIG.SUPABASE_URL, key: CONFIG.SUPABASE_ANON_KEY };', context);
   const { url, key } = context.connection;
   if (!url || !key) throw new Error('Configurazione Supabase assente.');
+  const headers = supabaseAuthHeaders(key);
   const columns = {
     movies: 'id,status,scheduled_date,scheduled_time,snack,proposed_by,night_confirmed,created_at',
     movie_nights: 'id,movie_id,date,time,snack,location,proposed_by,status,created_at,confirmed_at,cancelled_at,completed_at',
@@ -82,7 +84,7 @@ async function readLiveData() {
       endpoint.searchParams.set('limit', '1000');
       let response;
       try {
-        response = await fetch(endpoint, { headers: { apikey: key, Authorization: 'Bearer ' + key }, signal: AbortSignal.timeout(15000) });
+        response = await fetch(endpoint, { headers, signal: AbortSignal.timeout(15000) });
       } catch (_) { throw new Error('Lettura ' + table + ' non riuscita (rete/timeout).'); }
       if (!response.ok) throw new Error('Lettura ' + table + ': HTTP ' + response.status + '.');
       const page = await response.json();
@@ -113,7 +115,7 @@ module.exports = { analyzeDataModel };
 if (require.main === module) main().catch(error => {
   // I messaggi del percorso live sono costruiti senza URL/key. Errori di
   // parsing delle fixture possono contenere dati: non stamparli.
-  const safe = /^(Uso:|Servono array|Configurazione Supabase|Lettura (movies|movie_nights):?[^\n]*|Risposta (movies|movie_nights) non valida)/.test(error.message);
+  const safe = /^(Uso:|Servono array|Serve SUPABASE_ACCESS_TOKEN|SUPABASE_ACCESS_TOKEN deve|Configurazione Supabase|Lettura (movies|movie_nights):?[^\n]*|Risposta (movies|movie_nights) non valida)/.test(error.message);
   console.error(safe ? error.message : 'Audit non riuscito: controllare configurazione o fixture.');
   process.exitCode = 1;
 });

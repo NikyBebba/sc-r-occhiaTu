@@ -4,7 +4,9 @@
 let sb = null;
 if (CONFIG.SUPABASE_URL && CONFIG.SUPABASE_URL.startsWith('http') &&
     window.supabase && window.supabase.createClient) {
-  sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+  sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
+    auth: { storage: authStorage, storageKey: AUTH_STORAGE_KEY, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+  });
 }
 
 // Colonne contenuto/visione: il client non richiede i mirror di programmazione.
@@ -41,12 +43,15 @@ let resyncTimer = null;
 
 
 function saveLocal() {
+  requireAppIdentity();
+  localStorage.setItem('scorochiatu_mirror_owner', authIdentity?.uid || '');
   localStorage.setItem('scorochiatu_movies', JSON.stringify(movies));
   localStorage.setItem('scorochiatu_vetoes', JSON.stringify(vetoes));
   localStorage.setItem('scorochiatu_movie_nights', JSON.stringify(movieNights));
 }
 
 function loadLocal() {
+  requireAppIdentity();
   movies = JSON.parse(localStorage.getItem('scorochiatu_movies') || '[]');
   vetoes = JSON.parse(localStorage.getItem('scorochiatu_vetoes') || '[]');
   movieNights = JSON.parse(localStorage.getItem('scorochiatu_movie_nights') || '[]');
@@ -56,22 +61,29 @@ function loadLocal() {
 // Legge tutto da Supabase. Se fallisce (o se siamo in modalità locale e nel
 // periodo di "respiro") ritorna null: chi chiama usa loadLocal().
 async function fetchAll() {
+  requireAppIdentity();
+  const epoch = authEpoch;
   if (!sb) return null;
   if (dbMode === 'local' && Date.now() - lastSupabaseFailAt < SUPABASE_RETRY_MS) return null;
   let results;
   try {
+    await validateCurrentAuth();
     results = await Promise.all([
       sb.from('movies').select(MOVIE_SELECT_FIELDS).order('created_at', { ascending: false }),
       sb.from('vetoes').select('*'),
       sb.from('movie_nights').select('*').order('created_at', { ascending: false })
     ]);
-  } catch (_) {
+    assertAuthEpoch(epoch);
+  } catch (error) {
+    assertAuthEpoch(epoch);
+    handleDataAuthError(error);
     dbMode = 'local';
     lastSupabaseFailAt = Date.now();
     console.error('[sc(r)occhiaTu] Lettura Supabase non riuscita — conservo il mirror locale di film e serate.');
     return null;
   }
   const [moviesRes, vetoesRes, nightsRes] = results;
+  for (const result of results) handleDataAuthError(result.error);
   const coreFailed = moviesRes.error || vetoesRes.error || nightsRes.error;
   if (coreFailed) {
     dbMode = 'local';
@@ -94,7 +106,10 @@ function dataSignature() {
 }
 
 async function loadMovies() {
+  requireAppIdentity();
+  const epoch = authEpoch;
   const remote = await fetchAll();
+  assertAuthEpoch(epoch);
   if (remote) {
     movies = remote.movies;
     vetoes = remote.vetoes;
@@ -111,8 +126,11 @@ async function loadMovies() {
 // loadMovies) non produce un secondo render per l'eco della propria scrittura,
 // e i burst di eventi riescono a un solo render complessivo.
 async function resyncQuiet() {
+  requireAppIdentity();
+  const epoch = authEpoch;
   const prev = dataSignature();
   const remote = await fetchAll();
+  assertAuthEpoch(epoch);
   if (remote) {
     movies = remote.movies;
     vetoes = remote.vetoes;
@@ -128,20 +146,24 @@ function onDbChange() {
   if (resyncTimer) return;
   resyncTimer = setTimeout(async () => {
     resyncTimer = null;
-    await resyncQuiet();
+    try { await resyncQuiet(); } catch (_) { /* Auth chiude la UI; niente fallback anonimo */ }
   }, 120);
 }
 
 // ---- Realtime: un solo canale per sessione ----
 function subscribeRealtime() {
-  if (realtimeChannel || !sb) return;
+  if (realtimeChannel || !sb || !isAppAuthorized()) return;
   const channel = sb
-    .channel('scorochiatu-db-changes')
+    .channel('scorochiatu-db-changes', { config: { private: true } })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'movies' }, onDbChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'vetoes' }, onDbChange);
   channel.on('postgres_changes', { event: '*', schema: 'public', table: 'movie_nights' }, onDbChange);
   realtimeChannel = channel.subscribe((status, err) => {
-    if (status === 'SUBSCRIBED') return;
+    if (status === 'SUBSCRIBED') {
+      // Anche dopo reconnect: recupera gli eventi persi, resync idempotente.
+      if (isAppAuthorized()) onDbChange();
+      return;
+    }
     if (err) console.warn('[sc(r)occhiaTu] Realtime non attivo (' + status + '):', err.message);
     else console.warn('[sc(r)occhiaTu] Realtime non attivo (' + status + ')');
   });

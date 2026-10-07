@@ -5,14 +5,8 @@
 let currentUser = null;  // 'N' o 'V', chi ha fatto login in questa sessione
 let pendingUser = null;  // persona scelta nella landing, in attesa del PIN
 
-function checkLoginState() {
-  const saved = sessionStorage.getItem('scorochiatu_user');
-  if (saved && CONFIG.PEOPLE[saved]) {
-    currentUser = saved;
-    showApp();
-    return;
-  }
-  showLanding();
+async function checkLoginState() {
+  await initializeAuth();
 }
 
 function showLanding() {
@@ -22,7 +16,10 @@ function showLanding() {
 }
 
 function selectUser(code) {
+  if (authBusy || !CONFIG.PEOPLE[code]) return;
   pendingUser = code;
+  document.getElementById('authNotice').classList.add('hidden');
+  document.getElementById('authUsername').value = CONFIG.AUTH_EMAILS?.[code] || '';
   document.getElementById('landingScreen').classList.add('hidden');
   const gate = document.getElementById('pinGate');
   gate.dataset.person = code;
@@ -37,6 +34,7 @@ function selectUser(code) {
 }
 
 function backToLanding() {
+  if (authBusy) return;
   const previous = pendingUser;
   pendingUser = null;
   showLanding();
@@ -44,31 +42,43 @@ function backToLanding() {
   if (choice) choice.focus();
 }
 
-function submitPin() {
-  const input = document.getElementById('pinInput').value.trim();
+async function submitPin() {
+  if (authBusy || !pendingUser) return;
+  const pin = document.getElementById('pinInput');
   const errorEl = document.getElementById('pinError');
-  const expectedPin = CONFIG.PEOPLE[pendingUser]?.pin;
-
-  if (expectedPin && input === expectedPin) {
-    document.getElementById('pinInput').setAttribute('aria-invalid', 'false');
-    currentUser = pendingUser;
-    sessionStorage.setItem('scorochiatu_user', currentUser);
+  const button = document.getElementById('pinSubmit');
+  const input = pin.value.trim();
+  if (!/^[0-9]{8}$/.test(input)) {
+    errorEl.textContent = 'Inserisci il PIN di 8 cifre.';
+    errorEl.classList.remove('hidden');
+    pin.setAttribute('aria-invalid', 'true');
+    return;
+  }
+  button.disabled = true;
+  errorEl.classList.add('hidden');
+  try {
+    await signInPerson(pendingUser, input, document.getElementById('rememberDevice').checked);
+    pin.value = '';
+    pin.setAttribute('aria-invalid', 'false');
     document.getElementById('pinGate').classList.add('hidden');
     showApp();
-  } else {
+  } catch (error) {
+    if (error.message === 'AUTH_CHANGED') return;
+    const message = error.message === 'AUTH_NOT_CONFIGURED' ? 'Accesso non ancora configurato.'
+      : error.status === 429 ? 'Troppi tentativi. Attendi e riprova.'
+      : isAuthFailure(error) || error.message === 'AUTH_NOT_MEMBER' ? 'PIN errato o accesso non autorizzato.'
+      : 'Accesso non riuscito. Controlla la connessione e riprova.';
+    if (pendingUser) selectUser(pendingUser);
+    errorEl.textContent = message;
     errorEl.classList.remove('hidden');
-    const pin = document.getElementById('pinInput');
     pin.value = '';
     pin.setAttribute('aria-invalid', 'true');
     pin.focus();
-  }
+  } finally { button.disabled = false; }
 }
 
-function logout() {
-  unsubscribeRealtime();
-  leaveMatch(true);   // logout = rimozione COMPLETA del canale Match (persistente solo tra tab)
-  sessionStorage.removeItem('scorochiatu_user');
-  currentUser = null;
+async function logout() {
+  await signOutApp();
   location.reload();
 }
 
@@ -105,6 +115,10 @@ function applySwUpdate() {
 }
 
 function showApp() {
+  requireAppIdentity();
+  const entryEpoch = authEpoch;
+  document.getElementById('landingScreen').classList.add('hidden');
+  document.getElementById('pinGate').classList.add('hidden');
   dashboardView = 'home';
   document.getElementById('appRoot').classList.remove('hidden');
   loadHapticsPreference();
@@ -115,6 +129,7 @@ function showApp() {
   beginInitialLoading();
   subscribeRealtime();
   loadMovies().catch(() => {
+    if (!isAppAuthorized() || entryEpoch !== authEpoch) return;
     // Una richiesta che rigetta (anziché restituire un errore Supabase)
     // usa comunque il mirror locale, come gli altri errori di rete.
     dbMode = 'local';

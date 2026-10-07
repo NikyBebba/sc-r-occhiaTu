@@ -21,16 +21,22 @@ function vetoedMovieIdsThisWeek() {
 }
 
 async function addVeto(person, movieId) {
+  requireAppIdentity();
+  const operationEpoch = authEpoch;
   const wk = currentWeekKey();
   if (vetoUsedThisWeek(person)) return false;
   if (sb) {
     const { error } = await sb.from('vetoes').insert([{ person, movie_id: movieId, week_key: wk }]);
+    assertAuthEpoch(operationEpoch);
+    handleDataAuthError(error);
     if (error) {
       console.error('[sc(r)occhiaTu] addVeto fallito su Supabase:', error.message);
       dbMode = 'local';
       lastSupabaseFailAt = Date.now();
     }
-    const { data } = await sb.from('vetoes').select('*');
+    const { data, error: readError } = await sb.from('vetoes').select('*');
+    assertAuthEpoch(operationEpoch);
+    handleDataAuthError(readError);
     if (data) { vetoes = data; saveLocal(); }
   } else {
     vetoes.push({ id: Date.now().toString() + Math.random(), person, movie_id: movieId, week_key: wk });
@@ -49,10 +55,14 @@ function vetoForMovieThisWeek(movieId) {
 // Toglie il veto posto da `person` sul film `movieId` (settimana corrente).
 // Solo chi ha messo il veto può toglierlo (guardia anche qui, oltre alla UI).
 async function removeVeto(person, movieId) {
+  requireAppIdentity();
+  const operationEpoch = authEpoch;
   const v = vetoForMovieThisWeek(movieId);
   if (!v || v.person !== person) return false;
   if (sb) {
     const { data: deleted, error } = await sb.from('vetoes').delete().eq('id', v.id).select();
+    assertAuthEpoch(operationEpoch);
+    handleDataAuthError(error);
     if (error) {
       console.error('[sc(r)occhiaTu] removeVeto fallito su Supabase:', error.message);
       return false;
@@ -60,7 +70,9 @@ async function removeVeto(person, movieId) {
     // Delete che non ha colpito nessuna riga (es. già rimosso altrove):
     // no-op senza errori né modifiche allo stato locale.
     if (!deleted || deleted.length === 0) return true;
-    const { data } = await sb.from('vetoes').select('*');
+    const { data, error: readError } = await sb.from('vetoes').select('*');
+    assertAuthEpoch(operationEpoch);
+    handleDataAuthError(readError);
     if (data) { vetoes = data; saveLocal(); }
   } else {
     vetoes = vetoes.filter(x => x.id !== v.id);

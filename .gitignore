@@ -47,3 +47,6 @@ build/
 database-backups/
 db-backups/
 db-exports/
+
+# Export CSV applicativi conservati manualmente: non pubblicare
+/csvbackup/

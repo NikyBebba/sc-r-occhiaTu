@@ -101,6 +101,7 @@
             <span class="auth-person-label">Entra come V <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
           </button>
         </div>
+        <p id="authNotice" class="hidden auth-pin-error" role="alert"></p>
         <p class="auth-footnote">Vietato spoilerare all’ingresso.</p>
       </div>
     </main>
@@ -114,13 +115,15 @@
         <p class="auth-eyebrow">CIAK, SI ENTRA</p>
         <h1 id="pinTitle" class="auth-pin-title">Biglietto, prego</h1>
         <p id="pinGateLabel" class="auth-intro">«Accesso riservato, agente. Senza codice segreto non si passa.»</p>
-        <div class="auth-pin-form">
+        <form id="pinForm" class="auth-pin-form" onsubmit="submitPin(); return false;">
+          <label for="authUsername" class="sr-only">Account</label>
+          <input id="authUsername" name="username" type="email" autocomplete="username" class="sr-only" tabindex="-1" readonly>
           <label for="pinInput" class="auth-pin-label">Il tuo PIN</label>
-          <input id="pinInput" type="password" inputmode="numeric" enterkeyhint="go" maxlength="8" autocomplete="off" aria-describedby="pinError"
-            onkeydown="if(event.key==='Enter') submitPin()">
+          <input id="pinInput" type="password" inputmode="numeric" enterkeyhint="go" name="password" minlength="8" maxlength="8" pattern="[0-9]{8}" autocomplete="current-password" aria-describedby="pinError">
           <p id="pinError" class="hidden auth-pin-error" role="alert">PIN errato, riprova.</p>
-          <button onclick="submitPin()" class="auth-enter-btn">Entra <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
-        </div>
+          <label class="flex items-center gap-2 min-h-[44px] text-sm text-slate-300"><input id="rememberDevice" type="checkbox" class="accent-indigo-500"> Ricordami su questo dispositivo</label>
+          <button id="pinSubmit" type="submit" class="auth-enter-btn">Entra <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+        </form>
         <button onclick="backToLanding()" class="auth-back-btn"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Cambia persona</button>
       </div>
     </main>
@@ -627,6 +630,7 @@
   <script src="js/api/omdb.js"></script>
   <script src="js/api/tmdb.js"></script>
   <script src="js/api/index.js"></script>
+  <script src="js/auth.js"></script>
   <script src="js/store.js"></script>
   <script src="js/store/movies.js"></script>
   <script src="js/store/viewing.js"></script>

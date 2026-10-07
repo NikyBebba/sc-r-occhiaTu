@@ -11,9 +11,13 @@ function findDuplicateByTmdbId(tmdbId, excludeId = null) {
 
 // ---- Persistenza ----
 async function insertMovie(newMovie) {
+  requireAppIdentity();
+  const operationEpoch = authEpoch;
   const finalMovie = { ...newMovie };
   if (sb) {
     const { data, error } = await sb.from('movies').insert([newMovie]).select('id');
+    assertAuthEpoch(operationEpoch);
+    handleDataAuthError(error);
     if (error) {
       // Il vincolo UNIQUE sull'ID TMDb può vincere la corsa fra due telefoni:
       // in quel caso non creare una copia solo nel mirror locale.
@@ -37,8 +41,12 @@ async function insertMovie(newMovie) {
 }
 
 async function updateMovie(id, patch) {
+  requireAppIdentity();
+  const operationEpoch = authEpoch;
   if (sb) {
     const { error } = await sb.from('movies').update(patch).eq('id', id);
+    assertAuthEpoch(operationEpoch);
+    handleDataAuthError(error);
     if (error) {
       console.error('[sc(r)occhiaTu] updateMovie fallita su Supabase:', error.message);
       dbMode = 'local';
@@ -54,8 +62,12 @@ async function updateMovie(id, patch) {
 }
 
 async function deleteMovie(id) {
+  requireAppIdentity();
+  const operationEpoch = authEpoch;
   if (sb) {
     const { error } = await sb.from('movies').delete().eq('id', id);
+    assertAuthEpoch(operationEpoch);
+    handleDataAuthError(error);
     if (error) {
       console.error('[sc(r)occhiaTu] deleteMovie fallita su Supabase:', error.message);
       dbMode = 'local';

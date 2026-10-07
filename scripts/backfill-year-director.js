@@ -32,6 +32,7 @@
 // ============================================
 
 const fs = require('fs');
+const { supabaseAuthHeaders } = require('./supabase-auth-headers');
 const path = require('path');
 
 const REPO = path.resolve(__dirname, '..');
@@ -60,7 +61,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const sb = (seg) => `${SUPABASE_URL}/rest/v1/${seg}`;
 async function sbGet(seg) {
   const res = await fetch(sb(seg), {
-    headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
+    headers: { ...supabaseAuthHeaders(SUPABASE_ANON) }
   });
   if (!res.ok) throw new Error(`GET ${seg} → HTTP ${res.status}`);
   return res.json();
@@ -69,7 +70,7 @@ async function sbPatch(id, patch) {
   const res = await fetch(sb(`movies?id=eq.${id}`), {
     method: 'PATCH',
     headers: {
-      apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}`,
+      ...supabaseAuthHeaders(SUPABASE_ANON),
       'Content-Type': 'application/json', Prefer: 'return=minimal'
     },
     body: JSON.stringify(patch)

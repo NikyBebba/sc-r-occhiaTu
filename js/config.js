@@ -19,8 +19,9 @@ const CONFIG = {
   // col proprio codice. NON è vera sicurezza (visibile nel sorgente),
   // stesso discorso già fatto per il PIN condiviso: serve solo a evitare
   // che chi trova il link per caso curiosi o combini pasticci con i dati.
+  AUTH_EMAILS: { N: 'nikybebba@gmail.com', V: 'vale.migliaccio1@gmail.com' }, // Identificativi pubblici degli account Auth precreati; nessuna password.
   PEOPLE: {
-    N: { label: 'N', badgeClass: 'badge-n', pin: '1111' },
-    V: { label: 'V', badgeClass: 'badge-v', pin: '2222' }
+    N: { label: 'N', badgeClass: 'badge-n', },
+    V: { label: 'V', badgeClass: 'badge-v', }
   }
 };

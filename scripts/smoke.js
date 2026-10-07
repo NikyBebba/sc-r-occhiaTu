@@ -36,7 +36,7 @@ function makeEl(id) {
     },
     _children: [],
     appendChild(c) { this._children.push(c); }, remove() {}, focus() {}, scrollIntoView() {},
-    querySelector() { return makeEl('q'); }, querySelectorAll() { return []; },
+    querySelector() { return makeEl('q'); }, querySelectorAll() { return []; }, querySelectorAll() { return []; },
     setAttribute(k, v) { this[k] = v; }, getAttribute(k) { return this[k]; },
     set innerHTML(v) { this._innerHTML = String(v); this._children = []; }, get innerHTML() { return this._innerHTML + this._children.map(c => (c._innerHTML || '')).join(''); },
     set textContent(v) { this._text = String(v); }, get textContent() { return this._text; }
@@ -67,7 +67,7 @@ const documentStub = {
   getElementById: elementsById,
   createElement: tag => makeEl('el-' + Math.random().toString(36).slice(2)),
   addEventListener() {},
-  querySelector() { return makeEl('q'); }
+  querySelector() { return makeEl('q'); }, querySelectorAll() { return []; }
 };
 
 const localStore = new Map();
@@ -179,6 +179,13 @@ async function okA(name, fn) {
 
   const run = fn => vm.runInContext(`(${fn.toString()})()`, sandbox);
   const runA = fn => vm.runInContext(`(async()=>{ return (${fn.toString()})(); })()`, sandbox);
+  // Questa suite esercita i domini con identità già validata. Auth reale e
+  // dinieghi sono verificati separatamente da scripts/verify-auth.js.
+  run(() => {
+    requireAppIdentity = () => {}; isAppAuthorized = () => true;
+    assertAuthEpoch = () => {}; validateCurrentAuth = async () => {};
+  });
+
 
   // --- 0) guardie / load ---
   console.log('\n[guardie + load]');
@@ -600,20 +607,14 @@ async function okA(name, fn) {
       if (cached === null) localStorage.removeItem('scorochiatu_votes'); else localStorage.setItem('scorochiatu_votes', cached);
     }
   }));
-  await okA('votes legacy: lettura valida vuota prevale sul vecchio mirror; cache corrotta gestita', runA(async () => {
-    const old = { sb, votes, warn: console.warn };
-    const cached = localStorage.getItem('scorochiatu_votes');
+  await okA('votes legacy: nessuna lettura SDK, cache locale corrotta gestita', runA(async () => {
+    const old = { sb, votes }; const cached = localStorage.getItem('scorochiatu_votes');
     try {
-      console.warn = () => {};
-      votes = [{ movie_id: 'old', liked: true }];
-      sb = { from: () => ({ select: async () => ({ data: [], error: null }) }) };
+      sb = { from() { throw new Error('votes remoto vietato'); } };
       const empty = await fetchLegacyVotes();
-      votes = []; localStorage.setItem('scorochiatu_votes', '{bad-json');
-      sb = { from: () => ({ select: async () => ({ error: { code: '42P01' } }) }) };
-      const recovered = await fetchLegacyVotes();
-      return empty.length === 0 && recovered.length === 0;
-    } finally {
-      sb = old.sb; votes = old.votes; console.warn = old.warn;
+      sb = null; votes = []; localStorage.setItem('scorochiatu_votes', '{bad-json');
+      return empty.length === 0 && (await fetchLegacyVotes()).length === 0;
+    } finally { sb = old.sb; votes = old.votes;
       if (cached === null) localStorage.removeItem('scorochiatu_votes'); else localStorage.setItem('scorochiatu_votes', cached);
     }
   }));
@@ -949,52 +950,13 @@ async function okA(name, fn) {
     return getVotesForMovie('vote-extra').N === false
       && votes.filter(v => v.movie_id === 'vote-extra').length === 1;
   }));
-  await okA('castVote su Supabase: riclick dello stesso voto fa DELETE (mock sb)', runA(async () => {
-    const rows = [];
-    const mockFrom = table => {
-      if (table !== 'votes') throw new Error('mock: solo votes');
-      return {
-        upsert: async incoming => {
-          for (const r of incoming) {
-            const i = rows.findIndex(x => x.movie_id === r.movie_id && x.person === r.person);
-            if (i >= 0) rows[i] = { ...rows[i], ...r };
-            else rows.push({ id: 'mock-' + (rows.length + 1), ...r });
-          }
-          return { error: null };
-        },
-        select: () => ({ then: resolve => resolve({ data: rows.map(r => ({ ...r })), error: null }) }),
-        delete: () => {
-          const q = {
-            where: {},
-            eq(column, value) { this.where[column] = value; return this; },
-            then: resolve => {
-              for (let i = rows.length - 1; i >= 0; i--) {
-                const r = rows[i];
-                if (Object.keys(q.where).every(k => r[k] === q.where[k])) rows.splice(i, 1);
-              }
-              resolve({ error: null });
-            }
-          };
-          return q;
-        }
-      };
-    };
-    const prevSb = sb, prevMode = dbMode, prevVotes = votes;
-    const prevLSVotes = localStorage.getItem('scorochiatu_votes');
-    sb = { from: mockFrom }; dbMode = 'supabase';
+  await okA('votes remoto disabilitato: API conservata, nessun I/O o modifica cache', runA(async () => {
+    const oldSb = sb, oldVotes = votes;
     try {
-      await castVote('m-vote', 'N', true);   // insert
-      const inserted = rows.length === 1 && rows[0].liked === true;
-      await castVote('m-vote', 'N', true);   // stesso voto: delete su Supabase
-      const deleted = rows.length === 0 && getVotesForMovie('m-vote').N === undefined;
-      await castVote('m-vote', 'N', false);  // switch; ancora una riga, niente dup
-      const switched = rows.length === 1 && rows[0].liked === false;
-      return inserted && deleted && switched;
-    } finally {
-      sb = prevSb; dbMode = prevMode; votes = prevVotes;
-      if (prevLSVotes === null) localStorage.removeItem('scorochiatu_votes');
-      else localStorage.setItem('scorochiatu_votes', prevLSVotes);
-    }
+      sb = { from() { throw new Error('votes remoto vietato'); } };
+      const before = JSON.stringify(votes);
+      return await castVote('m-vote','N',true) === false && JSON.stringify(votes) === before;
+    } finally { sb = oldSb; votes = oldVotes; }
   }));
   await okA('addVeto settimanale (1 per persona)', runA(async () => {
     const a = await addVeto('N', movies[0].id);
@@ -6037,6 +5999,7 @@ async function okA(name, fn) {
     ctx.globalThis = ctx;
     vm.createContext(ctx);
     for (const f of scripts) vm.runInContext(read(f) + '\n;', ctx, { filename: f });
+    vm.runInContext('requireAppIdentity=()=>{}; isAppAuthorized=()=>true; assertAuthEpoch=()=>{}; validateCurrentAuth=async()=>{};', ctx);
     const fn = n => vm.runInContext(`typeof ${n} === 'function'`, ctx) === true;
     const decl = n => vm.runInContext(`typeof ${n} !== 'undefined'`, ctx) === true;
     const funcs = [
@@ -6084,6 +6047,7 @@ async function okA(name, fn) {
     ctx.globalThis = ctx;
     vm.createContext(ctx);
     for (const f of scripts) vm.runInContext(read(f) + '\n;', ctx, { filename: f });
+    vm.runInContext('requireAppIdentity=()=>{}; isAppAuthorized=()=>true; assertAuthEpoch=()=>{}; validateCurrentAuth=async()=>{};', ctx);
     const r = await vm.runInContext(`
       (async () => {
         sb = mockSb; dbMode = 'supabase'; matchAvailable = true; matchProbeDone = true; matchProbeTimeoutMs = 3000;

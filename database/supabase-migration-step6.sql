@@ -1,3 +1,6 @@
+-- Bootstrap storico: contiene policy pubbliche. Nuove istanze richiedono
+-- auth-prepare e auth-cutover prima di esporre i dati. Non rieseguire le
+-- vecchie policy dopo cutover. Vedere docs/AUTH_SUPABASE.md.
 -- ============================================================
 -- sc(r)occhiaTu — MIGRATION STEP 6: Match live (swipe sessions)
 -- Esegui QUESTO FILE NEL SQL EDITOR della Dashboard Supabase

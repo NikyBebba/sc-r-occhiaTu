@@ -66,6 +66,7 @@ function renderDashboardHome() {
 }
 
 function render() {
+  if (!isAppAuthorized()) { showLanding(); return; }
   finishInitialLoading();
   renderDashboardHome();
   renderAvailabilitySwitch();

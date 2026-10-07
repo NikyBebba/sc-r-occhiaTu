@@ -41,7 +41,14 @@ La distinzione centrale è **film = contenuto, serata = evento**. Uno stesso fil
 
 La programmazione ha un'unica fonte: gli eventi `movie_nights`. Il client non legge né aggiorna i vecchi dettagli sul film; colonne e dati DB restano per un eventuale rollback con riallineamento dei mirror. Il precedente sistema di like/dislike `votes` conserva API dormienti e una cache separata, senza letture/scritture nel core, nell'interfaccia o nel Match Live. [Audit e piano di dismissione](docs/DATA_MODEL_TRANSITION.md).
 
-L'implementazione attuale gestisce **uno spazio con due profili preconfigurati** e ingresso tramite PIN lato client. Non include registrazione o gestione di gruppi indipendenti. I profili e la configurazione dei servizi sono in `js/config.js`; chiavi e PIN non vanno riportati in documentazione o log. Il PIN è un deterrente locale, non un sistema di autenticazione server; le policy Supabase pubbliche fanno parte del modello attuale.
+L'app gestisce **uno spazio con due profili preconfigurati**, senza registrazione o gruppi indipendenti. Il nuovo ingresso mantiene persona → PIN e usa Supabase Auth con mapping protetto e RLS, con l'opzione «Ricordami su questo dispositivo». PIN e password non sono nel frontend.
+
+**Cutover Supabase pendente:** l’utente ha completato PREPARE, account confermati e mapping. Le email runtime reali sono configurate e verificate localmente; policy applicative e Realtime non sono ancora passati al nuovo modello. La messa in sicurezza non è dichiarata attiva. Prima di avviare il nuovo login seguire la [procedura Auth, Dashboard e rollback](docs/AUTH_SUPABASE.md). Nessun push/deploy di questa fase.
+
+La migration locale rimuove anche `votes` dalla publication Realtime senza
+cancellare tabella o dati; il rollback ripristina la membership originaria.
+Aggiornamento dell'8 ottobre verificato su PostgreSQL locale: **40/40 RLS**,
+oltre a **43/43 Auth** e **15/15 PWA**; nessuna modifica Supabase live.
 
 ## Avvio locale
 
@@ -68,14 +75,17 @@ Aprire `http://localhost:8000`. Non è richiesto un passaggio di build. Per una 
 ```sh
 node scripts/smoke.js
 node scripts/verify-sw.js
-node scripts/audit-data-model.js --live
+node scripts/verify-auth.js
+# Test PostgreSQL/browser: percorsi delle dipendenze di verifica
+node scripts/verify-auth-rls.js --pglite=/percorso/node_modules/@electric-sql/pglite
+node scripts/verify-auth-browser.cjs --playwright=/percorso/node_modules/playwright
 ```
 
-Checkpoint del 5 ottobre 2026: **400/400 smoke test** e **15/15 controlli del service worker** superati, controlli sintassi e diff senza errori. Cache PWA `v48`. Store, azioni e renderer sono separati per dominio. Le API attive restano compatibili; le tre vecchie proposte film senza chiamanti sono state rimosse. Proiezioni, cinema, voti e Ricordi sono stati verificati anche in Chromium con dati di prova a larghezze mobile e tablet; 144 scenari DOM coincidono con la baseline sui dati coerenti. Le verifiche precedenti di login, home e saghe sono documentate nel master context.
+Candidato locale pre-cutover dell’8 ottobre 2026: **400/400 smoke**, **15/15 service worker**, **43/43 Auth**, **40/40 RLS PostgreSQL** e **18/18 Chromium Auth** superati; cache PWA `v50`. Le API del dominio sono mantenute e 144 scenari DOM coincidono con la baseline dopo accesso verificato. Proiezioni, cinema, voti e Ricordi verificati in Chromium mobile/tablet senza errori JS o overflow.
 
-L'audit esegue solo letture e stampa conteggi aggregati; accetta anche `--file=fixture.json` per dati di prova. Nel ciclo corrente non sono stati migrati o cancellati dati, né eseguiti push/deploy.
+I test Auth usano SDK simulato; le migration sono eseguite su PostgreSQL locale, non sul Supabase hosted. Restano da verificare account/RLS, trasporto Realtime e Match sui due telefoni dopo un futuro cutover autorizzato. I test reali della transizione movie_nights v47 erano già stati confermati dall'utente; cleanup v48 e candidato Auth v50 restano locali. PREPARE è stato applicato manualmente dall’utente; l’agente non ha effettuato accessi Supabase live in questa verifica. Il tentativo di backup CLI è stato abbandonato/ripulito; i CSV manuali restano conservati e fuori da Git.
 
-La migration dei voti decimali è stata applicata sull'istanza di riferimento. L’utente ha confermato superati i test reali della transizione movie_nights v47 sui due client. Il cleanup v48 è verificato localmente e non pubblicato; la sua adozione sui dispositivi va verificata dopo una futura pubblicazione. Le verifiche del tastierino nativo e degli altri flussi restano distinte da questa conferma. Il dettaglio delle verifiche, delle migration e dei limiti è nel [master context](docs/MASTER_CONTEXT.md).
+L'audit dati usa `--file=fixture.json` oppure `--live` con JWT temporaneo membro in `SUPABASE_ACCESS_TOKEN`; anche import/backfill richiedono il JWT. Nessun fallback anonimo e nessuna service-role nel frontend. L'accesso a votes è disabilitato; il suo conteggio live può risultare non disponibile. Non eseguire manutenzione live come parte dei test locali.
 
 Specifiche: [proiezioni, snack e luogo](docs/PROIEZIONI.md), [voti decimali](docs/PHASE38_DECIMAL_RATINGS.md), [saghe](docs/PHASE41_SAGHE.md), [Ricordi e statistiche](docs/PHASE23_MOVIE_CHEMISTRY.md), [timeline mensile](docs/PHASE22_TIMELINE.md).
 

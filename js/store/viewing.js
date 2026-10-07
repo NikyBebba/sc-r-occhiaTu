@@ -57,6 +57,8 @@ function watchedByAfterUndo(movie, person) {
 // La condizione sul valore precedente evita di perdere il segno dell'altro
 // telefono se N e V premono quasi nello stesso momento.
 async function markMovieSeen(id, person, rating = null, reviewText = null) {
+  requireAppIdentity();
+  const operationEpoch = authEpoch;
   if (person !== 'N' && person !== 'V') return false;
   if (rating !== null && !validMovieRating(rating)) return false;
   let movie = movies.find(m => m.id === id);
@@ -82,12 +84,16 @@ async function markMovieSeen(id, person, rating = null, reviewText = null) {
     let query = sb.from('movies').update(patchFor(movie)).eq('id', id);
     query = previous === null ? query.is('watched_by', null) : query.eq('watched_by', previous);
     const { data, error } = await query.select('id');
+    assertAuthEpoch(operationEpoch);
+    handleDataAuthError(error);
     if (error) {
       console.error('[sc(r)occhiaTu] markMovieSeen fallita su Supabase:', error.message);
       return false;
     }
     if (data && data.length) return true;
     const latest = await sb.from('movies').select(MOVIE_SELECT_FIELDS).eq('id', id).maybeSingle();
+    assertAuthEpoch(operationEpoch);
+    handleDataAuthError(latest.error);
     if (latest.error || !latest.data) {
       console.error('[sc(r)occhiaTu] markMovieSeen: riallineamento fallito:', latest.error?.message || 'film non trovato');
       return false;
@@ -102,6 +108,8 @@ async function markMovieSeen(id, person, rating = null, reviewText = null) {
 // Annulla soltanto una visione segnata senza recensione. Il confronto sul
 // valore precedente protegge la visione dell'altro telefono da overwrite.
 async function undoMovieSeen(id, person) {
+  requireAppIdentity();
+  const operationEpoch = authEpoch;
   if (person !== 'N' && person !== 'V') return false;
   let movie = movies.find(m => m.id === id);
   if (!movie || !canUndoSeen(movie, person)) return false;
@@ -121,12 +129,16 @@ async function undoMovieSeen(id, person) {
     const { data, error } = await sb.from('movies')
       .update({ watched_by: watchedByAfterUndo(movie, person), [ratingField]: null, [reviewField]: null })
       .eq('id', id).eq('watched_by', previous).select('id');
+    assertAuthEpoch(operationEpoch);
+    handleDataAuthError(error);
     if (error) {
       console.error('[sc(r)occhiaTu] undoMovieSeen fallita su Supabase:', error.message);
       return false;
     }
     if (data && data.length) return true;
     const latest = await sb.from('movies').select(MOVIE_SELECT_FIELDS).eq('id', id).maybeSingle();
+    assertAuthEpoch(operationEpoch);
+    handleDataAuthError(latest.error);
     if (latest.error || !latest.data) {
       console.error('[sc(r)occhiaTu] undoMovieSeen: riallineamento fallito:', latest.error?.message || 'film non trovato');
       return false;

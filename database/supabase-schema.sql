@@ -1,3 +1,6 @@
+-- Bootstrap storico: contiene policy pubbliche. Nuove istanze richiedono
+-- auth-prepare e auth-cutover prima di esporre i dati. Non rieseguire le
+-- vecchie policy dopo cutover. Vedere docs/AUTH_SUPABASE.md.
 create table movies (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -41,9 +44,8 @@ create unique index if not exists movies_tmdb_id_unique on movies (tmdb_id)
 alter table movies enable row level security;
 
 -- Policy pubblica: chiunque abbia URL+anon key può leggere/scrivere.
--- Questo è INVARIATO rispetto a prima: la vera barriera d'accesso resta
--- il PIN lato client (vedi config.js). Se in futuro vuoi sicurezza reale,
--- va sostituita con Supabase Auth + policy legate a auth.uid().
+-- Solo bootstrap storico: applicare auth-prepare/cutover prima di esporre
+-- il progetto con il nuovo frontend. Il PIN client-side è stato rimosso.
 create policy "Public Access" on movies for all using (true) with check (true);
 
 -- ============================================
@@ -51,7 +53,7 @@ create policy "Public Access" on movies for all using (true) with check (true);
 -- Separare la serata dal film permette di avere PIÙ serate per lo stesso
 -- film (rewatch) e uno storico persistente per calendario/streak future.
 -- I campi legacy scheduled_*/proposed_by/night_confirmed su movies restano
--- per compatibilità (strategia B: li alimentiamo ancora in scrittura).
+-- per rollback; il frontend corrente non li legge né li scrive.
 -- ============================================
 create table movie_nights (
   id uuid primary key default gen_random_uuid(),

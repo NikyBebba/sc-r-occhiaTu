@@ -1,6 +1,6 @@
 # AGENTS.md — sc(r)occhiaTu
 
-Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 5 ottobre 2026.
+Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 8 ottobre 2026 (candidato Auth locale completo, attivazione pendente).
 Prima di progettare una fase leggere [docs/MASTER_CONTEXT.md](docs/MASTER_CONTEXT.md):
 è la fonte dello stato corrente, delle decisioni UX e della roadmap. Le sezioni
 storiche del master context descrivono cicli precedenti, non lo stato finale.
@@ -42,11 +42,11 @@ chiare le distinzioni tra voto personale e condiviso e i messaggi d'errore.
 - **Tailwind CSS via CDN Play** + `css/style.css` custom;
 - **Font Awesome via CDN**;
 - **@supabase/supabase-js v2 via CDN** (tabelle: `movies`, `votes`, `vetoes`,
-  `movie_nights`, RLS aperte, **Realtime core**: movies/vetoes/movie_nights;
+  `movie_nights`, `app_members`, Auth + RLS preparati localmente, **Realtime core**: movies/vetoes/movie_nights;
   votes resta nel DB; API dormienti isolate, nessun I/O nel core);
 - **TMDb API v3** (`language=it-IT`) per ricerca, dettagli, provider, trailer;
 - **OMDb API** come fallback e per rating (IMDb / RT / Metacritic);
-- **localStorage** come fallback offline di Supabase (mirror + modalità
+- **localStorage** come mirror offline di Supabase solo dopo verifica Auth online nel runtime e con JWT valido (mirror + modalità
   degradata segnalata in UI tramite badge);
 - **canvas 2D** per la ruota della fortuna.
 
@@ -57,10 +57,11 @@ NON introdurre framework/bundler/backend senza autorizzazione.
 Flusso di caricamento dei moduli (ordine in `index.html`):
 
 ```
-theme (head) → config → format → haptics → audio → api(omdb+tmdb → index) → store + store/{movies,viewing,legacy,choices,nights,match} → match → filters → wheel → ui(modals+navigation+actions e domini+sagas+render e domini+calendar+match+ticket+loading) → main
+theme (head) → config → format → haptics → audio → api(omdb+tmdb → index) → auth → store + store/{movies,viewing,legacy,choices,nights,match} → match → filters → wheel → ui(modals+navigation+actions e domini+sagas+render e domini+calendar+match+ticket+loading) → main
 ```
 
-- `js/config.js` — chiavi runtime (TMDb/OMDb/Supabase) + `PEOPLE` (label + PIN).
+- `js/config.js` — chiavi runtime (TMDb/OMDb/Supabase) + `PEOPLE` (label) e `AUTH_EMAILS` (email account, ancora vuote). Nessuna password/PIN.
+- `js/auth.js` — verifica online Auth/app_members, storage token Ricordami, refresh JWT, guardie identità/generazione, logout e distinzione offline/Auth.
 - `js/format.js` — helper DOM-free dei voti decimali (validazione, parsing punto/virgola, formato italiano) e delle date: `formatNightDate(date, time)` (data serata
   leggibile "24 ott · 21:30", senza `new Date('YYYY-MM-DD')`, fallback al dato
   grezzo, mai orari inventati, `date NULL` → "Oggi").
@@ -119,7 +120,7 @@ theme (head) → config → format → haptics → audio → api(omdb+tmdb → i
   locale fino al cambio di periodo (finestre e precedenze nel master context).
 - `js/audio.js` / `js/haptics.js` — preferenze locali opt-in per suoni/vibrazioni;
   `js/ui/loading.js` — ciak loader e skeleton iniziali.
-- `js/main.js` — login (landing → persona → PIN → `sessionStorage`) e
+- `js/main.js` — login (landing → persona → PIN → Supabase Auth verificato) e
   attivazione Realtime all'ingresso.
 - `scripts/import-movies.js` — import/aggiornamento massivo dei film da
   `data/movie-watchlist.json` (match TMDb prudente + alias documentati +
@@ -182,8 +183,9 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 - NON stamparle.
 - NON sostituirle, rigenerarle o modificarle salvo esplicita richiesta.
 - NON spostare `config.js` fuori da `js/`.
-- Il PIN in `PEOPLE` è un deterrent lato client, NON è sicurezza (accettato).
-- RLS Supabase: policy pubbliche per design (barriera = PIN lato client).
+- Il vecchio PIN client-side è rimosso su richiesta esplicita. Non reinserire PIN/password nel frontend o usare storage/UI per autorizzare identità.
+- Supabase Auth/RLS: implementazione locale, **non attiva sul DB live**. PREPARE/account/mapping completati manualmente dall’utente; email runtime reali configurate e verificate localmente. Seguire [checklist e rollback](docs/AUTH_SUPABASE.md), fermarsi prima di SQL/live o deploy non autorizzati.
+- Non convertire errori Auth/RLS in fallback offline; app_members è modificabile solo dall’operatore. Non introdurre service-role frontend.
 - Se si decide che una credenziale non possa essere pubblica, va segnalato
   PRIMA di intervenire (non agire in autonomia).
 
@@ -198,7 +200,7 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 ├── docs/                       # MASTER_CONTEXT e specifiche delle fasi
 ├── scripts/                    # import, metadati, smoke, verify-sw
 ├── js/
-│   ├── config.js, format.js, theme.js, audio.js, haptics.js
+│   ├── config.js, auth.js, format.js, theme.js, audio.js, haptics.js
 │   ├── store.js, match.js, filters.js, wheel.js, main.js
 │   ├── store/{movies,viewing,legacy,choices,nights,match}.js
 │   ├── api/{omdb,tmdb,index}.js
@@ -210,6 +212,9 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 ```
 
 ## Modello dati
+
+- `app_members(user_id UUID FK auth.users, person UNIQUE N/V)`: migration locale,
+  mapping amministrativo; membro legge solo se stesso, nessuna scrittura client.
 
 - `movies(id, title, added_by, status, duration, platform, poster,
   trailer_url, matched, imdb_rating, rt_rating, metacritic_rating, rating,
@@ -241,7 +246,7 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
     filtro e contatore In programma dipendono dagli eventi attivi.
 - `votes(id, movie_id FK, person, liked, unique(movie_id,person))`: like/dislike
   dismessi dalla UI, distinti dai voti decimali e dal Match Live. API dormienti
-  in store/legacy.js, nessun I/O all'avvio; cache separata. Il core non legge,
+  in store/legacy.js, nessun I/O remoto; cache separata. Il core non legge,
   scrive o ripulisce questo snapshot/cache e non lo include in render/Realtime.
   Non droppare/cancellare colonne/tabelle/dati legacy. Un rollback a frontend
   precedenti richiede riallineare i mirror dalle nuove serate; non inventare dati.
@@ -313,7 +318,7 @@ Per le priorità precise leggere il master context aggiornato.
 ## Vincoli tecnici
 
 - Dipendenze ancora via CDN (Tailwind Play, Font Awesome, supabase-js).
-- PWA presente: manifest e service worker, cache corrente `v48`; domini API,
+- PWA presente: manifest e service worker, cache corrente `v50`; domini API,
   Supabase, poster e YouTube sempre esclusi dall'intercettazione. Le icone PWA
   sono provvisorie; non confondere l'app-shell offline con dati remoti disponibili.
 - HTML delle card generato come stringhe: usare `escapeHtml`/`jsAttrEscape`
@@ -330,7 +335,7 @@ Per le priorità precise leggere il master context aggiornato.
 2. NON introdurre framework/bundler/backend/auth server.
 3. NON cambiare identità visiva globale o spostare ruota/sorpresa in secondo
    piano.
-4. NON rimuovere/rigenerare API key o PIN; non spostare `config.js`.
+4. NON rimuovere/rigenerare API key senza autorizzazione; non spostare `config.js`. PIN nuovi impostati manualmente in Auth, mai nel codice.
 5. NON implementare feature pianificate senza fase dedicata.
 6. NON decidere autonomamente su punti architetturali con impatto sulle
    feature future: segnalare invece nel report.
@@ -365,7 +370,51 @@ Per le priorità precise leggere il master context aggiornato.
   incluse collection+aliasing titoli IT, ui add/retry, anti-XSS).
 - `node --check` OK su tutti i moduli `js/**/*.js` + `scripts/`.
 
-## Checkpoint verificato — 5 ottobre 2026
+## Candidato Auth completo — 8 ottobre 2026
+
+- Email reali N/V configurate su autorizzazione dell’utente; nessun PIN/password,
+  UUID reale o secret aggiunto. Checkpoint Git locale pre-cutover autorizzato.
+- Smoke 400/400, Auth 43/43 (inclusa config runtime), RLS locale 40/40,
+  PWA 15/15, Chromium Auth 18/18; 345 API e 144 scenari DOM conservati.
+  Programmazione/cinema/Ricordi 320/390/768, recensioni N/V 320/390 green.
+- Candidato pronto al cutover coordinato. Test hosted e due dispositivi restano
+  necessari dopo attivazione. Nessuna modifica Supabase live, push o deploy.
+- I checkpoint precedenti sono storici: email mancanti/commit vietato erano
+  vincoli precedenti, superati dall’autorizzazione corrente. Resta vietato
+  eseguire cutover, modificare Realtime live o pubblicare senza autorizzazione.
+
+## Aggiornamento locale publication — 8 ottobre 2026
+
+- Cutover salva membership votes in app_security_backup.auth_publication,
+  poi la rimuove solo dalla publication, preservando tabella e dati.
+- Rollback ripristina la membership originaria; nessuna modifica alle altre
+  tabelle pubblicate. Publication assente/FOR ALL TABLES blocca l'operazione.
+- RLS locale 40/40, Auth 42/42, PWA 15/15, sintassi e diff check PASS.
+  Nessun intervento live, commit/push/deploy o modifica frontend/Match.
+
+## Checkpoint Auth pre-cutover — 7 ottobre 2026
+
+- PREPARE completato manualmente dall'utente: due account Auth confermati e
+  due mapping N/V verificati via SQL. Non ripetere PREPARE/creazione account.
+  Nessuna verifica o modifica Supabase live dall'agente in questo ciclo.
+- Email reali ancora da chiarire: EMAIL_N/EMAIL_V sono segnaposto; AUTH_EMAILS
+  resta vuoto. Non inventare email/UUID/password né dichiarare pronto il deploy.
+- Auth solo da sessione verificata/app_members; Ricordami, refresh JWT,
+  logout locale e separazione offline/Auth. Corrette risposte getSession
+  obsolete e AuthSessionMissingError senza status HTTP. Match e UI invariati.
+- Cache v50; smoke 400/400, PWA 15/15, Auth 42/42, RLS locale 32/32,
+  Chromium Auth 18/18; 345 API/144 scenari DOM conservati. Browser domini
+  a larghezze mobile green. SDK/DB simulati, niente login/subscription live.
+- Cutover/rollback SQL solo preparati. [Sequenza](docs/AUTH_SUPABASE.md):
+  completare email → verifiche Dashboard → finestra → SQL cutover →
+  Realtime pubblico disabilitato → deploy autorizzato → update PWA/test N/V.
+  Non fare commit/push/deploy o interventi live in questa preparazione locale.
+- Backup CLI abbandonato/ripulito; CSV applicativi salvati dall'utente,
+  csvbackup/ esclusa da Git: preservare file e non usarli come dump schema/Auth.
+- CLI manutenzione richiedono JWT membro; niente fallback anonimo/service-role
+  frontend. Non eseguire manutenzione live come test di questa fase.
+
+## Checkpoint precedente — 5 ottobre 2026
 
 - Consolidation & Architecture: domini estratti incrementalmente da store,
   actions e render; stato globale e API esistenti conservati, nessuna modifica
