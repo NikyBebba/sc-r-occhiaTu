@@ -1,6 +1,6 @@
 # AGENTS.md — sc(r)occhiaTu
 
-Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 8 ottobre 2026 (candidato Auth locale completo, attivazione pendente).
+Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 8 ottobre 2026 (Auth/RLS production-verified).
 Prima di progettare una fase leggere [docs/MASTER_CONTEXT.md](docs/MASTER_CONTEXT.md):
 è la fonte dello stato corrente, delle decisioni UX e della roadmap. Le sezioni
 storiche del master context descrivono cicli precedenti, non lo stato finale.
@@ -42,7 +42,7 @@ chiare le distinzioni tra voto personale e condiviso e i messaggi d'errore.
 - **Tailwind CSS via CDN Play** + `css/style.css` custom;
 - **Font Awesome via CDN**;
 - **@supabase/supabase-js v2 via CDN** (tabelle: `movies`, `votes`, `vetoes`,
-  `movie_nights`, `app_members`, Auth + RLS preparati localmente, **Realtime core**: movies/vetoes/movie_nights;
+  `movie_nights`, `app_members`, Auth + RLS attivi e verificati in produzione, **Realtime core**: movies/vetoes/movie_nights;
   votes resta nel DB; API dormienti isolate, nessun I/O nel core);
 - **TMDb API v3** (`language=it-IT`) per ricerca, dettagli, provider, trailer;
 - **OMDb API** come fallback e per rating (IMDb / RT / Metacritic);
@@ -184,7 +184,7 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 - NON sostituirle, rigenerarle o modificarle salvo esplicita richiesta.
 - NON spostare `config.js` fuori da `js/`.
 - Il vecchio PIN client-side è rimosso su richiesta esplicita. Non reinserire PIN/password nel frontend o usare storage/UI per autorizzare identità.
-- Supabase Auth/RLS: implementazione locale, **non attiva sul DB live**. PREPARE/account/mapping completati manualmente dall’utente; email runtime reali configurate e verificate localmente. Seguire [checklist e rollback](docs/AUTH_SUPABASE.md), fermarsi prima di SQL/live o deploy non autorizzati.
+- Supabase Auth/RLS: **attivi e production-verified**. PREPARE/CUTOVER/account/mapping applicati dall’utente; Realtime ON e Allow public access OFF, publication delle sole cinque tabelle attive. Non rieseguire migration né riaprire policy pubbliche. [Stato e rollback](docs/AUTH_SUPABASE.md); fermarsi prima di SQL/live o deploy non autorizzati.
 - Non convertire errori Auth/RLS in fallback offline; app_members è modificabile solo dall’operatore. Non introdurre service-role frontend.
 - Se si decide che una credenziale non possa essere pubblica, va segnalato
   PRIMA di intervenire (non agire in autonomia).
@@ -370,7 +370,25 @@ Per le priorità precise leggere il master context aggiornato.
   incluse collection+aliasing titoli IT, ui add/retry, anti-XSS).
 - `node --check` OK su tutti i moduli `js/**/*.js` + `scripts/`.
 
-## Candidato Auth completo — 8 ottobre 2026
+## Auth/RLS production-verified — 8 ottobre 2026
+
+- Migrazione conclusa; l’utente conferma su entrambi i dispositivi login N/V,
+  dati, persistenza sessione, Realtime, Match Live e logout PASS.
+- Commit funzionale `2bd43a6458733d479b32c790a6da5982f425dbce`, pubblicato su origin/main e
+  https://sc-r-occhia-tu.vercel.app; SW v50. Verificati dall’agente 45 file
+  runtime identici, landing/gate mobile e SW installato, nessuna richiesta Supabase.
+- Cutover e policy RLS/realtime.messages confermati dall’utente; Realtime ON,
+  public access OFF; publication movies/movie_nights/swipe_sessions/swipes/vetoes.
+  votes conservata senza accesso applicativo né publication. Non ripetere cutover.
+- Test hosted dichiarati dall’utente distinti da fixture locali; non attribuire
+  a questo collaudo casi negativi/offline/refresh specifici non riportati.
+- Limiti: due membri, verifica online all’ingresso, mirror solo nel runtime
+  autorizzato con JWT valido; sessionStorage/autofill dipendono dal browser,
+  logout locale lascia indipendente l’altro client. CSV non sono backup completo.
+- Le sezioni sotto sono cronologia. Il presente ciclo modifica solo documenti;
+  non autorizza ulteriori modifiche funzionali, DB o impostazioni live.
+
+## Storico: candidato Auth completo — 8 ottobre 2026
 
 - Email reali N/V configurate su autorizzazione dell’utente; nessun PIN/password,
   UUID reale o secret aggiunto. Checkpoint Git locale pre-cutover autorizzato.
@@ -383,7 +401,7 @@ Per le priorità precise leggere il master context aggiornato.
   vincoli precedenti, superati dall’autorizzazione corrente. Resta vietato
   eseguire cutover, modificare Realtime live o pubblicare senza autorizzazione.
 
-## Aggiornamento locale publication — 8 ottobre 2026
+## Storico: aggiornamento locale publication — 8 ottobre 2026
 
 - Cutover salva membership votes in app_security_backup.auth_publication,
   poi la rimuove solo dalla publication, preservando tabella e dati.
@@ -392,7 +410,7 @@ Per le priorità precise leggere il master context aggiornato.
 - RLS locale 40/40, Auth 42/42, PWA 15/15, sintassi e diff check PASS.
   Nessun intervento live, commit/push/deploy o modifica frontend/Match.
 
-## Checkpoint Auth pre-cutover — 7 ottobre 2026
+## Storico: checkpoint Auth pre-cutover — 7 ottobre 2026
 
 - PREPARE completato manualmente dall'utente: due account Auth confermati e
   due mapping N/V verificati via SQL. Non ripetere PREPARE/creazione account.

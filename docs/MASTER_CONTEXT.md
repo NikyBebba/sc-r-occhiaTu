@@ -1,8 +1,50 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.47
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.48
 
 Ultimo aggiornamento: 8 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
 
-## Candidato Auth completo — 8 ottobre 2026 (checkpoint locale pre-cutover)
+## Auth/RLS conclusa — production-verified, 8 ottobre 2026
+
+Migrazione conclusa: l’utente conferma il collaudo reale post-deploy su entrambi
+i dispositivi per login N/V, dati, persistenza sessione, Realtime, Match Live e
+logout. Queste sono verifiche dell’utente, distinte dai test automatici locali.
+
+Candidato funzionale distribuito: `2bd43a6458733d479b32c790a6da5982f425dbce` su origin/main e
+[Vercel Production](https://sc-r-occhia-tu.vercel.app), service worker **v50**.
+Il deploy è risultato success; l’agente ha verificato 45 file runtime identici
+al candidato e landing/gate N/V a 320/390/768 px in Chromium, zero errori JS
+o overflow, SW v50 installato, senza inviare PIN né richieste Supabase.
+
+Cutover e configurazione Supabase confermati dall’utente: nuove RLS N/V e
+policy realtime.messages presenti; Realtime ON, Allow public access OFF;
+publication supabase_realtime con esattamente movies, movie_nights,
+swipe_sessions, swipes, vetoes. votes assente dalla publication ma tabella e
+dati conservati, senza accesso applicativo. Account/mapping e autori storici
+N/V conservati; nessun cambiamento ad algoritmi o UX Match.
+
+Auth/sessione e RLS sono attive in produzione. Non rieseguire PREPARE o
+CUTOVER e non ripristinare policy pubbliche per routine. I checkpoint sotto
+sono storici: email mancanti, attivazione e collaudo pendenti non descrivono
+lo stato corrente. Questo aggiornamento modifica soltanto documentazione.
+
+Limiti residui: applicazione per due membri preconfigurati, senza signup o
+spazi multipli; ingresso/ripristino richiede verifica online; mirror offline
+ammesso solo nel runtime già autorizzato e con JWT valido. sessionStorage e
+password manager seguono il comportamento del browser; logout locale non
+revoca istantaneamente JWT già emessi. Le policy Presence proteggono il topic,
+non attestano il payload dei membri; i dati Match restano protetti da RLS.
+CSV manuali non sono backup completo di schema/Auth/storage. Dinieghi anon/terzo
+account, casi offline/Auth failure e refresh JWT restano coperti dai test locali;
+non attribuire al collaudo reale casi specifici non riportati dall’utente.
+Nessuno di questi limiti lascia aperta la fase di migrazione.
+
+Baseline candidata: smoke 400/400, Auth 43/43, RLS PostgreSQL locale 40/40,
+PWA 15/15, Chromium Auth 18/18, 345 API e 144 scenari DOM invariati.
+Check finali del ciclo documentale: Auth 43/43, RLS locale 40/40, PWA 15/15,
+sintassi 51/51, link locali 31/31 e diff check PASS. Smoke/DOM/Chromium
+rimangono la baseline funzionale già verificata; nessuna modifica runtime.
+[Stato verificato, limiti e rollback d’emergenza](AUTH_SUPABASE.md).
+
+## Storico: candidato Auth completo — 8 ottobre 2026 (pre-cutover)
 
 AUTH_EMAILS configurato con le due email reali N/V fornite dall’utente;
 nessun PIN/password, UUID reale o secret introdotto. Verifica runtime aggiunta:
@@ -23,7 +65,7 @@ eseguiti. Restano necessari attivazione e collaudo reale N/V su due dispositivi
 secondo [checklist](AUTH_SUPABASE.md). Gli impedimenti email e il divieto di
 commit dei checkpoint precedenti sono storici e superati dalla richiesta corrente.
 
-## Checkpoint publication votes — 8 ottobre 2026 (solo locale)
+## Storico: checkpoint publication votes — 8 ottobre 2026 (solo locale)
 
 L'utente conferma pre-cutover: account/mapping corretti, signup pubblico e
 anonymous disabilitati, Realtime ON e Allow public access ancora ON; publication
@@ -44,7 +86,7 @@ email runtime ancora da completare come indicato sotto.
 README riscritto come presentazione generale — L'utente chiede di spiegare il progetto per **due utenti**, senza usare N/V come identità nella descrizione pubblica. README ora separa scopo, percorso di utilizzo, funzioni, architettura, avvio, stato e possibili evoluzioni; niente dettagli delle rifiniture o diario della sessione. Resta esplicito il limite attuale: uno spazio con due profili preconfigurati, senza registrazione/gruppi indipendenti. L'apertura a più spazi è una possibilità da progettare, non implementata. Nessuna modifica ai profili runtime, al modello dati o alla UI.
 
 
-## Checkpoint Auth pre-cutover — 7 ottobre 2026 (locale)
+## Storico: checkpoint Auth pre-cutover — 7 ottobre 2026 (locale)
 
 Cache PWA **v50**. L'utente conferma PREPARE applicato manualmente sul
 Supabase live: migration prepare riuscita, due account confermati, esattamente

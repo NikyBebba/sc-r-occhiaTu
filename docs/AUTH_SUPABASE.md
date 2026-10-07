@@ -1,25 +1,32 @@
-# Supabase Auth e RLS — implementazione locale, attivazione pendente
+# Supabase Auth e RLS — production-verified
 
-Checkpoint candidato pre-cutover: 8 ottobre 2026, cache PWA **v50**. L'utente conferma
-PREPARE applicato sul progetto live, due account Auth confermati e due mapping
-UUID → N/V verificati via SQL. Non sono verifiche remote eseguite dall'agente.
-Il candidato costituisce un checkpoint Git locale autorizzato; nessuna
-operazione Supabase live, push o deploy. CUTOVER e impostazioni Realtime
-restano pendenti.
+Migrazione conclusa l’8 ottobre 2026. Commit funzionale distribuito:
+`2bd43a6458733d479b32c790a6da5982f425dbce`, [Vercel Production](https://sc-r-occhia-tu.vercel.app),
+cache PWA **v50**. I successivi commit di sola documentazione non cambiano
+la versione funzionale dell’app.
 
-AUTH_EMAILS contiene le due email reali fornite dall’utente e autorizzate come
-identificativi pubblici frontend. Configurazione e login N/V verificati localmente;
-nessun PIN/password, UUID reale o secret aggiunto. Candidato locale completo,
-pronto per il cutover coordinato; attivazione hosted e deploy ancora pendenti.
-Il backup CLI è stato abbandonato e ripulito; CSV applicativi conservati
-manualmente dall'utente. Non costituiscono un dump di schema, Auth o policy.
+L’utente ha eseguito e confermato PREPARE, account/mapping, CUTOVER e nuove
+policy RLS N/V/realtime.messages. Realtime ON, Allow public access OFF;
+publication con movies, movie_nights, swipe_sessions, swipes, vetoes.
+votes rimossa dalla publication, tabella e dati conservati, accesso applicativo
+negato. Signup pubblico e anonymous disabilitati.
 
-Verifiche: smoke 400/400, Auth 43/43, RLS PostgreSQL locale 40/40, PWA 15/15,
-Chromium Auth 18/18 e 144 scenari DOM invariati (345 API). Proiezioni, cinema,
-Ricordi e recensioni Chromium mobile green. SDK/DB simulati: nessun login,
-query o subscription contro Supabase live per queste verifiche.
-Corrette due regressioni Auth: errore getSession obsoleto non invalida una
-sessione successiva; AuthSessionMissingError senza status non è un guasto rete.
+Collaudo reale dell’utente su entrambi i dispositivi: login N/V, dati,
+persistenza sessione, Realtime, Match Live e logout PASS. L’agente ha verificato
+push/deployment dello SHA candidato, HTTP 200, 45 file runtime identici,
+landing/gate a 320/390/768 px senza errori JS/overflow e SW v50 installato.
+Le verifiche browser dell’agente non hanno inviato PIN o richieste Supabase.
+
+Baseline automatica del candidato: smoke 400/400, Auth 43/43, RLS PostgreSQL
+locale 40/40, PWA 15/15, Chromium Auth 18/18 e 144 scenari DOM invariati
+(345 API). SDK/Auth e schema hosted sono simulati nei test locali: i casi
+negativi anon/terzo account, offline/Auth failure e refresh JWT non sono
+nuovi test hosted né casi specifici attestati dal collaudo dell’utente.
+
+AUTH_EMAILS contiene soltanto gli identificativi pubblici forniti dall’utente;
+nessun PIN/password, UUID reale o secret aggiunto. Autori N/V, UX e algoritmi
+Match conservati. Il backup CLI è stato abbandonato/ripulito; CSV applicativi
+manuali conservati fuori da Git, non equivalenti a backup schema/Auth/storage.
 
 ## Dipendenze e scelte
 
@@ -105,7 +112,12 @@ Il vecchio toggle locale resta isolato e richiede identità verificata.
 L'audit diagnostico CLI può incontrare un diniego su votes e lo riporta come
 conteggio non disponibile; nessuna nuova autorizzazione per leggerlo.
 
-## Checklist sequenziale di cutover — nessuna azione live eseguita adesso
+## Procedura storica di cutover — completata, non rieseguire
+
+La sequenza sotto documenta la procedura utilizzata. Il cutover del progetto
+corrente e il collaudo dei flussi dichiarati sopra sono conclusi; non è una
+lista di attività ancora pendenti. Non rieseguire migration già applicate.
+Per le verifiche non dichiarate come reali, distinguere la copertura locale.
 
 1. **Candidato locale completato**: AUTH_EMAILS configurato con le email reali
    fornite dall’utente; suite e configurazione verificate. Usare il checkpoint
@@ -189,10 +201,10 @@ richiede private:true e Allow public access disabilitato per imporre canali priv
 
 ## Rollback
 
-Prima del cutover i dati applicativi e il frontend live sono intatti; PREPARE
-ha già aggiunto mapping/helper e account secondo la conferma dell’utente: annullare la fase
-locale non richiede modificare i dati storici. Dopo cutover preferire il
-rollback a una revisione frontend compatibile con Auth, mantenendo RLS.
+Il cutover è completato: preferire, se necessario, una revisione frontend
+compatibile con Auth mantenendo RLS. Non rieseguire PREPARE/CUTOVER e non
+riaprire l’accesso pubblico per manutenzione ordinaria. Nessun rollback è
+stato eseguito; qualsiasi intervento richiede autorizzazione esplicita.
 
 L'emergenza verso il vecchio frontend richiede una scelta esplicita:
 `supabase-rollback-auth.sql` ripristina policy e grants salvati e lo stato
@@ -206,6 +218,19 @@ il cutover sovrascrivendo il backup: preparare una nuova migration revisionata.
 Cutover e rollback sono transazionali: un errore annulla anche la modifica
 della publication. Si fermano se supabase_realtime è assente o FOR ALL TABLES,
 senza inventare una nuova configurazione di replica.
+
+## Limiti residui
+
+- Due membri preconfigurati, nessuna registrazione o separazione multi-spazio.
+- Avvio/ripristino richiede rete; mirror offline solo dopo verifica nel runtime
+  corrente e con JWT non scaduto.
+- Sessione temporanea, ripristino schede e password manager dipendono dal browser.
+- Logout locale non revoca immediatamente access token già emessi e non chiude
+  l’altro dispositivo; Presence autorizza il topic, non certifica il payload.
+- CSV manuali e snapshot policy/grants/publication non sostituiscono un backup
+  completo di schema, Auth e storage.
+
+Sono limiti del modello attuale, non blocchi alla migrazione conclusa.
 
 ## Verifiche ripetibili
 

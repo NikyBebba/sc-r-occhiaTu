@@ -43,12 +43,11 @@ La programmazione ha un'unica fonte: gli eventi `movie_nights`. Il client non le
 
 L'app gestisce **uno spazio con due profili preconfigurati**, senza registrazione o gruppi indipendenti. Il nuovo ingresso mantiene persona → PIN e usa Supabase Auth con mapping protetto e RLS, con l'opzione «Ricordami su questo dispositivo». PIN e password non sono nel frontend.
 
-**Cutover Supabase pendente:** l’utente ha completato PREPARE, account confermati e mapping. Le email runtime reali sono configurate e verificate localmente; policy applicative e Realtime non sono ancora passati al nuovo modello. La messa in sicurezza non è dichiarata attiva. Prima di avviare il nuovo login seguire la [procedura Auth, Dashboard e rollback](docs/AUTH_SUPABASE.md). Nessun push/deploy di questa fase.
+**Auth/RLS verificata in produzione:** cutover completato, accesso DB riservato ai due membri e canali Realtime privati. Il collaudo reale sui due dispositivi ha confermato login, dati, persistenza sessione, Realtime, Match Live e logout. Versione funzionale `2bd43a6`, service worker `v50`, disponibile su [Vercel](https://sc-r-occhia-tu.vercel.app). [Stato tecnico e rollback d’emergenza](docs/AUTH_SUPABASE.md).
 
-La migration locale rimuove anche `votes` dalla publication Realtime senza
-cancellare tabella o dati; il rollback ripristina la membership originaria.
-Aggiornamento dell'8 ottobre verificato su PostgreSQL locale: **40/40 RLS**,
-oltre a **43/43 Auth** e **15/15 PWA**; nessuna modifica Supabase live.
+`votes` è esclusa dalla publication Realtime e dall’accesso applicativo;
+la tabella e i suoi dati restano conservati. Il rollback ripristina la
+membership originaria solo nell’eventuale procedura d’emergenza autorizzata.
 
 ## Avvio locale
 
@@ -81,9 +80,11 @@ node scripts/verify-auth-rls.js --pglite=/percorso/node_modules/@electric-sql/pg
 node scripts/verify-auth-browser.cjs --playwright=/percorso/node_modules/playwright
 ```
 
-Candidato locale pre-cutover dell’8 ottobre 2026: **400/400 smoke**, **15/15 service worker**, **43/43 Auth**, **40/40 RLS PostgreSQL** e **18/18 Chromium Auth** superati; cache PWA `v50`. Le API del dominio sono mantenute e 144 scenari DOM coincidono con la baseline dopo accesso verificato. Proiezioni, cinema, voti e Ricordi verificati in Chromium mobile/tablet senza errori JS o overflow.
+Baseline della versione funzionale distribuita l’8 ottobre 2026: **400/400 smoke**, **15/15 service worker**, **43/43 Auth**, **40/40 RLS PostgreSQL** e **18/18 Chromium Auth** superati; cache PWA `v50`. Le API del dominio sono mantenute e 144 scenari DOM coincidono con la baseline dopo accesso verificato. Proiezioni, cinema, voti e Ricordi verificati in Chromium mobile/tablet senza errori JS o overflow.
 
-I test Auth usano SDK simulato; le migration sono eseguite su PostgreSQL locale, non sul Supabase hosted. Restano da verificare account/RLS, trasporto Realtime e Match sui due telefoni dopo un futuro cutover autorizzato. I test reali della transizione movie_nights v47 erano già stati confermati dall'utente; cleanup v48 e candidato Auth v50 restano locali. PREPARE è stato applicato manualmente dall’utente; l’agente non ha effettuato accessi Supabase live in questa verifica. Il tentativo di backup CLI è stato abbandonato/ripulito; i CSV manuali restano conservati e fuori da Git.
+I test automatici Auth usano SDK simulato; le migration sono verificate su PostgreSQL locale. Il cutover Supabase e il collaudo N/V in produzione sono stati completati e confermati dall’utente. L’agente ha verificato il deployment, 45 file runtime identici al candidato e landing/PWA pubblicate. La migrazione Auth/RLS è conclusa.
+
+L’ingresso richiede verifica online: il mirror offline è disponibile solo dopo autorizzazione nella stessa esecuzione e con JWT valido. La sessione temporanea e l’autofill dipendono dal browser; il logout locale lascia indipendente l’altro dispositivo. Rimane un’app per due membri preconfigurati. I CSV manuali sono conservati fuori da Git e non costituiscono un backup completo Supabase.
 
 L'audit dati usa `--file=fixture.json` oppure `--live` con JWT temporaneo membro in `SUPABASE_ACCESS_TOKEN`; anche import/backfill richiedono il JWT. Nessun fallback anonimo e nessuna service-role nel frontend. L'accesso a votes è disabilitato; il suo conteggio live può risultare non disponibile. Non eseguire manutenzione live come parte dei test locali.
 
