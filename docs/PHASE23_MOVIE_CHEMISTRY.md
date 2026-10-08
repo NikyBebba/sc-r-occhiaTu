@@ -1,5 +1,12 @@
 # Phase 23 — Ricordi / Titoli di coda
 
+Aggiornamento UX locale v51, 8 ottobre 2026: storico Anno → Mese collassabile
+con stato in memoria; Dopo il film alfabetico, dieci elementi iniziali e
+Mostra altre, testi espandibili. Header Ricordi sticky. Nessuna nuova data o
+formula. [Specifica e verifiche correnti](UX_NAVIGATION_MEMORIES.md).
+Le descrizioni precedenti sotto documentano la baseline della fase originale.
+
+
 Stato: revisione implementata e verificata localmente, 5 ottobre 2026.
 Prova su due telefoni dopo deploy ancora da fare.
 

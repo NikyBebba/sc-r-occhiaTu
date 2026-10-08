@@ -105,5 +105,44 @@ function updateTabIndicator() {
 let tabIndicatorResizeTimer = null;
 window.addEventListener('resize', () => {
   if (tabIndicatorResizeTimer) clearTimeout(tabIndicatorResizeTimer);
-  tabIndicatorResizeTimer = setTimeout(updateTabIndicator, 150);
+  tabIndicatorResizeTimer = setTimeout(() => { updateTabIndicator(); syncDestinationNavigation(); }, 150);
 });
+
+// Una sola barra responsive; i flussi Match restano negli handler esistenti.
+function activeDestination() {
+  if (!document.getElementById('statsModal').classList.contains('hidden')) return 'memories';
+  if (currentTab === 'match') return 'match';
+  if (dashboardView === 'home') return 'home';
+  if (dashboardView === 'wheel') return 'wheel';
+  return currentTab === 'calendar' ? null : 'library';
+}
+
+function syncDestinationNavigation() {
+  const height = document.querySelector('.site-nav')?.getBoundingClientRect?.().height;
+  if (height) document.documentElement.style?.setProperty('--navigation-header-height', height + 'px');
+  const active = activeDestination();
+  document.querySelectorAll('[data-destination]').forEach(button => {
+    const selected = button.dataset.destination === active;
+    button.classList.toggle('is-active', selected);
+    if (selected) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+    button.disabled = button.dataset.destination === 'match' && dbMode !== 'supabase';
+  });
+}
+
+function activateDestination(destination) {
+  if (destination === 'match' && dbMode !== 'supabase') return;
+  if (destination === activeDestination()) {
+    const scroll = destination === 'memories' ? document.getElementById('memoriesScroll') : window;
+    scroll.scrollTo?.({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  if (destination === 'memories') { openModal('statsModal'); renderStats(); }
+  else if (destination === 'home') openDashboardHome();
+  else if (destination === 'wheel') openWheelView();
+  else if (destination === 'match') setTab('match');
+  else if (destination === 'library') setTab(LIBRARY_TABS.includes(currentTab) ? currentTab : 'watchlist');
+  else return;
+  if (destination !== 'memories') window.scrollTo?.({ top: 0, behavior: 'smooth' });
+  syncDestinationNavigation();
+}

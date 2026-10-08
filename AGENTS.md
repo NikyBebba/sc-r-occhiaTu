@@ -1,6 +1,6 @@
 # AGENTS.md — sc(r)occhiaTu
 
-Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 8 ottobre 2026 (Auth/RLS production-verified).
+Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 8 ottobre 2026 (Auth/RLS production-verified; UX v51 candidata locale).
 Prima di progettare una fase leggere [docs/MASTER_CONTEXT.md](docs/MASTER_CONTEXT.md):
 è la fonte dello stato corrente, delle decisioni UX e della roadmap. Le sezioni
 storiche del master context descrivono cicli precedenti, non lo stato finale.
@@ -318,7 +318,7 @@ Per le priorità precise leggere il master context aggiornato.
 ## Vincoli tecnici
 
 - Dipendenze ancora via CDN (Tailwind Play, Font Awesome, supabase-js).
-- PWA presente: manifest e service worker, cache corrente `v50`; domini API,
+- PWA presente: manifest e service worker, cache candidata `v51` (production `v50`); domini API,
   Supabase, poster e YouTube sempre esclusi dall'intercettazione. Le icone PWA
   sono provvisorie; non confondere l'app-shell offline con dati remoti disponibili.
 - HTML delle card generato come stringhe: usare `escapeHtml`/`jsAttrEscape`
@@ -369,6 +369,17 @@ Per le priorità precise leggere il master context aggiornato.
   su `movie_nights`, vote/veto/sorpresa/recensione, metadati TMDb live
   incluse collection+aliasing titoli IT, ui add/retry, anti-XSS).
 - `node --check` OK su tutti i moduli `js/**/*.js` + `scripts/`.
+
+## UX v51 candidata locale — 8 ottobre 2026
+
+- Navigazione responsive persistente, handler Match/Presence esistenti;
+  Calendario da Home. Ricordi Anno/Mese, header sticky e stato in memoria.
+- Dopo il film: alfabetico, 10 elementi + Mostra altre, singoli testi details.
+  Stato preservato nel rerender e resettato alla landing/logout, nessuno storage.
+- Smoke 400/400, Auth 43/43, RLS 40/40, PWA 15/15, Chromium Auth 18/18,
+  UX 20/20, sintassi 52/52; mobile/desktop e regressioni N/V green.
+- [Specifiche UX](docs/UX_NAVIGATION_MEMORIES.md). Modifiche locali, nessun
+  push/deploy o Supabase live. Non dichiarare v51 production-verified.
 
 ## Auth/RLS production-verified — 8 ottobre 2026
 

@@ -10,6 +10,9 @@ async function checkLoginState() {
 }
 
 function showLanding() {
+  if (typeof resetMemoriesState === 'function') resetMemoriesState();
+  modalStack = [];
+  document.getElementById('appRoot').inert = false;
   document.getElementById('landingScreen').classList.remove('hidden');
   document.getElementById('pinGate').classList.add('hidden');
   document.getElementById('appRoot').classList.add('hidden');

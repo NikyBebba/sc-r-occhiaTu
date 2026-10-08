@@ -35,6 +35,7 @@ function renderSyncStatus() {
     if (el) el.classList.add('hidden');
     if (notice) notice.classList.add('hidden');
   }
+  syncDestinationNavigation();
 }
 
 async function retrySyncUI() {

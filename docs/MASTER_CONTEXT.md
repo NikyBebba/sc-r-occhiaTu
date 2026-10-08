@@ -1,6 +1,30 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.48
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.49
 
 Ultimo aggiornamento: 8 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
+
+## UX Navigation & Memories — implementata localmente, 8 ottobre 2026
+
+Candidato PWA **v51**, senza commit/push/deploy di questa fase. Produzione
+Auth/RLS v50 ancora verificata; nessuna modifica Supabase o agli algoritmi Match.
+Navigazione Home/Match/Ruota/Lista/Ricordi persistente in basso mobile e sotto
+header sticky desktop (768 px); Tema/Aggiungi/identità/logout nell'header,
+Calendario da Home. Reselezione scorre in alto senza ripetere ingresso/Presence.
+Modali rendono inerte l'app sottostante; focus Ricordi confinato e restituito.
+
+Ricordi: header sticky, Serate concluse collassabile, Anno → Mese con conteggi;
+anno/mese più recenti aperti inizialmente, Data non registrata separata e chiusa.
+Dopo il film chiuso, ordinamento alfabetico invariato, 10 elementi iniziali con
+Mostra altre (+10), testo singolo espandibile. Nessun gruppo A–F o timestamp.
+Stato in memoria preservato anche tra rerender Realtime, azzerato alla landing
+/logout. Date, rewatch, sorpresa, voti e formule invariati.
+
+Verifiche: smoke 400/400, Auth 43/43, RLS locale 40/40, PWA 15/15,
+Chromium Auth 18/18, UX 20/20; nav/liste/modali 320/390/768/1280 px,
+programmazione/Cinema/Ricordi 320/390/768 e recensioni N/V 320/390.
+Zero errori JS/overflow, screenshot ispezionati, sintassi 52/52 e diff check.
+SDK/DB dei test simulati; niente login/query Supabase live. Prove native sui
+due telefoni e PWA v51 restano da fare dopo pubblicazione autorizzata.
+[Comportamenti, componenti e limiti](UX_NAVIGATION_MEMORIES.md).
 
 ## Auth/RLS conclusa — production-verified, 8 ottobre 2026
 

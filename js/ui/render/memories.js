@@ -1,3 +1,28 @@
+// Stato esclusivamente in memoria, indipendente dai dati e dalle preferenze.
+let memoriesState = { sections: new Map(), initialized: false, fresh: true, reviewLimit: 10 };
+function resetMemoriesState() {
+  memoriesState = { sections: new Map(), initialized: false, fresh: true, reviewLimit: 10 };
+}
+function memoryIsOpen(key, fallback = false) {
+  return memoriesState.sections.has(key) ? memoriesState.sections.get(key) : fallback;
+}
+function rememberMemorySection(key, open, element) {
+  if (element?.isConnected === false || !isAppAuthorized()) return;
+  memoriesState.sections.set(key, open);
+  element?.querySelector('summary')?.setAttribute('aria-expanded', String(open));
+}
+function memoryDetails(key, label, count, body) {
+  const open = memoryIsOpen(key);
+  return `<details data-memory-key="${escapeHtml(key)}" class="memory-section" ${open ? 'open' : ''} ontoggle="rememberMemorySection('${jsAttrEscape(key)}', this.open, this)">
+    <summary id="memorySummary-${escapeHtml(encodeURIComponent(key))}" class="memory-summary" aria-expanded="${open}"><span>${escapeHtml(label)}</span><span class="text-xs text-slate-400">${count} ${count === 1 ? 'serata' : 'serate'}</span></summary>${body}</details>`;
+}
+function showMoreReviews() {
+  const firstNew = memoriesState.reviewLimit;
+  memoriesState.reviewLimit += 10;
+  renderStats();
+  document.querySelectorAll('#reviewTimeline .review-item')[firstNew]?.focus({ preventScroll: true });
+}
+
 // Titoli di coda: date storiche, riepiloghi e recensioni condivise.
 // Dipende da store/nights, store/viewing e dai frammenti delle card.
 
@@ -63,13 +88,22 @@ function renderNightHistory() {
     container.innerHTML = '<p class="text-sm text-slate-400">Le serate concluse compariranno qui.</p>';
     return;
   }
+  if (!memoriesState.initialized) {
+    const latest = entries.find(entry => entry.timelineDate)?.timelineDate.key.slice(0, 7);
+    if (latest) {
+      memoriesState.sections.set('year:' + latest.slice(0, 4), true);
+      memoriesState.sections.set('month:' + latest, true);
+      memoriesState.initialized = true;
+    }
+  }
   const groups = new Map();
   entries.forEach(entry => {
     const monthKey = entry.timelineDate ? entry.timelineDate.key.slice(0, 7) : '';
     if (!groups.has(monthKey)) groups.set(monthKey, []);
     groups.get(monthKey).push(entry);
   });
-  container.innerHTML = [...groups].map(([monthKey, group]) => {
+  const years = new Map();
+  const months = [...groups].map(([monthKey, group]) => {
     const monthLabel = monthKey
       ? new Date(Number(monthKey.slice(0, 4)), Number(monthKey.slice(5, 7)) - 1, 1)
         .toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
@@ -92,18 +126,40 @@ function renderNightHistory() {
       </div>
     </article>`;
     }).join('');
-    return `<section aria-label="${escapeHtml(monthLabel)}">
-      <div class="flex items-center justify-between gap-2 mb-3">
-        <h5 class="text-sm font-bold text-slate-200 capitalize">${escapeHtml(monthLabel)}</h5>
-        <span class="text-xs text-slate-400">${group.length} ${group.length === 1 ? 'serata' : 'serate'}</span>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${cards}</div>
-    </section>`;
-  }).join('');
+    const html = memoryDetails('month:' + monthKey, monthLabel, group.length,
+      `<div class="memory-body grid grid-cols-1 sm:grid-cols-2 gap-3">${cards}</div>`);
+    if (monthKey) {
+      const year = monthKey.slice(0, 4);
+      if (!years.has(year)) years.set(year, { count: 0, months: [] });
+      years.get(year).count += group.length;
+      years.get(year).months.push(html);
+      return '';
+    }
+    return html;
+  });
+  container.innerHTML = [...years].map(([year, group]) => memoryDetails('year:' + year,
+    year, group.count, `<div class="memory-body space-y-3">${group.months.join('')}</div>`)).join('')
+    + months.join('');
 }
 
 // ---- Il Nostro Cinema — statistiche + recensioni senza data ----
 function renderStats() {
+  // toggle è asincrono: acquisire anche lo stato DOM prima di sostituire i nodi.
+  if (!memoriesState.fresh) document.querySelectorAll('#statsModal [data-memory-key]').forEach(element => {
+    memoriesState.sections.set(element.dataset.memoryKey, element.open);
+  });
+  memoriesState.fresh = false;
+  const focusId = document.activeElement?.closest?.('#statsModal') ? document.activeElement.id : null;
+  const historySection = document.getElementById('nightHistorySection');
+  const reviewsSection = document.getElementById('reviewSection');
+  if (historySection) {
+    historySection.open = memoryIsOpen('history', true);
+    historySection.querySelector?.('summary')?.setAttribute('aria-expanded', String(historySection.open));
+  }
+  if (reviewsSection) {
+    reviewsSection.open = memoryIsOpen('reviews');
+    reviewsSection.querySelector?.('summary')?.setAttribute('aria-expanded', String(reviewsSection.open));
+  }
   renderNightHistory();
   const watched = movies.filter(m => viewingState(m).together);
   const allRatings = watched.map(togetherRating).filter(value => value !== null);
@@ -158,16 +214,27 @@ function renderStats() {
     .map(m => ({ movie: m, text: reviewTextFor(m, 'both'), score: togetherRating(m) }))
     .filter(entry => entry.text || entry.score !== null)
     .sort((a, b) => String(a.movie.title || '').localeCompare(String(b.movie.title || ''), 'it'));
+  const count = document.getElementById('reviewCount');
+  if (count) count.textContent = `${reviewed.length} film`;
   const timeline = document.getElementById('reviewTimeline');
   if (reviewed.length === 0) {
     timeline.innerHTML = `<p class="text-xs text-slate-400 italic">Ancora nessun voto o recensione.</p>`;
   } else {
-    timeline.innerHTML = reviewed.map(({ movie: m, text: review, score }) => `
-      <div class="timeline-item">
-        <div class="text-sm font-bold text-slate-100">${escapeHtml(m.title)}</div>
-        ${score !== null ? `<div class="text-xs text-amber-300">★ ${formatMovieRating(score)}/10</div>` : ''}
-        ${review ? `<div class="text-xs text-slate-300 italic mt-1">“${escapeHtml(review)}”</div>` : ''}
-      </div>
-    `).join('');
+    timeline.innerHTML = reviewed.slice(0, memoriesState.reviewLimit).map(({ movie: m, text: review, score }) => {
+      const key = 'review:' + m.id;
+      const open = memoryIsOpen(key);
+      const id = 'reviewItem-' + encodeURIComponent(m.id);
+      const heading = `<span class="text-sm font-bold text-slate-100">${escapeHtml(m.title)}</span>
+        ${score !== null ? `<span class="text-xs text-amber-300">★ ${formatMovieRating(score)}/10</span>` : ''}`;
+      return review ? `<details data-memory-key="${escapeHtml(key)}" id="${escapeHtml(id)}" tabindex="-1" class="timeline-item review-item" ${open ? 'open' : ''} ontoggle="rememberMemorySection('${jsAttrEscape(key)}', this.open, this)">
+        <summary id="${escapeHtml(id)}-toggle" class="memory-summary" aria-expanded="${open}">${heading}</summary>
+        <div class="review-copy text-sm text-slate-300 italic mt-1">“${escapeHtml(review)}”</div>
+      </details>` : `<div id="${escapeHtml(id)}" tabindex="-1" class="timeline-item review-item">${heading}</div>`;
+    }).join('') + (reviewed.length > memoriesState.reviewLimit
+      ? `<button id="reviewsMore" type="button" class="memory-more" onclick="showMoreReviews()">Mostra altre (${reviewed.length - memoriesState.reviewLimit})</button>` : '');
+  }
+  if (focusId) {
+    const target = document.getElementById(focusId) || document.getElementById('nightHistoryTitle');
+    target?.focus?.({ preventScroll: true });
   }
 }

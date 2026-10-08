@@ -49,6 +49,12 @@ L'app gestisce **uno spazio con due profili preconfigurati**, senza registrazion
 la tabella e i suoi dati restano conservati. Il rollback ripristina la
 membership originaria solo nell’eventuale procedura d’emergenza autorizzata.
 
+**Candidato UX locale v51, non ancora pubblicato:** navigazione persistente
+Home/Match/Ruota/Lista/Ricordi, archivio serate per anno/mese collassabile e
+recensioni in blocchi di dieci con testi espandibili. Stato temporaneo conservato
+nei rerender e azzerato al logout. Dati e logiche esistenti invariati.
+[Dettagli e verifiche](docs/UX_NAVIGATION_MEMORIES.md).
+
 ## Avvio locale
 
 Dalla radice del repository:

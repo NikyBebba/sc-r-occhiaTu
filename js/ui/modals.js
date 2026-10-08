@@ -5,10 +5,12 @@
 // Apertura/chiusura modali con stack per la chiusura LIFO (Esc su top).
 // openModal sullo stesso id NON duplica mai lo stack: un solo Esc lo chiude.
 let modalStack = [];
+let memoriesReturnFocus = null;
 
 function openModal(id) {
   const el = document.getElementById(id);
   if (!el) return;
+  if (id === 'statsModal' && el.classList.contains('hidden')) memoriesReturnFocus = document.activeElement;
   el.classList.remove('hidden');
   if (!modalStack.includes(id)) modalStack.push(id);
   wireBackdropClose(el, id);
@@ -20,6 +22,10 @@ function openModal(id) {
     if (!heading.id) heading.id = id + 'Title';
     el.setAttribute('aria-labelledby', heading.id);
   }
+  if (typeof syncDestinationNavigation === 'function') syncDestinationNavigation();
+  const app = document.getElementById('appRoot');
+  if (app) app.inert = true;
+  if (id === 'statsModal') el.querySelector('.memories-header button')?.focus();
 }
 
 function closeModal(id) {
@@ -32,6 +38,10 @@ function closeModalNow(id) {
   const el = document.getElementById(id);
   if (el) el.classList.add('hidden');
   modalStack = modalStack.filter(x => x !== id);
+  const app = document.getElementById('appRoot');
+  if (app) app.inert = modalStack.length > 0;
+  if (typeof syncDestinationNavigation === 'function') syncDestinationNavigation();
+  if (id === 'statsModal' && !modalStack.length && isAppAuthorized()) memoriesReturnFocus?.focus?.({ preventScroll: true });
   if (id === 'themeModal') {
     const trigger = document.getElementById('themePickerBtn');
     if (trigger && typeof trigger.focus === 'function') trigger.focus();
@@ -118,3 +128,14 @@ function showConfirmModal(title, message) {
     no.onclick = () => cleanup(false);
   });
 }
+
+// Focus tastiera confinato al modale Ricordi; Esc usa lo stack esistente.
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Tab' || modalStackTop() !== 'statsModal') return;
+  const items = [...document.getElementById('statsModal').querySelectorAll('button, summary, [tabindex="0"]')]
+    .filter(element => !element.disabled && element.getClientRects().length);
+  const first = items[0], last = items[items.length - 1];
+  if (!first) return;
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+});
