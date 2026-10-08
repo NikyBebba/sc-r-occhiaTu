@@ -118,6 +118,9 @@ function activeDestination() {
 }
 
 function syncDestinationNavigation() {
+  // Segue la pagina sottostante, non i modali: nessun cambio di spazio
+  // o scroll aprendo/chiudendo Ricordi dalla Home.
+  document.getElementById('appRoot')?.classList.toggle('is-dashboard-home', dashboardView === 'home' && currentTab !== 'match');
   const height = document.querySelector('.site-nav')?.getBoundingClientRect?.().height;
   if (height) document.documentElement.style?.setProperty('--navigation-header-height', height + 'px');
   const active = activeDestination();

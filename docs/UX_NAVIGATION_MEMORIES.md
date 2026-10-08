@@ -1,14 +1,19 @@
 # Navigazione persistente e Ricordi scalabili
 
-Checkpoint locale: 8 ottobre 2026, candidato PWA **v51**. Non pubblicato.
-La produzione resta sulla versione funzionale Auth/RLS v50 già collaudata.
+Checkpoint: 8 ottobre 2026. UX **v51** pubblicata; refinement locale candidato
+PWA **v52**, senza nuovo push/deploy.
 Nessuna modifica a DB, dati, formule, Auth/RLS, trasporto Realtime o algoritmi
 Match. Il reset in showLanding riguarda solo stato UI e modali.
 
 ## Navigazione
 
 Un solo nav responsive con Home, Match, Ruota, Lista, Ricordi: fisso in basso
-sotto 768 px, integrato visivamente sotto l'header sticky da 768 px.
+sotto 768 px nelle viste interne, integrato visivamente sotto l'header sticky
+da 768 px. Nella Home mobile barra e relativo spazio riservato sono rimossi;
+Ricordi è una destinazione esplicita tra i collegamenti della dashboard,
+con lo stesso activateDestination('memories') della barra. La visibilità segue
+la pagina sottostante al modale, senza variazioni di spazio/scroll durante
+apertura e chiusura; il focus ritorna all'accesso usato.
 Tema e Aggiungi restano nell'header insieme a identità/logout; Calendario
 resta nel collegamento Home. Calendario non viene etichettato come Lista attiva.
 Altezza dell'header misurata dopo aggiornamento badge e al resize per evitare
@@ -51,12 +56,16 @@ focus al trigger alla chiusura; Esc usa lo stack modali esistente.
 - js/ui/navigation.js e js/ui/render.js: destinazione attiva e handler esistenti.
 - js/ui/render/memories.js: stato temporaneo, gruppi e rendering limitato.
 - js/ui/modals.js e js/main.js: focus/inert e reset della presentazione.
-- service-worker.js: cache candidata v51; precache invariato.
+- service-worker.js: cache candidata v52; precache invariato.
 
 ## Verifiche locali
 
 - Smoke **400/400**, Auth **43/43**, RLS PostgreSQL locale **40/40**, PWA **15/15**.
 - Chromium Auth **18/18**, nuovo UX browser **20/20** con SDK/DB simulati.
+- Refinement Home: Chromium UX **24/24**, Auth **43/43**, PWA **15/15**,
+  smoke **400/400**;
+  Home → Ricordi → Home, ingressi Lista/Match/Ruota, visibilità e geometria,
+  ritorno focus da Home e viste interne a 320/390/768/1280 px.
 - Liste lunghe e nav a 320/390/768/1280 px; reselect, header sticky,
   accordion, 10→20 recensioni, rerender, focus/scroll, tastiera, offline Match,
   Calendar entry, Presence/canale persistente e logout.
@@ -68,6 +77,6 @@ node scripts/verify-ux-browser.cjs --playwright=/percorso/node_modules/playwrigh
 ```
 
 Nessun accesso Supabase live nei test. Restano da collaudare bottom nav,
-safe-area nativa, aggiornamento PWA v51 e interazione condivisa sui due
+safe-area nativa, aggiornamento PWA v52 e interazione condivisa sui due
 telefoni dopo un futuro push/deploy autorizzato. I gruppi serate collassati
 mantengono le card nel DOM; non è stata introdotta paginazione delle serate.

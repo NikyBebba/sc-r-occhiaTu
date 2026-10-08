@@ -1,6 +1,25 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.49
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.50
 
 Ultimo aggiornamento: 8 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
+
+## Rifinitura pulsanti — locale, 8 ottobre 2026
+
+UX v51 pubblicata con commit daf25890e592ed77577e6778c5a302ad72a1ea7b;
+deploy Production riuscito, file runtime e cache v51 verificati dall'agente.
+Rifinitura successiva locale: Torna alla home del Match usa dashboard-back
+come Ruota/Libreria; ingressi Match in Home e navigazione usano fa-heart.
+Il ritorno Home del Match è il primo elemento dell'header, allineato a sinistra.
+Titolo e sottotitolo centrati rispetto all'header; sui viewport piccoli
+occupano la riga sotto il ritorno Home per evitare sovrapposizioni.
+Handler e Presence invariati. Cache candidata v52; nessun nuovo push/deploy.
+Ulteriore refinement locale: sotto 768 px la bottom bar è nascosta nella
+Home, senza spazio vuoto riservato; nelle viste interne resta persistente.
+Desktop invariato. Ricordi ha un accesso esplicito nella dashboard, con lo
+stesso activateDestination('memories') della barra. Aprire/chiudere il modale
+non cambia geometria o scroll della pagina sottostante; focus restituito
+al pulsante d'origine. Chromium UX 24/24 a 320/390/768/1280 px, Auth 43/43,
+PWA 15/15, smoke 400/400; verificati accordion, Presence, secondo tap, chiusura e logout.
+Le sezioni sotto conservano i checkpoint storici della preparazione UX.
 
 ## UX Navigation & Memories — implementata localmente, 8 ottobre 2026
 
