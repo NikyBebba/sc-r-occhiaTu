@@ -72,7 +72,7 @@ function buildDeck(moviesList, opts) {
   const seen = new Set();
   for (const m of (moviesList || [])) {
     if (!m || m.id == null) continue;
-    if ((m.status && m.status !== 'watchlist') || m.cinema_watchlist) continue;
+    if (!choiceEligible(m, o.nights || movieNights)) continue;
     if (veto.has(m.id) || excl.has(m.id)) continue;
     if (seen.has(m.id)) continue;
     seen.add(m.id);
@@ -162,7 +162,7 @@ function resolveDeckMovie(moviesList, movieId) {
 function currentIndex(deck, swipes, moviesList) {
   const d = Array.isArray(deck) ? deck : [];
   for (let i = 0; i < d.length; i++) {
-    if (moviesList && !resolveDeckMovie(moviesList, d[i])) continue;
+    if (moviesList && !choiceEligible(resolveDeckMovie(moviesList, d[i]))) continue;
     if (!isCardResolved(swipes, d[i])) return i;
   }
   return d.length;
@@ -214,7 +214,7 @@ function pendingMatch(session, swipes, deck, moviesList) {
   const d = Array.isArray(deck) ? deck : [];
   for (let i = d.length - 1; i >= 0; i--) {
     const id = d[i];
-    if (moviesList && !resolveDeckMovie(moviesList, id)) continue;
+    if (moviesList && !choiceEligible(resolveDeckMovie(moviesList, id))) continue;
     if (hasMatchOnCard(swipes, id)) {
       return (session && session.matched_movie_id === id) ? null : id;
     }

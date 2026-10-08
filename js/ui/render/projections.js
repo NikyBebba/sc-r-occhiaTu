@@ -43,7 +43,6 @@ function renderNextMovieBox() {
   const safeTitle = jsAttrEscape(pick.title);
   const nightTarget = pick.nightId ? `, '${jsAttrEscape(pick.nightId)}'` : '';
   const pickMovie = movies.find(m => m.id === pick.id) || {};
-  const hasTogetherReview = !!reviewTextFor(pickMovie, 'both') || togetherRating(pickMovie) !== null;
 
   let actionsHtml = '';
   if (pending && pick.proposed_by === currentUser) {
@@ -54,7 +53,7 @@ function renderNextMovieBox() {
       <button onclick="confirmNightUI('${safeId}'${nightTarget})" class="next-movie-action next-movie-primary">Accetta proposta</button>
       <button onclick="cancelNightUI('${safeId}', '${safeTitle}'${nightTarget})" class="next-movie-action next-movie-secondary">Rifiuta</button>`;
   } else {
-    actionsHtml = `${tonight ? `<button onclick="${hasTogetherReview ? 'finishTogetherNightUI' : 'addReview'}('${safeId}')" class="next-movie-action next-movie-primary">${hasTogetherReview ? 'Segna come visto' : `Voto ${sharedPeopleLabel()}`}</button>` : ''}
+    actionsHtml = `${tonight ? `<button onclick="finishTogetherNightUI('${safeId}'${nightTarget})" class="next-movie-action next-movie-primary">Completa serata</button>` : ''}
       <button onclick="cancelNightUI('${safeId}', '${safeTitle}'${nightTarget})" class="next-movie-action next-movie-secondary">Annulla proiezione</button>`;
   }
 

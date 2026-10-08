@@ -27,18 +27,19 @@ function viewingStatusHtml(movie) {
   const label = seen.together ? 'Visto insieme da N e V'
     : seen.N && seen.V ? 'Visto separatamente da N e V'
     : seen.N ? 'Visto da N' : seen.V ? 'Visto da V' : 'Non ancora visto';
-  const person = key => `<span class="viewing-person viewing-person-${key.toLowerCase()}${seen[key] ? ' is-seen' : ''}${seen.together ? ' is-together' : ''}" aria-label="${key}: ${seen[key] ? (seen.together ? 'visto insieme' : 'visto') : 'non visto'}">${key}</span>`;
+  const person = key => `<span class="viewing-person viewing-person-${key.toLowerCase()}${seen[key] ? ' is-seen' : ''}" aria-label="${key}: ${seen[key] ? 'visto personalmente' : 'nessuna dichiarazione personale'}">${key}</span>`;
+  const gold = seen.together ? '<span class="viewing-score viewing-score-together" aria-label="Visto insieme">N+V · Visto insieme</span>' : '';
   const scores = ['N', 'V'].map(key => {
     const rating = personalRating(movie, key);
     return rating === null ? '' : `<span class="viewing-score viewing-score-${key.toLowerCase()}">${key} <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(rating)}/10</span>`;
   }).filter(Boolean);
   const shared = togetherRating(movie);
   if (shared !== null && seen.together) scores.push(`<span class="viewing-score viewing-score-together" aria-label="Voto insieme: ${formatMovieRating(shared)} su 10">${escapeHtml(sharedPeopleLabel())} <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(shared)}/10</span>`);
-  return `<div class="viewing-status" role="group" aria-label="${label}"><span class="viewing-label" aria-hidden="true">Visto da</span>${person('N')}${person('V')}</div>${scores.length ? `<div class="viewing-scores" aria-label="Voti del film">${scores.join('')}</div>` : ''}`;
+  return `<div class="viewing-status" role="group" aria-label="${label}"><span class="viewing-label" aria-hidden="true">Visto da</span>${person('N')}${person('V')}${gold}</div>${scores.length ? `<div class="viewing-scores" aria-label="Voti del film">${scores.join('')}</div>` : ''}`;
 }
 
 function personalVoteButtonHtml(movie) {
-  if ((currentUser !== 'N' && currentUser !== 'V') || !viewingState(movie)[currentUser]
+  if ((currentUser !== 'N' && currentUser !== 'V') || (!togetherSeen(movie) && !viewingState(movie)[currentUser] && personalRating(movie, currentUser) === null && !reviewTextFor(movie, currentUser))
       || (movie.surprise_by && movie.surprise_by !== currentUser)) return '';
   const name = CONFIG.PEOPLE[currentUser]?.label || currentUser;
   return `<button onclick="addPersonalReview('${jsAttrEscape(movie.id)}')" class="personal-vote-action personal-vote-${currentUser.toLowerCase()} w-full min-h-11 px-3 py-2 rounded-lg font-medium">Modifica voto ${escapeHtml(name)}</button>`;
@@ -127,16 +128,15 @@ function createMovieCard(m, vetoedIds) {
         </div>
         ${(m.status === 'watchlist' || projection.nightId || m.status === 'watched') ? `
         <div class="card-action-row flex flex-col gap-2 pt-2 border-t border-slate-800/80 text-xs">
-          ${m.status === 'watched' || isSurpriseHidden ? '' : !viewingState(m)[currentUser]
-            ? `<button onclick="markSeenUI('${m.id}')" class="w-full min-h-9 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium text-left"><i class="fa-solid fa-eye mr-1.5" aria-hidden="true"></i>L'ho già visto</button>`
-            : (canUndoSeen(m, currentUser) ? `<button onclick="undoSeenUI('${jsAttrEscape(m.id)}')" class="min-h-9 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium" aria-label="Annulla l'ho già visto">Annulla</button>` : '')}
-          ${m.status === 'watchlist' ? `
+          ${!isSurpriseHidden ? personalWatchButtonHtml(m) : ''}
+          ${!isSurpriseHidden ? rewatchActionsHtml(m) : ''}
+          ${!isSurpriseHidden && (!projection.nightId || isRewatch(m)) ? `
             <div class="flex gap-2">
               <button onclick="quickTonightUI('${m.id}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded font-medium">Oggi</button>
               <button onclick="scheduleMovie('${m.id}')" aria-label="Programma la serata" class="flex-1 px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded">Programma</button>
-              ${!isVetoed
+              ${normalListEligible(m) && !isVetoed
                 ? `<button onclick="vetoMovie('${m.id}', '${jsAttrEscape(m.title)}')" aria-label="Vieta questa settimana" class="px-2 py-1.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 rounded" title="Vieta questa settimana"><i class="fa-solid fa-ban"></i></button>`
-                : (vetoForMovieThisWeek(m.id) && vetoForMovieThisWeek(m.id).person === currentUser
+                : (normalListEligible(m) && vetoForMovieThisWeek(m.id) && vetoForMovieThisWeek(m.id).person === currentUser
                   ? `<button onclick="unvetoMovie('${m.id}')" aria-label="Togli il veto" class="px-2 py-1.5 bg-rose-900/50 hover:bg-rose-900/80 text-rose-300 rounded" title="Togli il veto"><i class="fa-solid fa-rotate-left"></i></button>`
                   : '')}
             </div>
@@ -144,13 +144,14 @@ function createMovieCard(m, vetoedIds) {
           ` : ''}
           ${projection.nightId ? `
             ${projectionInfoHtml(m)}
-            ${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? `<button onclick="finishTogetherNightUI('${jsAttrEscape(m.id)}')" class="flex-1 min-h-11 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">Segna come visto</button>` : sharedVoteButtonHtml(m)}
-            ${(reviewTextFor(m, 'both') || togetherRating(m) !== null) ? sharedVoteButtonHtml(m) : ''}
+            ${`<button onclick="finishTogetherNightUI('${jsAttrEscape(m.id)}', '${jsAttrEscape(projection.nightId)}')" class="flex-1 min-h-11 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">Completa serata</button>`}
+            ${sharedVoteButtonHtml(m)}
           ` : ''}
-          ${m.status === 'watched' && !isSurpriseHidden ? `
+          ${togetherSeen(m) && !projection.nightId && !isSurpriseHidden ? `
             ${sharedVoteButtonHtml(m)}
           ` : ''}
           ${personalVoteButtonHtml(m)}
+          ${personalRemovalButtonsHtml(m)}
         </div>
         ` : ''}
       </div>
@@ -165,4 +166,35 @@ function createMovieCard(m, vetoedIds) {
       openMovieDetail(m.id, card);
     });
     return card;
+}
+
+function knownMovieStatusHtml(movie) {
+  if (!movie) return '';
+  if (movie.surprise_by && movie.surprise_by !== currentUser) return '<div class="text-xs text-amber-300">Già nel catalogo · sorpresa</div>';
+  const state = viewingState(movie);
+  const label = state.N && state.V ? "Entrambi l’avete già visto" : state.N ? "N l’ha già visto" : state.V ? "V l’ha già visto" : 'Già nel catalogo';
+  return `<div class="text-xs text-amber-300">${label}${state.together ? ' · Visto insieme' : ''}${movie.in_shared_list ? ' · In Lista' : ' · Fuori Lista'}</div>`;
+}
+function rewatchActionsHtml(movie) {
+  const rewatch = isRewatch(movie);
+  const badge = movie.in_shared_list ? `<span class="badge bg-indigo-600/80">${rewatch ? 'In gioco' : 'In Lista'}</span>` : '<span class="text-xs text-slate-400">Fuori Lista</span>';
+  // Ricandidare titoli già visti insieme è una futura azione; Programma/Oggi restano disponibili.
+  const toggle = togetherSeen(movie) && !movie.in_shared_list ? '' : `<button onclick="toggleSharedList('${jsAttrEscape(movie.id)}')" class="min-h-11 px-3 py-2 rounded-lg bg-indigo-600/20 text-indigo-300">${movie.in_shared_list ? 'Togli dalla Lista' : rewatch ? 'Rimetti in gioco' : 'Aggiungi alla nostra Lista'}</button>`;
+  return `<div class="text-sm text-slate-300">${rewatch ? 'Rewatch · Entrambi l’avete già visto · ' : ''}${badge}</div>${toggle}`;
+}
+function personalRemovalButtonsHtml(movie) {
+  if (!currentUser || (movie.surprise_by && movie.surprise_by !== currentUser)) return '';
+  const id = jsAttrEscape(movie.id);
+  return `${personalRating(movie,currentUser) !== null ? `<button onclick="removePersonalRating('${id}')" class="min-h-11 text-slate-400 underline">Rimuovi il tuo voto</button>` : ''}
+    ${reviewTextFor(movie,currentUser) ? `<button onclick="removePersonalText('${id}')" class="min-h-11 text-slate-400 underline">Rimuovi la tua recensione</button>` : ''}`;
+}
+
+function personalWatchButtonHtml(movie) {
+  if (!currentUser || (movie.surprise_by && movie.surprise_by !== currentUser)) return '';
+  const ownSeen = movie['seen_' + currentUser.toLowerCase()] === true;
+  if (togetherSeen(movie) && !ownSeen) return '';
+  const id = jsAttrEscape(movie.id);
+  return ownSeen
+    ? `<button onclick="undoSeenUI('${id}')" class="min-h-11 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium" aria-label="Annulla l'ho già visto">Annulla</button>`
+    : `<button onclick="markSeenUI('${id}')" class="w-full min-h-11 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium text-left"><i class="fa-solid fa-eye mr-1.5" aria-hidden="true"></i>L'ho già visto</button>`;
 }

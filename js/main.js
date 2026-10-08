@@ -10,6 +10,7 @@ async function checkLoginState() {
 }
 
 function showLanding() {
+  if (typeof resetWatchForms === 'function') resetWatchForms();
   if (typeof resetMemoriesState === 'function') resetMemoriesState();
   modalStack = [];
   document.getElementById('appRoot').inert = false;

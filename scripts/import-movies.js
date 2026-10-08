@@ -415,7 +415,7 @@ function metadataPatch(row, details) {
       stats.notFound++;
       notFoundList.push({ title: entry.title, year: entry.year });
       const meta = {
-        title: entry.title, added_by: tag, status: 'watchlist', duration: null,
+        title: entry.title, added_by: tag, status: 'watchlist', in_shared_list: true, duration: null,
         platform: 'Streaming', poster: '', trailer_url: '', matched: false, rating: 0,
         genres: [],
         imdb_rating: '', rt_rating: '', metacritic_rating: '',
@@ -432,7 +432,7 @@ function metadataPatch(row, details) {
     }
 
     const meta = {
-      title: details.title, added_by: tag, status: 'watchlist',
+      title: details.title, added_by: tag, status: 'watchlist', in_shared_list: true,
       duration: details.duration, platform: details.platform,
       poster: details.poster, trailer_url: details.trailerUrl,
       matched: true, rating: 0,

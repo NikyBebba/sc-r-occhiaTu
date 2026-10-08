@@ -31,9 +31,9 @@ function openReviewFor(id, by) {
     ? `${hasReview ? 'Modifica voto o recensione' : 'Voto e recensione'} ${sharedPeopleLabel()}`
     : `Modifica voto ${CONFIG.PEOPLE[currentUser]?.label || currentUser}`;
   document.getElementById('reviewMovieTitle').textContent = movie.title;
-  const completedNights = by === 'both' && hasReview ? completedNightsForMovie(id) : [];
+  const completedNights = by === 'both' && togetherSeen(movie) ? completedNightsForMovie(id) : [];
   const reviewNight = by === 'both'
-    ? (hasReview ? completedNights[0] : activeNightForMovie(id)) : null;
+    ? (togetherSeen(movie) ? completedNights[0] : activeNightForMovie(id)) : null;
   document.getElementById('reviewNightId').value = reviewNight?.id || '';
   document.getElementById('reviewLocation').value = reviewNight?.location || '';
   document.getElementById('reviewLocationWrap').classList.toggle('hidden', by !== 'both');
@@ -65,11 +65,12 @@ function reviewTogetherFromSeen() {
   addReview(id);
 }
 
-async function finishTogetherNightUI(id) {
+async function finishTogetherNightUI(id, nightId) {
   const movie = movies.find(m => m.id === id);
-  if (!movie || (reviewTextFor(movie, 'both') === '' && togetherRating(movie) === null) || !activeNightForMovie(id)) return;
-  if (!(await updateMovie(id, { status: 'watched', watched_by: 'both' }))) return;
-  const completed = await completeNight(id);
+  const night = nightId ? activeNights().find(n => n.id === nightId && n.movie_id === id) : activeNightForMovie(id);
+  if (!movie || !night) return;
+  const completed = await completeNight(id, undefined, night.id);
+  if (!completed) { showActionError('Non siamo riusciti a completare la serata. Riprova.'); return; }
   await loadMovies();
   if (completed) suggestSagaAfterViewing(id);
 }
@@ -77,10 +78,7 @@ async function finishTogetherNightUI(id) {
 function addPersonalReview(id) {
   const movie = movies.find(m => m.id === id);
   if (!movie || (currentUser !== 'N' && currentUser !== 'V')) return;
-  if (personalRating(movie, currentUser) === null) {
-    markSeenUI(id);
-    return;
-  }
+
   openReviewFor(id, currentUser);
 }
 
@@ -95,7 +93,7 @@ async function confirmReview() {
   const error = document.getElementById('reviewError');
   const saveButton = document.getElementById('reviewSaveButton');
   error.classList.add('hidden');
-  if (rating === null) {
+  if (rating === null && !(by === currentUser && (by === 'N' || by === 'V') && !rawRating.trim())) {
     error.textContent = 'Scegli un voto da 0 a 10, con al massimo un decimale (es. 8,3).';
     error.classList.remove('hidden');
     document.getElementById('reviewRating').focus();
@@ -107,32 +105,17 @@ async function confirmReview() {
   saveButton.disabled = true;
   let saved = false;
   if (by === 'both') {
-    const editingTogether = !!reviewTextFor(movie, 'both') || togetherRating(movie) !== null;
-    const patch = { review_text_together: text, seen_rating_together: rating, review_text: text,
-      review_by: 'both', ...(editingTogether ? {} : { watched_by: 'both', status: 'watched' }) };
-    // Prima di sostituire il mirror legacy, preserviamo l'eventuale recensione
-    // personale storica, che altrimenti non sarebbe più riconoscibile.
-    if (!sb && (movie.review_by === 'N' || movie.review_by === 'V')) {
-      const key = movie.review_by.toLowerCase();
-      if (!movie[`review_text_${key}`] && movie.review_text) patch[`review_text_${key}`] = movie.review_text;
-      if (movie[`seen_rating_${key}`] == null && Number.isInteger(movie.rating) && movie.rating >= 1 && movie.rating <= 5) {
-        patch[`seen_rating_${key}`] = movie.rating * 2;
+    if (!viewingState(movie).together) {
+      saved = await completeNight(id, location || null, reviewNightId || undefined, { sharedRating: rating, sharedText: text });
+    } else {
+      saved = await updateMovie(id, { review_text_together: text, seen_rating_together: rating });
+      if (saved && reviewNightId) {
+        const night = movieNights.find(n => String(n.id) === reviewNightId && n.movie_id === id && n.status === 'completed');
+        if (night && (night.location || '') !== location) saved = await updateMovieNight(night.id, { location: location || null });
       }
     }
-    saved = await updateMovie(id, patch);
-    if (saved && !editingTogether) saved = await completeNight(id, location || null);
-    if (saved && editingTogether && reviewNightId) {
-      const night = movieNights.find(n => String(n.id) === reviewNightId && n.movie_id === id && n.status === 'completed');
-      if (night && (night.location || '') !== location) {
-        saved = await updateMovieNight(night.id, { location: location || null });
-      }
-    } else if (saved && editingTogether && location) {
-      // Recensioni legacy senza riga-serata: luogo conservato con data ignota.
-      saved = !!(await insertMovieNight({ movie_id: id, date: null, time: null,
-        snack: null, location, proposed_by: null, status: 'completed', completed_at: null }));
-    }
-  } else if ((by === 'N' || by === 'V') && by === currentUser && personalRating(movie, by) !== null) {
-    saved = await markMovieSeen(id, by, rating, text);
+  } else if ((by === 'N' || by === 'V') && by === currentUser) {
+    saved = await savePersonalReview(id, rating, text);
   }
   saveButton.disabled = false;
   if (!saved) {
@@ -148,6 +131,7 @@ async function confirmReview() {
 function markSeenUI(id) {
   const movie = movies.find(m => m.id === id);
   if (!movie || (currentUser !== 'N' && currentUser !== 'V')) return;
+  if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
   document.getElementById('seenMovieId').value = id;
   document.getElementById('seenTogetherButtonLabel').textContent = `Visto insieme? Vota ${sharedPeopleLabel()}`;
   const score = personalRating(movie, currentUser);
@@ -162,7 +146,7 @@ async function confirmSeen() {
   const raw = document.getElementById('seenRating').value;
   const rating = parseMovieRating(raw);
   const error = document.getElementById('seenRatingError');
-  if (rating === null) {
+  if (raw.trim() && rating === null) {
     error.textContent = 'Scegli un voto da 0 a 10, con al massimo un decimale (es. 8,3).';
     error.classList.remove('hidden');
     document.getElementById('seenRating').focus();
@@ -183,11 +167,31 @@ async function confirmSeen() {
 }
 
 async function undoSeenUI(id) {
-  const movie = movies.find(m => m.id === id);
-  if (movie && reviewTextFor(movie, currentUser)) {
-    const confirmed = await showConfirmModal('Annullare la visione?', 'Verranno rimossi anche il tuo voto e la tua recensione.');
-    if (!confirmed) return;
-  }
+  requireAppIdentity();
+  const epoch = authEpoch;
+  if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
+  const confirmed = await showConfirmModal('Rimuovere la dichiarazione?', 'Il tuo voto e la tua recensione resteranno conservati.');
+  if (!confirmed || !isAppAuthorized() || epoch !== authEpoch) return;
   const undone = await undoMovieSeen(id, currentUser);
   if (undone) await loadMovies();
+}
+
+async function removePersonalRating(id) {
+  requireAppIdentity();
+  const epoch = authEpoch;
+  if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
+  if (!(await showConfirmModal('Rimuovere il tuo voto?', 'La dichiarazione e la recensione resteranno conservate.'))) return;
+  if (!isAppAuthorized() || epoch !== authEpoch) return;
+  if (await savePersonalReview(id, null)) await loadMovies();
+  else showActionError('Non siamo riusciti a rimuovere il voto.');
+}
+async function removePersonalText(id) {
+  requireAppIdentity();
+  const epoch = authEpoch;
+  if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
+  const movie = movies.find(m => m.id === id);
+  if (!movie || !(await showConfirmModal('Rimuovere la tua recensione?', 'Il voto e la dichiarazione resteranno conservati.'))) return;
+  if (!isAppAuthorized() || epoch !== authEpoch) return;
+  if (await savePersonalReview(id, personalRating(movie, currentUser), '')) await loadMovies();
+  else showActionError('Non siamo riusciti a rimuovere la recensione.');
 }

@@ -6,6 +6,13 @@ sc(r)occhiaTu è una web app pensata per rendere più semplice e divertente la d
 
 L'esperienza parte dalla scelta e continua dopo il film: appuntamenti, voti, recensioni, saghe e ricordi delle serate. Il tono è cinematografico e leggero, con attenzione all'uso da smartphone. Può essere uno spazio per amici, coinquilini o una coppia: conta condividere i film.
 
+## Candidato locale: Individual Watch Status + Rewatch
+
+Candidato locale v54: Storico N/V leggibile da entrambi, candidature alla
+Lista indipendenti dalle visioni personali e Rewatch derivato. Protezioni SQL
+preparate; nessuna tabella privata o copia dei voti.
+Non ancora attiva su Supabase o pubblicata. [Contratto e checklist di cutover](docs/INDIVIDUAL_WATCH_REWATCH.md).
+
 ## Come funziona
 
 1. **Costruire la libreria.** Cercare film, scegliere la locandina corretta e aggiungerli alla lista. Ogni film conserva il proprio autore, i metadati disponibili e lo stato di visione.

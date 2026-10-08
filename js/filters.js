@@ -111,7 +111,7 @@ function sortKeyValue(m, key) {
     case 'rating': {
       const scores = ['N', 'V'].map(person => personalRating(m, person)).filter(value => value !== null);
       if (scores.length) return scores.reduce((sum, value) => sum + value, 0) / scores.length;
-      return m.rating > 0 ? m.rating * 2 : null; // fallback recensione storica 1–5
+      return null;
     }
     case 'imdb': {
       const n = parseFloat(String(m.imdb_rating || '').replace(',', '.'));
@@ -165,11 +165,22 @@ function filterMoviesByState(list, statusFilter) {
     const scheduledIds = new Set(activeNights().map(n => n.movie_id));
     return filterMovies(list, listFilterState()).filter(m => scheduledIds.has(m.id));
   }
-  return filterMovies(list, { ...listFilterState(), status: statusFilter || null });
+  const filtered = filterMovies(list, listFilterState());
+  if (statusFilter === 'watchlist') return filtered.filter(m => normalListEligible(m));
+  if (statusFilter === 'history_n') return filtered.filter(m => m.seen_n === true);
+  if (statusFilter === 'history_v') return filtered.filter(m => m.seen_v === true);
+  if (statusFilter === 'rewatch') return filtered.filter(m => isRewatch(m));
+  if (statusFilter === 'watched') return filtered.filter(m => togetherSeen(m));
+  return filtered;
 }
 
 function statusCountsFor(list) {
   const counts = statusCounts(list, listFilterState());
+  counts.watchlist = filterMoviesByState(list, 'watchlist').length;
+  counts.watched = filterMoviesByState(list, 'watched').length;
+  counts.history_n = filterMoviesByState(list, 'history_n').length;
+  counts.history_v = filterMoviesByState(list, 'history_v').length;
+  counts.rewatch = filterMoviesByState(list, 'rewatch').length;
   counts.tonight = filterMoviesByState(list, 'tonight').length;
   return counts;
 }

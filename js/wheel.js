@@ -24,7 +24,7 @@ function durationBucket(mins) {
 function wheelPool() {
   const vetoed = vetoedMovieIdsThisWeek();
   return movies.filter(m => {
-    if (m.status !== 'watchlist' || m.cinema_watchlist || vetoed.includes(m.id)) return false;
+    if (!choiceEligible(m, movieNights, vetoed)) return false;
     if (durationFilter !== 'all') {
       const bucket = durationBucket(parseDurationMinutes(m.duration));
       if (bucket === null || bucket !== durationFilter) return false;

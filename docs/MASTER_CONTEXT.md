@@ -1,6 +1,49 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.50
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.51
 
 Ultimo aggiornamento: 8 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
+
+## Storico personale + candidatura + Rewatch — candidato locale v54
+
+8 ottobre 2026. Incremento autorizzato sulla working tree v53, senza commit,
+push, deploy o modifica Supabase live. Le vecchie semantiche del pool Rewatch
+sono superate dalle decisioni approvate sui tre assi indipendenti.
+
+Tre booleani su movies: seen_n, seen_v, in_shared_list. Un catalogo unico,
+leggibile da N/V; proprietà rigorosa in scrittura sui rispettivi personali.
+Nessuna tabella personal_movies, copie private/pubbliche o Possibili Rewatch.
+Together deriva solo da movie_nights completed; pallini personali e oro
+separati. I tre film legacy insieme restano con seen false/false.
+
+Storico N/V include tutte le rispettive dichiarazioni, anche candidati e
+film insieme. Rewatch = seen_n && seen_v && !together; In gioco dipende dalla
+candidatura. Il secondo seen non rimuove dalla Lista e non richiede voto.
+Add Sì: Solo Storico con voto facoltativo / Anche alla Lista con voto
+obbligatorio all’ingresso se il chiamante ha già visto il film. No candida
+senza voto, senza cancellare dichiarazioni esistenti. Ricerca mostra stati
+noti. Togli dalla Lista modifica soltanto il flag. Rimozione dichiarazione
+conserva voto/testo; rimozioni esplicite indipendenti.
+
+Guardia movies mantiene ownership, protezione DELETE/identità e legacy;
+verifica voto personale all’INSERT candidato o ingresso false→true, non
+sulle dichiarazioni successive né sui voti rimossi dopo l’ingresso.
+RPC serate unica: Programma/Oggi/annullamento conservano candidatura;
+nuova conclusione la consuma atomicamente. Retry completed/complete_now
+non consuma ricandidature successive. Voti/testi personali intatti.
+Backfill preparato: 79+12 candidati, 3 insieme fuori Lista, 12 seen N e 0 V;
+94 film/34 eventi, voti conservati. Nessuna migration live eseguita.
+
+Ruota/Match richiedono candidatura e mantengono esclusioni together,
+appuntamenti, cinema e veto. Riconoscimento Match, Continua, metriche e
+storico invariati. Saghe e import UI applicano candidatura esplicita;
+CLI import aggiornata soltanto localmente. Ricandidatura UI dei together
+resta futura; ulteriori serate passano da Programma/Oggi come prima.
+
+Verifiche locali finali: Smoke 436/436, Auth 48/48, RLS 40/40,
+PostgreSQL feature 52/52, PWA 15/15, Chromium Auth 18/18, UX 24/24,
+feature 27/27, sintassi 53/53 e diff check PASS.
+Dettagli in [contratto e checklist](INDIVIDUAL_WATCH_REWATCH.md).
+SQL reale solo in PGlite temporaneo, Auth/SDK browser simulati; locking
+fra backend reali, Realtime live e due PWA restano al futuro cutover autorizzato.
 
 ## Rifinitura pulsanti — locale, 8 ottobre 2026
 

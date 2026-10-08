@@ -64,7 +64,7 @@ function movieChemistryStats(nights, films) {
     if (n.movie_id != null) byMovie.set(n.movie_id, (byMovie.get(n.movie_id) || 0) + 1);
   });
   const rewatches = [...byMovie.values()].reduce((sum, count) => sum + Math.max(0, count - 1), 0);
-  const sharedRatings = films.filter(m => viewingState(m).together && togetherRating(m) !== null).length;
+  const sharedRatings = films.filter(m => togetherSeen(m, nights) && togetherRating(m) !== null).length;
   return { nights: completed.length, films: byMovie.size, rewatches, sharedRatings };
 }
 

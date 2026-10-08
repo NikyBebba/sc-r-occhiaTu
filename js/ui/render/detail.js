@@ -145,8 +145,12 @@ function renderMovieDetail(m) {
     <div class="detail-viewing">${viewingStatusHtml(m)}</div>
     ${reviewCardsHtml(m)}
     ${sagaButtonHtml(m)}
-    ${activeNightForMovie(m.id) || m.status === 'watched' ? sharedVoteButtonHtml(m) : ''}
+    ${activeNightForMovie(m.id) || togetherSeen(m) ? sharedVoteButtonHtml(m) : ''}
+    ${personalWatchButtonHtml(m)}
     ${personalVoteButtonHtml(m)}
+    ${personalRemovalButtonsHtml(m)}
+    ${rewatchActionsHtml(m)}
+    <div class="flex gap-2 mt-3"><button class="min-h-11 px-3 bg-indigo-600/20 rounded" onclick="quickTonightUI('${jsAttrEscape(m.id)}')">Oggi</button><button class="min-h-11 px-3 bg-slate-800 rounded" onclick="scheduleMovie('${jsAttrEscape(m.id)}')">Programma</button></div>
     <div class="detail-footer">
       ${personBadge(m.added_by)}
       ${m.surprise_by ? `<span class="badge bg-indigo-600/90">🎁 sorpresa di ${escapeHtml(CONFIG.PEOPLE[m.surprise_by]?.label || m.surprise_by)}</span>` : ''}

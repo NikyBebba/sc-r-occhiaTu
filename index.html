@@ -298,12 +298,15 @@
         <!-- AZIONI/VISTA: segmented control (header lista) -->
         <label for="libraryViewSelect" class="sr-only">Vista della libreria</label>
         <select id="libraryViewSelect" onchange="setTab(this.value)" class="field w-full lg:hidden min-h-11" aria-label="Vista della libreria">
-          <option value="all">Tutti i film</option><option value="watchlist" selected>Da vedere</option><option value="tonight">In programma</option>
+          <option value="all">Tutti i film</option><option value="watchlist" selected>Da vedere</option><option value="rewatch">Rewatch</option><option value="history_n">Storico N</option><option value="history_v">Storico V</option><option value="tonight">In programma</option>
         </select>
         <div id="segControl" role="tablist" aria-label="Viste della libreria" class="relative hidden lg:flex bg-slate-900/60 p-1 rounded-xl border border-slate-800 text-xs gap-1">
           <button onclick="setTab('all')" id="tabAll" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap relative z-10">Tutti <span id="pillCountAll" class="text-[10px] opacity-80">0</span></button>
           <button onclick="setTab('watchlist')" id="tabWatchlist" role="tab" aria-selected="true" class="flex-1 py-2 rounded-lg font-medium transition text-white whitespace-nowrap relative z-10">Da Vedere <span id="pillCountWatchlist" class="text-[10px] opacity-80">0</span></button>
           <button onclick="setTab('tonight')" id="tabTonight" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap relative z-10">In programma <span id="pillCountTonight" class="text-[10px] opacity-80">0</span></button>
+          <button onclick="setTab('rewatch')" id="tabRewatch" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap relative z-10">Rewatch <span id="pillCountRewatch" class="text-[10px] opacity-80">0</span></button>
+          <button onclick="setTab('history_n')" id="tabHistoryN" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium text-slate-400 whitespace-nowrap relative z-10">Storico N <span id="pillCountHistoryN" class="text-[10px] opacity-80">0</span></button>
+          <button onclick="setTab('history_v')" id="tabHistoryV" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium text-slate-400 whitespace-nowrap relative z-10">Storico V <span id="pillCountHistoryV" class="text-[10px] opacity-80">0</span></button>
           <div id="tabIndicator" aria-hidden="true" class="absolute inset-y-1 rounded-lg"></div>
         </div>
         <div id="movieGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
@@ -360,6 +363,27 @@
         <button id="addSaveBtn" onclick="initiateAddMovie()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">Cerca</button>
       </div>
       <button type="button" onclick="closeModal('addModal'); openModal('importModal')" class="min-h-11 w-full text-xs text-slate-400 hover:text-slate-200 underline underline-offset-2">Hai una lista di titoli? Importala</button>
+    </div>
+  </div>
+
+  <div id="addSeenModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass-panel p-6 rounded-2xl max-w-sm w-full border border-slate-800 space-y-4">
+      <div class="flex items-center justify-between gap-2"><h3 id="addSeenModalTitle" class="text-lg font-bold">Hai già visto questo film?</h3><button onclick="closeModal('addSeenModal')" class="min-h-11 min-w-11" aria-label="Chiudi"><i class="fa-solid fa-xmark"></i></button></div>
+      <div class="flex gap-3"><button class="min-h-11 flex-1 bg-slate-800 rounded-lg" onclick="confirmAddSeen(false)">No</button><button class="min-h-11 flex-1 bg-indigo-600 rounded-lg" onclick="chooseAddSeenYes()">Sì</button></div>
+      <div id="addSeenKnown" class="text-sm text-slate-300"></div>
+      <div id="addSeenRatingWrap" class="hidden"><label for="addSeenDestination" class="block mb-2">Dove lo aggiungiamo?</label><select id="addSeenDestination" class="field w-full min-h-11 mb-3" onchange="updateAddDestinationHint()"><option value="history">Solo Storico</option><option value="list">Aggiungi anche alla nostra Lista</option></select><p id="addSeenHint" class="text-sm text-slate-400 mb-3"></p><label for="addSeenRating" class="block mb-2">Il tuo voto ★</label><input id="addSeenRating" type="text" inputmode="decimal" autocomplete="off" class="field w-full min-h-11" placeholder="Es. 8,3"><p class="text-xs text-slate-400 mt-2">Da 0 a 10 · un decimale facoltativo</p></div>
+      <p id="addSeenError" class="hidden text-sm text-rose-300" role="alert"></p>
+      <button id="addSeenSave" class="hidden min-h-11 w-full bg-indigo-600 rounded-lg" onclick="confirmAddSeen(true)">Salva</button>
+    </div>
+  </div>
+
+  <div id="listCandidateModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass-panel p-6 rounded-2xl max-w-sm w-full border border-slate-800 space-y-4">
+      <h3 class="text-lg font-bold">Aggiungi alla nostra Lista</h3>
+      <p class="text-sm text-slate-300">Hai già visto questo film: per candidarlo serve il tuo voto.</p>
+      <label for="listCandidateRating" class="block">Il tuo voto ★</label><input id="listCandidateRating" class="field w-full min-h-11" inputmode="decimal" autocomplete="off" placeholder="Es. 8,3">
+      <p id="listCandidateError" class="text-sm text-rose-300" role="alert"></p>
+      <div class="flex gap-3"><button onclick="closeModal('listCandidateModal')" class="min-h-11 flex-1 rounded-lg bg-slate-800">Annulla</button><button onclick="confirmListCandidate()" class="min-h-11 flex-1 rounded-lg bg-indigo-600">Aggiungi alla Lista</button></div>
     </div>
   </div>
 

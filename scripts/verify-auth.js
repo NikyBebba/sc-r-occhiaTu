@@ -74,6 +74,33 @@ async function test(name,fn){await fn();count++;console.log('PASS '+name);}
  await test('membership revocata al refresh: app chiusa',async()=>{const f=fixture();await f.run('initializeAuth()');f.state.member=null;await f.run('refreshAuthConnection()');assert.equal(f.run('isAppAuthorized()'),false);});
  await test('JWT scaduto offline: mirror vietato',async()=>{const f=fixture();await f.run('initializeAuth()');f.run('authIdentity.expiresAt=1');assert.throws(()=>f.run('requireAppIdentity()'),/AUTH_REQUIRED/);assert.equal(f.ctx.currentUser,null);});
  await test('insertMovie completato dopo logout: nessun dato ripopolato',async()=>{const f=fixture();await f.run('initializeAuth()');vm.runInContext(fs.readFileSync(path.join(root,'js/store/movies.js'),'utf8'),f.ctx);let finish;f.ctx.sb.from=()=>({insert(){return this;},select(){return new Promise(resolve=>{finish=resolve;});}});const pending=f.run("insertMovie({title:'Fixture'})");await f.run('signOutApp()');finish({data:[{id:'fixture'}],error:null});await assert.rejects(pending,/AUTH_REQUIRED|AUTH_CHANGED/);assert.equal(f.ctx.movies.length,0);});
+ await test('RPC serata completata dopo logout non ripopola il mirror',async()=>{
+  const f=fixture();await f.run('initializeAuth()');vm.runInContext(fs.readFileSync(path.join(root,'js/store/nights.js'),'utf8'),f.ctx);
+  f.ctx.movies=[{id:'fixture',seen_n:false,seen_v:false}];let finish;f.ctx.sb.rpc=()=>new Promise(resolve=>{finish=resolve;});
+  const pending=f.run("setQuickTonight('fixture')");await f.run('signOutApp()');finish({data:{id:'night',movie_id:'fixture',status:'confirmed'},error:null});
+  await assert.rejects(pending,/AUTH_REQUIRED|AUTH_CHANGED/);assert.equal(f.ctx.movies.length,0);assert.equal(f.ctx.movieNights.length,0);
+ });
+ await test('RPC RLS 42501 chiude Auth senza successo offline',async()=>{
+  const f=fixture();await f.run('initializeAuth()');vm.runInContext(fs.readFileSync(path.join(root,'js/store/nights.js'),'utf8'),f.ctx);
+  f.ctx.movies=[{id:'fixture'}];f.ctx.dbMode='supabase';f.ctx.sb.rpc=async()=>({error:{code:'42501',message:'denied'},data:null});
+  await assert.rejects(f.run("setQuickTonight('fixture')"),/AUTH_DENIED/);assert.equal(f.run('isAppAuthorized()'),false);assert.equal(f.ctx.movieNights.length,0);assert.equal(f.ctx.dbMode,'supabase');
+ });
+ await test('RPC errore rete non crea una serata locale fittizia',async()=>{
+  const f=fixture();await f.run('initializeAuth()');vm.runInContext(fs.readFileSync(path.join(root,'js/store/nights.js'),'utf8'),f.ctx);
+  f.ctx.movies=[{id:'fixture',in_shared_list: true, status:'watchlist'}];f.ctx.dbMode='supabase';f.ctx.sb.rpc=async()=>{throw new Error('network');};
+  assert.equal(await f.run("setQuickTonight('fixture')"),false);assert.equal(f.ctx.movieNights.length,0);assert.equal(f.ctx.movies[0].status,'watchlist');assert.equal(f.ctx.dbMode,'local');assert.equal(f.run('isAppAuthorized()'),true);
+ });
+ await test('identità Auth N rifiuta dichiarazione V prima di qualsiasi query',async()=>{
+  const f=fixture();await f.run('initializeAuth()');vm.runInContext(fs.readFileSync(path.join(root,'js/store/viewing.js'),'utf8'),f.ctx);
+  f.ctx.sb.from=()=>{throw new Error('Unexpected query');};assert.equal(await f.run("markMovieSeen('fixture','V',10)"),false);
+ });
+ await test('conferma personale pendente non agisce dopo cambio account N→V',async()=>{
+  const f=fixture();await f.run('initializeAuth()');vm.runInContext(fs.readFileSync(path.join(root,'js/ui/actions/viewing.js'),'utf8'),f.ctx);
+  f.ctx.document.getElementById('detailModal').classList.contains=()=>true;let finish,writes=0;
+  f.ctx.showConfirmModal=()=>new Promise(resolve=>{finish=resolve;});f.ctx.savePersonalReview=async()=>{writes++;return true;};
+  const pending=f.run("removePersonalRating('fixture')");await f.run('signOutApp()');f.state.session.user.id='fixture-V';f.state.member={user_id:'fixture-V',person:'V'};await f.run('initializeAuth()');finish(true);await pending;
+  assert.equal(writes,0);assert.equal(f.ctx.currentUser,'V');
+ });
  await test('storage refresh: conserva la scelta e rimuove copia opposta',async()=>{const f=fixture();await f.run("signInPerson('N','12345678',false)");f.local.set('scorochiatu_auth','stale');f.run("authStorage.setItem(AUTH_STORAGE_KEY,'refreshed')");assert.equal(f.local.has('scorochiatu_auth'),false);assert.equal(f.temporary.get('scorochiatu_auth'),'refreshed');});
  await test('Match reale: JWT e private channel N, refresh senza duplicati, logout chiude',async()=>{const f=fixture();f.ctx.dbMode='supabase';vm.runInContext(fs.readFileSync(path.join(root,'js/store/match.js'),'utf8'),f.ctx);const channels=[];f.ctx.sb.channel=(topic,options)=>{f.calls.push(['matchChannel',topic,options]);const c={on(){return c;},subscribe(){channels.push(c);return c;},untrack(){return Promise.resolve();}};return c;};f.ctx.sb.getChannels=()=>channels;f.ctx.sb.removeChannel=c=>{channels.splice(channels.indexOf(c),1);return Promise.resolve();};assert.equal(f.run('openMatchChannel()'),null);await f.run('initializeAuth()');f.run('matchAvailable=true');f.run('openMatchChannel()');f.run('openMatchChannel()');await f.run('refreshAuthConnection()');assert.equal(channels.length,1);const call=f.calls.find(c=>c[0]==='matchChannel');assert.equal(call[1],'scorochiatu-match');assert.equal(call[2].config.private,true);assert.equal(call[2].config.presence.key,'N');await f.run('signOutApp()');assert.equal(channels.length,0);assert.equal(f.run('isAppAuthorized()'),false);});
  for(const method of ['validateCurrentAuth','refreshAuthConnection'])await test('risposta '+method+' obsoleta non chiude nuova sessione',async()=>{const f=fixture();await f.run('initializeAuth()');let finish;f.ctx.sb.auth.getUser=()=>new Promise(resolve=>{finish=resolve;});const pending=f.run(method+'()');await new Promise(r=>setTimeout(r,0));f.run('authEpoch++');finish({data:{},error:{status:401,message:'stale'}});if(method==='validateCurrentAuth')await assert.rejects(pending,/AUTH_CHANGED/);else await pending;assert.equal(f.run('isAppAuthorized()'),true);});

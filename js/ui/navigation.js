@@ -7,9 +7,9 @@ let dashboardView = 'home'; // 'home' | 'wheel' | 'library'
 // Tab da cui si è entrati nel Match (per "Esci" = pausa). Default 'watchlist'.
 let matchPrevTab = 'watchlist';
 
-const TAB_KEYS = ['all', 'watchlist', 'tonight', 'watched', 'calendar', 'match'];
-const LIBRARY_TABS = ['all', 'watchlist', 'tonight'];
-const TAB_ID = k => 'tab' + k[0].toUpperCase() + k.slice(1);
+const TAB_KEYS = ['all', 'watchlist', 'rewatch', 'history_n', 'history_v', 'tonight', 'watched', 'calendar', 'match'];
+const LIBRARY_TABS = ['all', 'watchlist', 'rewatch', 'history_n', 'history_v', 'tonight'];
+const TAB_ID = k => k === 'history_n' ? 'tabHistoryN' : k === 'history_v' ? 'tabHistoryV' : 'tab' + k[0].toUpperCase() + k.slice(1);
 
 function syncLibraryNavigation() {
   LIBRARY_TABS.forEach(k => {

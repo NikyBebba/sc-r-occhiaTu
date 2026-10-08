@@ -13,8 +13,7 @@ if (CONFIG.SUPABASE_URL && CONFIG.SUPABASE_URL.startsWith('http') &&
 // Mantenerle allineate allo schema e ai campi realmente usati dai domini.
 const MOVIE_SELECT_FIELDS = [
   'id', 'title', 'added_by', 'status', 'duration', 'platform', 'poster', 'trailer_url',
-  'matched', 'imdb_rating', 'rt_rating', 'metacritic_rating', 'rating', 'review_text',
-  'review_by', 'watched_by', 'genre', 'surprise_by', 'tmdb_id', 'collection_id',
+  'matched', 'imdb_rating', 'rt_rating', 'metacritic_rating', 'seen_n', 'seen_v', 'in_shared_list', 'genre', 'surprise_by', 'tmdb_id', 'collection_id',
   'collection_name', 'cinema_watchlist', 'seen_rating_n', 'seen_rating_v',
   'seen_rating_together', 'review_text_n', 'review_text_v', 'review_text_together',
   'genres', 'release_year', 'director', 'overview', 'cast_names', 'created_at'

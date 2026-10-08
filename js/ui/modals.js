@@ -42,6 +42,7 @@ function closeModalNow(id) {
   if (app) app.inert = modalStack.length > 0;
   if (typeof syncDestinationNavigation === 'function') syncDestinationNavigation();
   if (id === 'statsModal' && !modalStack.length && isAppAuthorized()) memoriesReturnFocus?.focus?.({ preventScroll: true });
+  if (id === 'addSeenModal' && typeof pendingAddSeen !== 'undefined') pendingAddSeen = null;
   if (id === 'themeModal') {
     const trigger = document.getElementById('themePickerBtn');
     if (trigger && typeof trigger.focus === 'function') trigger.focus();

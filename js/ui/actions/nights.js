@@ -10,6 +10,7 @@ let scheduleSaving = false;
 
 function openProjectionForm(id, mode, origin = 'manual') {
   if (scheduleSaving) return;
+  if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
   scheduleMode = mode;
   scheduleOrigin = origin;
   scheduleEditingNightId = null;
@@ -154,14 +155,14 @@ async function confirmSchedule() {
 // dal popup di quickTonightUI per "Oggi" e dal confirm di
 // scheduleMovie per "Programma".)
 async function confirmNightUI(id, nightId) {
-  await confirmNight(id, nightId);
+  if (!(await confirmNight(id, nightId))) { showActionError('La proposta non è stata confermata. Riprova.'); return; }
   await loadMovies();
 }
 
 async function cancelNightUI(id, title, nightId) {
   const ok = await showConfirmModal('Annullare la proiezione?', `"${title}" verrà rimosso da questo appuntamento.`);
   if (!ok) return;
-  await cancelNight(id, nightId);
+  if (!(await cancelNight(id, nightId))) { showActionError('La proiezione non è stata annullata. Riprova.'); return; }
   await loadMovies();
 }
 

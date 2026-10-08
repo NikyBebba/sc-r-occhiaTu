@@ -50,6 +50,7 @@ let checks=0;
    {id:'n4',movie_id:'m1',status:'completed',date:'2025-09-04'},
    {id:'n5',movie_id:'m2',status:'completed'},
    {id:'n6',movie_id:'m2',status:'cancelled',date:'2026-11-01'}],swipe_sessions:[{id:'session',status:'open',created_by:'N',created_at:new Date().toISOString(),seed:1,deck:['m0']}],swipes:[]};
+  fixtureRows.movie_nights.push(...Array.from({length:42},(_,i)=>({id:'undated-'+i,movie_id:'m'+(i+3),status:'completed'})));
   await loadMovies();
  });
  for(const width of [320,390,768,1280]){
@@ -123,13 +124,13 @@ let checks=0;
  }
  await page.evaluate(()=>resetMemoriesState());await page.locator('[data-destination="memories"]').click();
  await check('year/month latest defaults, counts, undated and rewatches',async()=>{
-  assert.equal(await page.locator('#nightHistoryCount').innerText(),'5 serate');
+  assert.equal(await page.locator('#nightHistoryCount').innerText(),'47 serate');
   assert(await page.locator('#nightHistorySection').evaluate(el=>el.open));
   const groups=await page.locator('#nightHistory details').evaluateAll(elements=>elements.map(el=>({label:el.querySelector('summary').innerText,open:el.open})));
   assert(groups.find(g=>g.label.includes('2026')&&!g.label.includes('ottobre')&&!g.label.includes('settembre')).open);
   assert(groups.find(g=>g.label.includes('ottobre')).open);assert(!groups.find(g=>g.label.includes('2025')&&!g.label.includes('settembre')).open);
   assert(!groups.find(g=>g.label.includes('Data non registrata')).open);
-  assert.equal(await page.locator('.history-ticket').count(),5);
+  assert.equal(await page.locator('.history-ticket').count(),47);
   assert(!(await page.locator('#reviewSection').evaluate(el=>el.open)));
  });
  await check('reviews capped, alphabetic, Show more and individual text',async()=>{

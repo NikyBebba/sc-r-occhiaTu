@@ -31,114 +31,117 @@ function movieProjection(movie, night = activeNightForMovie(movie.id)) {
   return { ...movie, ...nightProjectionFields(night) };
 }
 
+// RPC unica: nessun DML diretto su movie_nights e nessun successo locale
+// dopo un errore remoto. Il ramo senza SDK serve al mirror runtime/test locale.
+async function manageMovieNight(action, id, nightId = null, details = {}) {
+  requireAppIdentity();
+  const epoch = authEpoch;
+  const movie = movies.find(m => m.id === id);
+  if (!movie) return null;
+  if (sb) {
+    let result;
+    try {
+      result = await sb.rpc('manage_movie_night', { p_action: action, p_movie_id: id, p_night_id: nightId,
+        p_date: details.date ?? null, p_time: details.time ?? null, p_snack: details.snack ?? null,
+        p_location: details.location ?? null, p_set_location: Object.hasOwn(details, 'location'),
+        p_shared_rating: details.sharedRating ?? null, p_shared_text: details.sharedText ?? null });
+    } catch (_) {
+      assertAuthEpoch(epoch);
+      console.error('[sc(r)occhiaTu] Serata non salvata: rete non disponibile.');
+      dbMode = 'local'; lastSupabaseFailAt = Date.now(); return null;
+    }
+    assertAuthEpoch(epoch);
+    handleDataAuthError(result.error);
+    if (result.error) {
+      console.error('[sc(r)occhiaTu] Serata non salvata:', result.error.message);
+      return null;
+    }
+    const row = Array.isArray(result.data) ? result.data[0] : result.data;
+    if (!row?.id) return null;
+    const index = movieNights.findIndex(n => n.id === row.id);
+    if (index < 0) movieNights.unshift(row); else movieNights[index] = row;
+    if (action === 'complete' || action === 'complete_now') {
+      await loadMovies();
+      assertAuthEpoch(epoch);
+      return row;
+    }
+    normalizeLocalMovie(movie, { ...movie });
+    if (details.sharedRating != null) movie.seen_rating_together = details.sharedRating;
+    if (details.sharedText != null) movie.review_text_together = details.sharedText;
+    saveLocal(); return row;
+  }
+  let newlyCompleted = false;
+  let night = nightId ? movieNights.find(n => n.id === nightId && n.movie_id === id) : null;
+  const now = new Date().toISOString();
+  if (['propose','quick','complete_now'].includes(action)) {
+    if (nightId || (action === 'propose' && !details.date)) return null;
+    if (action === 'complete_now') night = movieNights.filter(n => n.movie_id === id && n.status === 'completed').sort((a,b) => (b.completed_at || b.created_at || '').localeCompare(a.completed_at || a.created_at || ''))[0] || null;
+    if (!night) {
+      newlyCompleted = action === 'complete_now';
+      night = { id: Date.now().toString() + Math.random(), movie_id: id,
+        date: action === 'propose' ? details.date : null,
+        time: action === 'propose' ? details.time || '21:30' : null,
+        snack: details.snack ?? null, location: details.location ?? null, proposed_by: currentUser,
+        status: action === 'propose' ? 'proposed' : action === 'quick' ? 'confirmed' : 'completed',
+        created_at: now, confirmed_at: action === 'quick' ? now : null,
+        completed_at: action === 'complete_now' ? now : null };
+      movieNights.unshift(night);
+    }
+  } else {
+    if (!night) return null;
+    if (action === 'edit') {
+      if (!['proposed','confirmed','completed'].includes(night.status)) return null;
+      if (night.status !== 'completed' && Object.hasOwn(details,'snack')) night.snack = details.snack;
+    } else if (action === 'confirm') {
+      if (!['proposed','confirmed'].includes(night.status) || (night.status === 'proposed' && night.proposed_by === currentUser)) return null;
+      night.status = 'confirmed'; night.confirmed_at ||= now;
+    } else if (action === 'cancel') {
+      if (!['proposed','confirmed','cancelled'].includes(night.status)) return null;
+      night.status = 'cancelled'; night.cancelled_at ||= now;
+    } else if (action === 'complete') {
+      if (!['proposed','confirmed','completed'].includes(night.status)) return null;
+      newlyCompleted = night.status !== 'completed';
+      night.status = 'completed'; night.completed_at ||= now;
+    } else return null;
+    if (Object.hasOwn(details,'location')) night.location = details.location;
+  }
+  if (details.sharedRating != null) movie.seen_rating_together = details.sharedRating;
+  if (details.sharedText != null) movie.review_text_together = details.sharedText;
+  normalizeLocalMovie(movie, { ...movie });
+  if (newlyCompleted) movie.in_shared_list = false;
+  saveLocal(); return night;
+}
+// Adattatori pubblici conservati; status/author/timestamp non vengono passati come patch.
 async function insertMovieNight(night) {
-  requireAppIdentity();
-  const operationEpoch = authEpoch;
-  if (sb) {
-    const { data, error } = await sb.from('movie_nights').insert([night]).select();
-    assertAuthEpoch(operationEpoch);
-    handleDataAuthError(error);
-    if (error) {
-      console.error('[sc(r)occhiaTu] insertMovieNight fallita su Supabase:', error.message);
-      dbMode = 'local';
-      lastSupabaseFailAt = Date.now();
-    }
-    if (data && data[0]) { movieNights.unshift(data[0]); saveLocal(); return data[0]; }
-    return null;
-  }
-  const created = { id: Date.now().toString() + Math.random(), ...night, created_at: new Date().toISOString() };
-  movieNights.unshift(created);
-  saveLocal();
-  return created;
+  const action = night.status === 'proposed' ? 'propose' : night.status === 'confirmed' ? 'quick' : null;
+  return action ? manageMovieNight(action, night.movie_id, null, night) : null;
 }
-
 async function updateMovieNight(id, patch) {
-  requireAppIdentity();
-  const operationEpoch = authEpoch;
-  if (sb) {
-    const { error } = await sb.from('movie_nights').update(patch).eq('id', id);
-    assertAuthEpoch(operationEpoch);
-    handleDataAuthError(error);
-    if (error) {
-      console.error('[sc(r)occhiaTu] updateMovieNight fallita su Supabase:', error.message);
-      dbMode = 'local';
-      lastSupabaseFailAt = Date.now();
-      return false;
-    }
-    return true;
-  }
-  const n = movieNights.find(x => x.id === id);
-  if (!n) return false;
-  if (n) Object.assign(n, patch);
-  saveLocal();
-  return true;
+  const night = movieNights.find(n => n.id === id);
+  if (!night || Object.keys(patch).some(k => !['snack','location'].includes(k))) return false;
+  return !!(await manageMovieNight('edit', night.movie_id, id, { snack: night.snack, ...patch }));
 }
-
-// Scelta rapida di oggi, confermata direttamente; data NULL resta il contratto.
 async function setQuickTonight(id, snack = null, location = null) {
-  requireAppIdentity();
-  const night = await insertMovieNight({
-    movie_id: id, date: null, time: null, snack, location,
-    proposed_by: currentUser, status: 'confirmed', confirmed_at: new Date().toISOString()
-  });
-  if (!night) return false;
-  await updateMovie(id, { status: 'tonight' });
-  return true;
+  return !!(await manageMovieNight('quick', id, null, { snack, location }));
 }
-
-// La proposta programmata conserva snack e luogo sull'evento, anche nei rewatch.
 async function proposeNight(id, person, date, time, snack, location = null) {
   requireAppIdentity();
-  const night = await insertMovieNight({
-    movie_id: id, date, time: time || '21:30', snack, location,
-    proposed_by: person, status: 'proposed'
-  });
-  if (!night) return false;
-  await updateMovie(id, { status: 'tonight' });
-  return true;
+  if (person !== currentUser) return false;
+  return !!(await manageMovieNight('propose', id, null, { date, time, snack, location }));
 }
-
 async function confirmNight(id, nightId) {
-  requireAppIdentity();
   const night = nightId ? activeNights().find(n => n.id === nightId && n.movie_id === id) : activeNightForMovie(id);
-  if (!night) return false;
-  if (night && night.status === 'proposed') {
-    if (!await updateMovieNight(night.id, { status: 'confirmed', confirmed_at: new Date().toISOString() })) return false;
-  }
-  return true;
+  return !!night && !!(await manageMovieNight('confirm', id, night.id));
 }
-
-// Annulla/rifiuta: la serata attiva passa a 'cancelled', il film torna in
-// watchlist, oppure resta tonight se esistono altri eventi attivi.
 async function cancelNight(id, nightId) {
-  requireAppIdentity();
   const night = nightId ? activeNights().find(n => n.id === nightId && n.movie_id === id) : activeNightForMovie(id);
-  if (!night) return false;
-  if (night) {
-    if (!await updateMovieNight(night.id, { status: 'cancelled', cancelled_at: new Date().toISOString() })) return false;
-  }
-  const remaining = activeNights().filter(n => n.movie_id === id && n.id !== night?.id)
-    .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))[0];
-  if (remaining) return updateMovie(id, { status: 'tonight' });
-  await updateMovie(id, { status: 'watchlist' });
+  return !!night && !!(await manageMovieNight('cancel', id, night.id));
 }
-
-// Serata "avvenuta": chiamata quando il film viene recensito come visto
-// insieme (by='both'), da ui.confirmReview.
-async function completeNight(id, location = undefined) {
-  requireAppIdentity();
-  const nights = movieNights
-    .filter(n => n.movie_id === id && (n.status === 'proposed' || n.status === 'confirmed'))
-    .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
-  const night = nights[0];
-  if (night) {
-    return updateMovieNight(night.id, { status: 'completed', completed_at: new Date().toISOString(), location: location === undefined ? (night.location || null) : location });
-  }
-  // Una recensione insieme senza programmazione è comunque una visione:
-  // registriamo l'evento ora, così il luogo ha un proprietario anche qui.
-  return !!(await insertMovieNight({ movie_id: id, date: null, time: null,
-    snack: null, location: location || null, proposed_by: null, status: 'completed',
-    completed_at: new Date().toISOString() }));
+async function completeNight(id, location = undefined, nightId = undefined, review = {}) {
+  const night = nightId ? movieNights.find(n => n.id === nightId && n.movie_id === id) : activeNightForMovie(id);
+  if (nightId && !night) return false;
+  return !!(await manageMovieNight(night ? 'complete' : 'complete_now', id, night?.id || null,
+    { ...(location !== undefined ? { location } : {}), ...review }));
 }
 
 // Il film corrente per il box "Prossimo Film".

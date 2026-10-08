@@ -57,11 +57,11 @@ function renderDashboardHome() {
   const name = CONFIG.PEOPLE[currentUser]?.label || currentUser;
   if (greeting) greeting.textContent = name ? `Ciao, ${name}.` : 'Benvenuti in sala.';
   const watchlist = document.getElementById('homeWatchlistCount');
-  const waiting = movies.filter(m => m.status === 'watchlist').length;
+  const waiting = movies.filter(m => normalListEligible(m)).length;
   if (watchlist) watchlist.textContent = waiting
     ? `${waiting} film in attesa del ciak.` : 'La lista aspetta il primo titolo.';
   const watched = document.getElementById('homeWatchedCount');
-  const seen = movies.filter(m => m.status === 'watched').length;
+  const seen = movies.filter(m => togetherSeen(m)).length;
   if (watched) watched.textContent = seen
     ? `${seen} ${seen === 1 ? 'film visto' : 'film visti'}.` : 'Qui finiscono i film già visti.';
 }

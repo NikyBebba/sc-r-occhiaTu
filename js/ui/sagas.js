@@ -67,13 +67,13 @@ function renderSagaPanel() {
     return;
   }
   const chapters = sagaChapterStates(panel.collection, movie, movies, currentUser);
-  chapters.filter(chapter => chapter.existing || chapter.sourceChapter).forEach(chapter => panel.selected.delete(chapter.part.id));
-  const available = chapters.filter(chapter => !chapter.existing && !chapter.sourceChapter);
+  chapters.filter(chapter => (chapter.existing && (chapter.existing.in_shared_list || togetherSeen(chapter.existing))) || chapter.sourceChapter).forEach(chapter => panel.selected.delete(chapter.part.id));
+  const available = chapters.filter(chapter => (!chapter.existing || (!chapter.existing.in_shared_list && !togetherSeen(chapter.existing))) && !chapter.sourceChapter);
   const cards = chapters.map(({ part, existing, hidden, state, sourceChapter, upcoming, next }) => {
     const title = hidden ? 'Film a sorpresa' : part.title;
-    const selectable = !existing && !sourceChapter;
+    const selectable = (!existing || (!existing.in_shared_list && !state?.together)) && !sourceChapter;
     const status = hidden ? 'Già in lista · sorpresa' : sourceChapter ? 'Il film da cui partite'
-      : state?.together ? 'Visto insieme' : existing ? 'Già in lista' : upcoming ? 'Al cinema / prossimamente' : 'Da aggiungere';
+      : state?.together ? 'Visto insieme' : existing ? (existing.in_shared_list ? 'Già in lista' : 'Fuori Lista') : upcoming ? 'Al cinema / prossimamente' : 'Da aggiungere';
     const personal = !hidden && state && !state.together
       ? ['N', 'V'].filter(person => state[person]).map(person => 'Visto da ' + (CONFIG.PEOPLE[person]?.label || person)).join(' · ') : '';
     const year = !hidden && part.release_date ? part.release_date.slice(0, 4) : '';
@@ -92,7 +92,8 @@ function renderSagaPanel() {
 function toggleSagaChapter(id, checked) {
   if (!sagaPanel || sagaPanel.busy) return;
   const part = sagaPanel.collection?.parts.find(row => row.id === Number(id));
-  if (!part || findDuplicateByTmdbId(id)) return;
+  const existing = findDuplicateByTmdbId(id);
+  if (!part || (existing && (existing.in_shared_list || togetherSeen(existing)))) return;
   if (checked) sagaPanel.selected.add(Number(id));
   else sagaPanel.selected.delete(Number(id));
   // Aggiorna solo il pulsante: il checkbox mantiene focus e stato.
@@ -116,19 +117,33 @@ async function addSagaChapters() {
       if (currentUser !== panel.user) break;
       const part = panel.collection.parts.find(row => row.id === id);
       if (!part) continue;
-      if (findDuplicateByTmdbId(id)) { panel.selected.delete(id); duplicates++; continue; }
+      const existing = findDuplicateByTmdbId(id);
+      if (existing) {
+        if (!existing.in_shared_list && !togetherSeen(existing)) {
+          if (!(await toggleSharedList(existing.id))) { failed++; break; }
+          added++;
+        } else duplicates++;
+        panel.selected.delete(id); continue;
+      }
       try {
         const details = await fetchTmdbDetailsById(id);
         if (currentUser !== panel.user) break;
         if (!details.matched || Number(details.tmdb_id) !== id) { failed++; continue; }
-        if (findDuplicateByTmdbId(id)) { panel.selected.delete(id); duplicates++; continue; }
+        const raced = findDuplicateByTmdbId(id);
+        if (raced) {
+          if (!raced.in_shared_list && !togetherSeen(raced)) {
+            if (!(await toggleSharedList(raced.id))) { failed++; break; }
+            added++;
+          } else duplicates++;
+          panel.selected.delete(id); continue;
+        }
         const shared = !!sb;
-        const inserted = await insertMovie({ title: details.title, added_by: panel.user, status: 'watchlist',
+        const inserted = await insertMovie({ title: details.title, added_by: panel.user, status: 'watchlist', in_shared_list: true,
           ...(part.release_date && part.release_date > sagaTodayKey() ? { cinema_watchlist: true } : {}),
           tmdb_id: id, collection_id: details.collection_id ?? panel.collection.id,
           collection_name: details.collection_name || panel.collection.name,
           duration: details.duration, platform: details.platform, poster: details.poster,
-          trailer_url: details.trailerUrl, matched: details.matched, rating: 0,
+          trailer_url: details.trailerUrl, matched: details.matched,
           genres: details.genres || [], release_year: details.release_year ?? null, director: details.director || null,
           overview: details.overview || null, cast_names: details.cast_names || null,
           imdb_rating: details.imdbRating || '', rt_rating: details.rtRating || '', metacritic_rating: details.metacriticRating || '' });
@@ -136,7 +151,12 @@ async function addSagaChapters() {
         if (inserted && (!shared || dbMode === 'supabase') && movies.some(row => row.id === inserted.id && Number(row.tmdb_id) === id)) {
           added++; panel.selected.delete(id);
         } else if (!inserted && findDuplicateByTmdbId(id)) {
-          duplicates++; panel.selected.delete(id);
+          const recovered = findDuplicateByTmdbId(id);
+          if (!recovered.in_shared_list && !togetherSeen(recovered)) {
+            if (!(await toggleSharedList(recovered.id))) { failed++; break; }
+            added++;
+          } else duplicates++;
+          panel.selected.delete(id);
         } else { failed++; }
       } catch (_) { failed++; }
     }

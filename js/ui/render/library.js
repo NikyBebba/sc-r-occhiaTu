@@ -17,7 +17,7 @@ function onSearchInput() {
 // filterMovies senza il vincolo di status).
 function renderPillCounters() {
   const counts = statusCountsFor(movies);
-  [['all', 'pillCountAll'], ['watchlist', 'pillCountWatchlist'], ['tonight', 'pillCountTonight'], ['watched', 'pillCountWatched']]
+  [['all', 'pillCountAll'], ['watchlist', 'pillCountWatchlist'], ['tonight', 'pillCountTonight'], ['watched', 'pillCountWatched'], ['rewatch', 'pillCountRewatch'], ['history_n', 'pillCountHistoryN'], ['history_v', 'pillCountHistoryV']]
     .forEach(([key, id]) => {
       const el = document.getElementById(id);
       if (el) el.textContent = counts[key];
@@ -32,6 +32,9 @@ function emptyListStateHtml() {
     const empty = {
       all: ['fa-film', 'Lo scaffale è ancora vuoto', 'Aggiungi un film: il cartellone parte da lì.', 'Aggiungi un film', "openAddModal()"],
       watchlist: ['fa-clapperboard', 'La lista è pronta', 'Manca il protagonista: aggiungi un film.', 'Aggiungi un film', "openAddModal()"],
+      rewatch: ['fa-rotate', 'Il bis può aspettare', 'Qui trovi i film già visti separatamente, ancora da vedere insieme.', 'Vai alla lista', "setTab('watchlist')"],
+      history_n: ['fa-film', 'Storico N', 'Qui trovi le visioni personali di N, anche per film in Lista.', 'Aggiungi un film', "openAddModal()"],
+      history_v: ['fa-film', 'Storico V', 'Qui trovi le visioni personali di V, anche per film in Lista.', 'Aggiungi un film', "openAddModal()"],
       tonight: ['fa-calendar-plus', 'Nessuna serata in programma', 'Scegliete un film dalla lista e fissate la prossima serata.', 'Vai ai film da vedere', "setTab('watchlist')"],
       watched: ['fa-ticket', 'I titoli di coda devono ancora scorrere', 'Qui finiscono i film visti, i voti e i commenti.', 'Vai ai film da vedere', "setTab('watchlist')"]
     }[currentTab] || ['fa-film', 'Nessun film', 'Aggiungi un film alla libreria.', 'Aggiungi un film', "openAddModal()"];
