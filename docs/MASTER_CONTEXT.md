@@ -1,8 +1,55 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.55
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.58
 
 Ultimo aggiornamento: 9 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
 
-## Fix frontend v55 — locale, 9 ottobre 2026
+## Produzione v58 — login standard e recovery, 9 ottobre 2026
+
+Commit `f3c49fd110592e9d8883f5e797809cf6fc34c0f2`, main/origin/main allineati al deploy.
+Vercel production completato; 41/41 file runtime HTTP 200 e identici al commit,
+service worker `scorochiatu-shell-v58`. Frontend v55 incluso nella release;
+backend Individual/Rewatch v54 già applicato dall’utente, audit pre/post 24/24.
+Nessuna modifica successiva a Supabase, database, RLS, RPC o account dall’agente.
+
+Login: N/V → Account visibile/editabile precompilato → Password standard.
+Username email/name=username/autocomplete=username; password
+name=password/autocomplete=current-password. Eliminati vincoli numerici/PIN:
+solo vuoto bloccato localmente, credenziale verificata da Supabase. Email
+normalizzata diversa dall’account selezionato blocca Auth; cambiare email non
+cambia identità. Cambio N/V svuota password e mantiene focus password.
+Remember Me, normale restore e catena N/V → email → Auth → app_members conservati.
+Password reali gestite manualmente dall’utente, mai inserite nel repository.
+
+Recovery v58 richiede PASSWORD_RECOVERY reale del SDK, sessione/scadenza,
+utente verificato online e app_members. Nessun requisito MFA/AAL/AMR; nessun
+reset da sola OTP, SIGNED_IN, INITIAL_SESSION o marker locale. Nuova password e
+conferma usano new-password; verifica identità prima di updateUser, revisioni
+per gli eventi concorrenti, guardia double-submit e logout locale dopo successo.
+Ricaricare durante recovery interrompe il contesto e richiede un nuovo link.
+Errori distinguono sessione, utente, membership e rete/servizio senza dettagli sensibili.
+[Contratto tecnico completo](AUTH_SUPABASE.md#password-recovery--v58).
+
+Cronologia dei test reali e delle correzioni:
+
+- v56 (`d6de40ade7c1edb5463a4c231318e7554510c122`): username editabile e
+  mismatch guard; test Safari FAIL, credenziale salvata non proposta.
+- v57 (`8007863f0e2d909abaf7e5efce6ca963a1f39d69`): login standard e primo
+  recovery. L’utente corregge Site URL; link arriva e schermata appare, ma
+  il controllo AMR errato impedisce il reset. Le prime fixture AMR recovery
+  non riproducevano il caso realistico AMR otp.
+- v58: rimosso requisito AMR e corretta race fra eventi recovery, senza
+  indebolire il contesto SDK richiesto. Deploy e simulazione SDK reale PASS;
+  **reset hosted v58 e Autofill Safari ancora da confermare dall’utente**.
+
+Verifiche candidato v58: Smoke 436/436, Auth 77/77, RLS locale 40/40, DB Individual/Rewatch 52/52,
+PWA 18/18, Chromium Auth 36/36, UX 24/24, Individual/Rewatch browser 39/39,
+sintassi 56/56 e diff check PASS.
+SDK Supabase v2 reale (2.117.3 nella simulazione), Auth/membership simulati e
+PWA: 8/8 con AMR otp, 8/8 senza AMR. Password/token sintetici generati a runtime;
+nessuna chiamata Auth a Supabase production nei test. HTTP non attesta reset/login.
+I checkpoint seguenti sono storici: vincoli locali e divieti di pubblicazione
+riportati per release precedenti non descrivono lo stato corrente v58.
+
+## Storico: fix frontend v55 — candidato locale prima della pubblicazione, 9 ottobre 2026
 
 Produzione v54 al commit `7855c16cae940c4f1b9a3d4267cc9c0db95c9107`,
 cache v54, migration eseguita dall’utente una sola volta; audit pre/post 24/24
@@ -532,10 +579,11 @@ Phase 26 — Audio Manager implementata localmente: pulsante opt-in nel pannello
 
 Phase 28 — Ciak Loader e skeleton implementata localmente: al primo ingresso, dopo 160 ms di attesa, un ciak compare sotto la navbar e due sagome di movie card nella libreria. Il render cancella sempre il timer e rimuove lo stato `aria-busy`, così una risposta rapida non produce flash tardivi; il movimento ridotto usa la regola globale già presente. Una lettura iniziale che rigetta usa il mirror locale e termina il caricamento. Nessuna migration. Cache PWA `v19`; smoke locale **310/310 PASS**; resa visiva da verificare su smartphone.
 
-## Quadro rapido — v55 locale / v54 production
+## Quadro rapido — v58 production
 
 | Area | Stato corrente | Confine |
 | --- | --- | --- |
+| Login / recovery | Account + Password; reset solo da PASSWORD_RECOVERY verificato | Nessuna autorizzazione da email editata, OTP o storage; test reale v58 pendente |
 | Lista e scelta | Candidatura `in_shared_list`; Ruota/Match escludono Together, eventi attivi, cinema e veto | Contratto Match Live invariato |
 | Storico | Destinazione Home, switch N/V, rispettivo seen=true, ordine alfabetico e card normali | Fuori da Ricordi, nessun filtro Lista; viste sovrapponibili |
 | Ricordi / Titoli di coda | Quattro riepiloghi, Serate concluse anno/mese, Dopo il film | Eventi completed e recensioni condivise; nessuna cronologia personale inventata |
@@ -543,10 +591,13 @@ Phase 28 — Ciak Loader e skeleton implementata localmente: al primo ingresso, 
 | Serate | Programma/Oggi/annullo conservano candidatura; nuova conclusione la consuma | RPC v54 atomica; retry completed non consuma ricandidature |
 | Voti e testi | Personali leggibili da entrambi, scrivibili solo dal proprietario Auth | Nessuna copia privata/pubblica; N+V solo dati/azioni condivisi |
 
-Verifiche finali v55: Smoke 436/436, Auth 48/48, RLS 40/40, DB feature 52/52,
-PWA 15/15, Chromium Auth 18/18, UX 24/24, feature 39/39, sintassi 54/54 e diff check PASS.
-DB v54 applicato e audit live confermati dall’utente. La v55 resta locale;
-uso reale sui due telefoni da verificare dopo deploy autorizzato.
+Verifiche v58: Smoke 436/436, Auth 77/77, RLS locale 40/40, DB Individual/Rewatch 52/52,
+PWA 18/18, Chromium Auth 36/36, UX 24/24, Individual/Rewatch browser 39/39,
+sintassi 56/56 e diff check PASS.
+SDK reale simulato: 8/8 AMR otp e 8/8 senza AMR. Production HTTP 41/41.
+DB v54 applicato e audit live confermati dall’utente; frontend v55–v58 pubblicati.
+Recovery hosted v58, Autofill Safari e collaudo completo sui due telefoni restano
+separati dalle verifiche locali/HTTP e non sono dichiarati superati.
 
 Regola repository: database locali, dump e backup sono esclusi da Git. I file SQL in `database/` descrivono schema e migration, senza esportazioni dei dati.
 
@@ -558,10 +609,11 @@ L'utente apprezza aggiunte come «Continua la saga», il ticket più curato e le
 
 ## Prossimo lavoro
 
-Priorità corrente: completare la sincronizzazione documentale v55 e ottenere
-l’autorizzazione separata a commit/push/deploy. Nessuna migration v55.
-Dopo pubblicazione autorizzata, aggiornare le due PWA e verificare Home →
-Storico, N/V, film fuori Lista, oro Together, Segna come non visto e Ricordi.
+Priorità corrente: test reale del recovery v58 appena pubblicato e del login
+standard con Apple Passwords/Safari, usando l’app-shell v58. Confermare reset,
+ritorno al login, N/V, Ricordami e restore senza attribuire alle fixture un collaudo hosted.
+Completare anche il collaudo condiviso Home → Storico, N/V, film fuori Lista,
+oro Together, Segna come non visto e Ricordi. Nessuna nuova migration prevista.
 Taste/Recommendation Engine e nuove statistiche richiedono una fase dedicata.
 Non attribuire al primo uso reale v54 il collaudo completo di queste funzioni.
 
@@ -609,10 +661,11 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 ---
 
-## Stato attuale del codice — v55 locale
+## Stato attuale del codice — v58 production
 
-- Supabase Auth/mapping N/V e RLS attivi; nessuna modifica v55 a identità,
-  privilegi, trigger o RPC. Le protezioni personali v54 restano operative.
+- Supabase Auth/mapping N/V e RLS attivi; login standard e recovery v58
+  descritti nel checkpoint iniziale. Nessuna modifica backend, privilegi,
+  trigger o RPC; protezioni personali v54 operative.
 - Add TMDb: No candida senza voto; Sì offre Solo Storico con voto facoltativo
   oppure candidatura con voto obbligatorio se il proponente ha già visto il film.
   Un secondo seen su candidato non richiede voto né modifica la candidatura.
@@ -638,9 +691,10 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
   voto del proponente quando richiesto. Indicatori N/V riusano l’helper card.
 - Dettaglio/transition, ticket PNG, temi stagionali/festivi, veto, sorpresa,
   calendario, audio/haptics e loader conservati.
-- Cache app-shell `scorochiatu-shell-v55`; API/Supabase/poster/YouTube esclusi
+- Cache app-shell `scorochiatu-shell-v58`; API/Supabase/poster/YouTube esclusi
   dall’intercettazione. Manifest e icone esistenti; nessuna nuova dipendenza.
-- Verifiche locali complete nel checkpoint iniziale; test hosted v55 pendenti.
+- Verifiche locali e HTTP complete nel checkpoint iniziale; recovery reale v58,
+  Autofill Safari e collaudo condiviso completo ancora da confermare.
 
 ---
 
@@ -678,7 +732,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 31 — Accessibility baseline ✅
 
 ### ✅ PWA (COMPLETA)
-- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`v47` al checkpoint corrente), toast di aggiornamento ✅
+- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`scorochiatu-shell-v58` in produzione), toast di aggiornamento ✅
 - Verificato: nessuna richiesta Supabase/TMDb/OMDb/poster/YouTube passa mai dalla cache (nessun `respondWith` su quei domini)
 
 ### STEP 2 — Core Layout (Phase 8.2 implementata)
@@ -716,7 +770,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 ### STEP 6 — Cinematic UX
 - Phase 10 — Hot Picks. **Dipendenza:** servono `popularità`, `vote_average`, data uscita completa, oggi non salvati (nuova migration se si vuole procedere)
 - Phase 11 — Dynamic Island — allineare a "serata in programma" e alla Tonight
-- Phase 12 — Login Experience (prima passata visuale scelta N/V e PIN completata; altre rifiniture da verificare su smartphone)
+- Phase 12 — Login Experience (N/V, Account/Password standard e recovery v58 pubblicati; reset reale e Autofill Safari da confermare)
 - Phase 14 — Film Grain
 - Phase 25 — Shared Element Transitions (card libreria ↔ scheda film ✅ nel codice locale; altri passaggi non definiti)
 

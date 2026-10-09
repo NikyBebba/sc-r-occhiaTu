@@ -1,35 +1,54 @@
 # AGENTS.md — sc(r)occhiaTu
 
-Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 9 ottobre 2026 (Auth/RLS e migration v54 in produzione; frontend v55 candidato locale).
+Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 9 ottobre 2026 (frontend v58 in produzione; Auth/RLS e migration v54 già applicate).
 Prima di progettare una fase leggere [docs/MASTER_CONTEXT.md](docs/MASTER_CONTEXT.md):
 è la fonte dello stato corrente, delle decisioni UX e della roadmap. Le sezioni
 storiche del master context descrivono cicli precedenti, non lo stato finale.
 Per modelli e flussi specifici consultare anche le specifiche Phase 22/23/38/41.
 Vincoli, sicurezza e contratto Match di questo file restano applicabili.
 
-## Stato corrente v55 locale / v54 production
+## Stato corrente v58 production
 
-Production commit `7855c16cae940c4f1b9a3d4267cc9c0db95c9107`, SW v54.
-Migration Individual/Rewatch eseguita una sola volta dall’utente; audit
-pre/post 24/24 e checkpoint integro. HTTP release verificato. Primo test
-reale: backend/caricamento positivo, problemi UX affrontati nella v55 locale.
-Non attribuire a questo test un collaudo completo dei flussi v55.
+Production commit `f3c49fd110592e9d8883f5e797809cf6fc34c0f2`, SW `scorochiatu-shell-v58`.
+Push e deployment Vercel completati; 41/41 file runtime HTTP 200 e identici al commit.
+Migration Individual/Rewatch v54 eseguita una sola volta dall’utente; audit
+pre/post 24/24 e checkpoint integro. Non rieseguire cutover o migration.
+Le release frontend successive non modificano database, RLS, RPC o account.
 
-v55 è solo frontend: Storico autonomo dal widget Home, switch Storico N/V,
+Login standard: N/V → Account precompilato visibile/editabile → Password.
+Username email con autocomplete="username"; password con
+name="password" e autocomplete="current-password", senza vincoli numerici.
+Solo submit vuoto bloccato; validità della password determinata da Supabase.
+L’email normalizzata deve corrispondere all’account N/V selezionato prima di Auth.
+Identità autorevole da Supabase Auth verificato e app_members; Ricordami e
+session restore normali conservati. Nessuna password o token reale nel repository.
+
+Recovery: solo contesto reale PASSWORD_RECOVERY del SDK, con sessione valida,
+utente verificato online, membership e scadenza. Nessuna autorizzazione da
+MFA/AAL/AMR o marker locale. Nuova password/conferma usano new-password;
+identity guard e double-submit preservati. Successo → logout locale → login.
+Ricaricare durante recovery interrompe il flusso e richiede un nuovo link.
+[Dettagli, errori e limiti](docs/AUTH_SUPABASE.md).
+Test reale recovery v58 e Apple Passwords/Safari ancora da confermare:
+il deploy/HTTP e le simulazioni locali non equivalgono al collaudo hosted.
+
+Storico introdotto nella v55 è pubblicato: destinazione Home con switch N/V,
 rispettivamente seen_n/seen_v=true, viste sovrapponibili anche fuori Lista e
 indipendenti da in_shared_list. Card/griglia normali, ordine alfabetico,
-nessun filtro Streaming/Cinema o altro filtro Lista; niente nuova persistenza.
-Storico non è nella bottom nav né dentro Ricordi. Ricordi conserva statistiche,
-Serate concluse e Dopo il film/recensioni. I due pallini originali N/V seguono
-il seen personale quando non Together; Together dai completed colora entrambi
-oro senza modificare seen_n/seen_v. Nessun terzo indicatore o etichetta visibile
-Together; N+V resta per dati/azioni condivisi. UI: “Segna come non visto”, che
-rimuove solo il proprio seen e conserva voto, recensione, candidatura, eventi e
-Together; evitare terminologia tecnica nei messaggi rivolti all’utente.
-Nessuna modifica v55 a DB/migration/rollback, RLS/RPC, Auth, Match Live o
-semantica candidacy/Rewatch. Cache locale v55. Nessun commit/push/deploy v55.
-Suite finale: Smoke 436/436, Auth 48/48, RLS 40/40, DB feature 52/52,
-PWA 15/15, Chromium Auth 18/18, UX 24/24, feature 39/39, sintassi 54/54.
+nessun filtro Lista o nuova persistenza. Fuori da bottom nav e Ricordi.
+Ricordi conserva statistiche, Serate concluse e Dopo il film/recensioni.
+I due pallini N/V seguono il seen personale; Together dai completed colora
+entrambi oro senza modificare seen_n/seen_v. Nessun terzo indicatore o etichetta
+Together; N+V resta per dati/azioni condivisi. “Segna come non visto” rimuove
+solo il proprio seen e conserva voto, recensione, candidatura, eventi e Together.
+Contratto Match Live e semantica candidacy/Rewatch invariati.
+Evitare terminologia tecnica nei messaggi rivolti all’utente.
+
+Suite v58: Smoke 436/436, Auth 77/77, RLS locale 40/40, DB Individual/Rewatch 52/52,
+PWA 18/18, Chromium Auth 36/36, UX 24/24, Individual/Rewatch browser 39/39,
+sintassi 56/56 e diff check PASS.
+SDK Supabase v2 reale con Auth/membership simulati e PWA: 8/8 con AMR otp,
+8/8 senza AMR; credenziali sintetiche generate a runtime, nessun test Auth live.
 I checkpoint datati sotto descrivono i rispettivi cicli storici.
 
 ## Project purpose
@@ -85,8 +104,8 @@ Flusso di caricamento dei moduli (ordine in `index.html`):
 theme (head) → config → format → haptics → audio → api(omdb+tmdb → index) → auth → store + store/{movies,viewing,legacy,choices,nights,match} → match → filters → wheel → ui(modals+navigation+actions e domini+sagas+render e domini+calendar+match+ticket+loading) → main
 ```
 
-- `js/config.js` — chiavi runtime (TMDb/OMDb/Supabase) + `PEOPLE` (label) e `AUTH_EMAILS` (email account, ancora vuote). Nessuna password/PIN.
-- `js/auth.js` — verifica online Auth/app_members, storage token Ricordami, refresh JWT, guardie identità/generazione, logout e distinzione offline/Auth.
+- `js/config.js` — chiavi runtime (TMDb/OMDb/Supabase) + `PEOPLE` (label) e `AUTH_EMAILS` (email account configurate). Nessuna password/PIN.
+- `js/auth.js` — verifica online Auth/app_members, storage token Ricordami, refresh JWT, guardie identità/generazione, logout, password recovery e distinzione offline/Auth.
 - `js/format.js` — helper DOM-free dei voti decimali (validazione, parsing punto/virgola, formato italiano) e delle date: `formatNightDate(date, time)` (data serata
   leggibile "24 ott · 21:30", senza `new Date('YYYY-MM-DD')`, fallback al dato
   grezzo, mai orari inventati, `date NULL` → "Oggi").
@@ -145,7 +164,7 @@ theme (head) → config → format → haptics → audio → api(omdb+tmdb → i
   locale fino al cambio di periodo (finestre e precedenze nel master context).
 - `js/audio.js` / `js/haptics.js` — preferenze locali opt-in per suoni/vibrazioni;
   `js/ui/loading.js` — ciak loader e skeleton iniziali.
-- `js/main.js` — login (landing → persona → PIN → Supabase Auth verificato) e
+- `js/main.js` — login (landing → persona → Account/Password → Supabase Auth verificato), recovery e
   attivazione Realtime all'ingresso.
 - `scripts/import-movies.js` — import/aggiornamento massivo dei film da
   `data/movie-watchlist.json` (match TMDb prudente + alias documentati +
@@ -305,13 +324,13 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 
 ## Feature implementate al checkpoint corrente
 
-Login persona/PIN, home Match/Ruota/Libreria, watchlist con picker TMDb,
+Login persona/Account/Password e password recovery, home Match/Ruota/Libreria, watchlist con picker TMDb,
 import bulk, dedup per ID e UNIQUE, Match Live a swipe con presence e Match %,
 Ruota canvas con filtri e confetti, veto settimanale, sorprese, serate con
 proposta/conferma e rewatch, popup «Oggi» con snack/luogo facoltativi e modificabili,
 proposte «In cartellone» accettabili anche durante il film di oggi, calendario mensile,
 voti personali/condivisi 0–10 con decimali e recensioni facoltative,
-«Titoli di coda» con riepiloghi e serate, Storico personale autonomo (v55 locale), saghe TMDb, ticket PNG,
+«Titoli di coda» con riepiloghi e serate, Storico personale autonomo, saghe TMDb, ticket PNG,
 temi automatici, PWA, audio/haptics opt-in e ciak loader.
 Il voto condiviso e la sua azione usano N+V in oro; il pulsante personale segue
 quello condiviso nel colore N/V. «Film aggiunti» conta l'intera libreria per autore.
@@ -348,7 +367,7 @@ Per le priorità precise leggere il master context aggiornato.
 ## Vincoli tecnici
 
 - Dipendenze ancora via CDN (Tailwind Play, Font Awesome, supabase-js).
-- PWA presente: manifest e service worker, cache candidata `v55` (production `v54`); domini API,
+- PWA presente: manifest e service worker, cache production `scorochiatu-shell-v58`; domini API,
   Supabase, poster e YouTube sempre esclusi dall'intercettazione. Le icone PWA
   sono provvisorie; non confondere l'app-shell offline con dati remoti disponibili.
 - HTML delle card generato come stringhe: usare `escapeHtml`/`jsAttrEscape`
@@ -365,7 +384,7 @@ Per le priorità precise leggere il master context aggiornato.
 2. NON introdurre framework/bundler/backend/auth server.
 3. NON cambiare identità visiva globale o spostare ruota/sorpresa in secondo
    piano.
-4. NON rimuovere/rigenerare API key senza autorizzazione; non spostare `config.js`. PIN nuovi impostati manualmente in Auth, mai nel codice.
+4. NON rimuovere/rigenerare API key senza autorizzazione; non spostare `config.js`. Password impostate manualmente dall’operatore in Auth, mai nel codice.
 5. NON implementare feature pianificate senza fase dedicata.
 6. NON decidere autonomamente su punti architetturali con impatto sulle
    feature future: segnalare invece nel report.
@@ -411,7 +430,7 @@ Per le priorità precise leggere il master context aggiornato.
 - [Specifiche UX](docs/UX_NAVIGATION_MEMORIES.md). Modifiche locali, nessun
   push/deploy o Supabase live. Non dichiarare v51 production-verified.
 
-## Auth/RLS production-verified — 8 ottobre 2026
+## Storico: Auth/RLS production-verified — 8 ottobre 2026
 
 - Migrazione conclusa; l’utente conferma su entrambi i dispositivi login N/V,
   dati, persistenza sessione, Realtime, Match Live e logout PASS.

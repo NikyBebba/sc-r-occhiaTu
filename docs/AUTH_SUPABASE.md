@@ -2,11 +2,13 @@
 
 Auth/RLS concluse l’8 ottobre 2026, originariamente distribuite con
 `2bd43a6458733d479b32c790a6da5982f425dbce` e cache v50.
-Produzione corrente: v54 al commit `7855c16cae940c4f1b9a3d4267cc9c0db95c9107`,
-[Vercel Production](https://sc-r-occhia-tu.vercel.app), cache v54.
-La migration Individual/Rewatch è applicata dall’utente; audit pre/post 24/24.
-v55 resta frontend locale, cache v55: non modifica Auth, RLS, RPC, account,
-Match Live o semantica di candidatura. Non rieseguire cutover Auth o v54.
+Produzione corrente: v58 al commit `f3c49fd110592e9d8883f5e797809cf6fc34c0f2`,
+[Vercel Production](https://sc-r-occhia-tu.vercel.app), cache `scorochiatu-shell-v58`.
+Push/deployment completati; 41/41 file runtime HTTP 200 e identici al commit.
+La migration Individual/Rewatch v54 è applicata dall’utente; audit pre/post 24/24.
+Frontend v55–v58 pubblicati senza modifiche database/RLS/RPC o utenti Supabase.
+Non rieseguire cutover Auth o migration v54. Il collaudo hosted Auth v50 sotto
+non attesta il nuovo recovery v58, il cui test reale è ancora da confermare.
 
 L’utente ha eseguito e confermato PREPARE, account/mapping, CUTOVER e nuove
 policy RLS N/V/realtime.messages. Realtime ON, Allow public access OFF;
@@ -46,12 +48,81 @@ user_metadata, dalla persona selezionata o dallo storage applicativo. La
 selezione N/V sceglie soltanto l'email per `signInWithPassword`; il mapping
 verificato deve corrispondere. Non si riscrivono gli autori N/V storici.
 
-Non sono introdotti backend, registrazione, OAuth, redirect o magic link.
-L'accesso usa due utenti email/password precreati e confermati. La password
-è il nuovo PIN numerico di otto cifre richiesto, distinto per ciascun account,
-generato dall'operatore; non compare in config, SQL o storage applicativo.
-Il form offre username/current-password al password manager; supporto e
-salvataggio dipendono dal browser. La publishable key resta client-side.
+Non sono introdotti backend, registrazione, OAuth o login tramite magic link.
+L'accesso usa due utenti email/password precreati e confermati. Le password
+sono gestite dall’operatore in Supabase Auth, mai in config, SQL o storage
+applicativo; l’agente non modifica le credenziali. Il frontend accetta password
+non vuote, comprese lettere e simboli, senza vincoli PIN/otto cifre o requisiti
+ulteriori. La validità della credenziale è determinata da Supabase Auth.
+
+La scelta N/V precompila l’input Account visibile/editabile (type=email,
+name=username, autocomplete=username). L’email normalizzata deve corrispondere
+a CONFIG.AUTH_EMAILS[pendingUser]: una discrepanza blocca signInPerson senza
+correzione automatica. Cambiare persona aggiorna email, svuota password e porta
+il focus alla password. Password usa type=password, name=password e
+current-password, senza inputmode/pattern/minlength/maxlength del vecchio PIN.
+La publishable key resta client-side. La semantica Autofill è convenzionale,
+ma il riconoscimento delle credenziali salvate in Safari non è ancora attestato:
+le prove reali del campo readonly e della v56 editabile sono fallite.
+
+## Password recovery — v58
+
+L’utente ha corretto manualmente il Site URL Supabase verso
+[production](https://sc-r-occhia-tu.vercel.app/). Il test reale v57 ha confermato arrivo in
+production e schermata recovery, ma la verifica rifiutava immediatamente il link.
+La causa riprodotta era il requisito errato AMR method=recovery: una sessione
+recovery valida può riportare AMR otp. La v58 rimuove la verifica MFA/AAL/AMR
+senza sostituirla con una autorizzazione basata su otp.
+
+Il client Supabase JS v2 è caricato dal CDN @2, senza pin di versione. La
+simulazione v58 ha usato il SDK pubblico 2.117.3; ciò non garantisce la medesima
+versione in ogni cache browser. detectSessionInUrl usa il callback già previsto
+nell’API SDK; onAuthStateChange viene collegato appena creato il client.
+L’SDK gestisce i parametri e crea la sessione: l’app non interpreta/scambia
+manualmente token URL. Il contesto autorizzante richiede l’evento reale
+PASSWORD_RECOVERY, non basta rilevare un URL, una sessione OTP, SIGNED_IN,
+INITIAL_SESSION o un marker locale.
+
+Prima di abilitare “Imposta nuova password” si verificano sessione SDK, scadenza,
+utente online tramite getUser e membership app_members N/V. Bootstrap e normale
+session restore non devono sovrascrivere il recovery. Le verifiche sono delegate
+fuori dal callback Auth per evitare il lock SDK. Ogni nuovo evento recovery
+avanza la revisione e prevale sulle verifiche precedenti: risultati tardivi non
+abilitano il form né sovrascrivono il contesto più recente. SIGNED_IN dello stesso
+utente conserva il contesto; cambio identità o SIGNED_OUT lo invalidano.
+TOKEN_REFRESHED dello stesso utente richiede nuova verifica nel contesto corrente.
+
+Nuova password e Conferma password sono type=password e autocomplete=new-password,
+solo nella schermata dedicata. Vuoto o valori diversi bloccano updateUser.
+Prima di supabase.auth.updateUser({ password }) si ripetono le verifiche e si
+controlla l’identità rispetto a quella preparata; protezioni contro risposte
+obsolete e double-submit restano attive. Successo: logout locale, conferma e
+ritorno al normale ingresso N/V, senza entrare automaticamente nell’app.
+
+Gli errori espongono messaggi controllati e categorie interne/testabili:
+
+| Categoria | Significato |
+| --- | --- |
+| INVALID_SESSION | Contesto/sessione recovery non valida o scaduta |
+| USER_UNVERIFIABLE | Utente non verificabile online |
+| MEMBERSHIP_UNAUTHORIZED | Membership assente o non autorizzata |
+| SERVICE_UNAVAILABLE | Rete/servizio non disponibile |
+
+Non tutti gli errori diventano “link scaduto”. Gli errori di validazione della
+nuova password permettono un messaggio di riprova coerente, senza dettagli sensibili.
+Nessun token/password o errore SDK grezzo è salvato nei diagnostici o loggato.
+Lo storage SDK mantiene i token secondo il contratto Auth esistente; il marker
+sessionStorage scorochiatu_recovery contiene solo l’ID utente, non autorizza reset.
+Il contesto recovery verificato resta in memoria: **un reload lo interrompe**,
+elimina la sessione recovery locale e richiede un nuovo link. L’app-shell PWA v58
+non conserva URL/token recovery; API Supabase sono escluse dal service worker.
+
+Verifiche v58: Auth 77/77, Chromium Auth 36/36, SDK reale + PWA 8/8 con AMR otp
+(default) e 8/8 senza AMR. Auth/membership e sessioni sono simulati con dati
+sintetici generati a runtime; nessun reset su account reale eseguito dall’agente.
+Il test hosted del reset v58 e Apple Passwords/Safari restano da confermare.
+Signup pubblico resta disabilitato secondo la configurazione già confermata;
+nessun signup introdotto e nessuna nuova verifica/modifica Dashboard in questo ciclo.
 
 ## Sessione, rete e logout
 
@@ -252,6 +323,9 @@ node scripts/verify-sw.js
 node scripts/verify-auth.js
 node scripts/verify-auth-rls.js --pglite=/percorso/node_modules/@electric-sql/pglite
 node scripts/verify-auth-browser.cjs --playwright=/percorso/node_modules/playwright
+# SDK pubblico scaricato separatamente; Auth/membership simulati, AMR otp predefinito
+NODE_PATH=/percorso/node_modules node scripts/verify-recovery-browser.cjs --sdk=/percorso/supabase-v2.js
+NODE_PATH=/percorso/node_modules node scripts/verify-recovery-browser.cjs --sdk=/percorso/supabase-v2.js --amr=none
 ```
 
 PGlite e Playwright sono dipendenze solo di verifica; non introdotti nella
