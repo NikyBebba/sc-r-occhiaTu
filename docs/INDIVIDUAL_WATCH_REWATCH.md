@@ -1,13 +1,18 @@
-# Individual Watch Status + Rewatch — candidato locale
+# Individual Watch Status, Storico e Rewatch — v54 production / v55 locale
 
-8 ottobre 2026. Fasi 1–4 autorizzate: implementazione e verifiche locali.
-Nessuna migration, query di scrittura, modifica Supabase, push o deploy eseguita.
-Produzione e database live restano alla versione precedente. Candidato PWA v54.
+Checkpoint 9 ottobre 2026: v54 pubblicata al commit
+`7855c16cae940c4f1b9a3d4267cc9c0db95c9107`, cache production v54.
+Migration applicata integralmente una sola volta dall’utente, audit
+pre/post 24/24 e confronto integrale checkpoint tutti true.
+Verifica HTTP v54 PASS; primo uso reale backend/caricamento positivo,
+con problemi UX affrontati dalla v55. Non è un collaudo completo v54/v55.
+La v55 è frontend locale, cache v55; nessun commit/push/deploy v55.
+Le protezioni DB v54 restano invariate e non vanno riapplicate.
 
 ## Contratto
 
 L'identità personale proviene da Supabase Auth → `app_members` → `app_person()`.
-N può modificare solo la propria dichiarazione, voto e testo; V solo i propri.
+N può modificare solo il proprio stato visto, voto e testo; V solo i propri.
 La conclusione di una serata resta condivisa ed eseguibile da uno dei membri,
 senza doppia conferma e senza voto obbligatorio.
 
@@ -20,7 +25,7 @@ in_shared_list boolean NOT NULL DEFAULT false
 ```
 
 Nessun `watched_together`, `legacy_seen`, enum o nuova tabella applicativa.
-Le tabelle `app_watch_backup.checkpoint/grants`, nel SQL preparato, sono un
+Le tabelle `app_watch_backup.checkpoint/grants`, create dalla migration v54, sono un
 backup privato dell'operatore per il rollback, fuori dal modello runtime.
 Non sono accessibili ad anon/authenticated né aggiunte alla publication.
 
@@ -28,20 +33,21 @@ Predicati canonici in `js/store/viewing.js`:
 
 - together: esiste un evento dello stesso film con `status='completed'`;
 - Rewatch: `seen_n && seen_v && !together`;
-- Candidatura: `in_shared_list`, indipendente dalle dichiarazioni personali;
+- Candidatura: `in_shared_list`, indipendente dagli stati personali;
 - Lista disponibile: candidatura e assenza di together ed eventi proposed/confirmed;
 - Storico N/V: rispettivo seen=true, anche per candidati e film together;
 - Ruota/nuovo Match: Lista, escluso cinema e veto della settimana;
 - Rewatch mostra anche i film In gioco e quelli programmati;
-- pallini N/V: esclusivamente le dichiarazioni personali; together ha un
-  indicatore N+V dorato separato, senza trasformarsi in due dichiarazioni.
+- pallini N/V originali: colore personale dai seen quando non together;
+  con together entrambi oro, senza modificare gli stati personali.
+  Nessun terzo badge o etichetta visibile Together.
 
-Un booleano personale false significa assenza della dichiarazione, anche
+Un booleano personale false significa assenza dello stato personale visto, anche
 quando esiste una visione insieme. Voti e testi non dichiarano una visione.
 `movies.status` è una proiezione operativa: evento attivo → tonight;
 altrimenti together → watched; altrimenti watchlist. Non prova together.
 
-## Dati live e backfill
+## Snapshot del cutover v54 e backfill applicato
 
 I conteggi sono stati forniti dall'utente dopo audit live, non verificati
 nuovamente dall'agente. 94 film, 3 completed e 31 cancelled; nessuna evidenza
@@ -53,21 +59,21 @@ legacy-only insieme né incoerenza film/eventi. Voti: 13 N, 0 V, 3 condivisi.
 | Watchlist watched_by=N, nessuna recensione legacy | 12 | true | false | true |
 | Visti insieme, tutti con completed | 3 | false | false | false |
 
-Dopo backfill: 12 dichiarazioni N, 0 V, 3 together, 0 Rewatch iniziali, 91 candidati.
+Dopo backfill: 12 seen_n=true, 0 seen_v=true, 3 together, 0 Rewatch iniziali, 91 candidati.
 I 3 film condivisi sono riconosciuti dagli eventi e hanno indicatori oro.
 Tutti i voti moderni, tutti gli eventi e tutte le colonne legacy si conservano.
 Fallback voto 1–5 × 2 e testo legacy si materializzano soltanto su un campo
 moderno NULL e con autore certo; un testo moderno vuoto resta vuoto.
 La migration non crea eventi sintetici né date retroattive.
 
-SQL preparato: `database/supabase-migration-individual-rewatch.sql`.
+SQL applicato dall’utente una sola volta: `database/supabase-migration-individual-rewatch.sql`.
 Transazione unica e lock movies/movie_nights; preflight del preciso audit
 94/79/12/3 e 34/3/31, voti e mapping N/V. Se i dati sono cambiati o esiste già
 il checkpoint, si ferma: fare un nuovo audit e aggiornare il candidato,
 non rimuovere le guardie. Snapshot prima/dopo e grant originali sono salvati
-privatamente nel database solo al futuro cutover autorizzato.
+privatamente nel database durante il cutover v54 concluso.
 
-## Protezioni DB preparate e provate localmente
+## Protezioni DB v54 applicate; v55 invariata
 
 Le RLS membership esistenti restano attive; non rieseguire Auth cutover.
 
@@ -79,7 +85,7 @@ Un trigger BEFORE INSERT/UPDATE/DELETE su movies:
 - UPDATE confronta il tripletto dell'altro con IS DISTINCT FROM: anche NULL,
   rimozioni, payload misti e upsert sono protetti, con rifiuto atomico;
 - congela watched_by/rating/review_by/review_text e rende immutabile id;
-- DELETE e cambio tmdb_id negati se esiste una dichiarazione, voto o testo
+- DELETE e cambio tmdb_id negati se esiste uno stato personale visto, voto o testo
   dell'altro, oppure qualsiasi movie_nights, incluse cancelled;
 - voto/testo condiviso modificabili soltanto con completed autorevole;
 - normalizza solo status; cambiare seen non modifica la candidatura;
@@ -113,7 +119,7 @@ Nessun service-role, nuovo account o cambio a app_members nel client.
 - Dopo TMDb: Hai già visto questo film? No → candidato senza voto.
   Sì → Solo Storico (voto facoltativo) / Anche alla Lista (proprio voto
   obbligatorio all’ingresso). Nessuna recensione/data/serata obbligatoria.
-- Ricerca/Add mostrano le dichiarazioni note e candidatura; nessuna copia
+- Ricerca/Add mostrano chi ha già visto il film e se è in Lista; nessuna copia
   privata o tabella personal_movies. N/V leggono gli stessi dati.
 - Solo Storico su candidato registra soltanto i propri personali e conserva
   la candidatura; UI esplicita. Stati Storico N/V sovrapponibili alla Lista.
@@ -121,16 +127,19 @@ Nessun service-role, nuovo account o cambio a app_members nel client.
   voto e candidatura salvati atomicamente; Togli modifica solo candidatura.
 - Su film già presente: No non cancella dati; Sì salva i propri dati e la candidatura soltanto se richiesta.
   UNIQUE concorrente recupera l'esistente senza crearne una copia offline.
-- Dichiarazione, voto e recensione sono indipendenti. Annulla dichiarazione
-  conserva voto/testo; rimozioni del voto/testo sono esplicite. È possibile
+- Stato visto, voto e recensione sono indipendenti. **Segna come non visto**
+  rimuove solo il proprio seen; conserva voto, testo, candidatura, eventi e
+  Together. La conferma chiede “Vuoi segnare questo film come non visto da te?”.
+  Rimozioni del voto/testo sono esplicite. È possibile
   modificare un testo conservato anche dopo aver rimosso il voto.
 - Rewatch ha Rimetti/Togli, badge In gioco, Oggi e Programma; toggle disponibile
   anche nel dettaglio. Un appuntamento sospende il pool senza modificare la candidatura.
-  La seconda dichiarazione su candidato produce Rewatch · In gioco, senza
+  Quando anche l’altro utente segna come visto un candidato, questo diventa
+  Rewatch · In gioco se non esiste together, senza
   espulsione automatica e senza voto obbligatorio.
 - Annullamento conserva storico e ripristina la classificazione derivata.
 - Completa serata aggiorna lo specifico evento senza voto e senza scrivere
-  dichiarazioni o voti personali. Consuma in_shared_list=false atomicamente
+  stati o voti personali. Consuma in_shared_list=false atomicamente
   solo alla nuova conclusione: retry su completed conserva una successiva
   ricandidatura. Identica garanzia per complete_now; il ramo locale replica
   il contratto, il client remoto rilegge il film autorevole dopo la RPC.
@@ -151,11 +160,11 @@ Nessun service-role, nuovo account o cambio a app_members nel client.
   chiudono l'accesso invece di diventare successi offline. Pending Add azzerato
   al logout e protetto dalla generazione Auth contro risposte tardive.
 
-Moduli interessati: store/viewing, movies, nights e campi SELECT; filters,
+Moduli modificati nella v54 (inventario storico): store/viewing, movies, nights e campi SELECT; filters,
 wheel, match; Add e azioni viewing/nights; card/dettaglio/proiezioni/Ricordi,
 libreria/navigazione/Home; index/modali/main e SW. Nessun framework o backend.
 
-## Verifiche
+## Verifiche finali locali v55
 
 Comandi locali (dipendenze PGlite/Playwright disponibili fuori dal repository;
 passare --pglite=/percorso e --playwright=/percorso):
@@ -203,15 +212,15 @@ letture reali TMDb/OMDb; nessun test scrive Supabase live.
 | Service worker | 15/15 |
 | Chromium Auth | 18/18 |
 | Chromium UX esistente | 24/24 |
-| Chromium Individual/Rewatch | 27/27 |
-| Sintassi JS/CJS | 53/53 |
+| Chromium Individual/Storico/Rewatch | 39/39 |
+| Sintassi JS/CJS | 54/54 |
 | git diff --check | PASS |
 
 Verifiche esplicite: otto stati canonici, Solo Storico con/senza voto,
-candidatura con voto mancante/presente/zero, seconda dichiarazione su
+candidatura con voto mancante/presente/zero, secondo stato visto su
 candidato senza voto, Rewatch In gioco, toggle senza perdita dei personali,
 consumo completed, retry dopo ricandidatura per complete e complete_now,
-programmazione/annullamento con flag true e false, pallini separati dall’oro,
+programmazione/annullamento con flag true e false, oro sui due pallini senza modificare i seen,
 ownership bidirezionale, dedup TMDb e recupero delle gare, backfill 79/12/3.
 
 In revisione il caso saga concorrente è stato aggiornato a righe complete
@@ -229,7 +238,7 @@ caso con due appuntamenti dello stesso film. Revoca TRUNCATE e snapshot
 privati dell'operatore completano le protezioni/rollback; non aggiungono un
 modello applicativo. Dipendenze di test restano in directory temporanee.
 
-Inventario file:
+Inventario storico della v54 già pubblicata:
 
 - Creati: le due SQL migration/rollback citate; questo documento;
   scripts/verify-individual-rewatch-db.js e verify-individual-rewatch-browser.cjs.
@@ -246,16 +255,21 @@ Il checkpoint corrente è anche in MASTER_CONTEXT.
 
 `database/supabase-rollback-individual-rewatch.sql` è solo pre-utilizzo:
 confronta l'intero catalogo e tutti gli eventi con il checkpoint dopo la
-migration. Qualunque nuova scrittura blocca il rollback. Rimuove guardia/RPC,
+migration. Qualunque differenza di stato rispetto ai checkpoint blocca il rollback. Rimuove guardia/RPC,
 ripristina grant e soli campi moderni materializzati; conserva booleani e
 backup. Non modifica RLS Auth o publication né ripristina policy pubbliche.
 Il checkpoint conservato impedisce di rieseguire lo stesso backfill.
 
 Dopo nuove scritture: mantenere dati/colonne/eventi e usare una correzione
 compatibile. Il solo ritorno al vecchio frontend non è sicuro: i marker
-legacy sono congelati e non rappresentano più le nuove dichiarazioni.
+legacy sono congelati e non rappresentano più i nuovi stati personali.
 
-## Fase 5 — checklist futura, richiede nuova autorizzazione
+## Checklist storica del cutover v54 — migration e pubblicazione concluse
+
+La sequenza sotto conserva il piano approvato della v54, non ordina di
+rieseguire migration o deploy. Audit, migration, commit/push e verifica HTTP
+sono conclusi; il primo uso reale non attesta tutti i test dei punti 6/9.
+Per v55 non serve SQL: eventuale commit/push/deploy richiede autorizzazione.
 
 1. Revisionare il candidato e scegliere finestra coordinata. Nessun deploy
    del frontend nuovo prima delle protezioni DB. Confermare il commit/release
@@ -290,4 +304,33 @@ legacy sono congelati e non rappresentano più le nuove dichiarazioni.
     In caso di problemi fermare l'uso e applicare rollback pre-utilizzo solo
     se ammesso, altrimenti correzione compatibile che preservi nuove scritture.
 
-Queste operazioni non sono autorizzate nella fase locale corrente.
+Non ripetere i passaggi DB conclusi. Il ciclo v55 modifica solo frontend e documentazione.
+
+## UX finale v55 (locale)
+
+Storico è una destinazione interna autonoma, aperta dal widget Home, non un
+modale e non una voce della bottom navigation. Riusa movieGrid e
+createMovieCard della Lista, con switch Storico N/V e titoli alfabetici.
+Storico N usa `seen_n === true`, Storico V `seen_v === true`.
+Le viste dipendono solo dai rispettivi booleani: sovrapposte e indipendenti da
+candidatura, Streaming/Cinema, ricerca e filtri/ordinamento Lista.
+Ricordi conserva soltanto i suoi contenuti originali: statistiche,
+Serate concluse e Dopo il film. Nessuna UI Storico dentro Ricordi.
+
+I badge circolari originali N/V seguono i seen quando non Together; con
+Together entrambi diventano oro, dai completed, senza modificare i seen.
+Nessun terzo badge/SVG o etichetta visibile aggiuntiva. N+V resta nei voti,
+recensioni e azioni condivise. Cache v55, nessuna modifica backend.
+
+Il precedente “Annulla” era l’azione undoSeenUI della card/dettaglio:
+conferma e rimuove soltanto il seen del chiamante, conservando voto, testo,
+candidatura, eventi e Together.
+Resta disponibile con etichetta esplicita “Segna come non visto”.
+Non è un pulsante di chiusura o un’azione del contenitore Ricordi.
+
+Verifiche finali della destinazione autonoma: Smoke 436/436, Auth 48/48,
+PWA 15/15, Chromium Auth 18/18, UX 24/24, feature 39/39, sintassi 54/54
+e git diff --check PASS. Home → Storico, switch N/V, fuori Lista, sovrapposizione,
+Together oro, dettaglio/sorpresa/resync, ritorno Home, Ricordi senza Storico e
+assenza dei filtri verificati a 320/390/768 px; screenshot ispezionati.
+Backend/Auth dei browser simulati, nessuna scrittura o lettura Supabase live.

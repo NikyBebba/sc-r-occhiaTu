@@ -1530,3 +1530,9 @@ details[open] > .memory-summary::before { transform: rotate(90deg); }
 
   .destination-button { min-height: 44px; flex-direction: row; gap: 8px; }
 }
+
+/* Destinazione Storico: indipendente dai filtri della Lista. */
+.personal-history-tabs { display:flex; gap:8px; }
+.personal-history-tabs button { flex:1; min-height:44px; border-radius:10px; background:var(--color-chip); color:var(--color-testo-2); }
+.personal-history-tabs button[aria-pressed="true"] { background:var(--color-persona-n); color:white; }
+.personal-history-tabs #historySwitchV[aria-pressed="true"] { background:var(--color-persona-v); }

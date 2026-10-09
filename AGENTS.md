@@ -1,11 +1,36 @@
 # AGENTS.md — sc(r)occhiaTu
 
-Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 8 ottobre 2026 (Auth/RLS production-verified; UX v51 candidata locale).
+Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 9 ottobre 2026 (Auth/RLS e migration v54 in produzione; frontend v55 candidato locale).
 Prima di progettare una fase leggere [docs/MASTER_CONTEXT.md](docs/MASTER_CONTEXT.md):
 è la fonte dello stato corrente, delle decisioni UX e della roadmap. Le sezioni
 storiche del master context descrivono cicli precedenti, non lo stato finale.
 Per modelli e flussi specifici consultare anche le specifiche Phase 22/23/38/41.
 Vincoli, sicurezza e contratto Match di questo file restano applicabili.
+
+## Stato corrente v55 locale / v54 production
+
+Production commit `7855c16cae940c4f1b9a3d4267cc9c0db95c9107`, SW v54.
+Migration Individual/Rewatch eseguita una sola volta dall’utente; audit
+pre/post 24/24 e checkpoint integro. HTTP release verificato. Primo test
+reale: backend/caricamento positivo, problemi UX affrontati nella v55 locale.
+Non attribuire a questo test un collaudo completo dei flussi v55.
+
+v55 è solo frontend: Storico autonomo dal widget Home, switch Storico N/V,
+rispettivamente seen_n/seen_v=true, viste sovrapponibili anche fuori Lista e
+indipendenti da in_shared_list. Card/griglia normali, ordine alfabetico,
+nessun filtro Streaming/Cinema o altro filtro Lista; niente nuova persistenza.
+Storico non è nella bottom nav né dentro Ricordi. Ricordi conserva statistiche,
+Serate concluse e Dopo il film/recensioni. I due pallini originali N/V seguono
+il seen personale quando non Together; Together dai completed colora entrambi
+oro senza modificare seen_n/seen_v. Nessun terzo indicatore o etichetta visibile
+Together; N+V resta per dati/azioni condivisi. UI: “Segna come non visto”, che
+rimuove solo il proprio seen e conserva voto, recensione, candidatura, eventi e
+Together; evitare terminologia tecnica nei messaggi rivolti all’utente.
+Nessuna modifica v55 a DB/migration/rollback, RLS/RPC, Auth, Match Live o
+semantica candidacy/Rewatch. Cache locale v55. Nessun commit/push/deploy v55.
+Suite finale: Smoke 436/436, Auth 48/48, RLS 40/40, DB feature 52/52,
+PWA 15/15, Chromium Auth 18/18, UX 24/24, feature 39/39, sintassi 54/54.
+I checkpoint datati sotto descrivono i rispettivi cicli storici.
 
 ## Project purpose
 
@@ -222,8 +247,10 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
   genre, proposed_by, night_confirmed, surprise_by, tmdb_id, collection_id,
   collection_name, cinema_watchlist, seen_rating_n, seen_rating_v,
   seen_rating_together, review_text_n, review_text_v, review_text_together,
-  genres, release_year, director, overview, cast_names, created_at)`
-  - `status`: `watchlist` | `tonight` | `watched`.
+  genres, release_year, director, overview, cast_names, created_at,
+  seen_n, seen_v, in_shared_list)`
+  - `seen_n/v`: stato personale del proprietario Auth; `in_shared_list`: candidatura indipendente. Together deriva soltanto dai completed; Rewatch = seen_n && seen_v && !together.
+  - `status`: `watchlist` | `tonight` | `watched`, proiezione operativa degli eventi, non fonte di Together.
   - `tmdb_id`/`collection_id`/`collection_name` (step 2): identificativo
     stabile TMDb + saga/collection, usati dal pannello saghe e disponibili
     per future raccomandazioni. `null` per film aggiunti prima/fallback OMDb.
@@ -257,6 +284,9 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
   - `status`: `proposed` | `confirmed` | `cancelled` | `completed` |
     `skipped` (quest'ultimo RISERVATO a future feature streak/calendario,
     oggi nessun flusso lo scrive).
+  - Scritture applicative solo tramite manage_movie_night; DML diretto revocato.
+    Nuovo completed consuma candidatura atomicamente; retry completed no.
+    Oggi/Programma/annullo non cambiano candidatura né seen personali.
   - Regola: **1 film = 1 contenuto, 1 serata = 1 evento** → più serate
     possono puntare allo stesso film (rewatch), storico persistente per
     calendario/streak future.
@@ -281,7 +311,7 @@ Ruota canvas con filtri e confetti, veto settimanale, sorprese, serate con
 proposta/conferma e rewatch, popup «Oggi» con snack/luogo facoltativi e modificabili,
 proposte «In cartellone» accettabili anche durante il film di oggi, calendario mensile,
 voti personali/condivisi 0–10 con decimali e recensioni facoltative,
-«Titoli di coda» con riepiloghi e storico, saghe TMDb, ticket PNG,
+«Titoli di coda» con riepiloghi e serate, Storico personale autonomo (v55 locale), saghe TMDb, ticket PNG,
 temi automatici, PWA, audio/haptics opt-in e ciak loader.
 Il voto condiviso e la sua azione usano N+V in oro; il pulsante personale segue
 quello condiviso nel colore N/V. «Film aggiunti» conta l'intera libreria per autore.
@@ -318,7 +348,7 @@ Per le priorità precise leggere il master context aggiornato.
 ## Vincoli tecnici
 
 - Dipendenze ancora via CDN (Tailwind Play, Font Awesome, supabase-js).
-- PWA presente: manifest e service worker, cache candidata `v51` (production `v50`); domini API,
+- PWA presente: manifest e service worker, cache candidata `v55` (production `v54`); domini API,
   Supabase, poster e YouTube sempre esclusi dall'intercettazione. Le icone PWA
   sono provvisorie; non confondere l'app-shell offline con dati remoti disponibili.
 - HTML delle card generato come stringhe: usare `escapeHtml`/`jsAttrEscape`
@@ -370,7 +400,7 @@ Per le priorità precise leggere il master context aggiornato.
   incluse collection+aliasing titoli IT, ui add/retry, anti-XSS).
 - `node --check` OK su tutti i moduli `js/**/*.js` + `scripts/`.
 
-## UX v51 candidata locale — 8 ottobre 2026
+## Storico: UX v51 candidata locale — 8 ottobre 2026
 
 - Navigazione responsive persistente, handler Match/Presence esistenti;
   Calendario da Home. Ricordi Anno/Mese, header sticky e stato in memoria.

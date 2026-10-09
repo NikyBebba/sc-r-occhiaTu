@@ -170,7 +170,7 @@ async function undoSeenUI(id) {
   requireAppIdentity();
   const epoch = authEpoch;
   if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
-  const confirmed = await showConfirmModal('Rimuovere la dichiarazione?', 'Il tuo voto e la tua recensione resteranno conservati.');
+  const confirmed = await showConfirmModal('Segna come non visto', 'Vuoi segnare questo film come non visto da te? Il tuo voto e la tua recensione resteranno conservati.');
   if (!confirmed || !isAppAuthorized() || epoch !== authEpoch) return;
   const undone = await undoMovieSeen(id, currentUser);
   if (undone) await loadMovies();
@@ -180,7 +180,7 @@ async function removePersonalRating(id) {
   requireAppIdentity();
   const epoch = authEpoch;
   if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
-  if (!(await showConfirmModal('Rimuovere il tuo voto?', 'La dichiarazione e la recensione resteranno conservate.'))) return;
+  if (!(await showConfirmModal('Rimuovere il tuo voto?', 'Lo stato visto del film e la recensione resteranno invariati.'))) return;
   if (!isAppAuthorized() || epoch !== authEpoch) return;
   if (await savePersonalReview(id, null)) await loadMovies();
   else showActionError('Non siamo riusciti a rimuovere il voto.');
@@ -190,7 +190,7 @@ async function removePersonalText(id) {
   const epoch = authEpoch;
   if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
   const movie = movies.find(m => m.id === id);
-  if (!movie || !(await showConfirmModal('Rimuovere la tua recensione?', 'Il voto e la dichiarazione resteranno conservati.'))) return;
+  if (!movie || !(await showConfirmModal('Rimuovere la tua recensione?', 'Il tuo voto e lo stato visto del film resteranno invariati.'))) return;
   if (!isAppAuthorized() || epoch !== authEpoch) return;
   if (await savePersonalReview(id, personalRating(movie, currentUser), '')) await loadMovies();
   else showActionError('Non siamo riusciti a rimuovere la recensione.');

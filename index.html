@@ -188,9 +188,10 @@
           <button onclick="openWheelView()" class="dashboard-choice-btn home-mode home-mode-wheel" aria-label="Apri la ruota della fortuna"><span class="home-mode-icon"><i class="fa-solid fa-rotate" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Gira la Ruota</strong><small>Un giro e salta fuori il film.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
           <button onclick="setTab('watchlist')" class="dashboard-choice-btn home-mode home-mode-list" aria-label="Sfoglia la lista dei film"><span class="home-mode-icon"><i class="fa-solid fa-film" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Sfoglia la lista</strong><small id="homeWatchlistCount">La lista aspetta il primo titolo.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
         </div>
-        <div class="home-shortcuts" aria-label="Ricordi, film visti e calendario">
+        <div class="home-shortcuts" aria-label="Storico, ricordi, film visti e calendario">
           <div class="home-shortcuts-heading"><span>Tra un film e l’altro</span><i class="fa-solid fa-ticket" aria-hidden="true"></i></div>
           <div class="home-shortcuts-grid">
+            <button id="homeHistory" onclick="activateDestination('history')" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></span><span><strong>Storico</strong><small>I film già visti da N e V.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
             <button id="homeMemories" onclick="activateDestination('memories')" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-solid fa-ticket" aria-hidden="true"></i></span><span><strong>Ricordi</strong><small>Serate concluse, recensioni e titoli di coda.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
             <button onclick="setTab('watched')" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-solid fa-star" aria-hidden="true"></i></span><span><strong>Visti e recensioni</strong><small id="homeWatchedCount">Qui finiscono i film già visti.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
             <button onclick="setTab('calendar')" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-regular fa-calendar" aria-hidden="true"></i></span><span><strong>Calendario</strong><small>Le proiezioni passate e quelle in arrivo.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
@@ -298,16 +299,18 @@
         <!-- AZIONI/VISTA: segmented control (header lista) -->
         <label for="libraryViewSelect" class="sr-only">Vista della libreria</label>
         <select id="libraryViewSelect" onchange="setTab(this.value)" class="field w-full lg:hidden min-h-11" aria-label="Vista della libreria">
-          <option value="all">Tutti i film</option><option value="watchlist" selected>Da vedere</option><option value="rewatch">Rewatch</option><option value="history_n">Storico N</option><option value="history_v">Storico V</option><option value="tonight">In programma</option>
+          <option value="all">Tutti i film</option><option value="watchlist" selected>Da vedere</option><option value="rewatch">Rewatch</option><option value="tonight">In programma</option>
         </select>
         <div id="segControl" role="tablist" aria-label="Viste della libreria" class="relative hidden lg:flex bg-slate-900/60 p-1 rounded-xl border border-slate-800 text-xs gap-1">
           <button onclick="setTab('all')" id="tabAll" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap relative z-10">Tutti <span id="pillCountAll" class="text-[10px] opacity-80">0</span></button>
           <button onclick="setTab('watchlist')" id="tabWatchlist" role="tab" aria-selected="true" class="flex-1 py-2 rounded-lg font-medium transition text-white whitespace-nowrap relative z-10">Da Vedere <span id="pillCountWatchlist" class="text-[10px] opacity-80">0</span></button>
           <button onclick="setTab('tonight')" id="tabTonight" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap relative z-10">In programma <span id="pillCountTonight" class="text-[10px] opacity-80">0</span></button>
           <button onclick="setTab('rewatch')" id="tabRewatch" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap relative z-10">Rewatch <span id="pillCountRewatch" class="text-[10px] opacity-80">0</span></button>
-          <button onclick="setTab('history_n')" id="tabHistoryN" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium text-slate-400 whitespace-nowrap relative z-10">Storico N <span id="pillCountHistoryN" class="text-[10px] opacity-80">0</span></button>
-          <button onclick="setTab('history_v')" id="tabHistoryV" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium text-slate-400 whitespace-nowrap relative z-10">Storico V <span id="pillCountHistoryV" class="text-[10px] opacity-80">0</span></button>
           <div id="tabIndicator" aria-hidden="true" class="absolute inset-y-1 rounded-lg"></div>
+        </div>
+        <div id="historySwitch" class="personal-history-tabs !hidden" role="group" aria-label="Scegli lo storico personale">
+          <button id="historySwitchN" type="button" aria-pressed="true" onclick="setTab('history_n')">Storico N</button>
+          <button id="historySwitchV" type="button" aria-pressed="false" onclick="setTab('history_v')">Storico V</button>
         </div>
         <div id="movieGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
       </section>

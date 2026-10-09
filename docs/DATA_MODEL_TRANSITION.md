@@ -1,10 +1,22 @@
 # Transizione dati: film, proiezioni e legacy
 
-5 ottobre 2026. Cleanup applicativo completato, cache PWA `v48`.
-Test reali della precedente transizione v47 superati sui due client,
-confermati dall’utente. Il seguito storico conserva l’inventario iniziale.
+Stato corrente, 9 ottobre 2026: produzione v54, frontend candidato v55.
+Programmazione e Together derivano da movie_nights; Together richiede
+status completed. Scritture serate solo tramite RPC v54, status del film
+normalizzato dagli eventi; marker legacy conservati/congelati.
+Visioni personali = seen_n/seen_v; candidatura indipendente = in_shared_list.
+I fallback di voto/testo attribuibili sono stati materializzati dalla migration
+v54 e non sono più letti dal runtime. Nessuna modifica DB nel fix v55.
 
-## Cleanup applicativo — movie_nights unica fonte, 5 ottobre 2026
+Storico v55 è autonomo dalla Home, N/V dai rispettivi seen, sovrapposto e
+fuori dal vincolo Lista. Ricordi conserva serate/statistiche/recensioni.
+I due pallini originali sono oro con Together senza riscrivere i seen.
+[Contratto corrente](INDIVIDUAL_WATCH_REWATCH.md).
+
+Le sezioni seguenti sono l’archivio dei cicli v48/v47 del 5 ottobre: i mirror,
+i privilegi e i fallback descritti nella prima fase non sono il modello attuale.
+
+## Archivio: cleanup v48 — movie_nights unica fonte, 5 ottobre 2026
 
 Implementato localmente dopo la conferma dell'utente: **test reali della
 transizione v47 superati sui due client**. Cache PWA `v48`. Nessuna modifica
@@ -78,7 +90,7 @@ Match Live, push o deploy. L'obiettivo finale resta togliere i mirror di
 programmazione e il vecchio sistema `votes`; questa fase conserva la
 compatibilità e riduce le dipendenze attive.
 
-## Audit del codice e piano
+## Audit storico del codice e piano v47
 
 Inventario basato sui moduli caricati da `index.html`, handler HTML, script,
 schema/migration e smoke. `movies` resta il contenuto e lo stato di visione;
@@ -125,7 +137,7 @@ rendere `votes` non fatale e separarlo dal render/Realtime corrente, aggiungere
 audit aggregato e regressioni. Rimozione di dati/schema e cambiamento delle
 scritture restano successivi, subordinati alla verifica dei client e dei dati.
 
-## Cleanup implementato
+## Cleanup storico implementato v47
 
 `nightProjectionFields` converte un evento nei nomi richiesti dalle API UI;
 `movieProjection` compone il film con l'evento attivo scelto. NULL e dettagli

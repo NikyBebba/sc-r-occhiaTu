@@ -1,9 +1,8 @@
 # Navigazione persistente e Ricordi scalabili
 
-Checkpoint: 8 ottobre 2026. UX **v51** pubblicata; refinement locale candidato
-PWA **v52**, senza nuovo push/deploy.
-Nessuna modifica a DB, dati, formule, Auth/RLS, trasporto Realtime o algoritmi
-Match. Il reset in showLanding riguarda solo stato UI e modali.
+Checkpoint: 9 ottobre 2026. Produzione **v54**, candidato frontend locale **v55**,
+senza commit/push/deploy v55. Nessuna modifica v55 a DB, migration/rollback,
+RLS/RPC, Auth, trasporto Realtime, Match Live o semantica candidacy/Rewatch.
 
 ## Navigazione
 
@@ -15,7 +14,9 @@ con lo stesso activateDestination('memories') della barra. La visibilità segue
 la pagina sottostante al modale, senza variazioni di spazio/scroll durante
 apertura e chiusura; il focus ritorna all'accesso usato.
 Tema e Aggiungi restano nell'header insieme a identità/logout; Calendario
-resta nel collegamento Home. Calendario non viene etichettato come Lista attiva.
+resta nel collegamento Home. Anche Storico è una destinazione autonoma dalla
+Home, senza voce aggiuntiva nella bottom nav. Storico e Calendario non vengono
+etichettati come Lista attiva.
 Altezza dell'header misurata dopo aggiornamento badge e al resize per evitare
 sovrapposizioni desktop. Bottom nav con spazio riservato e safe-area.
 
@@ -25,8 +26,39 @@ vista, senza ripetere enterMatch, track o creare subscription. Gli altri
 passaggi delegano a openDashboardHome/openWheelView/setTab; il tab Lista già
 selezionato conserva la sottovista. Ricordi apre il modale senza lasciare Match.
 
+## Storico
+
+Il widget Home Storico apre la destinazione interna `history` attraverso
+`activateDestination('history')` e `setTab('history_n'/'history_v')`.
+Riusa `librarySection`, `movieGrid` e `createMovieCard`: stessa struttura,
+griglia responsive, card, apertura dettaglio e protezioni sorpresa della Lista.
+In alto mostra soltanto lo switch **Storico N | Storico V**, oltre a titolo,
+conteggio e ritorno Home. Nessun filtro Streaming/Cinema, ricerca o ordinamento
+Lista. I film sono ordinati alfabeticamente per titolo.
+
+N usa esclusivamente `seen_n === true`, V `seen_v === true`; le due collezioni
+possono sovrapporsi e ignorano `in_shared_list`, filtri Lista e Together.
+Gli stati Together non inseriscono automaticamente un film negli Storici.
+La selezione vive nello stato UI esistente, senza nuova persistenza o tabella.
+Il resync aggiorna la stessa griglia mantenendo la vista corrente.
+Torna alla home usa `openDashboardHome()` come le altre destinazioni interne.
+
+Le azioni inverse della card/dettaglio hanno lo stesso layout: icona Font
+Awesome e testo centrati come unico gruppo, stessa altezza, font e gap.
+“L’ho già visto” conserva l’occhio; “Segna come non visto” usa l’occhio barrato.
+I colori restano quelli delle rispettive azioni.
+
+**Segna come non visto** è l’azione della card/dettaglio, non un annullamento
+della navigazione: chiede conferma e rimuove soltanto il proprio seen,
+conservando voto, recensione, candidatura, eventi e Together.
+I due badge N/V originali sono spenti/colorati secondo i seen quando non
+Together. Con Together diventano entrambi oro, dai completed, senza cambiare
+i booleani. Nessun terzo indicatore; N+V resta per dati/azioni condivisi.
+
 ## Ricordi
 
+Ricordi non contiene Storico personale. Rimane dedicato a statistiche,
+Serate concluse e Dopo il film/recensioni condivise.
 Header del modale sticky; contenuto scorre all'interno. Serate concluse è un
 details aperto di default, con Anno → Mese → card. Al primo caricamento con
 eventi datati si aprono anno e mese più recenti; altri gruppi sono chiusi.
@@ -56,27 +88,29 @@ focus al trigger alla chiusura; Esc usa lo stack modali esistente.
 - js/ui/navigation.js e js/ui/render.js: destinazione attiva e handler esistenti.
 - js/ui/render/memories.js: stato temporaneo, gruppi e rendering limitato.
 - js/ui/modals.js e js/main.js: focus/inert e reset della presentazione.
-- service-worker.js: cache candidata v52; precache invariato.
+- js/ui/render/cards.js e js/ui/sagas.js: indicatori originali condivisi; stato Together dorato sui due badge.
+- service-worker.js: cache candidata v55; precache invariato.
 
-## Verifiche locali
+## Verifiche locali v55
 
-- Smoke **400/400**, Auth **43/43**, RLS PostgreSQL locale **40/40**, PWA **15/15**.
-- Chromium Auth **18/18**, nuovo UX browser **20/20** con SDK/DB simulati.
-- Refinement Home: Chromium UX **24/24**, Auth **43/43**, PWA **15/15**,
-  smoke **400/400**;
-  Home → Ricordi → Home, ingressi Lista/Match/Ruota, visibilità e geometria,
-  ritorno focus da Home e viste interne a 320/390/768/1280 px.
-- Liste lunghe e nav a 320/390/768/1280 px; reselect, header sticky,
-  accordion, 10→20 recensioni, rerender, focus/scroll, tastiera, offline Match,
-  Calendar entry, Presence/canale persistente e logout.
-- Programmazione/Cinema/Ricordi a 320/390/768; recensioni N/V 320/390.
-  Screenshot ispezionati, zero errori JS/overflow. Sintassi **52/52** e diff check.
+Smoke **436/436**, Auth **48/48**, RLS **40/40**, DB Individual/Rewatch **52/52**,
+PWA **15/15**, Chromium Auth **18/18**, Chromium UX **24/24**, feature **39/39**,
+sintassi **54/54** e `git diff --check` PASS.
+Home → Storico, switch N/V, sovrapposizione, film fuori Lista, assenza filtri,
+ordine alfabetico, Together oro, dettaglio/sorpresa/resync e ritorno Home
+verificati a 320/390/768 px; screenshot ispezionati. Ricordi senza Storico,
+accordion, focus/scroll, recensioni paginate e regressioni Match green;
+UX generale anche a 1280 px. SDK/Auth simulati, PostgreSQL locale.
+
+Le suite 20/20 UX e 400/400 Smoke erano la baseline storica v51/v52;
+non descrivono il candidato corrente. Nessun collaudo v55 production attribuito.
 
 ```sh
 node scripts/verify-ux-browser.cjs --playwright=/percorso/node_modules/playwright
+node scripts/verify-individual-rewatch-browser.cjs --playwright=/percorso/node_modules/playwright
 ```
 
 Nessun accesso Supabase live nei test. Restano da collaudare bottom nav,
-safe-area nativa, aggiornamento PWA v52 e interazione condivisa sui due
+safe-area nativa, aggiornamento PWA v55 e interazione condivisa sui due
 telefoni dopo un futuro push/deploy autorizzato. I gruppi serate collassati
 mantengono le card nel DOM; non è stata introdotta paginazione delle serate.

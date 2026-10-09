@@ -1,13 +1,24 @@
 # Phase 41 — Continuiamo la saga?
 
-Fase dedicata autorizzata dall'utente dopo la verifica di ticket e temi. Stato: **implementata e verificata localmente**. Prova su due telefoni dopo il deploy ancora da fare.
+Checkpoint corrente, 9 ottobre 2026: produzione v54, frontend locale v55,
+cache candidata v55. Le saghe riusano viewingStatusHtml delle card: due badge
+circolari originali N/V, personali dai seen quando non Together, entrambi oro
+con Together dai completed. Nessun terzo badge/SVG o testo visibile Together.
+L’oro non modifica seen_n/seen_v. N+V resta valido per voti/recensioni condivisi.
+Le stesse card sono consultabili nella destinazione Storico dalla Home,
+con switch N/V senza filtri Lista; Ricordi non contiene Storico personale.
+Nessuna modifica v55 a dati, candidature, RPC o Match Live.
+
+La fase originale fu autorizzata dopo la verifica di ticket e temi e verificata
+localmente. I risultati e i limiti di quel ciclo sono conservati sotto; lo stato
+della release corrente è riportato in apertura.
 
 ## Esperienza
 
 - Entrata discreta «Continua la saga» nelle card della libreria e dei film visti, nella scheda del film, nel risultato della Ruota, nella celebrazione inline del Match e nella prossima serata, solo per un film con collection TMDb nota e accessibile.
 - Dopo una nuova visione personale, una nuova recensione insieme o la conclusione di una serata, proporre il pannello «Continuiamo la saga?». La modifica di un voto/recensione non lo riapre. Nessun suggerimento provocato dal Realtime.
 - Un pannello mostra i capitoli in **ordine di uscita**, senza assumere un ordine narrativo. Evidenzia il primo capitolo successivo già uscito e non visto insieme, quando riconoscibile; i capitoli precedenti restano consultabili. Se la data del film di riferimento non è nota, non inventare quale film sia il prossimo.
-- Nessun film preselezionato. L'utente sceglie quali aggiungere e conferma; il proponente è la persona corrente. I film già in libreria non si aggiungono di nuovo, anche se visti. Mostrare gli stati N/V/insieme già noti.
+- Nessun film preselezionato. L'utente sceglie quali aggiungere e conferma; il proponente è la persona corrente. I film già nel catalogo non vengono duplicati. Capitoli noti fuori Lista e non Together possono essere candidati; se visti dal proponente richiedono il suo voto all’ingresso. Mostrare gli stati N/V/Together tramite i badge comuni.
 - I film con data di uscita futura sono distinguibili e vengono aggiunti con `cinema_watchlist: true`, mantenendo l'esclusione da Match/Ruota. Data assente = disponibilità sconosciuta, senza dichiarare streaming disponibile.
 - Una sorpresa non rivelata nella libreria resta senza titolo, locandina e dettagli anche qui. Il film sorgente nascosto non apre il pannello.
 
@@ -19,7 +30,7 @@ Cache collection in memoria per 15 minuti; timeout e messaggio con Riprova, senz
 
 Dedup per `tmdb_id` prima del dettaglio, dopo il dettaglio e tramite vincolo UNIQUE esistente. Con inserimenti simultanei, riallineare e mostrare il film già presente. Un salvataggio parziale mantiene selezionati i film falliti per ritentare; non dichiara salvato sul DB un risultato solo temporaneo in memoria. Modalità locale esplicita come nel resto dell'app.
 
-## Verifiche eseguite
+## Verifiche storiche della fase originale
 
 Collection IT live in sola lettura; normalizzazione, ordine di uscita, dati assenti/futuri; stati di visione e anti-spoiler/anti-XSS; aggiunta esplicita con metadati, duplicati e concorrenza; errore/retry e risposta obsoleta; flussi scelta e visione; harness completo e service worker. Resa e uso su due telefoni da verificare dopo il deploy.
 
@@ -29,6 +40,6 @@ Verifica browser Chromium con HTML/CSS e moduli reali, fixture di film e collect
 
 Correzione successiva: ripristinato «Continua la saga» anche sulle card della lista. Verifica di regressione sul mantenimento del pulsante dopo render e cambio stato, con sorprese protette: **352/352 smoke PASS**, service worker **12/12 PASS**, cache `v39`.
 
-## Checkpoint corrente — 5 ottobre 2026
+## Checkpoint storico — 5 ottobre 2026
 
 Il pannello e «Continua la saga» sulle card sono inclusi nel frontend aggiornato (cache PWA `v44`). Harness complessivo **369/369 PASS**, service worker **12/12 PASS**, sintassi e diff check superati. I numeri 351/352 sopra descrivono i cicli storici della feature. Prova di aggiunta e sincronizzazione su due telefoni da fare dopo il deploy; i test di inserimento finora usano fixture/localStorage/mock. Nessuna migration aggiuntiva per le saghe.

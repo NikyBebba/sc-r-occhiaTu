@@ -1,6 +1,7 @@
 # Proiezioni: oggi, programmazione e dettagli
 
-Aggiornamento del 5 ottobre 2026, cache PWA `v48`.
+Checkpoint corrente: 9 ottobre 2026, produzione v54 / frontend locale v55,
+cache candidata v55. I popup Oggi/Programma restano invariati nella v55.
 
 ## Esperienza implementata
 
@@ -16,7 +17,7 @@ crea eventi. Il risultato Ruota resta disponibile se si annulla il popup.
 «Snack e luogo» nel hero, nelle card programmate e in «In cartellone» permette
 di cambiare o rimuovere entrambi i dettagli, prima o dopo l'accettazione.
 Non cambia data, ora, stato, autore, voto o recensione e non crea un altro evento.
-Il luogo resta disponibile nel form voto/recensione e nello storico; concludere
+Il luogo resta disponibile nel form voto/recensione e nelle Serate concluse di Ricordi; concludere
 rapidamente una proiezione conserva il luogo già scelto.
 
 «In cartellone» vive sotto il hero, fuori dalla vecchia sidebar nascosta.
@@ -35,7 +36,10 @@ quando il proponente è noto. Il PNG resta 1080×1920 con poster e fallback.
 
 ## Streaming e cinema
 
-La libreria parte da Streaming. Lo switch offre solo Streaming e Al cinema /
+La Lista parte da Streaming. Storico è una destinazione Home separata, con
+switch N/V e nessun filtro Streaming/Cinema: include i personali anche fuori
+Lista. Ricordi non contiene Storico personale.
+La libreria dei candidati parte da Streaming. Lo switch offre solo Streaming e Al cinema /
 prossimamente, senza dropdown «Tutti» o descrizione «Solo streaming».
 I due insiemi sono disgiunti e dipendono dal flag cinema già esistente: i film
 legacy senza flag restano nello streaming. Le card cinema usano bordo/fondo
@@ -49,7 +53,7 @@ film contrassegnati cinema, anche se la libreria mostra quella categoria.
 
 ## Dati e sincronizzazione
 
-Nessun cambio di schema: snack e luogo usano `movie_nights.snack/location` già
+Nessun cambio di schema v55: snack e luogo usano `movie_nights.snack/location` già
 esistenti. Scelta rapida: confirmed, date/time NULL, confirmed_at registrato.
 Programmazione: proposed, data/ora e proposed_by. Dopo i test reali della
 transizione superati sui due client, movie_nights è l’unica fonte:
@@ -58,11 +62,20 @@ dagli eventi, filtro/contatore In programma da eventi attivi. Le colonne DB
 restano per rollback, con eventuale riallineamento esplicito dai nuovi eventi. Origine ticket
 solo in memoria, come prima. Realtime e refetch mantengono la sincronizzazione.
 
+Dal cutover v54 le scritture passano dalla RPC manage_movie_night, senza
+DML diretto client. Oggi, Programma e annullo non modificano in_shared_list;
+una nuova conclusione completed consuma la candidatura atomicamente, retry
+su completed non consuma ricandidature successive (anche complete_now).
+Il completamento non modifica seen_n/seen_v, voti o recensioni personali.
+Together deriva solo dai completed: in v55 colora entrambi i pallini originali
+oro, senza terzo indicatore e senza cambiare i seen. “Segna come non visto”
+rimuove solo il proprio seen, preservando anche eventi e Together.
+
 Il salvataggio fallito lascia il popup aperto con errore visibile; il bottone
 è disabilitato durante la richiesta. Nessun mirror o chiusura Match se l'insert
 fallisce. Il Match si chiude solo dopo conferma del popup e creazione riuscita.
 
-## Verifiche
+## Verifiche storiche del ciclo v48
 
 - Smoke: **400/400 PASS**, con regressioni su annullo, snack custom, persistenza
   del luogo, vecchie date ignorate e conservate per rollback, modifica/rimozione dei dettagli,

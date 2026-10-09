@@ -73,14 +73,13 @@ function renderSagaPanel() {
     const title = hidden ? 'Film a sorpresa' : part.title;
     const selectable = (!existing || (!existing.in_shared_list && !state?.together)) && !sourceChapter;
     const status = hidden ? 'Già in lista · sorpresa' : sourceChapter ? 'Il film da cui partite'
-      : state?.together ? 'Visto insieme' : existing ? (existing.in_shared_list ? 'Già in lista' : 'Fuori Lista') : upcoming ? 'Al cinema / prossimamente' : 'Da aggiungere';
-    const personal = !hidden && state && !state.together
-      ? ['N', 'V'].filter(person => state[person]).map(person => 'Visto da ' + (CONFIG.PEOPLE[person]?.label || person)).join(' · ') : '';
+      : existing ? (existing.in_shared_list ? 'Già in lista' : 'Fuori Lista') : upcoming ? 'Al cinema / prossimamente' : 'Da aggiungere';
+    const personal = !hidden && existing ? viewingStatusHtml(existing, { showRatings: false }) : '';
     const year = !hidden && part.release_date ? part.release_date.slice(0, 4) : '';
     const check = selectable ? `<input type="checkbox" value="${part.id}" aria-label="Aggiungi ${escapeHtml(title)}" onchange="toggleSagaChapter(${part.id}, this.checked)"${panel.selected.has(part.id) ? ' checked' : ''}${panel.busy ? ' disabled' : ''}>` : '';
     return `<label class="saga-chapter${next ? ' is-next' : ''}${selectable ? ' is-selectable' : ''}">
       <span class="saga-poster">${!hidden && part.poster ? `<img src="${escapeHtml(part.poster)}" alt="" loading="lazy">` : `<i class="fa-solid ${hidden ? 'fa-gift' : 'fa-film'}" aria-hidden="true"></i>`}</span>
-      <span class="saga-chapter-copy">${next ? '<span class="saga-next">IL PROSSIMO CAPITOLO</span>' : ''}<strong>${escapeHtml(title)}</strong><small>${escapeHtml([year, status].filter(Boolean).join(' · '))}</small>${personal ? `<small>${escapeHtml(personal)}</small>` : ''}${!hidden && !part.release_date ? '<small>Data di uscita non disponibile</small>' : ''}</span>${check}
+      <span class="saga-chapter-copy">${next ? '<span class="saga-next">IL PROSSIMO CAPITOLO</span>' : ''}<strong>${escapeHtml(title)}</strong><small>${escapeHtml([year, status].filter(Boolean).join(' · '))}</small>${personal}${!hidden && !part.release_date ? '<small>Data di uscita non disponibile</small>' : ''}</span>${check}
     </label>`;
   }).join('');
   box.innerHTML = `<p class="saga-name">${escapeHtml(panel.collection.name)}</p><p class="saga-notice">Capitoli in ordine di uscita. Scegli quali aggiungere alla vostra lista.</p>

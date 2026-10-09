@@ -3081,7 +3081,7 @@ async function okA(name, fn) {
       return !neutral.includes('is-seen') && n.includes('viewing-person-n is-seen')
         && !n.includes('viewing-person-v is-seen') && v.includes('viewing-person-v is-seen')
         && separate.includes('Visto separatamente da N e V') && !separate.includes('is-together')
-        && gold.includes('Visto insieme') && !gold.includes('is-seen') && !gold.includes('is-together');
+        && gold.includes('Visto insieme') && !gold.includes('is-seen') && (gold.match(/is-together/g)||[]).length===2;
     } finally {movieNights=previous;}
   }));
   await okA('L’ho già visto: N poi V dai rispettivi account, senza cambiare storico', runA(async () => {

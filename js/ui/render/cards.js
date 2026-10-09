@@ -22,20 +22,20 @@ function sharedVoteButtonHtml(movie) {
   return `<button onclick="addReview('${jsAttrEscape(movie.id)}')" class="shared-vote-action w-full min-h-11 px-3 py-2 rounded-lg font-medium">${label} ${escapeHtml(sharedPeopleLabel())}</button>`;
 }
 
-function viewingStatusHtml(movie) {
+function viewingStatusHtml(movie, { showRatings = true } = {}) {
   const seen = viewingState(movie);
   const label = seen.together ? 'Visto insieme da N e V'
     : seen.N && seen.V ? 'Visto separatamente da N e V'
     : seen.N ? 'Visto da N' : seen.V ? 'Visto da V' : 'Non ancora visto';
-  const person = key => `<span class="viewing-person viewing-person-${key.toLowerCase()}${seen[key] ? ' is-seen' : ''}" aria-label="${key}: ${seen[key] ? 'visto personalmente' : 'nessuna dichiarazione personale'}">${key}</span>`;
-  const gold = seen.together ? '<span class="viewing-score viewing-score-together" aria-label="Visto insieme">N+V · Visto insieme</span>' : '';
+  // Together colora entrambi i badge originali, senza cambiare i fatti personali.
+  const person = key => `<span class="viewing-person viewing-person-${key.toLowerCase()}${seen.together ? ' is-together' : seen[key] ? ' is-seen' : ''}" aria-label="${seen.together ? 'Visto insieme' : key + ': ' + (seen[key] ? 'visto personalmente' : 'non segnato come visto')}">${key}</span>`;
   const scores = ['N', 'V'].map(key => {
     const rating = personalRating(movie, key);
     return rating === null ? '' : `<span class="viewing-score viewing-score-${key.toLowerCase()}">${key} <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(rating)}/10</span>`;
   }).filter(Boolean);
   const shared = togetherRating(movie);
   if (shared !== null && seen.together) scores.push(`<span class="viewing-score viewing-score-together" aria-label="Voto insieme: ${formatMovieRating(shared)} su 10">${escapeHtml(sharedPeopleLabel())} <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(shared)}/10</span>`);
-  return `<div class="viewing-status" role="group" aria-label="${label}"><span class="viewing-label" aria-hidden="true">Visto da</span>${person('N')}${person('V')}${gold}</div>${scores.length ? `<div class="viewing-scores" aria-label="Voti del film">${scores.join('')}</div>` : ''}`;
+  return `<div class="viewing-status" role="group" aria-label="${label}"><span class="viewing-label" aria-hidden="true">Visto da</span>${person('N')}${person('V')}</div>${showRatings && scores.length ? `<div class="viewing-scores" aria-label="Voti del film">${scores.join('')}</div>` : ''}`;
 }
 
 function personalVoteButtonHtml(movie) {
@@ -195,6 +195,6 @@ function personalWatchButtonHtml(movie) {
   if (togetherSeen(movie) && !ownSeen) return '';
   const id = jsAttrEscape(movie.id);
   return ownSeen
-    ? `<button onclick="undoSeenUI('${id}')" class="min-h-11 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium" aria-label="Annulla l'ho già visto">Annulla</button>`
-    : `<button onclick="markSeenUI('${id}')" class="w-full min-h-11 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium text-left"><i class="fa-solid fa-eye mr-1.5" aria-hidden="true"></i>L'ho già visto</button>`;
+    ? `<button onclick="undoSeenUI('${id}')" class="w-full min-h-11 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium inline-flex items-center justify-center gap-1.5" aria-label="Segna come non visto"><i class="fa-solid fa-eye-slash" aria-hidden="true"></i>Segna come non visto</button>`
+    : `<button onclick="markSeenUI('${id}')" class="w-full min-h-11 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-medium inline-flex items-center justify-center gap-1.5"><i class="fa-solid fa-eye" aria-hidden="true"></i>L'ho già visto</button>`;
 }

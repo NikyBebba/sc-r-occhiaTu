@@ -1,11 +1,15 @@
 # Phase 23 — Ricordi / Titoli di coda
 
-Aggiornamento UX locale v51, 8 ottobre 2026: storico Anno → Mese collassabile
-con stato in memoria; Dopo il film alfabetico, dieci elementi iniziali e
-Mostra altre, testi espandibili. Header Ricordi sticky. Nessuna nuova data o
-formula. [Specifica e verifiche correnti](UX_NAVIGATION_MEMORIES.md).
-Le descrizioni precedenti sotto documentano la baseline della fase originale.
+Stato corrente, 9 ottobre 2026: frontend v55 locale su backend v54 già
+migrato/pubblicato. Ricordi contiene statistiche, Serate concluse per anno/mese
+e Dopo il film/recensioni, senza Storico personale. Storico è una destinazione
+autonoma Home con switch N/V e card della Lista, indipendente dalla candidatura
+e dai filtri Lista. I personali usano seen_n/seen_v; Together dai completed
+colora entrambi i pallini originali d’oro senza cambiare i booleani.
+N+V identifica i voti/recensioni condivisi; nessun terzo indicatore Together.
+Cache locale v55. [Specifica e verifiche correnti](UX_NAVIGATION_MEMORIES.md).
 
+## Archivio della fase originale — 5 ottobre 2026
 
 Stato: revisione implementata e verificata localmente, 5 ottobre 2026.
 Prova su due telefoni dopo deploy ancora da fare.
@@ -50,7 +54,7 @@ Non sono più un blocco di statistiche visibile.
 ## Verifiche
 
 Smoke **369/369 PASS**, service worker **12/12 PASS**, controlli sintassi
-JS e `git diff --check` senza errori. Cache PWA corrente `v44`.
+JS e `git diff --check` senza errori. Cache PWA di quel ciclo `v44`.
 Test su quattro riquadri distinti, media con zero e decimali, voto massimo,
 ex aequo, input senza voto, titoli escapati, sorprese, intera libreria per
 conteggio aggiunte, storico N+V e recensioni senza etichette ripetute.

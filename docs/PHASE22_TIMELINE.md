@@ -1,11 +1,15 @@
 # Phase 22 — Timeline delle serate per mese
 
-Aggiornamento UX locale v51, 8 ottobre 2026: storico Anno → Mese collassabile
-con stato in memoria; Dopo il film alfabetico, dieci elementi iniziali e
-Mostra altre, testi espandibili. Header Ricordi sticky. Nessuna nuova data o
-formula. [Specifica e verifiche correnti](UX_NAVIGATION_MEMORIES.md).
-Le descrizioni precedenti sotto documentano la baseline della fase originale.
+Stato corrente, 9 ottobre 2026: frontend v55 locale su backend v54 già
+migrato/pubblicato. Ricordi contiene statistiche, Serate concluse per anno/mese
+e Dopo il film/recensioni, senza Storico personale. Storico è una destinazione
+autonoma Home con switch N/V e card della Lista, indipendente dalla candidatura
+e dai filtri Lista. I personali usano seen_n/seen_v; Together dai completed
+colora entrambi i pallini originali d’oro senza cambiare i booleani.
+N+V identifica i voti/recensioni condivisi; nessun terzo indicatore Together.
+Cache locale v55. [Specifica e verifiche correnti](UX_NAVIGATION_MEMORIES.md).
 
+## Archivio della fase originale — 5 ottobre 2026
 
 Stato: **implementata; checkpoint documentale 5 ottobre 2026, prova su due telefoni dopo deploy**
 
@@ -91,4 +95,4 @@ La Phase 23 può aggiungere statistiche retrospettive calcolate sugli stessi
 eventi, con denominatori espliciti. La Phase 24 richiede una decisione di
 prodotto sulle motivazioni da mostrare; non deve riusare il vecchio `votes`.
 
-Checkpoint corrente: smoke **369/369 PASS**, service worker **12/12 PASS**, cache PWA `v44`; modale verificato con fixture Chromium a 320/390/768 px. [Riepilogo e definizioni delle statistiche](PHASE23_MOVIE_CHEMISTRY.md).
+Checkpoint storico della fase: smoke **369/369 PASS**, service worker **12/12 PASS**, cache PWA `v44`; modale verificato con fixture Chromium a 320/390/768 px. [Riepilogo e definizioni delle statistiche](PHASE23_MOVIE_CHEMISTRY.md).

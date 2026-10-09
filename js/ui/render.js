@@ -82,7 +82,13 @@ function render() {
   const inMatch = currentTab === 'match';
   const inHome = dashboardView === 'home' && !inMatch;
   const inWheel = dashboardView === 'wheel' && !inMatch;
+  const inHistory = dashboardView === 'history';
   const inLibrary = !inHome && !inWheel;
+  const historyFilms = inHistory ? movies.filter(m => m[currentTab === 'history_v' ? 'seen_v' : 'seen_n'] === true)
+    .sort((a,b) => String(a.title || '').localeCompare(String(b.title || ''), 'it')) : [];
+  const historySwitch = document.getElementById('historySwitch');
+  if (historySwitch) historySwitch.classList.toggle('!hidden', !inHistory);
+  ['N','V'].forEach(person => document.getElementById('historySwitch'+person)?.setAttribute('aria-pressed', String(currentTab === 'history_'+person.toLowerCase())));
   const sceltaCta = document.getElementById('sceltaCta');
   if (sceltaCta) {
     sceltaCta.classList.toggle('hidden', !inHome);
@@ -112,15 +118,15 @@ function render() {
   if (segControl) segControl.classList.toggle('!hidden', !filmLibrary);
   const pageTitle = document.getElementById('libraryPageTitle');
   if (pageTitle) pageTitle.textContent = currentTab === 'calendar' ? 'Calendario'
-    : currentTab === 'watched' ? 'Visti e recensioni' : 'Libreria';
+    : inHistory ? 'Storico' : currentTab === 'watched' ? 'Visti e recensioni' : 'Libreria';
   const pageEyebrow = document.getElementById('libraryPageEyebrow');
   if (pageEyebrow) pageEyebrow.textContent = currentTab === 'calendar' ? 'IL CARTELLONE'
-    : currentTab === 'watched' ? 'DOPO LA PROIEZIONE' : 'LO SCAFFALE DEI FILM';
+    : inHistory ? 'LE VISIONI PERSONALI' : currentTab === 'watched' ? 'DOPO LA PROIEZIONE' : 'LO SCAFFALE DEI FILM';
   const libraryCount = document.getElementById('libraryCount');
   if (libraryCount) libraryCount.textContent = currentTab === 'calendar' ? ''
-    : `${filterMoviesByState(movies, currentTab === 'all' ? null : currentTab).length} film`;
+    : `${inHistory ? historyFilms.length : filterMoviesByState(movies, currentTab === 'all' ? null : currentTab).length} film`;
   const libraryTools = document.getElementById('libraryTools');
-  if (libraryTools) libraryTools.classList.toggle('!hidden', inMatch || currentTab === 'calendar');
+  if (libraryTools) libraryTools.classList.toggle('!hidden', inMatch || inHistory || currentTab === 'calendar');
   renderMatchCta();
   // Pillola animata: riposiziona l'indicatore sotto il tab attivo ad ogni
   // render (copre anche il primo render post-login e i resync Realtime).
@@ -134,7 +140,7 @@ function render() {
   // il pannello resta come l'utente l'ha lasciato (regola render non tocca
   // listFiltersOpen).
   const listFilterBlock = document.getElementById('listFiltersBlock');
-  if (listFilterBlock) listFilterBlock.classList.toggle('!hidden', currentTab === 'match');
+  if (listFilterBlock) listFilterBlock.classList.toggle('!hidden', currentTab === 'match' || inHistory);
 
   // Vista Match: il pannello filtri/ricerca della LISTA è ignorato (il Match
   // ha il suo stato). La vista occupa #movieGrid con early-return.
@@ -173,9 +179,9 @@ function render() {
   // currentTab: 'all' = tutti, 'tonight' = film con eventi attivi; le altre
   // viste usano il ciclo del film. Pipeline: filtri (filters.js) + sort null-last.
   const statusFilter = currentTab === 'all' ? null : currentTab;
-  const filtered = sortMovies(filterMoviesByState(movies, statusFilter), listSortKey, listSortDir);
+  const filtered = inHistory ? historyFilms : sortMovies(filterMoviesByState(movies, statusFilter), listSortKey, listSortDir);
   if (filtered.length === 0) {
-    grid.innerHTML = emptyListStateHtml();
+    grid.innerHTML = inHistory ? '<p class="col-span-full text-sm text-slate-400">Le visioni personali compariranno qui. Puoi aggiungere un film scegliendo Solo Storico.</p>' : emptyListStateHtml();
   }
 
   const vetoedIds = vetoedMovieIdsThisWeek();

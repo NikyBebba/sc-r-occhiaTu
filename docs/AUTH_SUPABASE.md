@@ -1,9 +1,12 @@
 # Supabase Auth e RLS — production-verified
 
-Migrazione conclusa l’8 ottobre 2026. Commit funzionale distribuito:
-`2bd43a6458733d479b32c790a6da5982f425dbce`, [Vercel Production](https://sc-r-occhia-tu.vercel.app),
-cache PWA **v50**. I successivi commit di sola documentazione non cambiano
-la versione funzionale dell’app.
+Auth/RLS concluse l’8 ottobre 2026, originariamente distribuite con
+`2bd43a6458733d479b32c790a6da5982f425dbce` e cache v50.
+Produzione corrente: v54 al commit `7855c16cae940c4f1b9a3d4267cc9c0db95c9107`,
+[Vercel Production](https://sc-r-occhia-tu.vercel.app), cache v54.
+La migration Individual/Rewatch è applicata dall’utente; audit pre/post 24/24.
+v55 resta frontend locale, cache v55: non modifica Auth, RLS, RPC, account,
+Match Live o semantica di candidatura. Non rieseguire cutover Auth o v54.
 
 L’utente ha eseguito e confermato PREPARE, account/mapping, CUTOVER e nuove
 policy RLS N/V/realtime.messages. Realtime ON, Allow public access OFF;
@@ -11,13 +14,13 @@ publication con movies, movie_nights, swipe_sessions, swipes, vetoes.
 votes rimossa dalla publication, tabella e dati conservati, accesso applicativo
 negato. Signup pubblico e anonymous disabilitati.
 
-Collaudo reale dell’utente su entrambi i dispositivi: login N/V, dati,
+Collaudo reale del cutover Auth v50, confermato dall’utente su entrambi i dispositivi: login N/V, dati,
 persistenza sessione, Realtime, Match Live e logout PASS. L’agente ha verificato
 push/deployment dello SHA candidato, HTTP 200, 45 file runtime identici,
 landing/gate a 320/390/768 px senza errori JS/overflow e SW v50 installato.
 Le verifiche browser dell’agente non hanno inviato PIN o richieste Supabase.
 
-Baseline automatica del candidato: smoke 400/400, Auth 43/43, RLS PostgreSQL
+Baseline storica del candidato Auth v50: smoke 400/400, Auth 43/43, RLS PostgreSQL
 locale 40/40, PWA 15/15, Chromium Auth 18/18 e 144 scenari DOM invariati
 (345 API). SDK/Auth e schema hosted sono simulati nei test locali: i casi
 negativi anon/terzo account, offline/Auth failure e refresh JWT non sono
@@ -79,18 +82,27 @@ alla sua scadenza: il logout locale elimina l'accesso di questa istanza.
 | Risorsa | Privilegi authenticated, soltanto membri |
 | --- | --- |
 | app_members | SELECT della sola propria riga; nessuna scrittura |
-| movies, movie_nights | SELECT/INSERT/UPDATE/DELETE condivisi |
+| movies | SELECT/INSERT/UPDATE/DELETE per membri; guardia v54 protegge personali, legacy e identità; niente TRUNCATE |
+| movie_nights | SELECT; niente INSERT/UPDATE/DELETE/TRUNCATE diretti né INSERT/UPDATE di colonna; scritture solo RPC manage_movie_night con membership verificata |
 | vetoes | SELECT condiviso; INSERT/DELETE solo person = mapping |
 | swipe_sessions | SELECT condiviso; INSERT created_by = mapping; UPDATE condiviso soltanto status/matched_movie_id/matched_at |
 | swipes | SELECT condiviso; INSERT person = mapping; niente UPDATE/DELETE |
 | votes | Nessun privilegio o policy applicativa, tabella conservata |
 | realtime.messages | SELECT sui due topic; INSERT Presence soltanto su scorochiatu-match, sempre membership richiesta |
 
-Le policy precedenti sulle sei tabelle e realtime.messages sono rimosse
-integralmente al cutover: una vecchia policy permissiva si sommerebbe con OR.
+Le policy precedenti sulle sei tabelle e realtime.messages sono state rimosse
+integralmente al cutover Auth concluso: una vecchia policy permissiva si sommerebbe con OR.
 Sono revocati i grants applicativi delle tabelle pubbliche, anche per colonna.
 La funzione app_person è SECURITY INVOKER e segue la SELECT self del mapping.
 Anon non ha accesso. Un terzo account authenticated non è un membro.
+
+La tabella sopra include le restrizioni v54, aggiunte senza cambiare le policy
+Auth o la publication. La guardia movies deriva l’autore da app_person e
+protegge seen/voto/testo dell’altro anche su INSERT, UPDATE e upsert.
+La RPC serate SECURITY DEFINER controlla la membership internamente.
+[Contratto e rollback separato v54](INDIVIDUAL_WATCH_REWATCH.md).
+La v55 espone Storico N/V dalla Home con gli stessi dati condivisi, senza
+aggiungere letture private, duplicare voti o introdurre scritture Auth.
 
 Il JWT è passato a `realtime.setAuth`; core e Match usano private:true.
 Topic, binding, Presence N/V e contratto Match non cambiano. Il callback Auth

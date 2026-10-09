@@ -3,12 +3,12 @@
 // ============================================
 
 let currentTab = 'watchlist'; // 'all' | 'watchlist' | 'tonight' | 'watched' | 'calendar' | 'match'
-let dashboardView = 'home'; // 'home' | 'wheel' | 'library'
+let dashboardView = 'home'; // 'home' | 'wheel' | 'library' | 'history'
 // Tab da cui si è entrati nel Match (per "Esci" = pausa). Default 'watchlist'.
 let matchPrevTab = 'watchlist';
 
 const TAB_KEYS = ['all', 'watchlist', 'rewatch', 'history_n', 'history_v', 'tonight', 'watched', 'calendar', 'match'];
-const LIBRARY_TABS = ['all', 'watchlist', 'rewatch', 'history_n', 'history_v', 'tonight'];
+const LIBRARY_TABS = ['all', 'watchlist', 'rewatch', 'tonight'];
 const TAB_ID = k => k === 'history_n' ? 'tabHistoryN' : k === 'history_v' ? 'tabHistoryV' : 'tab' + k[0].toUpperCase() + k.slice(1);
 
 function syncLibraryNavigation() {
@@ -31,7 +31,7 @@ function setTab(tab) {
   if (!TAB_KEYS.includes(tab)) return;
   if (tab === 'match' && dbMode !== 'supabase') return;
   const enteringView = dashboardView !== 'library';
-  dashboardView = 'library';
+  dashboardView = tab === 'history_n' || tab === 'history_v' ? 'history' : 'library';
   if (tab === 'match') {
     // La pill è visibile solo con Supabase; guardia anche qui (mai entrare offline).
     if (currentTab !== 'match') matchPrevTab = currentTab;
@@ -114,6 +114,7 @@ function activeDestination() {
   if (currentTab === 'match') return 'match';
   if (dashboardView === 'home') return 'home';
   if (dashboardView === 'wheel') return 'wheel';
+  if (dashboardView === 'history') return 'history';
   return currentTab === 'calendar' ? null : 'library';
 }
 
@@ -141,6 +142,7 @@ function activateDestination(destination) {
     return;
   }
   if (destination === 'memories') { openModal('statsModal'); renderStats(); }
+  else if (destination === 'history') setTab(currentTab === 'history_n' || currentTab === 'history_v' ? currentTab : currentUser === 'V' ? 'history_v' : 'history_n');
   else if (destination === 'home') openDashboardHome();
   else if (destination === 'wheel') openWheelView();
   else if (destination === 'match') setTab('match');

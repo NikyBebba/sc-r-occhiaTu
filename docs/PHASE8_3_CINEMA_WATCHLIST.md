@@ -1,13 +1,21 @@
 # Phase 8.3 — Film al cinema e prossimamente
 
-Stato: **implementata nel codice locale; migration Step 10 applicata dall'utente e colonna verificata via REST** · 1 ottobre 2026
+Stato corrente: flag cinema implementato, migration Step 10 già applicata;
+produzione v54 e candidato frontend v55 locale, cache v55.
+Le viste Streaming/Cinema appartengono alla Lista. Storico v55 è autonomo
+dalla Home, ha solo switch N/V e include tutti i rispettivi seen=true anche
+al cinema e fuori Lista, senza filtri disponibilità/ordinamento Lista.
+Ricordi conserva statistiche, Serate concluse e Dopo il film, senza Storico.
+La candidatura in_shared_list resta distinta da cinema e visto personale;
+nessuna modifica v55 ai predicati Ruota/Match o al modello DB.
+[UX corrente](UX_NAVIGATION_MEMORIES.md).
 
 ## Posizione storica nella roadmap
 
 Da affrontare dopo l'attuale Phase 8.2 e prima della Phase 22. È una regola
 della libreria e della scelta, non una statistica o un'estensione del Match Live.
 
-## Esperienza proposta
+## Esperienza implementata
 
 - Nel flusso «Aggiungi film», opzione facoltativa **«Al cinema / prossimamente»**.
   Resta selezionata mentre si sceglie il risultato TMDb nel picker.
@@ -32,9 +40,9 @@ della libreria e della scelta, non una statistica o un'estensione del Match Live
   visione, recensione e storico. Il badge del film può essere modificato senza
   riscrivere le serate precedenti.
 
-## Modello dati proposto
+## Modello dati
 
-Serve un dato condiviso e persistente sul film, ad esempio
+Il dato condiviso persistente è
 `movies.cinema_watchlist boolean NOT NULL DEFAULT false`. Il flag rappresenta
 una **scelta manuale di N/V** («teniamolo per il cinema»), non una promessa
 sulla disponibilità reale. I film esistenti hanno valore `false`; l'import bulk
@@ -45,7 +53,7 @@ La programmazione usa `movie_nights` senza bisogno di una nuova tabella.
 Il luogo vive ora nel campo già applicato `movie_nights.location`, disponibile
 nel popup della programmazione e di Oggi e modificabile per ciascun evento.
 Il flag del film non è una prova retrospettiva del luogo: può cambiare nel tempo.
-Questo è un punto da decidere prima di estendere ticket e timeline.
+Ticket e timeline leggono il luogo dell’evento; il flag cinema non lo sostituisce.
 
 La nuova colonna `movies` è descritta nella migration additiva
 [`database/supabase-migration-step10.sql`](../database/supabase-migration-step10.sql),
@@ -63,20 +71,21 @@ un avviso invece di far comparire temporaneamente il film solo in locale.
    non mostra una card diventata «al cinema» durante la sessione.
 3. La programmazione con data/ora e la conferma funzionano per il film
    escluso dalla scelta casuale; cancellazione e completamento restano coerenti.
-4. Disattivare il flag rende di nuovo il film eleggibile alle **nuove** scelte;
+4. Disattivare il flag rimuove l’esclusione cinema dalle **nuove** scelte,
+   mantenendo i requisiti di candidatura, assenza Together/eventi attivi e veto;
    un eventuale deck Match già congelato non riceve automaticamente nuovi film.
 5. Import bulk, duplicati per ID TMDb, sorpresa, fallback locale e Realtime
    mantengono il comportamento esistente.
 
-Smoke locale dopo l'implementazione: aggiunta attraverso picker, toggle,
+Verifiche storiche dopo l'implementazione: aggiunta attraverso picker, toggle,
 esclusione da Ruota e deck Match già aperto, programmazione di una serata
 cinema, filtro libreria e avviso di salvataggio fallito. Colonna verificata
 sul database remoto in sola lettura; resta da verificare il flusso completo
 su due telefoni dopo il deploy.
 
-## Checkpoint corrente — 5 ottobre 2026
+## Checkpoint storico — 5 ottobre 2026
 
-Il flag resta invariato nel frontend corrente (cache PWA `v44`). Il pannello saghe aggiunge i capitoli con uscita futura come `cinema_watchlist: true`; restano in libreria/programmazione ed esclusi da Ruota e Match. Smoke complessivo **369/369 PASS**, service worker **12/12 PASS**. Migration Step 10 già applicata dall'utente e verificata in sola lettura; uso condiviso dopo il deploy da ricontrollare.
+Il flag resta invariato nel frontend di quel checkpoint (cache PWA `v44`). Il pannello saghe aggiunge i capitoli con uscita futura come `cinema_watchlist: true`; restano in libreria/programmazione ed esclusi da Ruota e Match. Smoke complessivo **369/369 PASS**, service worker **12/12 PASS**. Migration Step 10 già applicata dall'utente e verificata in sola lettura; uso condiviso dopo il deploy da ricontrollare.
 
 ## Revisione del 5 ottobre 2026
 

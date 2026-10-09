@@ -58,6 +58,22 @@ let checks=0;
  for(const width of [320,390,768]){
   await page.setViewportSize({width,height:width===320?568:844});
   await page.evaluate(()=>resetWatchFixture());
+  await check('Personal watch actions share centered eye layout '+width,async()=>{
+   const result=await page.evaluate(()=>{
+    const host=document.createElement('div');host.style.width='240px';
+    host.innerHTML=personalWatchButtonHtml({id:'layout-seen',seen_n:true})+personalWatchButtonHtml({id:'layout-unseen',seen_n:false});document.body.append(host);
+    const buttons=[...host.querySelectorAll('button')];
+    const result=buttons.map(button=>{
+     const style=getComputedStyle(button),icon=button.querySelector('i');
+     const text=document.createRange();text.selectNode(button.lastChild);
+     const box=button.getBoundingClientRect(),start=icon.getBoundingClientRect(),end=text.getBoundingClientRect();
+     return {display:style.display,justify:style.justifyContent,align:style.alignItems,gap:style.gap,height:box.height,font:style.font,fontSize:getComputedStyle(icon).fontSize,icon:icon.className,hidden:icon.getAttribute('aria-hidden'),centerError:Math.abs((start.left+end.right)/2-(box.left+box.right)/2)};
+    });host.remove();return result;
+   });
+   for(const button of result){assert.equal(button.display,'inline-flex');assert.equal(button.justify,'center');assert.equal(button.align,'center');assert.equal(button.hidden,'true');assert(button.centerError<2);}
+   for(const key of ['gap','height','font','fontSize'])assert.equal(result[0][key],result[1][key]);
+   assert.equal(result[0].icon,'fa-solid fa-eye-slash');assert.equal(result[1].icon,'fa-solid fa-eye');
+  });
   await check('Rewatch card, actions and pools '+width,async()=>{
    assert.equal(await page.locator('#movieGrid > *').count(),1);
    assert(await page.locator('#movieGrid').getByText('Rimetti in gioco',{exact:true}).isVisible());
@@ -93,13 +109,13 @@ let checks=0;
    assert.equal(await page.evaluate(()=>movies.find(m=>m.id==='rewatch').seen_rating_n),8.3);
    assert.equal(await page.evaluate(()=>movies.find(m=>m.id==='rewatch').seen_rating_v),7.2);
    await page.evaluate(()=>setTab('all'));
-   assert.equal(await page.locator('.viewing-person.is-together').count(),0);assert.equal(await page.locator('[aria-label="Visto insieme"]').count(),2);
+   assert.equal(await page.locator('.viewing-person.is-together').count(),4);assert.equal(await page.locator('[aria-label="Visto insieme"]').count(),4);
    assert.equal(await page.evaluate(()=>movies.find(m=>m.id==='gold').seen_n),false);
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   });
   await page.evaluate(()=>resetWatchFixture());
   await check('Personal removal preserves vote and text '+width,async()=>{
-   await page.locator('#movieGrid button[onclick^="undoSeenUI"]').click();await page.locator('#confirmYes').click();
+   assert.equal(await page.locator('#movieGrid button[onclick^="undoSeenUI"]').textContent(),'Segna come non visto');await page.locator('#movieGrid button[onclick^="undoSeenUI"]').click();assert((await page.locator('#confirmModal').textContent()).includes('Vuoi segnare questo film come non visto da te?'));await page.locator('#confirmYes').click();
    await page.waitForFunction(()=>!movies[0].seen_n);
    assert.equal(await page.evaluate(()=>movies[0].seen_rating_n),8.3);assert.equal(await page.evaluate(()=>movies[0].review_text_n),'Una recensione conservata');
    assert.equal(await page.evaluate(()=>movies[0].seen_v),true);
@@ -161,11 +177,93 @@ let checks=0;
   await check('Personal and gold states remain distinct in overlapping history '+width,async()=>{
    await page.evaluate(()=>{const m=findDuplicateByTmdbId(9010);movieNights.push({id:'completed-history',movie_id:m.id,status:'completed'});m.in_shared_list=false;saveLocal();setTab('history_n');});
    const card=page.locator('#movieGrid .movie-ticket').filter({hasText:'Storico senza voto'});
-   assert.equal(await card.locator('.viewing-person-n.is-seen').count(),1);
-   assert.equal(await card.locator('.viewing-person-v.is-seen').count(),0);
-   assert.equal(await card.locator('[aria-label="Visto insieme"]').count(),1);
+   assert.equal(await card.locator('.viewing-person.is-together').count(),2);
+   assert.equal(await card.locator('.viewing-person.is-seen').count(),0);
+   assert.equal(await card.locator('[aria-label="Visto insieme"]').count(),2);
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
    if(screenshots)await page.screenshot({path:path.join(screenshots,'history-'+width+'.png'),fullPage:true,animations:'disabled'});
+  });
+ }
+ for (const width of [320,390,768]) {
+  await page.setViewportSize({width,height:844});
+  await page.evaluate(()=>{
+   resetWatchFixture();resetMemoriesState();
+   movies.push({id:'history-n',title:'Solo N cinema',seen_n:true,seen_v:false,in_shared_list:false,cinema_watchlist:true},
+    {id:'history-v',title:'Solo V',seen_n:false,seen_v:true,in_shared_list:false},
+    {id:'history-both',title:'Entrambi personali insieme',seen_n:true,seen_v:true,in_shared_list:false,seen_rating_together:9,review_text_together:'Condivisa'},
+    {id:'history-secret',title:'Titolo segreto',seen_n:true,seen_v:true,surprise_by:'V',in_shared_list:false});
+   movieNights.push({id:'history-completed',movie_id:'history-both',status:'completed'});
+   listQuery='nessun risultato';listAvailability='streaming';openDashboardHome();
+  });
+  await check('Home to independent Storico, N/V overlap and surprise '+width,async()=>{
+   await page.locator('#homeHistory').click();
+   assert.equal(await page.evaluate(()=>activeDestination()),'history');
+   assert(!(await page.locator('#statsModal').isVisible()));
+   for(const id of ['libraryTools','listFiltersBlock','libraryViewSelect','segControl'])assert(!(await page.locator('#'+id).isVisible()));
+   assert.equal(await page.locator('#destinationNav [data-destination=history]').count(),0);
+   const list=page.locator('#movieGrid');
+   assert(await list.getByText('Solo N cinema',{exact:true}).isVisible());
+   assert.equal(await list.getByText('Solo V',{exact:true}).count(),0);
+   assert(await list.getByText('Entrambi personali insieme',{exact:true}).isVisible());
+   assert.equal(await list.getByText('Titolo segreto',{exact:true}).count(),0);
+   assert(await list.getByText('???',{exact:true}).isVisible());
+   await list.locator('.movie-ticket').filter({hasText:'???'}).click();
+   assert(!(await page.locator('#detailModal').isVisible()));
+   const titles=await list.locator('h3').allTextContents();assert.deepEqual(titles,['Entrambi personali insieme','Ritorno sul grande schermo','Solo N cinema','???']);
+   if(screenshots)await page.screenshot({path:path.join(screenshots,'history-destination-'+width+'.png'),fullPage:true,animations:'disabled'});
+   assert(!(await list.textContent()).includes('N+V · Visto insieme'));
+   assert((await list.textContent()).includes('N+V'));
+   await page.locator('#historySwitchV').click();
+   assert(await list.getByText('Solo V',{exact:true}).isVisible());
+   assert(await list.getByText('Entrambi personali insieme',{exact:true}).isVisible());
+   assert.equal(await list.getByText('Solo N cinema',{exact:true}).count(),0);
+  });
+  await check('Storico resync, detail, Home return and original Ricordi '+width,async()=>{
+   await page.evaluate(async()=>{window.fixtureRows={movies:[...movies,{id:'history-new',title:'Arrivato da Realtime',seen_v:true,in_shared_list:false}],movie_nights:movieNights,vetoes:[]};sb=fixtureClient;await resyncQuiet();sb=null;dbMode='local';});
+   assert(await page.locator('#movieGrid').getByText('Arrivato da Realtime',{exact:true}).isVisible());
+   await page.locator('#movieGrid').getByText('Solo V',{exact:true}).click();
+   await page.waitForFunction(()=>!document.getElementById('detailModal').classList.contains('hidden'));
+   assert((await page.locator('#detailBody').textContent()).includes('Solo V'));
+   await page.keyboard.press('Escape');
+   await page.waitForFunction(()=>!detailTransitionActive && document.getElementById('detailModal').classList.contains('hidden'));
+   assert(!(await page.locator('#statsModal').isVisible()));
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+   await page.locator('#libraryBack').click();assert(await page.locator('#homeHistory').isVisible());
+   await page.locator('#homeMemories').click();assert(await page.locator('#statsModal').isVisible());
+   assert.equal(await page.locator('#statsModal #historySwitch, #personalHistoryList, #personalHistoryTitle').count(),0);
+   assert(await page.locator('#statsGrid').isVisible());assert(await page.locator('#nightHistorySection').isVisible());assert(await page.locator('#reviewSection').isVisible());
+   await page.keyboard.press('Escape');
+  });
+  await check('Original badges: all personal and Together combinations '+width,async()=>{
+   const states=await page.evaluate(()=>{
+    const rows=[[true,false,false],[false,true,false],[true,true,false],[false,false,false],[false,false,true],[true,false,true],[true,true,true]];
+    return rows.map(([n,v,t],i)=>{
+     const movie={id:'visual-'+i,seen_n:n,seen_v:v};
+     if(t)movieNights.push({movie_id:movie.id,status:'completed'});
+     const html=viewingStatusHtml(movie);const host=document.createElement('div');host.innerHTML=html;
+     const badges=[...host.querySelectorAll('.viewing-person')];
+     return {n,v,t,personalUnchanged:movie.seen_n===n&&movie.seen_v===v,html,
+      count:badges.length,normal:badges.map(b=>b.classList.contains('is-seen')),gold:badges.map(b=>b.classList.contains('is-together'))};
+    });
+   });
+   for(const state of states){
+    assert.equal(state.count,2);assert(state.personalUnchanged);
+    assert.deepEqual(state.gold,[state.t,state.t]);assert.deepEqual(state.normal,state.t?[false,false]:[state.n,state.v]);
+    assert(!state.html.includes('viewing-together'));assert(!state.html.includes('<svg'));assert(!state.html.includes('N+V · Visto insieme'));
+   }
+   const shared=await page.evaluate(()=>{const m=movies.find(m=>m.id==='history-both');return [viewingStatusHtml(m),reviewCardsHtml(m)];});
+   assert(shared[0].includes('N+V'));assert(shared[1].includes('Recensione N+V'));
+   const colors=await page.evaluate(()=>{const host=document.createElement('div');host.innerHTML=viewingStatusHtml(movies.find(m=>m.id==='gold'));document.body.appendChild(host);const result=[...host.querySelectorAll('.viewing-person')].map(e=>({background:getComputedStyle(e).backgroundColor,width:getComputedStyle(e).width,height:getComputedStyle(e).height}));host.remove();return result;});
+   assert.equal(colors.length,2);assert.deepEqual(colors[0],colors[1]);assert.equal(colors[0].width,'25px');assert.equal(colors[0].height,'25px');
+   const rendererCounts=await page.evaluate(()=>{
+    const m=movies.find(m=>m.id==='gold');m.tmdb_id=9020;m.collection_id=20;
+    const card=createMovieCard(m,[]);renderMovieDetail(m);
+    sagaPanel={movieId:m.id,user:currentUser,selected:new Set(),loading:false,collection:{name:'Saga fixture',parts:[{id:9020,title:m.title,release_date:'2020-01-01'}]}};
+    renderSagaPanel();
+    return [card,document.getElementById('detailBody'),document.getElementById('sagaBody')].map(host=>({gold:host.querySelectorAll('.viewing-person.is-together').length,third:host.querySelectorAll('.viewing-together').length,redundant:host.textContent.includes('N+V · Visto insieme')}));
+   });
+   for(const result of rendererCounts){assert.equal(result.gold,2);assert.equal(result.third,0);assert(!result.redundant);}
+
   });
  }
  await check('Detail toggle and scheduling use the same accessible flows',async()=>{
@@ -183,7 +281,7 @@ let checks=0;
  await check('V from authenticated account edits only V',async()=>{
   await page.evaluate(async()=>{sb=fixtureClient;await signOutApp();selectUser('V');});await page.locator('#pinInput').fill('12345678');await page.locator('#pinSubmit').click();await page.waitForFunction(()=>isAppAuthorized()&&currentUser==='V');
   await page.evaluate(()=>resetWatchFixture());
-  await page.locator('#movieGrid button[onclick^="undoSeenUI"]').click();await page.locator('#confirmYes').click();await page.waitForFunction(()=>!movies[0].seen_v);
+  assert.equal(await page.locator('#movieGrid button[onclick^="undoSeenUI"]').textContent(),'Segna come non visto');await page.locator('#movieGrid button[onclick^="undoSeenUI"]').click();assert((await page.locator('#confirmModal').textContent()).includes('Vuoi segnare questo film come non visto da te?'));await page.locator('#confirmYes').click();await page.waitForFunction(()=>!movies[0].seen_v);
   assert.equal(await page.evaluate(()=>movies[0].seen_n),true);assert.equal(await page.evaluate(()=>movies[0].seen_rating_n),8.3);
   assert(!(await page.evaluate(()=>updateMovie('rewatch',{seen_n:false}))));
   assert(!(await page.evaluate(()=>deleteMovie('gold'))));

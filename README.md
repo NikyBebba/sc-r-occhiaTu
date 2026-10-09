@@ -6,12 +6,29 @@ sc(r)occhiaTu è una web app pensata per rendere più semplice e divertente la d
 
 L'esperienza parte dalla scelta e continua dopo il film: appuntamenti, voti, recensioni, saghe e ricordi delle serate. Il tono è cinematografico e leggero, con attenzione all'uso da smartphone. Può essere uno spazio per amici, coinquilini o una coppia: conta condividere i film.
 
-## Candidato locale: Individual Watch Status + Rewatch
+## Stato corrente: produzione v54, candidato frontend v55
 
-Candidato locale v54: Storico N/V leggibile da entrambi, candidature alla
-Lista indipendenti dalle visioni personali e Rewatch derivato. Protezioni SQL
-preparate; nessuna tabella privata o copia dei voti.
-Non ancora attiva su Supabase o pubblicata. [Contratto e checklist di cutover](docs/INDIVIDUAL_WATCH_REWATCH.md).
+La v54 è pubblicata al commit `7855c16cae940c4f1b9a3d4267cc9c0db95c9107`,
+cache PWA v54. L’utente ha applicato la migration Individual/Rewatch e
+confermato audit pre/post-migration 24/24 e checkpoint integro. Verifica HTTP
+production positiva; il primo uso reale ha confermato backend/caricamento e
+motivato il fix UX v55. Non equivale a un collaudo completo di tutti i flussi.
+
+La **v55 è soltanto locale**, cache `scorochiatu-shell-v55`, senza commit/deploy:
+Storico è una destinazione autonoma dal widget Home, con switch **Storico N / Storico V**,
+stessa griglia e card della Lista, ordine alfabetico e nessun filtro Streaming/Cinema
+né altro filtro/ordinamento Lista. Storico N usa `seen_n=true`, V `seen_v=true`;
+le viste possono sovrapporsi e ignorano `in_shared_list`.
+Ricordi contiene statistiche, Serate concluse e Dopo il film, senza Storico personale.
+
+I due pallini N/V originali seguono gli stati personali; se Together è vero,
+entrambi sono oro senza modificare `seen_n/seen_v`. Together deriva solo da
+`movie_nights.status='completed'`. Nessun terzo indicatore o etichetta visibile
+Together; N+V resta per voto, recensione e azioni condivise.
+**Segna come non visto** rimuove solo il proprio seen, conservando voto,
+recensione, candidatura, eventi e Together. Nessuna nuova persistenza o
+modifica v55 a DB, migration/rollback, RLS/RPC, Auth, Match Live o candidacy/Rewatch.
+[Contratto, stato e verifiche](docs/INDIVIDUAL_WATCH_REWATCH.md).
 
 ## Come funziona
 
@@ -19,7 +36,7 @@ Non ancora attiva su Supabase o pubblicata. [Contratto e checklist di cutover](d
 2. **Scegliere cosa guardare.** Con Match Live entrambi scorrono i film: due preferenze positive producono un Match. La Ruota sceglie a caso dalla lista filtrata; in alternativa si può proporre direttamente un titolo.
 3. **Organizzare la proiezione.** Scegliere «Oggi» con snack e luogo facoltativi oppure programmare data, ora e dettagli della proiezione. Le proposte programmate possono essere confermate dall'altro utente; il calendario raccoglie gli appuntamenti.
 4. **Lasciare un voto o un commento.** Ogni utente può registrare le proprie visioni e valutazioni; una visione condivisa ha voto e recensione distinti da quelli personali.
-5. **Continuare l'esperienza.** Consultare gli altri capitoli di una saga, aggiungerli esplicitamente alla lista e ritrovare serate e recensioni in Ricordi.
+5. **Continuare l'esperienza.** Consultare gli altri capitoli di una saga e aggiungerli esplicitamente alla Lista; nella v55 locale Storico raccoglie le visioni N/V, mentre Ricordi raccoglie serate, statistiche e recensioni condivise.
 
 ## Funzioni disponibili
 
@@ -30,6 +47,8 @@ Non ancora attiva su Supabase o pubblicata. [Contratto e checklist di cutover](d
 - **Voti e recensioni:** scala 0–10 con un decimale, tastierino mobile e supporto a punto o virgola. Valutazioni personali e condivise separate; il testo è facoltativo e può essere rimosso mantenendo il voto.
 - **Saghe:** capitoli TMDb in ordine di uscita, stato dei film già presenti e suggerimento dopo una nuova visione. Nessuna aggiunta automatica: si scelgono i capitoli da salvare.
 - **Film al cinema e prossimamente:** possono restare in libreria ed essere programmati, con esclusione da Ruota e Match finché sono segnati per il cinema. I capitoli di saga con uscita futura ricevono questa indicazione.
+- **Storico (v55 locale):** destinazione Home con switch N/V, film visti personalmente anche fuori Lista e viste sovrapponibili, senza filtri Lista.
+- **Rewatch:** `seen_n && seen_v && !together`, con badge In gioco quando candidato; Oggi/Programma disponibili anche fuori Lista.
 - **Ricordi / Titoli di coda:** storico mensile delle serate e quattro riepiloghi: voto medio, voto più alto, genere più visto e film aggiunti per autore. Voti e commenti sono raccolti in «Dopo il film».
 - **Ticket cinematografico:** immagine PNG scaricabile con locandina, titolo, origine della scelta e dati disponibili della proiezione, compreso il luogo. Testi cinematografici senza formule romantiche ripetute.
 - **Atmosfere automatiche:** quattro stagioni e quattro festività, con cambio secondo il calendario e scelta manuale temporanea. Suoni e vibrazione sono facoltativi sui dispositivi compatibili.
@@ -50,16 +69,16 @@ La programmazione ha un'unica fonte: gli eventi `movie_nights`. Il client non le
 
 L'app gestisce **uno spazio con due profili preconfigurati**, senza registrazione o gruppi indipendenti. Il nuovo ingresso mantiene persona → PIN e usa Supabase Auth con mapping protetto e RLS, con l'opzione «Ricordami su questo dispositivo». PIN e password non sono nel frontend.
 
-**Auth/RLS verificata in produzione:** cutover completato, accesso DB riservato ai due membri e canali Realtime privati. Il collaudo reale sui due dispositivi ha confermato login, dati, persistenza sessione, Realtime, Match Live e logout. Versione funzionale `2bd43a6`, service worker `v50`, disponibile su [Vercel](https://sc-r-occhia-tu.vercel.app). [Stato tecnico e rollback d’emergenza](docs/AUTH_SUPABASE.md).
+**Auth/RLS verificata in produzione:** cutover completato, accesso DB riservato ai due membri e canali Realtime privati. Il collaudo reale sui due dispositivi ha confermato login, dati, persistenza sessione, Realtime, Match Live e logout. La versione Auth originaria era `2bd43a6`/v50; production corrente v54, disponibile su [Vercel](https://sc-r-occhia-tu.vercel.app). [Stato tecnico e rollback d’emergenza](docs/AUTH_SUPABASE.md).
 
 `votes` è esclusa dalla publication Realtime e dall’accesso applicativo;
 la tabella e i suoi dati restano conservati. Il rollback ripristina la
 membership originaria solo nell’eventuale procedura d’emergenza autorizzata.
 
-**Candidato UX locale v51, non ancora pubblicato:** navigazione persistente
-Home/Match/Ruota/Lista/Ricordi, archivio serate per anno/mese collassabile e
-recensioni in blocchi di dieci con testi espandibili. Stato temporaneo conservato
-nei rerender e azzerato al logout. Dati e logiche esistenti invariati.
+La navigazione persistente resta Home/Match/Ruota/Lista/Ricordi. Storico,
+Calendario e Visti e recensioni si aprono dalla Home; Storico non è aggiunto
+alla bottom navigation. Ricordi conserva anno/mese collassabili e recensioni
+in blocchi di dieci, con stato temporaneo azzerato al logout.
 [Dettagli e verifiche](docs/UX_NAVIGATION_MEMORIES.md).
 
 ## Avvio locale
@@ -91,11 +110,18 @@ node scripts/verify-auth.js
 # Test PostgreSQL/browser: percorsi delle dipendenze di verifica
 node scripts/verify-auth-rls.js --pglite=/percorso/node_modules/@electric-sql/pglite
 node scripts/verify-auth-browser.cjs --playwright=/percorso/node_modules/playwright
+node scripts/verify-individual-rewatch-db.js --pglite=/percorso/node_modules/@electric-sql/pglite
+node scripts/verify-ux-browser.cjs --playwright=/percorso/node_modules/playwright
+node scripts/verify-individual-rewatch-browser.cjs --playwright=/percorso/node_modules/playwright
 ```
 
-Baseline della versione funzionale distribuita l’8 ottobre 2026: **400/400 smoke**, **15/15 service worker**, **43/43 Auth**, **40/40 RLS PostgreSQL** e **18/18 Chromium Auth** superati; cache PWA `v50`. Le API del dominio sono mantenute e 144 scenari DOM coincidono con la baseline dopo accesso verificato. Proiezioni, cinema, voti e Ricordi verificati in Chromium mobile/tablet senza errori JS o overflow.
-
-I test automatici Auth usano SDK simulato; le migration sono verificate su PostgreSQL locale. Il cutover Supabase e il collaudo N/V in produzione sono stati completati e confermati dall’utente. L’agente ha verificato il deployment, 45 file runtime identici al candidato e landing/PWA pubblicate. La migrazione Auth/RLS è conclusa.
+PRE-COMMIT v55 locale PASS: Smoke **436/436**, Auth **48/48**, RLS **40/40**,
+DB Individual/Rewatch **52/52**, PWA **15/15**, Chromium Auth **18/18**,
+Chromium UX **24/24**, Chromium feature **39/39**, sintassi **54/54** e diff check PASS.
+Test Auth/browser simulati, PostgreSQL temporaneo; nessun test locale scrive
+Supabase. Il collaudo condiviso della v55 resta successivo a deploy autorizzato.
+La verifica HTTP production v54 ha confrontato index, SW e 15 JS principali
+con il candidato, tutti HTTP 200 e identici; non include login o scritture.
 
 L’ingresso richiede verifica online: il mirror offline è disponibile solo dopo autorizzazione nella stessa esecuzione e con JWT valido. La sessione temporanea e l’autofill dipendono dal browser; il logout locale lascia indipendente l’altro dispositivo. Rimane un’app per due membri preconfigurati. I CSV manuali sono conservati fuori da Git e non costituiscono un backup completo Supabase.
 

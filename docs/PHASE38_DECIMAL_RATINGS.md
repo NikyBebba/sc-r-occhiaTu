@@ -1,5 +1,24 @@
 # Phase 38 — Voti decimali da tastierino
 
+Checkpoint corrente: 9 ottobre 2026, produzione v54 / frontend locale v55.
+I voti personali sono leggibili da entrambi e scrivibili solo dal proprietario
+Auth; nessuna copia privata/pubblica. Solo Storico ammette voto assente.
+Nuova candidatura di un film visto dal proponente richiede il suo voto,
+zero valido; secondo seen su candidato non richiede voto. Un voto può essere
+rimosso esplicitamente dopo candidatura senza espulsione automatica.
+“Segna come non visto” cambia solo il proprio seen e conserva voto, recensione,
+candidatura, eventi e Together. Il voto condiviso resta identificato da N+V.
+
+Il runtime corrente legge soltanto i campi moderni: il fallback legacy 1–5
+è stato materializzato su NULL attribuibili nella migration v54, non mantenuto
+in lettura. Together deriva esclusivamente dai completed e colora entrambi
+i pallini originali N/V d’oro, senza cambiare gli stati personali.
+Storico autonomo dalla Home, switch N/V senza filtri Lista; Ricordi dedicato
+alle memorie condivise. Nessuna modifica v55 a DB o logica dei voti; cache v55.
+[Contratto corrente e suite](INDIVIDUAL_WATCH_REWATCH.md).
+
+## Archivio: implementazione Phase 38 e verifiche originarie
+
 Scelta dell'utente: proseguire con i voti decimali, personali e insieme.
 Codice implementato localmente; migration Supabase **applicata dall'utente**.
 La lettura indipendente dei tipi via OpenAPI ha restituito HTTP 401;
@@ -46,7 +65,7 @@ entrambi i telefoni. Nessuna modifica alle credenziali o alle serate.
 
 ## Verifiche
 
-- Checkpoint corrente: smoke **369/369 PASS**, service worker **12/12 PASS**, controlli sintassi. La prima implementazione aveva 358/358 test.
+- Checkpoint storico v44: smoke **369/369 PASS**, service worker **12/12 PASS**, controlli sintassi. La prima implementazione aveva 358/358 test.
 - Tutti i 101 decimi, punto/virgola, input errati, zero, salvataggi personali
   e condivisi, modifica, persistenza locale, legacy, ordinamento e media.
 - Migration eseguita su PostgreSQL temporaneo PGlite: preserva valori,
