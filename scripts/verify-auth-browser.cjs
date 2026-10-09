@@ -34,7 +34,11 @@ let checks=0;
     window.fixtureRefresh=()=>{session={...session,access_token:'fixture-refreshed',expires_at:session.expires_at+3600};storage.setItem(storageKey,JSON.stringify(session));listener?.('TOKEN_REFRESHED',session);};
     window.fixtureReconnect=()=>channels.forEach(c=>c.subscriptionCallback?.('SUBSCRIBED'));
     return {
-     auth:{async updateUser(){window.fixtureUpdates++;if(window.fixtureAuthMode==='reset-offline')return {error:{status:0,message:'offline'}};if(window.fixtureAuthMode==='reset-weak')return {error:{status:422,name:'AuthApiError',code:'weak_password'}};await new Promise(resolve=>setTimeout(resolve,20));listener?.('USER_UPDATED',session);return {data:{user:session.user},error:null};},onAuthStateChange(fn){listener=fn;return {data:{subscription:{}}};},async initialize(){return {error:null};},async getSession(){return {data:{session},error:null};},async getUser(){fixtureCalls.push(['verify-user',window.fixtureAuthMode]);if(window.fixtureAuthMode==='offline')return {data:{},error:{status:0,name:'AuthRetryableFetchError',message:'offline'}};if(window.fixtureAuthMode==='invalid')return {data:{},error:{status:401,message:'invalid'}};return {data:{user:session?.user},error:null};},async signInWithPassword({email,password}){if(window.fixtureAuthMode==='login-invalid')return {error:{status:400,name:'AuthApiError',code:'invalid_credentials',message:'invalid'}};if(window.fixtureAuthMode==='login-offline')return {error:{status:0,name:'AuthRetryableFetchError',message:'offline'}};if(password.length===0)return {error:{status:400,message:'invalid'}};const person=Object.keys(CONFIG.AUTH_EMAILS).find(code=>CONFIG.AUTH_EMAILS[code]===email);session={access_token:'fixture-'+person,user:{id:'fixture-'+person},expires_at:Math.floor(Date.now()/1000)+3600};storage.setItem(storageKey,JSON.stringify(session));listener?.('SIGNED_IN',session);return {data:{session},error:null};},async signOut(opts){fixtureCalls.push(['signOut',opts.scope]);session=null;storage.removeItem(storageKey);listener?.('SIGNED_OUT',null);return {error:null};}},
+     auth:{async resetPasswordForEmail(email){
+      fixtureCalls.push(['reset-email',email]);
+      if(window.fixtureResetMode==='held')await new Promise(resolve=>{window.fixtureResetRelease=resolve;});
+      return {data:{},error:window.fixtureResetMode==='network'?{status:0,message:'fixture-private-error'}:window.fixtureResetMode==='rate'?{status:429,message:'fixture-private-error'}:null};
+     },async updateUser(){window.fixtureUpdates++;if(window.fixtureAuthMode==='reset-offline')return {error:{status:0,message:'offline'}};if(window.fixtureAuthMode==='reset-weak')return {error:{status:422,name:'AuthApiError',code:'weak_password'}};await new Promise(resolve=>setTimeout(resolve,20));listener?.('USER_UPDATED',session);return {data:{user:session.user},error:null};},onAuthStateChange(fn){listener=fn;return {data:{subscription:{}}};},async initialize(){return {error:null};},async getSession(){return {data:{session},error:null};},async getUser(){fixtureCalls.push(['verify-user',window.fixtureAuthMode]);if(window.fixtureAuthMode==='offline')return {data:{},error:{status:0,name:'AuthRetryableFetchError',message:'offline'}};if(window.fixtureAuthMode==='invalid')return {data:{},error:{status:401,message:'invalid'}};return {data:{user:session?.user},error:null};},async signInWithPassword({email,password}){if(window.fixtureAuthMode==='login-invalid')return {error:{status:400,name:'AuthApiError',code:'invalid_credentials',message:'invalid'}};if(window.fixtureAuthMode==='login-offline')return {error:{status:0,name:'AuthRetryableFetchError',message:'offline'}};if(password.length===0)return {error:{status:400,message:'invalid'}};const person=Object.keys(CONFIG.AUTH_EMAILS).find(code=>CONFIG.AUTH_EMAILS[code]===email);session={access_token:'fixture-'+person,user:{id:'fixture-'+person},expires_at:Math.floor(Date.now()/1000)+3600};storage.setItem(storageKey,JSON.stringify(session));listener?.('SIGNED_IN',session);return {data:{session},error:null};},async signOut(opts){fixtureCalls.push(['signOut',opts.scope]);session=null;storage.removeItem(storageKey);listener?.('SIGNED_OUT',null);return {error:null};}},
      from(table){const q={select(){return q;},eq(){return q;},order(){return q;},limit(){return q;},async maybeSingle(){return {data:window.fixtureAuthMode==='third'?null:{user_id:session?.user.id,person:session?.user.id.slice(-1)},error:null};},then(resolve,reject){return Promise.resolve({data:[],error:window.fixtureAuthMode==='offline'?{status:0,message:'offline'}:null}).then(resolve,reject);}};return q;},
      realtime:{async setAuth(token){fixtureCalls.push(['jwt',token]);},disconnect(){fixtureCalls.push(['disconnect']);}},
      channel(topic,opts){fixtureCalls.push(['channel',topic,opts.config.private]);const c={on(){return c;},subscribe(cb){c.subscriptionCallback=cb;channels.push(c);setTimeout(()=>cb('SUBSCRIBED'),0);return c;},untrack(){return Promise.resolve();},track(){return Promise.resolve();},presenceState(){return {};}};return c;},getChannels(){return channels;},removeChannel(c){const i=channels.indexOf(c);if(i>=0)channels.splice(i,1);return Promise.resolve();}
@@ -86,6 +90,54 @@ let checks=0;
    assert(await page.locator('#passwordInput').evaluate(el=>document.activeElement===el));
   }
   await page.evaluate(()=>backToLanding());
+ });
+ for(const person of ['N','V'])await check('Password dimenticata '+person+': mapping fisso, feedback, nessun login o modifica sessione',async()=>{
+  await page.evaluate(person=>selectUser(person),person);
+  await page.locator('#authUsername').fill('other@example.test');
+  await page.locator('#passwordInput').fill(testPassword);
+  await page.locator('#rememberDevice').check();
+  const button=page.locator('#forgotPassword');assert(await button.isVisible());assert.equal(await button.getAttribute('type'),'button');
+  assert.equal(await page.locator('#passwordResetNotice').getAttribute('role'),'status');
+  await button.click();await page.waitForFunction(()=>!passwordResetBusy);
+  const requests=await page.evaluate(()=>fixtureCalls.filter(c=>c[0]==='reset-email'));
+  assert.equal(requests.at(-1)[1],runtimeEmails[person]);assert((await page.locator('#passwordResetNotice').innerText()).includes('riceverai'));
+  assert.equal(await page.locator('#passwordInput').inputValue(),testPassword);assert(await page.locator('#rememberDevice').isChecked());
+  assert.equal(await page.evaluate(()=>localStorage.getItem('scorochiatu_auth')),null);assert.equal(await page.evaluate(()=>sessionStorage.getItem('scorochiatu_auth')),null);
+  assert(!(await page.evaluate(()=>isAppAuthorized())));assert.equal(await page.evaluate(()=>fixtureUpdates),0);
+  await button.click();assert.equal(await page.evaluate(()=>fixtureCalls.filter(c=>c[0]==='reset-email').length),requests.length);
+  assert((await page.locator('#passwordResetNotice').innerText()).includes('Attendi un minuto'));
+  await page.evaluate(()=>backToLanding());
+ });
+ await check('richiesta recovery: doppio click bloccato, cambio persona ignora risposta obsoleta',async()=>{
+  await page.evaluate(()=>{delete passwordResetLastSent.N;fixtureResetMode='held';selectUser('N');requestLoginPasswordReset();requestLoginPasswordReset();});
+  await page.waitForFunction(()=>!!fixtureResetRelease);assert(await page.locator('#forgotPassword').isDisabled());
+  const before=await page.evaluate(()=>fixtureCalls.filter(c=>c[0]==='reset-email').length);
+  await page.evaluate(()=>{backToLanding();selectUser('V');fixtureResetRelease();});await page.waitForFunction(()=>!passwordResetBusy);
+  assert(await page.locator('#passwordResetNotice').evaluate(el=>el.classList.contains('hidden')));
+  assert.equal(await page.evaluate(()=>fixtureCalls.filter(c=>c[0]==='reset-email').length),before);assert(await page.locator('#forgotPassword').isEnabled());
+  await page.evaluate(()=>{fixtureResetMode=null;backToLanding();});
+ });
+ for(const mode of ['network','rate'])await check('richiesta recovery '+mode+': errore controllato, retry/cooldown',async()=>{
+  await page.evaluate(mode=>{delete passwordResetLastSent.N;fixtureResetMode=mode;selectUser('N');},mode);
+  await page.locator('#forgotPassword').click();await page.waitForFunction(()=>!passwordResetBusy);
+  const message=await page.locator('#passwordResetNotice').innerText();assert(message.includes(mode==='rate'?'Troppi invii':'connessione'));assert(!message.includes('fixture-private-error'));
+  const before=await page.evaluate(()=>fixtureCalls.filter(c=>c[0]==='reset-email').length);
+  await page.evaluate(()=>fixtureResetMode=null);await page.locator('#forgotPassword').click();await page.waitForFunction(()=>!passwordResetBusy);
+  assert.equal(await page.evaluate(()=>fixtureCalls.filter(c=>c[0]==='reset-email').length),before+(mode==='rate'?0:1));
+  await page.evaluate(()=>backToLanding());
+ });
+ await check('richiesta recovery: cooldown scaduto e configurazione mancante',async()=>{
+  await page.evaluate(()=>{passwordResetLastSent.N=Date.now()-60001;selectUser('N');});
+  await page.locator('#forgotPassword').click();await page.waitForFunction(()=>!passwordResetBusy);assert((await page.locator('#passwordResetNotice').innerText()).includes('riceverai'));
+  const before=await page.evaluate(()=>fixtureCalls.filter(c=>c[0]==='reset-email').length);
+  await page.evaluate(()=>{delete passwordResetLastSent.V;CONFIG.AUTH_EMAILS.V='';selectUser('V');});
+  await page.locator('#forgotPassword').click();await page.waitForFunction(()=>!passwordResetBusy);assert((await page.locator('#passwordResetNotice').innerText()).includes('non ancora configurato'));
+  assert.equal(await page.evaluate(()=>fixtureCalls.filter(c=>c[0]==='reset-email').length),before);
+  await page.evaluate(email=>{CONFIG.AUTH_EMAILS.V=email;backToLanding();},runtimeEmails.V);
+ });
+ await check('richiesta recovery senza persona: nessun invio',async()=>{
+  const before=await page.evaluate(()=>fixtureCalls.filter(c=>c[0]==='reset-email').length);
+  await page.evaluate(()=>requestLoginPasswordReset());assert.equal(await page.evaluate(()=>fixtureCalls.filter(c=>c[0]==='reset-email').length),before);
  });
  for(const person of ['N','V'])await check('Password '+person+': solo vuoto bloccato, valori non vuoti inoltrati intatti ad Auth',async()=>{
   await page.evaluate(person=>{

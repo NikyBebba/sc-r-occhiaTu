@@ -1,13 +1,13 @@
 # AGENTS.md — sc(r)occhiaTu
 
-Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 9 ottobre 2026 (frontend v58 in produzione; Auth/RLS e migration v54 già applicate).
+Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 9 ottobre 2026 (release frontend v59 autorizzata, recovery v58 verificato; Auth/RLS e migration v54 già applicate).
 Prima di progettare una fase leggere [docs/MASTER_CONTEXT.md](docs/MASTER_CONTEXT.md):
 è la fonte dello stato corrente, delle decisioni UX e della roadmap. Le sezioni
 storiche del master context descrivono cicli precedenti, non lo stato finale.
 Per modelli e flussi specifici consultare anche le specifiche Phase 22/23/38/41.
 Vincoli, sicurezza e contratto Match di questo file restano applicabili.
 
-## Stato corrente v58 production
+## Checkpoint production v58 — precedente alla release v59
 
 Production commit `f3c49fd110592e9d8883f5e797809cf6fc34c0f2`, SW `scorochiatu-shell-v58`.
 Push e deployment Vercel completati; 41/41 file runtime HTTP 200 e identici al commit.
@@ -29,8 +29,9 @@ MFA/AAL/AMR o marker locale. Nuova password/conferma usano new-password;
 identity guard e double-submit preservati. Successo → logout locale → login.
 Ricaricare durante recovery interrompe il flusso e richiede un nuovo link.
 [Dettagli, errori e limiti](docs/AUTH_SUPABASE.md).
-Test reale recovery v58 e Apple Passwords/Safari ancora da confermare:
-il deploy/HTTP e le simulazioni locali non equivalgono al collaudo hosted.
+L’utente conferma recovery reale v58 e login successivo per N/V, oltre al
+salvataggio automatico Apple Passwords/Safari. La proposta automatica delle
+credenziali al prossimo accesso non è stata attestata separatamente.
 
 Storico introdotto nella v55 è pubblicato: destinazione Home con switch N/V,
 rispettivamente seen_n/seen_v=true, viste sovrapponibili anche fuori Lista e
@@ -50,6 +51,19 @@ sintassi 56/56 e diff check PASS.
 SDK Supabase v2 reale con Auth/membership simulati e PWA: 8/8 con AMR otp,
 8/8 senza AMR; credenziali sintetiche generate a runtime, nessun test Auth live.
 I checkpoint datati sotto descrivono i rispettivi cicli storici.
+
+## Release v59 — pubblicazione autorizzata
+
+Pulsante Password dimenticata? nel login N/V: resetPasswordForEmail solo con
+il mapping selezionato, mai con il campo Account editabile. Ritorno tramite
+Site URL già configurato; nessuna modifica Dashboard. Cooldown per persona
+60 secondi in memoria, double-submit bloccato, feedback aria-live controllato;
+cambio persona invalida feedback tardivi. Nessuna password/token salvati/loggati,
+nessuna modifica al login/recovery validato, Ricordami, session restore o backend.
+Cache release scorochiatu-shell-v59; commit/push/deployment autorizzati dall’utente.
+Test locali: Auth 82/82, Browser Auth 43/43, UX 24/24, Smoke 436/436,
+PWA 18/18, RLS 40/40, DB 52/52, browser feature 39/39, SDK/PWA 10/10 con AMR otp e 10/10 senza AMR.
+Sintassi 56/56 e diff check PASS. Invio email simulato; test reale dell’invio dal nuovo pulsante ancora da confermare.
 
 ## Project purpose
 
@@ -367,7 +381,7 @@ Per le priorità precise leggere il master context aggiornato.
 ## Vincoli tecnici
 
 - Dipendenze ancora via CDN (Tailwind Play, Font Awesome, supabase-js).
-- PWA presente: manifest e service worker, cache production `scorochiatu-shell-v58`; domini API,
+- PWA presente: manifest e service worker, cache release `scorochiatu-shell-v59`; domini API,
   Supabase, poster e YouTube sempre esclusi dall'intercettazione. Le icone PWA
   sono provvisorie; non confondere l'app-shell offline con dati remoti disponibili.
 - HTML delle card generato come stringhe: usare `escapeHtml`/`jsAttrEscape`

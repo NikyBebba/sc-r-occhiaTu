@@ -405,6 +405,15 @@ async function refreshAuthConnection(session = null) {
   try { await authRefreshTask; } finally { authRefreshTask = null; }
 }
 
+async function requestPersonPasswordReset(person) {
+  if (authRecoveryRequested || authBusy || isAppAuthorized()) throw new Error('AUTH_CHANGED');
+  if (!['N', 'V'].includes(person) || !sb?.auth || !CONFIG.AUTH_EMAILS?.[person]) throw new Error('AUTH_NOT_CONFIGURED');
+  // Il destinatario deriva solo dalla persona, mai dal campo Account editabile.
+  // Senza redirectTo il SDK usa il Site URL configurato e verificato dall'operatore.
+  const { error } = await sb.auth.resetPasswordForEmail(CONFIG.AUTH_EMAILS[person]);
+  if (error) throw error;
+}
+
 async function signInPerson(person, password, remember) {
   if (authRecoveryRequested) throw new Error('AUTH_RECOVERY');
   if (!sb?.auth || !CONFIG.AUTH_EMAILS?.[person]) throw new Error('AUTH_NOT_CONFIGURED');

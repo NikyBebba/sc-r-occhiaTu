@@ -2,13 +2,14 @@
 
 Auth/RLS concluse l’8 ottobre 2026, originariamente distribuite con
 `2bd43a6458733d479b32c790a6da5982f425dbce` e cache v50.
-Produzione corrente: v58 al commit `f3c49fd110592e9d8883f5e797809cf6fc34c0f2`,
+Checkpoint produzione v58 (base della release v59) al commit `f3c49fd110592e9d8883f5e797809cf6fc34c0f2`,
 [Vercel Production](https://sc-r-occhia-tu.vercel.app), cache `scorochiatu-shell-v58`.
 Push/deployment completati; 41/41 file runtime HTTP 200 e identici al commit.
 La migration Individual/Rewatch v54 è applicata dall’utente; audit pre/post 24/24.
-Frontend v55–v58 pubblicati senza modifiche database/RLS/RPC o utenti Supabase.
+Frontend v55–v59 pubblicati senza modifiche database/RLS/RPC o utenti Supabase.
 Non rieseguire cutover Auth o migration v54. Il collaudo hosted Auth v50 sotto
-non attesta il nuovo recovery v58, il cui test reale è ancora da confermare.
+è distinto dal successivo test reale v58: l’utente ha confermato reset e login
+con la nuova password per entrambi gli account N/V.
 
 L’utente ha eseguito e confermato PREPARE, account/mapping, CUTOVER e nuove
 policy RLS N/V/realtime.messages. Realtime ON, Allow public access OFF;
@@ -65,6 +66,25 @@ La publishable key resta client-side. La semantica Autofill è convenzionale,
 ma il riconoscimento delle credenziali salvate in Safari non è ancora attestato:
 le prove reali del campo readonly e della v56 editabile sono fallite.
 
+## Richiesta link dal login — v59
+
+“Password dimenticata?” appare dopo la scelta N/V e non invia il form login.
+requestPersonPasswordReset usa esclusivamente CONFIG.AUTH_EMAILS[person]
+per N/V, senza leggere l’Account editabile; assenza di mapping/client blocca
+la richiesta. Non invia nulla senza persona o durante sessione app/recovery.
+La chiamata [resetPasswordForEmail](https://supabase.com/docs/reference/javascript/auth-resetpasswordforemail)
+non specifica redirectTo: usa il Site URL configurato e già verificato dall’utente.
+Non modifica sessione/identità, Ricordami o password e non abilita il reset.
+Il link deve comunque generare il contesto SDK verificato descritto sotto.
+
+La UI conferma la richiesta senza garantire la consegna, blocca doppio clic e
+applica un cooldown di 60 secondi per persona dopo successo o HTTP 429.
+Cooldown solo in memoria, senza timer o storage; non sostituisce i limiti server.
+Errori rete/configurazione/rate limit hanno testo controllato, senza errori SDK grezzi.
+Cambiare persona/uscire invalida il feedback della richiesta precedente.
+Cache release v59; pubblicazione autorizzata. UI/invio locale simulato, nessuna email reale inviata
+nei test. Auth 82/82, Browser Auth 43/43, SDK pubblico con server locale/PWA 10/10 con AMR otp e 10/10 senza AMR.
+
 ## Password recovery — v58
 
 L’utente ha corretto manualmente il Site URL Supabase verso
@@ -120,7 +140,9 @@ non conserva URL/token recovery; API Supabase sono escluse dal service worker.
 Verifiche v58: Auth 77/77, Chromium Auth 36/36, SDK reale + PWA 8/8 con AMR otp
 (default) e 8/8 senza AMR. Auth/membership e sessioni sono simulati con dati
 sintetici generati a runtime; nessun reset su account reale eseguito dall’agente.
-Il test hosted del reset v58 e Apple Passwords/Safari restano da confermare.
+L’utente conferma reset hosted v58 e login successivo per N/V, oltre al
+salvataggio automatico delle credenziali Apple Passwords/Safari. Non estendere
+questa conferma alla proposta automatica delle credenziali al prossimo accesso.
 Signup pubblico resta disabilitato secondo la configurazione già confermata;
 nessun signup introdotto e nessuna nuova verifica/modifica Dashboard in questo ciclo.
 

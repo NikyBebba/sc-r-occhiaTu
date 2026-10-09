@@ -11,10 +11,11 @@ const storage = map => ({ getItem: k => map.get(k) ?? null, setItem: (k,v) => ma
 function fixture(local = new Map(), temporary = new Map()) {
   const calls = [], elements = new Map();
   const session = { access_token: 'fixture-token', user: {id:'fixture-N'}, expires_at: Math.floor(Date.now()/1000)+3600 };
-  const state = {initError:null,updates:0,session, member:{user_id:'fixture-N',person:'N'}, userError:null, memberError:null, transportError:null};
+  const state = {resetError:null,initError:null,updates:0,session, member:{user_id:'fixture-N',person:'N'}, userError:null, memberError:null, transportError:null};
   let callback;
   const sdk = {
     auth:{
+      async resetPasswordForEmail(email){calls.push(['reset-email',email]);return {data:{},error:state.resetError};},
       mfa:{async getAuthenticatorAssuranceLevel(){throw new Error('MFA must not be called');}},
       async updateUser(){state.updates++;return {data:{user:state.session.user},error:null};},
       async initialize(){return {error:state.initError};},async getSession(){return {data:{session:state.session},error:null};},
@@ -40,6 +41,24 @@ function fixture(local = new Map(), temporary = new Map()) {
 let count=0;
 async function test(name,fn){await fn();count++;console.log('PASS '+name);}
 (async()=>{
+ for(const person of ['N','V'])await test('richiesta recovery '+person+': solo mapping, nessuna sessione/login/update',async()=>{
+  const f=fixture();await f.run("requestPersonPasswordReset('"+person+"')");
+  assert.deepEqual(f.calls,[['reset-email',person.toLowerCase()+'@example.test']]);
+  assert.equal(f.state.updates,0);assert.equal(f.local.size,0);assert.equal(f.temporary.size,0);assert(!f.run('authRecoveryRequested'));
+ });
+ await test('richiesta recovery: persona sconosciuta o mapping assente bloccati',async()=>{
+  const f=fixture();await assert.rejects(f.run("requestPersonPasswordReset('X')"),/AUTH_NOT_CONFIGURED/);
+  f.run("CONFIG.AUTH_EMAILS.N=''");await assert.rejects(f.run("requestPersonPasswordReset('N')"),/AUTH_NOT_CONFIGURED/);assert.equal(f.calls.length,0);
+ });
+ await test('richiesta recovery: sessione app o recovery attiva non inviano email',async()=>{
+  const f=fixture();await f.run('initializeAuth()');const before=f.calls.length;
+  await assert.rejects(f.run("requestPersonPasswordReset('N')"),/AUTH_CHANGED/);assert.equal(f.calls.length,before);
+  f.run('authIdentity=null;authRecoveryRequested=true');await assert.rejects(f.run("requestPersonPasswordReset('N')"),/AUTH_CHANGED/);assert.equal(f.calls.length,before);
+ });
+ await test('richiesta recovery: errore SDK propagato senza ingresso/reset',async()=>{
+  const f=fixture();f.state.resetError={status:429};await assert.rejects(f.run("requestPersonPasswordReset('N')"),error=>error.status===429);
+  assert.equal(f.state.updates,0);assert(!f.run('authRecoveryRequested'));
+ });
  const startRecovery=async f=>{f.run('attachAuthListener()');f.emit('PASSWORD_RECOVERY',f.state.session);await f.run('initializeAuth()');};
  for(const amr of ['otp','password','other'])await test('PASSWORD_RECOVERY + AMR '+amr+': verificata senza AAL',async()=>{
   const f=fixture();f.state.session.amr=[{method:amr}];f.ctx.sb.auth.mfa.getAuthenticatorAssuranceLevel=()=>{throw new Error('MFA must not be called');};await startRecovery(f);

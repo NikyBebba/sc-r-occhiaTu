@@ -21,6 +21,7 @@ const jwt = [
   { sub: user.id, aud: 'authenticated', role: 'authenticated', exp, iat: exp-3600, amr: amrMethod === 'none' ? [] : [{method:amrMethod,timestamp:exp-3600}] }
 ].map(value => Buffer.from(JSON.stringify(value)).toString('base64url')).join('.') + '.' + randomBytes(32).toString('base64url');
 const recoveryHash = new URLSearchParams({ access_token: jwt, refresh_token: randomBytes(32).toString('hex'), expires_in: '3600', expires_at: String(exp), token_type: 'bearer', type: 'recovery' });
+const resetRecipients = [];
 let updates = 0, correctPassword = false, authDenied = false, checks = 0;
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
@@ -30,7 +31,11 @@ const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
   if (url.pathname.startsWith('/supabase/')) {
     res.setHeader('Content-Type', 'application/json');
-    if (url.pathname.endsWith('/user') && req.method === 'PUT') {
+    if (url.pathname.endsWith('/recover') && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', () => { resetRecipients.push(JSON.parse(body).email); res.end('{}'); });
+    } else if (url.pathname.endsWith('/user') && req.method === 'PUT') {
       updates++;
       let body = '';
       req.on('data', chunk => { body += chunk; });
@@ -82,9 +87,21 @@ async function check(name, fn) { await fn(); checks++; console.log('PASS ' + nam
     });
     await page.evaluate(() => navigator.serviceWorker.ready);
     await page.reload();
-    await check('PWA: service worker v58 e app-shell attivi', async () => {
+    await check('PWA: service worker v59 e app-shell attivi', async () => {
       assert(await page.evaluate(() => !!navigator.serviceWorker.controller));
-      assert(await page.evaluate(async () => (await caches.keys()).includes('scorochiatu-shell-v58')));
+      assert(await page.evaluate(async () => (await caches.keys()).includes('scorochiatu-shell-v59')));
+    });
+    for (const person of ['N', 'V']) await check('SDK v2 + PWA: richiesta link '+person+' solo al mapping senza sessione', async () => {
+      await page.evaluate(person => selectUser(person), person);
+      await page.locator('#authUsername').fill('other@example.test');
+      await page.locator('#forgotPassword').click();
+      await page.waitForFunction(() => !passwordResetBusy);
+      assert.equal(resetRecipients.at(-1), person.toLowerCase()+'@example.test');
+      assert((await page.locator('#passwordResetNotice').innerText()).includes('riceverai'));
+      assert.equal(await page.evaluate(async () => (await sb.auth.getSession()).data.session), null);
+      assert.equal(updates, 0);
+      assert(!(await page.evaluate(() => authRecoveryRequested)));
+      await page.evaluate(() => backToLanding());
     });
     await page.goto('about:blank');
     await page.goto(origin + '/#' + recoveryHash);

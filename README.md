@@ -6,13 +6,13 @@ sc(r)occhiaTu è una web app pensata per rendere più semplice e divertente la d
 
 L'esperienza parte dalla scelta e continua dopo il film: appuntamenti, voti, recensioni, saghe e ricordi delle serate. Il tono è cinematografico e leggero, con attenzione all'uso da smartphone. Può essere uno spazio per amici, coinquilini o una coppia: conta condividere i film.
 
-## Stato corrente: produzione v58
+## Stato corrente: release v59
 
-Pubblicata al commit `f3c49fd110592e9d8883f5e797809cf6fc34c0f2`, cache PWA
+La precedente release v58 è pubblicata al commit `f3c49fd110592e9d8883f5e797809cf6fc34c0f2`, cache PWA
 `scorochiatu-shell-v58`. Push e deployment Vercel completati; 41/41 file runtime
 HTTP 200 e identici al commit. La migration Individual/Rewatch v54 è stata
 applicata una sola volta dall’utente, con audit pre/post 24/24.
-Le release frontend v55–v58 non modificano database, RLS, RPC o utenti Supabase.
+Le release frontend v55–v59 non modificano database, RLS, RPC o utenti Supabase.
 
 Il login mantiene la scelta N/V e mostra **Account + Password**, senza il vecchio
 vincolo PIN numerico. L’email è precompilata e modificabile, ma un valore diverso
@@ -29,8 +29,13 @@ colora i due pallini oro senza cambiare il seen personale; “Segna come non vis
 conserva voto, recensione, candidatura ed eventi.
 [Contratto Individual/Rewatch](docs/INDIVIDUAL_WATCH_REWATCH.md).
 
-Il collaudo reale del recovery v58 e dell’Autofill Safari resta da confermare.
-Le verifiche locali e HTTP non attestano questi comportamenti sui dispositivi reali.
+L’utente ha confermato reset e successivo login per entrambi gli account N/V,
+oltre al salvataggio automatico delle credenziali Apple Passwords/Safari. La
+proposta automatica al prossimo accesso resta una verifica distinta.
+
+**Release v59:** pulsante “Password dimenticata?” nel login, invio
+solo all’account N/V selezionato, conferma discreta e cooldown di un minuto.
+Cache v59; pubblicazione autorizzata, invio hosted ancora da collaudare. [Dettagli](docs/AUTH_SUPABASE.md#richiesta-link-dal-login--v59).
 
 ## Come funziona
 
@@ -127,7 +132,11 @@ Simulazione recovery con SDK Supabase v2 reale e PWA: 8/8 con AMR otp e
 8/8 senza AMR. Auth/membership sono simulati, le credenziali generate a runtime;
 PostgreSQL temporaneo. Nessun test locale scrive Supabase.
 Production: 41/41 file runtime identici al commit, HTTP 200 e SW v58.
-Recovery reale v58, Autofill Safari e collaudo completo condiviso restano da confermare.
+Recovery reale v58 e salvataggio automatico Apple/Safari confermati dall’utente;
+collaudo completo condiviso e proposta automatica delle credenziali restano distinti.
+Verifiche v59: Auth 82/82, Browser Auth 43/43, UX 24/24, Smoke 436/436,
+PWA 18/18, RLS 40/40, DB 52/52, browser feature 39/39, SDK/PWA 10/10 con AMR otp e 10/10 senza AMR;
+sintassi 56/56 e diff check PASS; nessuna email reale inviata nei test.
 
 L’ingresso richiede verifica online: il mirror offline è disponibile solo dopo autorizzazione nella stessa esecuzione e con JWT valido. La sessione temporanea e l’autofill dipendono dal browser; il logout locale lascia indipendente l’altro dispositivo. Rimane un’app per due membri preconfigurati. I CSV manuali sono conservati fuori da Git e non costituiscono un backup completo Supabase.
 

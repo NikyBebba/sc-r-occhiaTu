@@ -121,6 +121,8 @@
           <label for="passwordInput" class="auth-login-label">Password</label>
           <input id="passwordInput" type="password" enterkeyhint="go" name="password" autocomplete="current-password" aria-describedby="loginError">
           <p id="loginError" class="hidden auth-login-error" role="alert">Password errata, riprova.</p>
+          <button id="forgotPassword" type="button" class="auth-forgot-btn" onclick="requestLoginPasswordReset()">Password dimenticata?</button>
+          <p id="passwordResetNotice" class="hidden auth-reset-notice" role="status" aria-live="polite"></p>
           <label class="flex items-center gap-2 min-h-[44px] text-sm text-slate-300"><input id="rememberDevice" type="checkbox" class="accent-indigo-500"> Ricordami su questo dispositivo</label>
           <button id="loginSubmit" type="submit" class="auth-enter-btn">Entra <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
         </form>

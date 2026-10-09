@@ -4,12 +4,56 @@
 
 let currentUser = null;  // 'N' o 'V', chi ha fatto login in questa sessione
 let pendingUser = null;  // persona scelta nella landing, in attesa della password
+let passwordResetBusy = false;
+let passwordResetRevision = 0;
+const passwordResetLastSent = {}; // Solo cooldown in memoria per N/V, nessuna credenziale.
+
+function clearPasswordResetNotice() {
+  passwordResetRevision++;
+  document.getElementById('passwordResetNotice').textContent = '';
+  document.getElementById('passwordResetNotice').classList.add('hidden');
+}
+
+async function requestLoginPasswordReset() {
+  if (passwordResetBusy || authBusy || authRecoveryRequested || !pendingUser || isAppAuthorized()) return;
+  const person = pendingUser;
+  const revision = passwordResetRevision;
+  const notice = document.getElementById('passwordResetNotice');
+  const button = document.getElementById('forgotPassword');
+  const showNotice = message => {
+    if (revision !== passwordResetRevision || pendingUser !== person || isAppAuthorized()) return;
+    notice.textContent = message;
+    notice.classList.remove('hidden');
+  };
+  if (Date.now() - (passwordResetLastSent[person] || 0) < 60000) {
+    showNotice('Link già richiesto. Attendi un minuto prima di riprovare.');
+    return;
+  }
+  passwordResetBusy = true;
+  button.disabled = true;
+  showNotice('Richiesta del link in corso…');
+  try {
+    await requestPersonPasswordReset(person);
+    passwordResetLastSent[person] = Date.now();
+    showNotice('Se l’account è disponibile, riceverai un’email con il link per impostare una nuova password. Controlla anche lo spam.');
+  } catch (error) {
+    if (error.message === 'AUTH_CHANGED') return;
+    if (error.status === 429) passwordResetLastSent[person] = Date.now();
+    showNotice(error.message === 'AUTH_NOT_CONFIGURED' ? 'Recupero non ancora configurato.'
+      : error.status === 429 ? 'Troppi invii. Attendi un minuto e riprova.'
+      : 'Link non richiesto. Controlla la connessione e riprova.');
+  } finally {
+    passwordResetBusy = false;
+    button.disabled = false;
+  }
+}
 
 async function checkLoginState() {
   await initializeAuth();
 }
 
 function showLanding() {
+  clearPasswordResetNotice();
   if (typeof resetWatchForms === 'function') resetWatchForms();
   if (typeof resetMemoriesState === 'function') resetMemoriesState();
   modalStack = [];
@@ -25,6 +69,7 @@ function showLanding() {
 }
 
 function showRecoveryScreen(message = '') {
+  clearPasswordResetNotice();
   pendingUser = null;
   document.getElementById('landingScreen').classList.add('hidden');
   document.getElementById('loginGate').classList.add('hidden');
@@ -85,6 +130,7 @@ async function submitRecoveryPassword() {
 function selectUser(code) {
   if (authRecoveryRequested || authBusy || !CONFIG.PEOPLE[code]) return;
   pendingUser = code;
+  clearPasswordResetNotice();
   document.getElementById('authNotice').classList.add('hidden');
   document.getElementById('authUsername').value = CONFIG.AUTH_EMAILS?.[code] || '';
   document.getElementById('landingScreen').classList.add('hidden');

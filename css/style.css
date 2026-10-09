@@ -410,6 +410,10 @@ body {
 .auth-login-title { margin-top: 8px; color: var(--color-testo-1); font-size: clamp(27px, 8vw, 36px); font-weight: 800; line-height: 1.2; }
 .auth-login-form { margin-top: 28px; text-align: left; }
 .auth-login-label { display: block; margin-bottom: 8px; color: var(--color-testo-2); font-size: 12px; font-weight: 700; }
+.auth-forgot-btn { min-height: 44px; color: var(--color-dettaglio); font-size: var(--fs-sm); text-decoration: underline; text-underline-offset: 3px; }
+.auth-forgot-btn:disabled { opacity: .5; cursor: wait; }
+.auth-forgot-btn:focus-visible { outline: 2px solid var(--color-dettaglio); outline-offset: 2px; border-radius: 4px; }
+.auth-reset-notice { margin-bottom: 12px; color: var(--color-testo-2); font-size: var(--fs-sm); line-height: 1.5; }
 .auth-account-input {
   display: block; width: 100%; min-height: 44px; margin-bottom: 18px; padding: 9px 12px;
   border: 1px dashed var(--color-bordo-forte); border-radius: 14px;

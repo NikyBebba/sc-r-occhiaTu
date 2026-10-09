@@ -1,10 +1,30 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.58
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.59
 
 Ultimo aggiornamento: 9 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
 
-## Produzione v58 — login standard e recovery, 9 ottobre 2026
+## Release v59 — Password dimenticata?, 9 ottobre 2026
 
-Commit `f3c49fd110592e9d8883f5e797809cf6fc34c0f2`, main/origin/main allineati al deploy.
+Pulsante nel login dopo la scelta N/V, type=button, separato dal submit.
+La richiesta usa resetPasswordForEmail esclusivamente con CONFIG.AUTH_EMAILS
+per la persona selezionata; il campo Account editabile non sceglie il destinatario.
+Il Site URL già configurato dall’utente governa il ritorno, senza redirectTo aggiuntivo.
+Conferma discreta aria-live, blocco richieste concorrenti e cooldown di 60 secondi
+per persona in memoria; rete/configurazione/rate limit hanno messaggi controllati.
+Un cambio persona invalida i feedback tardivi. Nessun login/reset automatico,
+nessuna modifica password/sessione/Ricordami o storage da parte della richiesta.
+Recovery verificato v58 e backend invariati. Cache release scorochiatu-shell-v59.
+Pubblicazione autorizzata dall’utente; nei test nessun invio reale di email.
+
+Verifiche v59: Auth 82/82, Browser Auth 43/43, UX 24/24, Smoke 436/436,
+PWA 18/18, RLS locale 40/40, DB 52/52, Individual/Rewatch browser 39/39.
+Sintassi 56/56 e diff check PASS.
+SDK pubblico reale + Auth locale + PWA: 10/10 con AMR otp e 10/10 senza AMR; invio N/V simulato
+incluso. La verifica locale non attesta ancora l’invio email del nuovo pulsante hosted.
+
+## Storico: produzione v58 — login standard e recovery, 9 ottobre 2026
+
+Commit funzionale `f3c49fd110592e9d8883f5e797809cf6fc34c0f2`;
+successivo commit documentale `f6f3dd05f70cd7ed4a0f1cdee6b57c55efc031c3`.
 Vercel production completato; 41/41 file runtime HTTP 200 e identici al commit,
 service worker `scorochiatu-shell-v58`. Frontend v55 incluso nella release;
 backend Individual/Rewatch v54 già applicato dall’utente, audit pre/post 24/24.
@@ -38,7 +58,9 @@ Cronologia dei test reali e delle correzioni:
   non riproducevano il caso realistico AMR otp.
 - v58: rimosso requisito AMR e corretta race fra eventi recovery, senza
   indebolire il contesto SDK richiesto. Deploy e simulazione SDK reale PASS;
-  **reset hosted v58 e Autofill Safari ancora da confermare dall’utente**.
+  **reset completato per N/V e successivo login confermati dall’utente**.
+  Confermato anche il salvataggio automatico con Apple Passwords/Safari;
+  la proposta automatica al prossimo accesso non è stata attestata separatamente.
 
 Verifiche candidato v58: Smoke 436/436, Auth 77/77, RLS locale 40/40, DB Individual/Rewatch 52/52,
 PWA 18/18, Chromium Auth 36/36, UX 24/24, Individual/Rewatch browser 39/39,
@@ -579,11 +601,11 @@ Phase 26 — Audio Manager implementata localmente: pulsante opt-in nel pannello
 
 Phase 28 — Ciak Loader e skeleton implementata localmente: al primo ingresso, dopo 160 ms di attesa, un ciak compare sotto la navbar e due sagome di movie card nella libreria. Il render cancella sempre il timer e rimuove lo stato `aria-busy`, così una risposta rapida non produce flash tardivi; il movimento ridotto usa la regola globale già presente. Una lettura iniziale che rigetta usa il mirror locale e termina il caricamento. Nessuna migration. Cache PWA `v19`; smoke locale **310/310 PASS**; resa visiva da verificare su smartphone.
 
-## Quadro rapido — v58 production
+## Quadro rapido — v59
 
 | Area | Stato corrente | Confine |
 | --- | --- | --- |
-| Login / recovery | Account + Password; reset solo da PASSWORD_RECOVERY verificato | Nessuna autorizzazione da email editata, OTP o storage; test reale v58 pendente |
+| Login / recovery | Account + Password; reset solo da PASSWORD_RECOVERY verificato | Nessuna autorizzazione da email editata, OTP o storage; reset reale N/V e salvataggio Apple/Safari confermati |
 | Lista e scelta | Candidatura `in_shared_list`; Ruota/Match escludono Together, eventi attivi, cinema e veto | Contratto Match Live invariato |
 | Storico | Destinazione Home, switch N/V, rispettivo seen=true, ordine alfabetico e card normali | Fuori da Ricordi, nessun filtro Lista; viste sovrapponibili |
 | Ricordi / Titoli di coda | Quattro riepiloghi, Serate concluse anno/mese, Dopo il film | Eventi completed e recensioni condivise; nessuna cronologia personale inventata |
@@ -596,8 +618,9 @@ PWA 18/18, Chromium Auth 36/36, UX 24/24, Individual/Rewatch browser 39/39,
 sintassi 56/56 e diff check PASS.
 SDK reale simulato: 8/8 AMR otp e 8/8 senza AMR. Production HTTP 41/41.
 DB v54 applicato e audit live confermati dall’utente; frontend v55–v58 pubblicati.
-Recovery hosted v58, Autofill Safari e collaudo completo sui due telefoni restano
-separati dalle verifiche locali/HTTP e non sono dichiarati superati.
+L’utente conferma recovery hosted v58 e login successivo per N/V, oltre al
+salvataggio automatico Apple/Safari. Questo non attesta tutti i flussi condivisi
+o la proposta automatica delle credenziali al prossimo accesso.
 
 Regola repository: database locali, dump e backup sono esclusi da Git. I file SQL in `database/` descrivono schema e migration, senza esportazioni dei dati.
 
@@ -609,9 +632,10 @@ L'utente apprezza aggiunte come «Continua la saga», il ticket più curato e le
 
 ## Prossimo lavoro
 
-Priorità corrente: test reale del recovery v58 appena pubblicato e del login
-standard con Apple Passwords/Safari, usando l’app-shell v58. Confermare reset,
-ritorno al login, N/V, Ricordami e restore senza attribuire alle fixture un collaudo hosted.
+Priorità corrente: pubblicazione autorizzata della v59 e test reale
+dell’invio email dal pulsante N/V. Recovery reale
+v58 e login successivo sono confermati; proposta automatica Apple/Safari e
+casi specifici Ricordami/restore non sono nuovi risultati hosted dichiarati.
 Completare anche il collaudo condiviso Home → Storico, N/V, film fuori Lista,
 oro Together, Segna come non visto e Ricordi. Nessuna nuova migration prevista.
 Taste/Recommendation Engine e nuove statistiche richiedono una fase dedicata.
@@ -661,7 +685,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 ---
 
-## Stato attuale del codice — v58 production
+## Stato attuale del codice — v59
 
 - Supabase Auth/mapping N/V e RLS attivi; login standard e recovery v58
   descritti nel checkpoint iniziale. Nessuna modifica backend, privilegi,
@@ -691,10 +715,12 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
   voto del proponente quando richiesto. Indicatori N/V riusano l’helper card.
 - Dettaglio/transition, ticket PNG, temi stagionali/festivi, veto, sorpresa,
   calendario, audio/haptics e loader conservati.
-- Cache app-shell `scorochiatu-shell-v58`; API/Supabase/poster/YouTube esclusi
+- Cache app-shell `scorochiatu-shell-v59`; API/Supabase/poster/YouTube esclusi
   dall’intercettazione. Manifest e icone esistenti; nessuna nuova dipendenza.
-- Verifiche locali e HTTP complete nel checkpoint iniziale; recovery reale v58,
-  Autofill Safari e collaudo condiviso completo ancora da confermare.
+- Recovery reale v58 e login successivo N/V confermati, salvataggio automatico
+  Apple/Safari confermato; collaudo condiviso completo distinto da questi risultati.
+- Pulsante Password dimenticata? e cache v59 descritti nel nuovo checkpoint;
+  pubblicazione autorizzata e invio hosted ancora da collaudare.
 
 ---
 
@@ -732,7 +758,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Phase 31 — Accessibility baseline ✅
 
 ### ✅ PWA (COMPLETA)
-- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`scorochiatu-shell-v58` in produzione), toast di aggiornamento ✅
+- `manifest.json`, icone (**provvisorie**), service worker con whitelist esplicita, cache versionata (`scorochiatu-shell-v59` nella release), toast di aggiornamento ✅
 - Verificato: nessuna richiesta Supabase/TMDb/OMDb/poster/YouTube passa mai dalla cache (nessun `respondWith` su quei domini)
 
 ### STEP 2 — Core Layout (Phase 8.2 implementata)
@@ -770,7 +796,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 ### STEP 6 — Cinematic UX
 - Phase 10 — Hot Picks. **Dipendenza:** servono `popularità`, `vote_average`, data uscita completa, oggi non salvati (nuova migration se si vuole procedere)
 - Phase 11 — Dynamic Island — allineare a "serata in programma" e alla Tonight
-- Phase 12 — Login Experience (N/V, Account/Password standard e recovery v58 pubblicati; reset reale e Autofill Safari da confermare)
+- Phase 12 — Login Experience (N/V, Account/Password standard e recovery v58 pubblicati; reset reale N/V e salvataggio Apple/Safari confermati; pulsante v59 nella release)
 - Phase 14 — Film Grain
 - Phase 25 — Shared Element Transitions (card libreria ↔ scheda film ✅ nel codice locale; altri passaggi non definiti)
 
