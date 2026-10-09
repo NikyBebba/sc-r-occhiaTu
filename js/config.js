@@ -15,10 +15,8 @@ const CONFIG = {
   SUPABASE_URL: 'https://teslxpcgrrmqysfkdewe.supabase.co',
   SUPABASE_ANON_KEY: 'sb_publishable_QdAopdSK5kp_OlnDAeb1Jg_4f58DEDx',
 
-  // Etichette persone + PIN individuale — come un mini-login: ognuno entra
-  // col proprio codice. NON è vera sicurezza (visibile nel sorgente),
-  // stesso discorso già fatto per il PIN condiviso: serve solo a evitare
-  // che chi trova il link per caso curiosi o combini pasticci con i dati.
+  // Account Auth preconfigurati per N/V e relative etichette.
+  // L’identità viene verificata online tramite Supabase Auth e app_members.
   AUTH_EMAILS: { N: 'nikybebba@gmail.com', V: 'vale.migliaccio1@gmail.com' }, // Identificativi pubblici degli account Auth precreati; nessuna password.
   PEOPLE: {
     N: { label: 'N', badgeClass: 'badge-n', },

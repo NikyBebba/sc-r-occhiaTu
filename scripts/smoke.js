@@ -376,17 +376,17 @@ async function okA(name, fn) {
     const focus = vm.runInContext('currentTheme', isolated) === 'estate';
     return initial && midnight && noRepeat && hidden && resumed && pageshow && focus;
   })());
-  ok('ingresso: scelta persona, errore PIN e ritorno alla scelta', run(() => {
+  ok('ingresso: scelta persona, password vuota e ritorno alla scelta', run(() => {
     selectUser('N');
-    const gate = document.getElementById('pinGate');
-    const pin = document.getElementById('pinInput');
+    const gate = document.getElementById('loginGate');
+    const pin = document.getElementById('passwordInput');
     const chosen = gate.dataset.person === 'N'
-      && document.getElementById('pinPersonMark').textContent === 'N'
+      && document.getElementById('loginPersonMark').textContent === 'N'
       && pin['aria-invalid'] === 'false';
-    pin.value = 'PIN-non-valido';
-    submitPin();
+    pin.value = '';
+    submitLogin();
     const error = pin['aria-invalid'] === 'true'
-      && !document.getElementById('pinError').classList.contains('hidden');
+      && !document.getElementById('loginError').classList.contains('hidden');
     backToLanding();
     return chosen && error && pendingUser === null
       && !document.getElementById('landingScreen').classList.contains('hidden');

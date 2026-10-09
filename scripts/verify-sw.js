@@ -117,16 +117,18 @@ function fire(url, mode) {
   let installation;
   listeners.install({ waitUntil(promise) { installation = promise; } });
   await installation;
-  ok('candidato login identificato dalla cache v56', vm.runInContext('CACHE_REV', swCtx) === 'scorochiatu-shell-v56');
-  ok('installazione usa la nuova cache v56', cacheApi.names.has('scorochiatu-shell-v56'));
+  ok('candidato login identificato dalla cache v57', vm.runInContext('CACHE_REV', swCtx) === 'scorochiatu-shell-v57');
+  ok('installazione usa la nuova cache v57', cacheApi.names.has('scorochiatu-shell-v57'));
   cacheApi.names.add('scorochiatu-shell-v55');
+  cacheApi.names.add('scorochiatu-shell-v56');
   cacheApi.names.add('other-app-cache');
   let activation;
   listeners.activate({ waitUntil(promise) { activation = promise; } });
   await activation;
-  ok('attivazione rimuove v55 e conserva v56 e cache estranee',
+  ok('attivazione rimuove v55/v56 e conserva v57 e cache estranee',
     !cacheApi.names.has('scorochiatu-shell-v55')
-    && cacheApi.names.has('scorochiatu-shell-v56')
+    && !cacheApi.names.has('scorochiatu-shell-v56')
+    && cacheApi.names.has('scorochiatu-shell-v57')
     && cacheApi.names.has('other-app-cache'));
   offline = true;
   const cachedScripts = await Promise.all(scripts.map(src => fire(selfStub.location.origin + '/' + src)));

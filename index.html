@@ -101,30 +101,49 @@
             <span class="auth-person-label">Entra come V <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
           </button>
         </div>
-        <p id="authNotice" class="hidden auth-pin-error" role="alert"></p>
+        <p id="authNotice" class="hidden auth-login-error" role="alert"></p>
         <p class="auth-footnote">Vietato spoilerare all’ingresso.</p>
       </div>
     </main>
   </div>
 
-  <!-- PIN GATE -->
-  <div id="pinGate" class="hidden">
-    <main class="auth-scene" aria-labelledby="pinTitle">
-      <div class="auth-content auth-pin-content">
-        <div id="pinPersonMark" class="auth-pin-mark" aria-hidden="true">N</div>
+  <!-- LOGIN GATE -->
+  <div id="loginGate" class="hidden">
+    <main class="auth-scene" aria-labelledby="loginTitle">
+      <div class="auth-content auth-login-content">
+        <div id="loginPersonMark" class="auth-login-mark" aria-hidden="true">N</div>
         <p class="auth-eyebrow">CIAK, SI ENTRA</p>
-        <h1 id="pinTitle" class="auth-pin-title">Biglietto, prego</h1>
-        <p id="pinGateLabel" class="auth-intro">«Accesso riservato, agente. Senza codice segreto non si passa.»</p>
-        <form id="pinForm" class="auth-pin-form" onsubmit="submitPin(); return false;">
-          <label for="authUsername" class="auth-pin-label">Account</label>
+        <h1 id="loginTitle" class="auth-login-title">Biglietto, prego</h1>
+        <p id="loginGateLabel" class="auth-intro">«Accesso riservato, agente. Senza codice segreto non si passa.»</p>
+        <form id="loginForm" class="auth-login-form" onsubmit="submitLogin(); return false;">
+          <label for="authUsername" class="auth-login-label">Account</label>
           <input id="authUsername" name="username" type="email" autocomplete="username" class="auth-account-input">
-          <label for="pinInput" class="auth-pin-label">Il tuo PIN</label>
-          <input id="pinInput" type="password" inputmode="numeric" enterkeyhint="go" name="password" minlength="8" maxlength="8" pattern="[0-9]{8}" autocomplete="current-password" aria-describedby="pinError">
-          <p id="pinError" class="hidden auth-pin-error" role="alert">PIN errato, riprova.</p>
+          <label for="passwordInput" class="auth-login-label">Password</label>
+          <input id="passwordInput" type="password" enterkeyhint="go" name="password" autocomplete="current-password" aria-describedby="loginError">
+          <p id="loginError" class="hidden auth-login-error" role="alert">Password errata, riprova.</p>
           <label class="flex items-center gap-2 min-h-[44px] text-sm text-slate-300"><input id="rememberDevice" type="checkbox" class="accent-indigo-500"> Ricordami su questo dispositivo</label>
-          <button id="pinSubmit" type="submit" class="auth-enter-btn">Entra <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+          <button id="loginSubmit" type="submit" class="auth-enter-btn">Entra <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
         </form>
         <button onclick="backToLanding()" class="auth-back-btn"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Cambia persona</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- PASSWORD RECOVERY: sessione verificata dal SDK, separata dal login -->
+  <div id="recoveryGate" class="hidden">
+    <main class="auth-scene" aria-labelledby="recoveryTitle">
+      <div class="auth-content auth-login-content">
+        <p class="auth-eyebrow">ACCESSO</p>
+        <h1 id="recoveryTitle" class="auth-login-title">Imposta nuova password</h1>
+        <form id="recoveryForm" class="auth-login-form" onsubmit="submitRecoveryPassword(); return false;">
+          <label for="newPassword" class="auth-login-label">Nuova password</label>
+          <input id="newPassword" name="new-password" type="password" autocomplete="new-password" aria-describedby="recoveryError" class="auth-password-input" disabled>
+          <label for="confirmPassword" class="auth-login-label">Conferma password</label>
+          <input id="confirmPassword" name="confirm-password" type="password" autocomplete="new-password" aria-describedby="recoveryError" class="auth-password-input" disabled>
+          <p id="recoveryError" class="hidden auth-login-error" role="alert"></p>
+          <button id="recoverySubmit" type="submit" class="auth-enter-btn" disabled>Salva password</button>
+        </form>
+        <button id="recoveryExit" onclick="leavePasswordRecovery()" class="auth-back-btn">Torna al login</button>
       </div>
     </main>
   </div>

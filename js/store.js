@@ -5,8 +5,9 @@ let sb = null;
 if (CONFIG.SUPABASE_URL && CONFIG.SUPABASE_URL.startsWith('http') &&
     window.supabase && window.supabase.createClient) {
   sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
-    auth: { storage: authStorage, storageKey: AUTH_STORAGE_KEY, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+    auth: { storage: authStorage, storageKey: AUTH_STORAGE_KEY, persistSession: true, autoRefreshToken: true, detectSessionInUrl: detectAuthCallback }
   });
+  attachAuthListener();
 }
 
 // Colonne contenuto/visione: il client non richiede i mirror di programmazione.

@@ -1,9 +1,9 @@
 // ============================================
-// Login: landing screen -> scelta persona -> PIN individuale
+// Login: landing screen -> scelta persona -> password personale
 // ============================================
 
 let currentUser = null;  // 'N' o 'V', chi ha fatto login in questa sessione
-let pendingUser = null;  // persona scelta nella landing, in attesa del PIN
+let pendingUser = null;  // persona scelta nella landing, in attesa della password
 
 async function checkLoginState() {
   await initializeAuth();
@@ -15,23 +15,82 @@ function showLanding() {
   modalStack = [];
   document.getElementById('appRoot').inert = false;
   document.getElementById('landingScreen').classList.remove('hidden');
-  document.getElementById('pinGate').classList.add('hidden');
+  document.getElementById('loginGate').classList.add('hidden');
+  document.getElementById('recoveryGate').classList.add('hidden');
+  document.getElementById('newPassword').value = '';
+  document.getElementById('confirmPassword').value = '';
+  document.getElementById('newPassword').disabled = true;
+  document.getElementById('confirmPassword').disabled = true;
   document.getElementById('appRoot').classList.add('hidden');
 }
 
+function showRecoveryScreen(message = '') {
+  pendingUser = null;
+  document.getElementById('landingScreen').classList.add('hidden');
+  document.getElementById('loginGate').classList.add('hidden');
+  document.getElementById('appRoot').classList.add('hidden');
+  document.getElementById('recoveryGate').classList.remove('hidden');
+  document.getElementById('passwordInput').value = '';
+  document.getElementById('newPassword').value = '';
+  document.getElementById('confirmPassword').value = '';
+  document.getElementById('newPassword').disabled = true;
+  document.getElementById('confirmPassword').disabled = true;
+  document.getElementById('recoverySubmit').disabled = true;
+  const error = document.getElementById('recoveryError');
+  error.textContent = message;
+  error.classList.toggle('hidden', !message);
+}
+
+async function submitRecoveryPassword() {
+  if (authRecoveryBusy || !authRecoveryRequested || !authRecoveryIdentity) return;
+  const password = document.getElementById('newPassword');
+  const confirmation = document.getElementById('confirmPassword');
+  const errorEl = document.getElementById('recoveryError');
+  if (!password.value || !confirmation.value || password.value !== confirmation.value) {
+    errorEl.textContent = !password.value || !confirmation.value
+      ? 'Inserisci e conferma la nuova password.' : 'Le password non coincidono.';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+  authRecoveryBusy = true;
+  document.getElementById('recoverySubmit').disabled = true;
+  document.getElementById('recoveryExit').disabled = true;
+  errorEl.classList.add('hidden');
+  try {
+    await updateRecoveryPassword(password.value);
+    await leavePasswordRecovery('Password aggiornata. Scegli la tua persona e accedi con la nuova password.');
+  } catch (error) {
+    password.value = '';
+    confirmation.value = '';
+    const passwordRejected = ['weak_password', 'same_password', 'validation_failed'].includes(error.code);
+    const invalidSession = !passwordRejected && (isAuthFailure(error) || String(error.message).startsWith('AUTH_'));
+    if (invalidSession) authRecoveryIdentity = null;
+    errorEl.textContent = invalidSession
+      ? 'Sessione di recupero non valida o scaduta. Richiedi un nuovo link.'
+      : 'Password non aggiornata. Verifica la connessione e i requisiti della password, poi riprova.';
+    errorEl.classList.remove('hidden');
+  } finally {
+    authRecoveryBusy = false;
+    document.getElementById('recoverySubmit').disabled = !authRecoveryIdentity;
+    password.disabled = !authRecoveryIdentity;
+    confirmation.disabled = !authRecoveryIdentity;
+    document.getElementById('recoveryExit').disabled = false;
+  }
+}
+
 function selectUser(code) {
-  if (authBusy || !CONFIG.PEOPLE[code]) return;
+  if (authRecoveryRequested || authBusy || !CONFIG.PEOPLE[code]) return;
   pendingUser = code;
   document.getElementById('authNotice').classList.add('hidden');
   document.getElementById('authUsername').value = CONFIG.AUTH_EMAILS?.[code] || '';
   document.getElementById('landingScreen').classList.add('hidden');
-  const gate = document.getElementById('pinGate');
+  const gate = document.getElementById('loginGate');
   gate.dataset.person = code;
   gate.classList.remove('hidden');
-  document.getElementById('pinPersonMark').textContent = code;
-  document.getElementById('pinGateLabel').textContent = `«Accesso riservato, agente ${CONFIG.PEOPLE[code].label}. Senza codice segreto non si passa.»`;
-  document.getElementById('pinError').classList.add('hidden');
-  const input = document.getElementById('pinInput');
+  document.getElementById('loginPersonMark').textContent = code;
+  document.getElementById('loginGateLabel').textContent = `«Accesso riservato, agente ${CONFIG.PEOPLE[code].label}. Senza codice segreto non si passa.»`;
+  document.getElementById('loginError').classList.add('hidden');
+  const input = document.getElementById('passwordInput');
   input.value = '';
   input.setAttribute('aria-invalid', 'false');
   input.focus();
@@ -46,11 +105,11 @@ function backToLanding() {
   if (choice) choice.focus();
 }
 
-async function submitPin() {
-  if (authBusy || !pendingUser) return;
-  const pin = document.getElementById('pinInput');
-  const errorEl = document.getElementById('pinError');
-  const button = document.getElementById('pinSubmit');
+async function submitLogin() {
+  if (authRecoveryRequested || authBusy || !pendingUser) return;
+  const password = document.getElementById('passwordInput');
+  const errorEl = document.getElementById('loginError');
+  const button = document.getElementById('loginSubmit');
   const account = document.getElementById('authUsername').value.trim().toLowerCase();
   const expectedAccount = (CONFIG.AUTH_EMAILS?.[pendingUser] || '').trim().toLowerCase();
   if (account !== expectedAccount) {
@@ -58,33 +117,33 @@ async function submitPin() {
     errorEl.classList.remove('hidden');
     return;
   }
-  const input = pin.value.trim();
-  if (!/^[0-9]{8}$/.test(input)) {
-    errorEl.textContent = 'Inserisci il PIN di 8 cifre.';
+  const input = password.value;
+  if (input.length === 0) {
+    errorEl.textContent = 'Inserisci la password.';
     errorEl.classList.remove('hidden');
-    pin.setAttribute('aria-invalid', 'true');
+    password.setAttribute('aria-invalid', 'true');
     return;
   }
   button.disabled = true;
   errorEl.classList.add('hidden');
   try {
     await signInPerson(pendingUser, input, document.getElementById('rememberDevice').checked);
-    pin.value = '';
-    pin.setAttribute('aria-invalid', 'false');
-    document.getElementById('pinGate').classList.add('hidden');
+    password.value = '';
+    password.setAttribute('aria-invalid', 'false');
+    document.getElementById('loginGate').classList.add('hidden');
     showApp();
   } catch (error) {
     if (error.message === 'AUTH_CHANGED') return;
     const message = error.message === 'AUTH_NOT_CONFIGURED' ? 'Accesso non ancora configurato.'
       : error.status === 429 ? 'Troppi tentativi. Attendi e riprova.'
-      : isAuthFailure(error) || error.message === 'AUTH_NOT_MEMBER' ? 'PIN errato o accesso non autorizzato.'
+      : isAuthFailure(error) || error.message === 'AUTH_NOT_MEMBER' ? 'Password errata o accesso non autorizzato.'
       : 'Accesso non riuscito. Controlla la connessione e riprova.';
     if (pendingUser) selectUser(pendingUser);
     errorEl.textContent = message;
     errorEl.classList.remove('hidden');
-    pin.value = '';
-    pin.setAttribute('aria-invalid', 'true');
-    pin.focus();
+    password.value = '';
+    password.setAttribute('aria-invalid', 'true');
+    password.focus();
   } finally { button.disabled = false; }
 }
 
@@ -129,7 +188,7 @@ function showApp() {
   requireAppIdentity();
   const entryEpoch = authEpoch;
   document.getElementById('landingScreen').classList.add('hidden');
-  document.getElementById('pinGate').classList.add('hidden');
+  document.getElementById('loginGate').classList.add('hidden');
   dashboardView = 'home';
   document.getElementById('appRoot').classList.remove('hidden');
   loadHapticsPreference();

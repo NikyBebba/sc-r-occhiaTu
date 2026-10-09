@@ -17,7 +17,7 @@
      questi token semantici su [data-theme=...]. ---- */
 
   /* Colori semantici */
-  --color-sala: #0f172a;                  /* Nero Sala · sfondo tela (body/pinGate) */
+  --color-sala: #0f172a;                  /* Nero Sala · sfondo tela (body/loginGate) */
   --color-superficie: #0f172a;            /* superfici principali (slate-900) */
   --color-vetro: rgba(30, 41, 59, 0.7);   /* superficie vetro (.glass) */
   --color-chip: #1e293b;                  /* chip/btn secondari (slate-800) */
@@ -382,8 +382,8 @@ body {
 .auth-person-label i { color: var(--person-accent); font-size: 11px; }
 .auth-footnote { margin-top: 24px; color: var(--color-testo-3); font-size: 11px; }
 
-/* PIN gate */
-#pinGate {
+/* Login gate */
+#loginGate, #recoveryGate {
   position: fixed;
   inset: 0;
   z-index: 100;
@@ -392,39 +392,39 @@ body {
   justify-content: center;
   overflow-y: auto; background: var(--color-sala);
 }
-#pinGate.hidden {
+#loginGate.hidden, #recoveryGate.hidden {
   display: none;
 }
-.auth-pin-content { width: min(100%, 360px); }
-.auth-pin-mark {
+.auth-login-content { width: min(100%, 360px); }
+.auth-login-mark {
   display: grid; place-items: center; width: 68px; height: 68px; margin: 0 auto 22px;
   border-radius: 22px; border: 1px solid var(--color-persona-n);
   background: color-mix(in srgb, var(--color-persona-n) 18%, var(--color-superficie));
   color: var(--color-persona-n); font-size: 31px; font-weight: 800;
 }
-#pinGate[data-person="V"] .auth-pin-mark {
+#loginGate[data-person="V"] .auth-login-mark {
   border-color: var(--color-persona-v);
   background: color-mix(in srgb, var(--color-persona-v) 18%, var(--color-superficie));
   color: var(--color-persona-v);
 }
-.auth-pin-title { margin-top: 8px; color: var(--color-testo-1); font-size: clamp(27px, 8vw, 36px); font-weight: 800; line-height: 1.2; }
-.auth-pin-form { margin-top: 28px; text-align: left; }
-.auth-pin-label { display: block; margin-bottom: 8px; color: var(--color-testo-2); font-size: 12px; font-weight: 700; }
+.auth-login-title { margin-top: 8px; color: var(--color-testo-1); font-size: clamp(27px, 8vw, 36px); font-weight: 800; line-height: 1.2; }
+.auth-login-form { margin-top: 28px; text-align: left; }
+.auth-login-label { display: block; margin-bottom: 8px; color: var(--color-testo-2); font-size: 12px; font-weight: 700; }
 .auth-account-input {
   display: block; width: 100%; min-height: 44px; margin-bottom: 18px; padding: 9px 12px;
   border: 1px dashed var(--color-bordo-forte); border-radius: 14px;
   background: transparent; color: var(--color-testo-2); font-size: 16px;
 }
 .auth-account-input:focus-visible { outline: 2px solid var(--color-dettaglio); outline-offset: 2px; }
-#pinInput {
+#passwordInput, .auth-password-input {
   display: block; width: 100%; min-height: 58px; padding: 9px 14px;
   border: 1px solid var(--color-bordo-forte); border-radius: 14px;
   background: var(--color-superficie); color: var(--color-testo-1);
-  font-size: 22px; text-align: center; letter-spacing: .4em;
+  font-size: 16px; text-align: left;
 }
-#pinInput:focus { border-color: var(--color-dettaglio); }
-#pinInput[aria-invalid="true"] { border-color: #fb7185; }
-.auth-pin-error { margin-top: 9px; color: #fda4af; font-size: 12px; }
+#passwordInput:focus, .auth-password-input:focus { border-color: var(--color-dettaglio); }
+#passwordInput[aria-invalid="true"], .auth-password-input[aria-invalid="true"] { border-color: #fb7185; }
+.auth-login-error { margin-top: 9px; color: #fda4af; font-size: 12px; }
 .auth-enter-btn {
   display: flex; align-items: center; justify-content: center; gap: 10px;
   width: 100%; min-height: 50px; margin-top: 15px; border-radius: 13px;
@@ -1542,3 +1542,5 @@ details[open] > .memory-summary::before { transform: rotate(90deg); }
 .personal-history-tabs button { flex:1; min-height:44px; border-radius:10px; background:var(--color-chip); color:var(--color-testo-2); }
 .personal-history-tabs button[aria-pressed="true"] { background:var(--color-persona-n); color:white; }
 .personal-history-tabs #historySwitchV[aria-pressed="true"] { background:var(--color-persona-v); }
+
+#recoveryForm .auth-password-input { margin-bottom: 16px; }
