@@ -58,8 +58,8 @@ let checks=0;
   assert(!(await account.evaluate(el=>el.classList.contains('sr-only'))));
   assert.equal(await page.locator('label[for="authUsername"]').innerText(),'Account');
   assert(await page.locator('label[for="authUsername"]').isVisible());
-  assert(await account.evaluate(el=>el.readOnly&&!el.disabled));
-  assert(!(await account.isEditable()));
+  assert(await account.evaluate(el=>!el.readOnly&&!el.disabled));
+  assert(await account.isEditable());
   assert.equal(await password.getAttribute('autocomplete'),'current-password');
   assert(await password.evaluate(el=>document.activeElement===el));
   const accountBox=await account.boundingBox(),passwordBox=await password.boundingBox();
@@ -67,7 +67,7 @@ let checks=0;
   await account.focus();
   await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.type('other@example.test');
-  assert((await account.inputValue())===runtimeEmails[person]);
+  assert.equal(await account.inputValue(),'other@example.test');
   await page.evaluate(()=>backToLanding());
  });
  await check('cambio N → V → N: account aggiornato, password vuota e focus preservato',async()=>{
@@ -82,8 +82,37 @@ let checks=0;
   }
   await page.evaluate(()=>backToLanding());
  });
+ for(const person of ['N','V'])await check('Account diverso da '+person+': nessun login o chiamata Auth, valore conservato',async()=>{
+  await page.evaluate(person=>{
+   selectUser(person);
+   window.fixtureSignInAttempts=0;
+   window.fixtureAuthAttempts=0;
+   const originalSignIn=signInPerson;
+   const originalAuth=sb.auth.signInWithPassword;
+   window.fixtureRestoreSignIn=()=>{signInPerson=originalSignIn;sb.auth.signInWithPassword=originalAuth;};
+   signInPerson=(...args)=>{fixtureSignInAttempts++;return originalSignIn(...args);};
+   sb.auth.signInWithPassword=(...args)=>{fixtureAuthAttempts++;return originalAuth(...args);};
+  },person);
+  try{
+   for(const email of [runtimeEmails[person==='N'?'V':'N'],'other@example.test','']){
+    await page.locator('#authUsername').fill(email);
+    await page.locator('#pinInput').fill('12345678');
+    await page.locator('#pinSubmit').click();
+    assert(await page.locator('#pinError').isVisible());
+    assert.equal(await page.locator('#pinError').innerText(),"L'account non corrisponde alla persona scelta. Usa Cambia persona.");
+    assert.equal(await page.evaluate(()=>fixtureSignInAttempts),0);
+    assert.equal(await page.evaluate(()=>fixtureAuthAttempts),0);
+    assert((await page.locator('#authUsername').inputValue())===email);
+    assert.equal(await page.locator('#pinInput').inputValue(),'12345678');
+    assert(!(await page.evaluate(()=>isAppAuthorized())));
+    assert(await page.locator('#pinSubmit').isEnabled());
+   }
+  }finally{
+   await page.evaluate(()=>{fixtureRestoreSignIn();backToLanding();});
+  }
+ });
  for(const mode of ['login-invalid','login-offline','third'])await check('login rifiutato '+mode+': nessun ingresso/cache/token',async()=>{await page.evaluate(mode=>{fixtureAuthMode=mode;selectUser('N');},mode);await page.locator('#pinInput').fill('12345678');await page.locator('#rememberDevice').check();await page.locator('#pinSubmit').click();await page.waitForFunction(()=>!authBusy&&!document.getElementById('pinError').classList.contains('hidden'));assert(!(await page.evaluate(()=>isAppAuthorized())));assert(!(await page.locator('#appRoot').isVisible()));assert.equal(await page.locator('#pinInput').inputValue(),'');assert.equal(await page.evaluate(()=>localStorage.getItem('scorochiatu_auth')),null);assert.equal(await page.evaluate(()=>sessionStorage.getItem('scorochiatu_auth')),null);assert((await page.locator('#pinError').innerText()).includes(mode==='login-offline'?'connessione':'non autorizzato'));await page.evaluate(()=>{fixtureAuthMode='valid';backToLanding();});});
- await check('Ricordami: login, JWT e canali privati senza duplicati',async()=>{await page.evaluate(()=>selectUser('N'));await page.locator('#pinInput').fill('12345678');await page.locator('#rememberDevice').check();await page.locator('#pinSubmit').click();await page.waitForFunction(()=>isAppAuthorized());assert(await page.locator('#appRoot').isVisible());assert(!(await page.locator('#landingScreen').isVisible()));assert(!(await page.locator('#pinGate').isVisible()));const calls=await page.evaluate(()=>fixtureCalls);assert(calls.some(c=>c[0]==='jwt'));assert(calls.filter(c=>c[0]==='channel').every(c=>c[2]===true));assert.equal(calls.filter(c=>c[0]==='channel').length,1);assert(!(await page.evaluate(()=>JSON.stringify(localStorage))).includes('12345678'));});
+ await check('Ricordami: email normalizzata, login N, JWT e canali privati senza duplicati',async()=>{await page.evaluate(()=>selectUser('N'));await page.locator('#authUsername').fill(' '+runtimeEmails.N.toUpperCase()+' ');await page.locator('#pinInput').fill('12345678');await page.locator('#rememberDevice').check();await page.locator('#pinSubmit').click();await page.waitForFunction(()=>isAppAuthorized());assert.equal(await page.evaluate(()=>currentUser),'N');assert(await page.locator('#appRoot').isVisible());assert(!(await page.locator('#landingScreen').isVisible()));assert(!(await page.locator('#pinGate').isVisible()));const calls=await page.evaluate(()=>fixtureCalls);assert(calls.some(c=>c[0]==='jwt'));assert(calls.filter(c=>c[0]==='channel').every(c=>c[2]===true));assert.equal(calls.filter(c=>c[0]==='channel').length,1);assert(!(await page.evaluate(()=>JSON.stringify(localStorage))).includes('12345678'));});
  await check('refresh JWT: SDK callback autentica trasporto e conserva Ricordami',async()=>{await page.evaluate(()=>fixtureRefresh());await page.waitForFunction(()=>fixtureCalls.some(c=>c[0]==='jwt'&&c[1]==='fixture-refreshed'));assert.equal(await page.evaluate(()=>fixtureCalls.filter(c=>c[0]==='channel').length),1);assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('scorochiatu_auth')).access_token),'fixture-refreshed');assert(await page.evaluate(()=>isAppAuthorized()));});
  await check('reconnect core: resync senza nuova subscription',async()=>{const before=await page.evaluate(()=>fixtureCalls.filter(c=>c[0]==='verify-user').length);await page.evaluate(()=>fixtureReconnect());await page.waitForFunction(before=>fixtureCalls.filter(c=>c[0]==='verify-user').length>before,before);assert.equal(await page.evaluate(()=>fixtureCalls.filter(c=>c[0]==='channel').length),1);assert.equal(await page.evaluate(()=>sb.getChannels().length),1);});
  await check('riapertura: ingresso automatico verificato',async()=>{await load();await page.waitForFunction(()=>isAppAuthorized());assert.equal(await page.evaluate(()=>currentUser),'N');assert(await page.locator('#appRoot').isVisible());assert(!(await page.locator('#landingScreen').isVisible()));assert(!(await page.locator('#pinGate').isVisible()));});

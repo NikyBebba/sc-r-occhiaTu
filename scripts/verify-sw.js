@@ -25,12 +25,13 @@ function ok(name, cond) {
 // ---------- stub globali del SW ----------
 const cacheApi = {
   store: new Map(),
-  async open() { return cacheApi; },
+  names: new Set(),
+  async open(name) { cacheApi.names.add(name); return cacheApi; },
   async addAll(paths) {
     paths.forEach(url => cacheApi.store.set(url, { ok: true, status: 200, url }));
   },
-  async keys() { return [...cacheApi.store.keys()]; },
-  async delete(k) { return cacheApi.store.delete(k); },
+  async keys() { return [...cacheApi.names]; },
+  async delete(k) { return cacheApi.names.delete(k); },
   async match(key) { return cacheApi.store.get((key && key.url) || String(key)) || undefined; },
   async put(key, res) { cacheApi.store.set((key && key.url) || String(key), res); }
 };
@@ -116,6 +117,17 @@ function fire(url, mode) {
   let installation;
   listeners.install({ waitUntil(promise) { installation = promise; } });
   await installation;
+  ok('candidato login identificato dalla cache v56', vm.runInContext('CACHE_REV', swCtx) === 'scorochiatu-shell-v56');
+  ok('installazione usa la nuova cache v56', cacheApi.names.has('scorochiatu-shell-v56'));
+  cacheApi.names.add('scorochiatu-shell-v55');
+  cacheApi.names.add('other-app-cache');
+  let activation;
+  listeners.activate({ waitUntil(promise) { activation = promise; } });
+  await activation;
+  ok('attivazione rimuove v55 e conserva v56 e cache estranee',
+    !cacheApi.names.has('scorochiatu-shell-v55')
+    && cacheApi.names.has('scorochiatu-shell-v56')
+    && cacheApi.names.has('other-app-cache'));
   offline = true;
   const cachedScripts = await Promise.all(scripts.map(src => fire(selfStub.location.origin + '/' + src)));
   offline = false;

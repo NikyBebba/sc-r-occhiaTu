@@ -117,7 +117,7 @@
         <p id="pinGateLabel" class="auth-intro">«Accesso riservato, agente. Senza codice segreto non si passa.»</p>
         <form id="pinForm" class="auth-pin-form" onsubmit="submitPin(); return false;">
           <label for="authUsername" class="auth-pin-label">Account</label>
-          <input id="authUsername" name="username" type="email" autocomplete="username" class="auth-account-input" readonly>
+          <input id="authUsername" name="username" type="email" autocomplete="username" class="auth-account-input">
           <label for="pinInput" class="auth-pin-label">Il tuo PIN</label>
           <input id="pinInput" type="password" inputmode="numeric" enterkeyhint="go" name="password" minlength="8" maxlength="8" pattern="[0-9]{8}" autocomplete="current-password" aria-describedby="pinError">
           <p id="pinError" class="hidden auth-pin-error" role="alert">PIN errato, riprova.</p>

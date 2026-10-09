@@ -51,6 +51,13 @@ async function submitPin() {
   const pin = document.getElementById('pinInput');
   const errorEl = document.getElementById('pinError');
   const button = document.getElementById('pinSubmit');
+  const account = document.getElementById('authUsername').value.trim().toLowerCase();
+  const expectedAccount = (CONFIG.AUTH_EMAILS?.[pendingUser] || '').trim().toLowerCase();
+  if (account !== expectedAccount) {
+    errorEl.textContent = "L'account non corrisponde alla persona scelta. Usa Cambia persona.";
+    errorEl.classList.remove('hidden');
+    return;
+  }
   const input = pin.value.trim();
   if (!/^[0-9]{8}$/.test(input)) {
     errorEl.textContent = 'Inserisci il PIN di 8 cifre.';
