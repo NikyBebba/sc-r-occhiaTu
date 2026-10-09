@@ -45,6 +45,43 @@ let checks=0;
   await page.setViewportSize({width,height:844});
   await check('login N → PIN a '+width+' px',async()=>{await page.evaluate(()=>selectUser('N'));assert(await page.locator('#pinGate').isVisible());assert.equal(await page.locator('#pinInput').getAttribute('autocomplete'),'current-password');assert.equal(await page.locator('#authUsername').getAttribute('autocomplete'),'username');assert.equal(await page.locator('#pinInput').getAttribute('maxlength'),'8');assert(await page.locator('#rememberDevice').isVisible());assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(screenshots)await page.screenshot({path:path.join(screenshots,'auth-pin-'+width+'.png'),animations:'disabled'});await page.evaluate(()=>backToLanding());});
  }
+ for(const person of ['N','V'])await check('Account '+person+': email visibile, semantica e focus password',async()=>{
+  await page.evaluate(person=>selectUser(person),person);
+  const account=page.locator('#authUsername'),password=page.locator('#pinInput');
+  assert.equal(await account.count(),1);
+  assert(await account.isVisible());
+  assert((await account.inputValue())===runtimeEmails[person]);
+  assert.equal(await account.getAttribute('name'),'username');
+  assert.equal(await account.getAttribute('type'),'email');
+  assert.equal(await account.getAttribute('autocomplete'),'username');
+  assert.equal(await account.getAttribute('tabindex'),null);
+  assert(!(await account.evaluate(el=>el.classList.contains('sr-only'))));
+  assert.equal(await page.locator('label[for="authUsername"]').innerText(),'Account');
+  assert(await page.locator('label[for="authUsername"]').isVisible());
+  assert(await account.evaluate(el=>el.readOnly&&!el.disabled));
+  assert(!(await account.isEditable()));
+  assert.equal(await password.getAttribute('autocomplete'),'current-password');
+  assert(await password.evaluate(el=>document.activeElement===el));
+  const accountBox=await account.boundingBox(),passwordBox=await password.boundingBox();
+  assert(accountBox.y+accountBox.height<=passwordBox.y);
+  await account.focus();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.type('other@example.test');
+  assert((await account.inputValue())===runtimeEmails[person]);
+  await page.evaluate(()=>backToLanding());
+ });
+ await check('cambio N → V → N: account aggiornato, password vuota e focus preservato',async()=>{
+  await page.locator('#landingUserN').click();
+  for(const person of ['V','N']){
+   await page.locator('#pinInput').fill('12345678');
+   await page.locator('.auth-back-btn').click();
+   await page.locator('#landingUser'+person).click();
+   assert((await page.locator('#authUsername').inputValue())===runtimeEmails[person]);
+   assert.equal(await page.locator('#pinInput').inputValue(),'');
+   assert(await page.locator('#pinInput').evaluate(el=>document.activeElement===el));
+  }
+  await page.evaluate(()=>backToLanding());
+ });
  for(const mode of ['login-invalid','login-offline','third'])await check('login rifiutato '+mode+': nessun ingresso/cache/token',async()=>{await page.evaluate(mode=>{fixtureAuthMode=mode;selectUser('N');},mode);await page.locator('#pinInput').fill('12345678');await page.locator('#rememberDevice').check();await page.locator('#pinSubmit').click();await page.waitForFunction(()=>!authBusy&&!document.getElementById('pinError').classList.contains('hidden'));assert(!(await page.evaluate(()=>isAppAuthorized())));assert(!(await page.locator('#appRoot').isVisible()));assert.equal(await page.locator('#pinInput').inputValue(),'');assert.equal(await page.evaluate(()=>localStorage.getItem('scorochiatu_auth')),null);assert.equal(await page.evaluate(()=>sessionStorage.getItem('scorochiatu_auth')),null);assert((await page.locator('#pinError').innerText()).includes(mode==='login-offline'?'connessione':'non autorizzato'));await page.evaluate(()=>{fixtureAuthMode='valid';backToLanding();});});
  await check('Ricordami: login, JWT e canali privati senza duplicati',async()=>{await page.evaluate(()=>selectUser('N'));await page.locator('#pinInput').fill('12345678');await page.locator('#rememberDevice').check();await page.locator('#pinSubmit').click();await page.waitForFunction(()=>isAppAuthorized());assert(await page.locator('#appRoot').isVisible());assert(!(await page.locator('#landingScreen').isVisible()));assert(!(await page.locator('#pinGate').isVisible()));const calls=await page.evaluate(()=>fixtureCalls);assert(calls.some(c=>c[0]==='jwt'));assert(calls.filter(c=>c[0]==='channel').every(c=>c[2]===true));assert.equal(calls.filter(c=>c[0]==='channel').length,1);assert(!(await page.evaluate(()=>JSON.stringify(localStorage))).includes('12345678'));});
  await check('refresh JWT: SDK callback autentica trasporto e conserva Ricordami',async()=>{await page.evaluate(()=>fixtureRefresh());await page.waitForFunction(()=>fixtureCalls.some(c=>c[0]==='jwt'&&c[1]==='fixture-refreshed'));assert.equal(await page.evaluate(()=>fixtureCalls.filter(c=>c[0]==='channel').length),1);assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('scorochiatu_auth')).access_token),'fixture-refreshed');assert(await page.evaluate(()=>isAppAuthorized()));});

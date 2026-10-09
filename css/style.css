@@ -410,6 +410,12 @@ body {
 .auth-pin-title { margin-top: 8px; color: var(--color-testo-1); font-size: clamp(27px, 8vw, 36px); font-weight: 800; line-height: 1.2; }
 .auth-pin-form { margin-top: 28px; text-align: left; }
 .auth-pin-label { display: block; margin-bottom: 8px; color: var(--color-testo-2); font-size: 12px; font-weight: 700; }
+.auth-account-input {
+  display: block; width: 100%; min-height: 44px; margin-bottom: 18px; padding: 9px 12px;
+  border: 1px dashed var(--color-bordo-forte); border-radius: 14px;
+  background: transparent; color: var(--color-testo-2); font-size: 16px;
+}
+.auth-account-input:focus-visible { outline: 2px solid var(--color-dettaglio); outline-offset: 2px; }
 #pinInput {
   display: block; width: 100%; min-height: 58px; padding: 9px 14px;
   border: 1px solid var(--color-bordo-forte); border-radius: 14px;
