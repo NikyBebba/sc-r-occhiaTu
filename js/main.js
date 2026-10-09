@@ -52,6 +52,7 @@ async function submitRecoveryPassword() {
     errorEl.classList.remove('hidden');
     return;
   }
+  const revision = authRecoveryRevision;
   authRecoveryBusy = true;
   document.getElementById('recoverySubmit').disabled = true;
   document.getElementById('recoveryExit').disabled = true;
@@ -60,14 +61,17 @@ async function submitRecoveryPassword() {
     await updateRecoveryPassword(password.value);
     await leavePasswordRecovery('Password aggiornata. Scegli la tua persona e accedi con la nuova password.');
   } catch (error) {
+    if (revision !== authRecoveryRevision) return;
     password.value = '';
     confirmation.value = '';
     const passwordRejected = ['weak_password', 'same_password', 'validation_failed'].includes(error.code);
-    const invalidSession = !passwordRejected && (isAuthFailure(error) || String(error.message).startsWith('AUTH_'));
-    if (invalidSession) authRecoveryIdentity = null;
-    errorEl.textContent = invalidSession
-      ? 'Sessione di recupero non valida o scaduta. Richiedi un nuovo link.'
-      : 'Password non aggiornata. Verifica la connessione e i requisiti della password, poi riprova.';
+    if (passwordRejected) {
+      errorEl.textContent = 'Password non aggiornata. Verifica i requisiti della password, poi riprova.';
+    } else {
+      const failure = recoveryFailure(error, 'update');
+      if (failure.recoveryCategory !== 'SERVICE_UNAVAILABLE') authRecoveryIdentity = null;
+      showRecoveryFailure(failure, 'update');
+    }
     errorEl.classList.remove('hidden');
   } finally {
     authRecoveryBusy = false;

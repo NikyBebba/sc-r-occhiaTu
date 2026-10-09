@@ -8,9 +8,13 @@ let authListener = null;
 let authRefreshTask = null;
 const AUTH_RECOVERY_KEY = 'scorochiatu_recovery'; // Solo ID utente recovery, mai password/token.
 let authRecoveryRequested = false;
+let authRecoveryReceived = false;
+let authRecoveryRevision = 0;
+let authRecoveryError = null;
 let authRecoverySession = null;
 let authRecoveryIdentity = null;
 let authRecoveryTask = null;
+let authRecoveryTaskRevision = -1;
 let authRecoveryBusy = false;
 let authReady = false;
 let authRecoveryEvent = null;
@@ -36,6 +40,9 @@ function attachAuthListener() {
     // Non attendere query Auth dentro il callback SDK.
     if (event === 'PASSWORD_RECOVERY') {
       authRecoveryRequested = true;
+      authRecoveryReceived = true;
+      authRecoveryRevision++;
+      authRecoveryError = null;
       authRecoverySession = session;
       resolveAuthRecoveryEvent?.();
       resolveAuthRecoveryEvent = null;
@@ -44,21 +51,35 @@ function attachAuthListener() {
       authRemember = false;
       authEpoch++;
       if (session?.user?.id) sessionStorage.setItem(AUTH_RECOVERY_KEY, session.user.id);
-      if (authReady) setTimeout(() => preparePasswordRecovery().catch(() => {}), 0);
+      if (authReady) {
+        showRecoveryScreen();
+        setTimeout(() => preparePasswordRecovery().catch(() => {}), 0);
+      }
       return;
     }
     if (authRecoveryRequested) {
-      if (event === 'TOKEN_REFRESHED' && session?.user?.id === authRecoverySession?.user?.id) authRecoverySession = session;
-      if (event === 'SIGNED_OUT') {
+      if (event === 'TOKEN_REFRESHED' && session?.user?.id === authRecoverySession?.user?.id) {
+        authRecoverySession = session;
+        authRecoveryIdentity = null;
+        authRecoveryRevision++;
+        if (authReady) {
+          showRecoveryScreen();
+          setTimeout(() => preparePasswordRecovery().catch(() => {}), 0);
+        }
+      }
+      if (event === 'SIGNED_OUT' || event === 'SIGNED_IN' && authRecoveryReceived
+          && session?.user?.id !== authRecoverySession?.user?.id) {
         authEpoch++;
+        authRecoveryRevision++;
         authRecoverySession = null;
         authRecoveryIdentity = null;
-        if (authReady) showRecoveryScreen('Link non valido o scaduto. Richiedi un nuovo link di recupero.');
+        if (authReady) showRecoveryFailure(new Error('AUTH_REQUIRED'), 'session');
       }
       return;
     }
     if (event === 'SIGNED_OUT') { if (authReady) lockApp(); return; }
-    if (!authReady || authBusy || event === 'INITIAL_SESSION') return;
+    if (!authReady || authBusy || event === 'INITIAL_SESSION'
+        || sessionStorage.getItem(AUTH_RECOVERY_KEY) && !authRecoveryReceived) return;
     const epoch = authEpoch;
     setTimeout(() => {
       if (epoch !== authEpoch || authRecoveryRequested) return;
@@ -67,48 +88,90 @@ function attachAuthListener() {
   }).data.subscription;
 }
 
+// Diagnostica solo per categorie/fasi: nessun errore SDK, token o password conservato.
+function recoveryFailure(error, stage) {
+  let category;
+  if (error?.recoveryCategory) return error;
+  if (['AUTH_EXPIRED', 'AUTH_CHANGED'].includes(error?.message)
+      || ['AuthSessionMissingError', 'AuthImplicitGrantRedirectError', 'AuthInvalidJwtError'].includes(error?.name)
+      || ['otp_expired', 'bad_jwt', 'session_not_found', 'refresh_token_not_found', 'refresh_token_already_used'].includes(error?.code)
+      || stage !== 'membership' && [401, 403].includes(error?.status)) category = 'INVALID_SESSION';
+  else if (error?.status === 0 || error?.status === 429 || error?.status >= 500
+      || error?.name === 'AuthRetryableFetchError' || error?.name === 'TypeError') category = 'SERVICE_UNAVAILABLE';
+  else if (stage === 'membership') category = error?.message === 'AUTH_NOT_MEMBER'
+      || [401, 403].includes(error?.status) || error?.code === '42501'
+      ? 'MEMBERSHIP_UNAUTHORIZED' : 'SERVICE_UNAVAILABLE';
+  else if (stage === 'user') category = 'USER_UNVERIFIABLE';
+  else category = 'INVALID_SESSION';
+  const failure = new Error(category);
+  failure.recoveryCategory = category;
+  failure.recoveryStage = stage;
+  return failure;
+}
+
+function showRecoveryFailure(error, stage) {
+  const failure = recoveryFailure(error, stage);
+  authRecoveryError = { category: failure.recoveryCategory, stage: failure.recoveryStage };
+  const messages = {
+    INVALID_SESSION: 'Sessione di recupero non valida o scaduta. Richiedi un nuovo link.',
+    USER_UNVERIFIABLE: 'Impossibile verificare l’account per il recupero. Richiedi un nuovo link.',
+    MEMBERSHIP_UNAUTHORIZED: 'Account non autorizzato al recupero in questa app.',
+    SERVICE_UNAVAILABLE: 'Recupero non verificabile: connessione o servizio non disponibile. Riprova quando la connessione è disponibile.'
+  };
+  showRecoveryScreen(messages[failure.recoveryCategory]);
+}
+
 async function preparePasswordRecovery() {
-  if (authRecoveryTask) return authRecoveryTask;
+  if (!authRecoveryRequested || !authRecoveryReceived) return;
+  const revision = authRecoveryRevision;
+  if (authRecoveryTask && authRecoveryTaskRevision === revision) return authRecoveryTask;
   authRecoveryIdentity = null;
   lockApp();
   showRecoveryScreen();
   const epoch = authEpoch;
-  authRecoveryTask = (async () => {
+  const session = authRecoverySession;
+  // Un nuovo contesto parte subito, anche se la query precedente è ancora pendente.
+  // Solo la risposta della revisione corrente può modificare la schermata.
+  const task = (async () => {
     try {
-      if (!authRecoverySession) throw new Error('AUTH_REQUIRED');
-      const identity = await verifyAuthSession(authRecoverySession);
-      // Il marker locale conserva la schermata, non autorizza il cambio password.
-      const { data: assurance, error } = await sb.auth.mfa.getAuthenticatorAssuranceLevel(authRecoverySession.access_token);
-      if (error) throw error;
-      if (!assurance?.currentAuthenticationMethods?.some(method => (typeof method === 'string' ? method : method.method) === 'recovery')) throw new Error('AUTH_REQUIRED');
-      if (epoch !== authEpoch || !authRecoveryRequested) return;
+      const identity = await verifyAuthSession(session, true);
+      if (revision !== authRecoveryRevision || epoch !== authEpoch || !authRecoveryReceived) return;
       authRecoveryIdentity = identity;
+      authRecoveryError = null;
       document.getElementById('newPassword').disabled = false;
       document.getElementById('confirmPassword').disabled = false;
-      document.getElementById('recoverySubmit').disabled = false;
+      document.getElementById('recoverySubmit').disabled = authRecoveryBusy;
       document.getElementById('newPassword').focus();
-    } catch (_) {
-      if (epoch === authEpoch) showRecoveryScreen('Link non valido, scaduto o non verificabile. Richiedi un nuovo link di recupero.');
+    } catch (error) {
+      if (revision === authRecoveryRevision && epoch === authEpoch) showRecoveryFailure(error, 'session');
     }
   })();
-  try { await authRecoveryTask; } finally { authRecoveryTask = null; }
+  authRecoveryTask = task;
+  authRecoveryTaskRevision = revision;
+  try { await task; } finally { if (authRecoveryTask === task) authRecoveryTask = null; }
 }
 
 async function updateRecoveryPassword(password) {
-  if (!password || !authRecoveryRequested || !authRecoveryIdentity || !authRecoverySession) throw new Error('AUTH_REQUIRED');
+  if (!password || !authRecoveryReceived || !authRecoveryRequested || !authRecoveryIdentity || !authRecoverySession) throw recoveryFailure(new Error('AUTH_REQUIRED'), 'context');
   const epoch = authEpoch;
+  const revision = authRecoveryRevision;
+  const preparedIdentity = authRecoveryIdentity;
   const { data, error } = await sb.auth.getSession();
-  if (error) throw error;
-  const identity = await verifyAuthSession(data?.session);
-  if (epoch !== authEpoch || !authRecoveryRequested || identity.uid !== authRecoveryIdentity.uid
-      || data.session.access_token !== authRecoverySession.access_token) throw new Error('AUTH_CHANGED');
+  if (error) throw recoveryFailure(error, 'session');
+  const identity = await verifyAuthSession(data?.session, true);
+  if (epoch !== authEpoch || revision !== authRecoveryRevision || !authRecoveryReceived
+      || identity.uid !== preparedIdentity.uid || identity.person !== preparedIdentity.person
+      || data.session.access_token !== authRecoverySession.access_token) throw recoveryFailure(new Error('AUTH_CHANGED'), 'session');
   const result = await sb.auth.updateUser({ password });
   if (result.error) throw result.error;
-  if (epoch !== authEpoch || !authRecoveryRequested) throw new Error('AUTH_CHANGED');
+  if (epoch !== authEpoch || revision !== authRecoveryRevision || !authRecoveryReceived) throw recoveryFailure(new Error('AUTH_CHANGED'), 'session');
 }
 
 async function leavePasswordRecovery(message = '') {
   authRecoveryRequested = false;
+  authRecoveryReceived = false;
+  authRecoveryRevision++;
+  authRecoveryError = null;
   authRecoverySession = null;
   authRecoveryIdentity = null;
   resolveAuthRecoveryEvent?.();
@@ -196,18 +259,31 @@ function lockApp(message = '') {
 
 // Un fallimento Auth non è mai convertito in fallback offline. Un accesso
 // offline è ammesso solo dopo verifica online nello stesso runtime, con JWT non scaduto.
-async function verifyAuthSession(session) {
-  if (!session?.access_token || !session.user?.id) throw new Error('AUTH_REQUIRED');
-  const { data: userData, error: userError } = await sb.auth.getUser(session.access_token);
-  if (userError) throw userError;
-  const uid = userData?.user?.id;
-  if (!uid || uid !== session.user.id) throw new Error('AUTH_REQUIRED');
-  const { data: member, error } = await sb.from('app_members').select('user_id,person').eq('user_id', uid).maybeSingle();
-  if (error) throw error;
-  if (!member || member.user_id !== uid || !['N', 'V'].includes(member.person)) throw new Error('AUTH_NOT_MEMBER');
-  const expiresAt = Number(session.expires_at) * 1000;
-  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error('AUTH_EXPIRED');
-  return { uid, person: member.person, expiresAt };
+async function verifyAuthSession(session, recovery = false) {
+  let stage = 'session';
+  try {
+    if (!session?.access_token || !session.user?.id) throw new Error('AUTH_REQUIRED');
+    stage = 'user';
+    const { data: userData, error: userError } = await sb.auth.getUser(session.access_token);
+    if (userError) throw userError;
+    const uid = userData?.user?.id;
+    if (!uid || uid !== session.user.id) throw new Error('AUTH_REQUIRED');
+    stage = 'membership';
+    const result = await sb.from('app_members').select('user_id,person').eq('user_id', uid).maybeSingle();
+    const { data: member, error } = result;
+    if (error) {
+      if (recovery) throw recoveryFailure({ status: result.status ?? error.status, code: error.code, name: error.name }, stage);
+      throw error;
+    }
+    if (!member || member.user_id !== uid || !['N', 'V'].includes(member.person)) throw new Error('AUTH_NOT_MEMBER');
+    stage = 'session';
+    const expiresAt = Number(session.expires_at) * 1000;
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error('AUTH_EXPIRED');
+    return { uid, person: member.person, expiresAt };
+  } catch (error) {
+    if (recovery) throw recoveryFailure(error, stage);
+    throw error;
+  }
 }
 
 async function establishAuth(session, expectedPerson = null) {
@@ -267,7 +343,7 @@ async function initializeAuth() {
     if (initialized.error) {
       if (authRecoveryRequested) {
         lockApp();
-        showRecoveryScreen('Link non valido o scaduto. Richiedi un nuovo link di recupero.');
+        showRecoveryFailure(initialized.error, 'bootstrap');
         return;
       }
       throw initialized.error;
@@ -282,17 +358,22 @@ async function initializeAuth() {
     const { data, error } = await sb.auth.getSession();
     if (error) throw error;
     const recoveryOwner = sessionStorage.getItem(AUTH_RECOVERY_KEY);
-    if (recoveryOwner) authRecoveryRequested = true;
+    if (recoveryOwner && !authRecoveryReceived) {
+      // Un marker modificabile non può ricreare l'evento SDK dopo un reload.
+      await leavePasswordRecovery('Recupero interrotto. Richiedi un nuovo link per impostare la password.');
+      return;
+    }
     if (authRecoveryRequested) {
-      if (recoveryOwner && recoveryOwner === data?.session?.user?.id) authRecoverySession = data.session;
+      if (authRecoveryReceived && authRecoverySession?.user?.id === data?.session?.user?.id) authRecoverySession = data.session;
       await preparePasswordRecovery();
       return;
     }
     if (!data?.session) { lockApp(); return; }
     await establishAuth(data.session);
     showApp();
-  } catch (_) {
-    if (epoch === authEpoch) lockApp('Accedi online per verificare la sessione.');
+  } catch (error) {
+    if (authRecoveryRequested) showRecoveryFailure(error, 'bootstrap');
+    else if (epoch === authEpoch) lockApp('Accedi online per verificare la sessione.');
   }
 }
 

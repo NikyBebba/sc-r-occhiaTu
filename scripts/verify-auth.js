@@ -11,11 +11,11 @@ const storage = map => ({ getItem: k => map.get(k) ?? null, setItem: (k,v) => ma
 function fixture(local = new Map(), temporary = new Map()) {
   const calls = [], elements = new Map();
   const session = { access_token: 'fixture-token', user: {id:'fixture-N'}, expires_at: Math.floor(Date.now()/1000)+3600 };
-  const state = {recoveryMethod:true,initError:null,updates:0,session, member:{user_id:'fixture-N',person:'N'}, userError:null, memberError:null, transportError:null};
+  const state = {initError:null,updates:0,session, member:{user_id:'fixture-N',person:'N'}, userError:null, memberError:null, transportError:null};
   let callback;
   const sdk = {
     auth:{
-      mfa:{async getAuthenticatorAssuranceLevel(){return {data:{currentAuthenticationMethods:state.recoveryMethod?[{method:'recovery'}]:[{method:'password'}]},error:null};}},
+      mfa:{async getAuthenticatorAssuranceLevel(){throw new Error('MFA must not be called');}},
       async updateUser(){state.updates++;return {data:{user:state.session.user},error:null};},
       async initialize(){return {error:state.initError};},async getSession(){return {data:{session:state.session},error:null};},
       async getUser(){calls.push('getUser');return {data:{user:state.session?.user},error:state.userError};},
@@ -23,7 +23,7 @@ function fixture(local = new Map(), temporary = new Map()) {
       async signOut(options){calls.push(['signOut',options]);callback?.('SIGNED_OUT',null);return {error:null};},
       onAuthStateChange(fn){callback=fn;return {data:{subscription:{unsubscribe(){}}}};}
     },
-    from(table){assert.equal(table,'app_members');return {select(){return this;},eq(){return this;},async maybeSingle(){calls.push('membership');return {data:state.member,error:state.memberError};}};},
+    from(table){assert.equal(table,'app_members');return {select(){return this;},eq(){return this;},async maybeSingle(){calls.push('membership');return {data:state.member,error:state.memberError,status:state.memberStatus};}};},
     realtime:{async setAuth(token){calls.push(['jwt',token]);if(state.transportError)throw state.transportError;},disconnect(){calls.push('disconnect');}}
   };
   const el = id => {if(!elements.has(id)) elements.set(id,{textContent:'',focus(){},classList:{add(){},remove(){}}});return elements.get(id);};
@@ -40,33 +40,76 @@ function fixture(local = new Map(), temporary = new Map()) {
 let count=0;
 async function test(name,fn){await fn();count++;console.log('PASS '+name);}
 (async()=>{
- await test('recovery prima del boot: verificata, nessun ingresso app',async()=>{
-  const f=fixture();f.run('attachAuthListener()');f.emit('PASSWORD_RECOVERY',f.state.session);await f.run('initializeAuth()');
+ const startRecovery=async f=>{f.run('attachAuthListener()');f.emit('PASSWORD_RECOVERY',f.state.session);await f.run('initializeAuth()');};
+ for(const amr of ['otp','password','other'])await test('PASSWORD_RECOVERY + AMR '+amr+': verificata senza AAL',async()=>{
+  const f=fixture();f.state.session.amr=[{method:amr}];f.ctx.sb.auth.mfa.getAuthenticatorAssuranceLevel=()=>{throw new Error('MFA must not be called');};await startRecovery(f);
   assert(f.run('!!authRecoveryIdentity'));assert(!f.run('isAppAuthorized()'));assert(!f.calls.includes('app'));assert(f.calls.includes('membership'));
  });
- await test('updateUser vietata senza contesto recovery',async()=>{const f=fixture();await f.run('initializeAuth()');await assert.rejects(f.run('updateRecoveryPassword(testPassword)'),/AUTH_REQUIRED/);assert.equal(f.state.updates,0);});
- await test('marker recovery solo UI: sessione normale non autorizza il reset',async()=>{const f=fixture();f.temporary.set('scorochiatu_recovery','fixture-N');f.state.recoveryMethod=false;await f.run('initializeAuth()');assert(!f.run('authRecoveryIdentity'));await assert.rejects(f.run('updateRecoveryPassword(testPassword)'),/AUTH_REQUIRED/);assert.equal(f.state.updates,0);assert(!f.calls.includes('app'));});
- await test('marker recovery con account diverso: nessun bypass',async()=>{const f=fixture();f.temporary.set('scorochiatu_recovery','fixture-V');await f.run('initializeAuth()');assert(!f.run('authRecoveryIdentity'));assert(!f.calls.includes('app'));});
- await test('redirect scaduto prevale su sessione salvata',async()=>{const f=fixture();f.run("detectAuthCallback(null,{error_code:'otp_expired'})");f.state.initError={status:400};await f.run('initializeAuth()');assert(!f.calls.includes('app'));assert(f.calls.some(call=>Array.isArray(call)&&call[0]==='recovery'&&call[1].includes('scaduto')));});
- await test('restore attende evento SDK recovery, senza timer applicativo',async()=>{
+ await test('updateUser vietata senza contesto recovery',async()=>{const f=fixture();await f.run('initializeAuth()');await assert.rejects(f.run('updateRecoveryPassword(testPassword)'),/INVALID_SESSION/);assert.equal(f.state.updates,0);});
+ for(const event of ['INITIAL_SESSION','SIGNED_IN'])await test('sessione OTP '+event+' senza PASSWORD_RECOVERY: reset impossibile',async()=>{
+  const f=fixture();f.state.session.amr=[{method:'otp'}];f.run('attachAuthListener()');f.emit(event,f.state.session);await f.run('initializeAuth()');await f.run('preparePasswordRecovery()');
+  assert(!f.run('authRecoveryIdentity'));assert(!f.calls.some(c=>Array.isArray(c)&&c[0]==='recovery'));await assert.rejects(f.run('updateRecoveryPassword(testPassword)'),/INVALID_SESSION/);
+ });
+ for(const owner of ['fixture-N','fixture-V'])await test('marker locale '+owner+' non autorizza reset; reload richiede nuovo link',async()=>{
+  const f=fixture();f.temporary.set('scorochiatu_recovery',owner);await f.run('initializeAuth()');assert(!f.run('authRecoveryIdentity'));assert(!f.calls.includes('app'));assert(!f.calls.some(c=>Array.isArray(c)&&c[0]==='recovery'));
+  await assert.rejects(f.run('updateRecoveryPassword(testPassword)'),/INVALID_SESSION/);assert.equal(f.state.updates,0);assert(!f.temporary.has('scorochiatu_recovery'));
+ });
+ await test('reload recovery: SIGNED_IN durante getSession non anticipa il restore normale',async()=>{
+  const f=fixture();f.temporary.set('scorochiatu_recovery','fixture-N');let finish;f.ctx.sb.auth.getSession=()=>new Promise(resolve=>{finish=resolve;});
+  const boot=f.run('initializeAuth()');await new Promise(resolve=>setTimeout(resolve,0));f.emit('SIGNED_IN',f.state.session);await new Promise(resolve=>setTimeout(resolve,0));assert(!f.calls.includes('app'));
+  finish({data:{session:f.state.session},error:null});await boot;assert(!f.calls.includes('app'));assert(!f.run('authRecoveryIdentity'));
+ });
+ await test('redirect scaduto prevale su sessione salvata',async()=>{const f=fixture();f.run("detectAuthCallback(null,{error_code:'otp_expired'})");f.state.initError={status:400,code:'otp_expired'};await f.run('initializeAuth()');assert(!f.calls.includes('app'));assert.equal(f.run('authRecoveryError.category'),'INVALID_SESSION');});
+ await test('redirect SDK scaduto con status 0 non è un errore rete',()=>{const f=fixture();assert.equal(f.run("recoveryFailure({name:'AuthImplicitGrantRedirectError',status:0},'bootstrap').recoveryCategory"),'INVALID_SESSION');});
+ await test('INITIAL_SESSION → PASSWORD_RECOVERY: restore attende evento SDK',async()=>{
   const f=fixture();f.run('attachAuthListener()');f.run("detectAuthCallback(null,{type:'recovery',access_token:'fixture-token'})");
-  const pending=f.run('initializeAuth()');await new Promise(resolve=>setTimeout(resolve,0));assert(!f.calls.includes('app'));
+  const pending=f.run('initializeAuth()');f.emit('INITIAL_SESSION',f.state.session);await new Promise(resolve=>setTimeout(resolve,0));assert(!f.calls.includes('app'));
   f.emit('PASSWORD_RECOVERY',f.state.session);await pending;assert(f.run('!!authRecoveryIdentity'));assert(!f.calls.includes('app'));
  });
+ await test('PASSWORD_RECOVERY → SIGNED_IN: mantiene solo recovery',async()=>{const f=fixture();await startRecovery(f);f.emit('SIGNED_IN',f.state.session);await new Promise(resolve=>setTimeout(resolve,0));assert(f.run('!!authRecoveryIdentity'));assert(!f.calls.includes('app'));});
+ for(const staleError of [false,true])await test('due recovery ravvicinate: risposta precedente '+(staleError?'fallita':'valida')+', prevale V',async()=>{
+  const f=fixture();let finish;let n=0;f.ctx.sb.auth.getUser=async()=>{if(++n===1)return new Promise(resolve=>{finish=resolve;});return {data:{user:f.state.session.user},error:null};};
+  f.run('attachAuthListener()');f.emit('PASSWORD_RECOVERY',f.state.session);const boot=f.run('initializeAuth()');await new Promise(resolve=>setTimeout(resolve,0));
+  f.state.session={...f.state.session,user:{id:'fixture-V'},access_token:'fixture-V'};f.state.member={user_id:'fixture-V',person:'V'};f.emit('PASSWORD_RECOVERY',f.state.session);
+  await f.run('preparePasswordRecovery()');assert.equal(f.run('authRecoveryIdentity.uid'),'fixture-V');
+  finish(staleError?{data:{},error:{status:401}}:{data:{user:{id:'fixture-N'}},error:null});await boot;await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(f.run('authRecoveryIdentity.uid'),'fixture-V');assert.equal(f.run('authRecoveryIdentity.person'),'V');assert.equal(f.run('authRecoveryError'),null);assert(!f.calls.includes('app'));
+ });
+ await test('refresh SDK durante verifica: verifica token più recente senza blocco',async()=>{
+  const f=fixture();let finish,n=0;f.ctx.sb.auth.getUser=async()=>{if(++n===1)return new Promise(resolve=>{finish=resolve;});return {data:{user:f.state.session.user},error:null};};
+  f.run('attachAuthListener()');f.emit('PASSWORD_RECOVERY',f.state.session);const boot=f.run('initializeAuth()');await new Promise(resolve=>setTimeout(resolve,0));
+  f.state.session={...f.state.session,access_token:'fixture-refreshed'};f.emit('TOKEN_REFRESHED',f.state.session);await f.run('preparePasswordRecovery()');assert(f.run('!!authRecoveryIdentity'));finish({data:{user:f.state.session.user},error:null});await boot;
+  assert(f.run('!!authRecoveryIdentity'));assert.equal(f.run('authRecoverySession.access_token'),'fixture-refreshed');await f.run('updateRecoveryPassword(testPassword)');assert.equal(f.state.updates,1);
+ });
+ await test('reload durante verifica: nessun contesto ricreato dal marker',async()=>{
+  const f=fixture();let finish;f.ctx.sb.auth.getUser=()=>new Promise(resolve=>{finish=resolve;});f.run('attachAuthListener()');f.emit('PASSWORD_RECOVERY',f.state.session);const boot=f.run('initializeAuth()');await new Promise(resolve=>setTimeout(resolve,0));
+  const next=fixture(f.local,f.temporary);await next.run('initializeAuth()');assert(!next.run('authRecoveryIdentity'));assert(!next.calls.includes('app'));await assert.rejects(next.run('updateRecoveryPassword(testPassword)'),/INVALID_SESSION/);
+  finish({data:{user:f.state.session.user},error:null});await boot;
+ });
+ for(const scenario of ['expired','user-invalid','user-mismatch','member-absent','member-invalid','network','service','postgrest-network','member-denied'])await test('recovery errore classificato: '+scenario,async()=>{
+  const f=fixture();let category;
+  if(scenario==='expired'){f.state.session.expires_at=1;category='INVALID_SESSION';}
+  if(scenario==='user-invalid'){f.state.userError={status:400,code:'unexpected_user_error'};category='USER_UNVERIFIABLE';}
+  if(scenario==='user-mismatch'){f.ctx.sb.auth.getUser=async()=>({data:{user:{id:'other'}},error:null});category='USER_UNVERIFIABLE';}
+  if(scenario==='member-absent'){f.state.member=null;category='MEMBERSHIP_UNAUTHORIZED';}
+  if(scenario==='member-invalid'){f.state.member.person='X';category='MEMBERSHIP_UNAUTHORIZED';}
+  if(scenario==='network'){f.state.userError={status:0,name:'AuthRetryableFetchError'};category='SERVICE_UNAVAILABLE';}
+  if(scenario==='service'){f.state.memberError={status:503};category='SERVICE_UNAVAILABLE';}
+  if(scenario==='postgrest-network'){f.state.memberError={message:'Failed to fetch'};f.state.memberStatus=0;category='SERVICE_UNAVAILABLE';}
+  if(scenario==='member-denied'){f.state.memberError={code:'42501'};f.state.memberStatus=403;category='MEMBERSHIP_UNAUTHORIZED';}
+  await startRecovery(f);assert(!f.run('authRecoveryIdentity'));assert.equal(f.run('authRecoveryError.category'),category);assert.equal(f.state.updates,0);assert(!f.calls.includes('app'));
+ });
+ await test('SIGNED_IN per altra identità invalida recovery, nessuna updateUser',async()=>{
+  const f=fixture();await startRecovery(f);f.state.session={...f.state.session,user:{id:'fixture-V'}};f.emit('SIGNED_IN',f.state.session);
+  await assert.rejects(f.run('updateRecoveryPassword(testPassword)'),/INVALID_SESSION/);assert(!f.run('authRecoveryIdentity'));assert.equal(f.state.updates,0);
+ });
+ await test('updateUser verifica identità preparata anche senza evento cambio account',async()=>{
+  const f=fixture();await startRecovery(f);f.state.session={...f.state.session,user:{id:'fixture-V'}};f.state.member={user_id:'fixture-V',person:'V'};
+  await assert.rejects(f.run('updateRecoveryPassword(testPassword)'),/INVALID_SESSION/);assert.equal(f.state.updates,0);
+ });
  await test('recovery: logout durante verifica impedisce updateUser',async()=>{
-  const f=fixture();f.run('attachAuthListener()');f.emit('PASSWORD_RECOVERY',f.state.session);await f.run('initializeAuth()');
-  let finish;f.ctx.sb.auth.getUser=()=>new Promise(resolve=>{finish=resolve;});const pending=f.run('updateRecoveryPassword(testPassword)');
-  await new Promise(resolve=>setTimeout(resolve,0));f.emit('SIGNED_OUT',null);finish({data:{user:f.state.session.user},error:null});
-  await assert.rejects(pending,/AUTH_CHANGED/);assert.equal(f.state.updates,0);
- });
- await test('recovery: refresh SDK conserva contesto senza aprire app',async()=>{
-  const f=fixture();f.run('attachAuthListener()');f.emit('PASSWORD_RECOVERY',f.state.session);await f.run('initializeAuth()');
-  f.state.session={...f.state.session,access_token:'fixture-refreshed'};f.emit('TOKEN_REFRESHED',f.state.session);
-  await f.run('updateRecoveryPassword(testPassword)');assert.equal(f.state.updates,1);assert(!f.calls.includes('app'));
- });
- await test('recovery: terzo account senza membership non può cambiare password',async()=>{
-  const f=fixture();f.state.member=null;f.run('attachAuthListener()');f.emit('PASSWORD_RECOVERY',f.state.session);await f.run('initializeAuth()');
-  await assert.rejects(f.run('updateRecoveryPassword(testPassword)'),/AUTH_REQUIRED/);assert.equal(f.state.updates,0);
+  const f=fixture();await startRecovery(f);let finish;f.ctx.sb.auth.getUser=()=>new Promise(resolve=>{finish=resolve;});const pending=f.run('updateRecoveryPassword(testPassword)');
+  await new Promise(resolve=>setTimeout(resolve,0));f.emit('SIGNED_OUT',null);finish({data:{user:f.state.session.user},error:null});await assert.rejects(pending,/INVALID_SESSION/);assert.equal(f.state.updates,0);
  });
  await test('config runtime: email N/V distinte, login Auth e nessuna password/secret',async()=>{
   const runtime=vm.createContext({});vm.runInContext(fs.readFileSync(path.join(root,'js/config.js'),'utf8'),runtime);

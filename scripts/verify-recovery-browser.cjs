@@ -14,10 +14,11 @@ if (!sdkPath) throw new Error('Specificare --sdk con il percorso del SDK pubblic
 const sdk = fs.readFileSync(sdkPath);
 const password = createTestPassword() + String.fromCharCode(33,64);
 const user = { id: randomUUID(), email: 'n@example.test', aud: 'authenticated', role: 'authenticated' };
+const amrMethod = process.argv.find(arg => arg.startsWith('--amr='))?.slice(6) || 'otp';
 const exp = Math.floor(Date.now()/1000) + 3600;
 const jwt = [
   { alg: 'HS256', typ: 'JWT' },
-  { sub: user.id, aud: 'authenticated', role: 'authenticated', exp, iat: exp-3600, amr: [{method:'recovery',timestamp:exp-3600}] }
+  { sub: user.id, aud: 'authenticated', role: 'authenticated', exp, iat: exp-3600, amr: amrMethod === 'none' ? [] : [{method:amrMethod,timestamp:exp-3600}] }
 ].map(value => Buffer.from(JSON.stringify(value)).toString('base64url')).join('.') + '.' + randomBytes(32).toString('base64url');
 const recoveryHash = new URLSearchParams({ access_token: jwt, refresh_token: randomBytes(32).toString('hex'), expires_in: '3600', expires_at: String(exp), token_type: 'bearer', type: 'recovery' });
 let updates = 0, correctPassword = false, authDenied = false, checks = 0;
@@ -81,13 +82,13 @@ async function check(name, fn) { await fn(); checks++; console.log('PASS ' + nam
     });
     await page.evaluate(() => navigator.serviceWorker.ready);
     await page.reload();
-    await check('PWA: service worker v57 e app-shell attivi', async () => {
+    await check('PWA: service worker v58 e app-shell attivi', async () => {
       assert(await page.evaluate(() => !!navigator.serviceWorker.controller));
-      assert(await page.evaluate(async () => (await caches.keys()).includes('scorochiatu-shell-v57')));
+      assert(await page.evaluate(async () => (await caches.keys()).includes('scorochiatu-shell-v58')));
     });
     await page.goto('about:blank');
     await page.goto(origin + '/#' + recoveryHash);
-    await check('SDK v2 + PWA: callback recovery reale apre solo il reset verificato', async () => {
+    await check('SDK v2 + PWA: callback recovery AMR '+amrMethod+' apre solo il reset verificato', async () => {
       await page.waitForFunction(() => !!authRecoveryIdentity);
       assert(await page.locator('#recoveryGate').isVisible());
       assert(!(await page.locator('#landingScreen').isVisible()));
@@ -97,11 +98,16 @@ async function check(name, fn) { await fn(); checks++; console.log('PASS ' + nam
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     });
     await page.reload();
-    await check('SDK v2 + PWA: reload mantiene recovery, con verifica online', async () => {
-      await page.waitForFunction(() => !!authRecoveryIdentity);
-      assert(await page.locator('#recoveryGate').isVisible());
+    await check('SDK v2 + PWA: reload non ricrea recovery dal marker locale', async () => {
+      await page.waitForFunction(() => document.getElementById('authNotice').textContent.includes('Recupero interrotto'));
+      assert(await page.locator('#landingScreen').isVisible());
+      assert(!(await page.locator('#recoveryGate').isVisible()));
       assert(!(await page.evaluate(() => isAppAuthorized())));
+      assert.equal(updates,0);
     });
+    await page.goto('about:blank');
+    await page.goto(origin + '/#' + recoveryHash);
+    await page.waitForFunction(() => !!authRecoveryIdentity);
     for (const id of ['newPassword', 'confirmPassword']) await page.locator('#' + id).fill(password);
     await page.locator('#recoverySubmit').click();
     await check('SDK v2: updateUser PUT unica, password intatta e logout locale', async () => {
@@ -117,7 +123,7 @@ async function check(name, fn) { await fn(); checks++; console.log('PASS ' + nam
     await page.goto('about:blank');
     await page.goto(origin + '/#error=access_denied&error_code=otp_expired&error_description=Link+expired');
     await check('SDK v2 + PWA: callback scaduto, errore controllato e reset disabilitato', async () => {
-      await page.waitForFunction(() => document.getElementById('recoveryError').textContent.includes('scaduto'));
+      await page.waitForFunction(() => document.getElementById('recoveryError').textContent.includes('scaduta'));
       assert(await page.locator('#recoveryGate').isVisible());
       assert(await page.locator('#recoverySubmit').isDisabled());
       assert(!(await page.evaluate(() => isAppAuthorized())));
@@ -128,10 +134,20 @@ async function check(name, fn) { await fn(); checks++; console.log('PASS ' + nam
     await page.goto('about:blank');
     await page.goto(origin + '/#' + recoveryHash);
     await check('SDK v2: token rifiutato online non permette reset o accesso', async () => {
-      await page.waitForFunction(() => document.getElementById('recoveryError').textContent.includes('non valido'));
+      await page.waitForFunction(() => document.getElementById('recoveryError').textContent.includes('non valida'));
       assert(await page.locator('#recoverySubmit').isDisabled());
       assert(!(await page.evaluate(() => isAppAuthorized())));
       assert.equal(updates, 1);
+    });
+    await page.locator('#recoveryExit').click();
+    authDenied = false;
+    await check('SDK v2: SIGNED_IN con AMR '+amrMethod+' senza recovery non permette reset', async () => {
+      await page.evaluate(async tokens => { await sb.auth.setSession(tokens); }, { access_token: jwt, refresh_token: randomBytes(32).toString('hex') });
+      await page.waitForFunction(() => isAppAuthorized());
+      assert(!(await page.locator('#recoveryGate').isVisible()));
+      await page.evaluate(async () => { try { await updateRecoveryPassword(''); } catch (_) {} });
+      assert.equal(updates,1);
+      assert(!(await page.evaluate(() => authRecoveryReceived)));
     });
     assert.equal(pageErrors, 0);
     console.log(`Recovery SDK/PWA: ${checks}/${checks} PASS; nessun Supabase live`);
