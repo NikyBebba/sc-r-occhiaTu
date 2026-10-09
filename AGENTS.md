@@ -1,11 +1,29 @@
 # AGENTS.md — sc(r)occhiaTu
 
-Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 9 ottobre 2026 (release frontend v59 autorizzata, recovery v58 verificato; Auth/RLS e migration v54 già applicate).
+Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 9 ottobre 2026 (frontend v59 in produzione e pulsante Password dimenticata? testato dall’utente, recovery v58 verificato; Auth/RLS e migration v54 già applicate).
 Prima di progettare una fase leggere [docs/MASTER_CONTEXT.md](docs/MASTER_CONTEXT.md):
 è la fonte dello stato corrente, delle decisioni UX e della roadmap. Le sezioni
 storiche del master context descrivono cicli precedenti, non lo stato finale.
 Per modelli e flussi specifici consultare anche le specifiche Phase 22/23/38/41.
 Vincoli, sicurezza e contratto Match di questo file restano applicabili.
+
+## Stato corrente v59 production
+
+Commit `9545693090920cab20d4ef67b97b8647db7ae947`, origin/main allineato alla release.
+Push/deployment Vercel completati. HTTP: 41/41 file runtime identici al commit,
+tutti HTTP 200, nuovo pulsante e service worker v59 verificati. L’utente
+conferma il funzionamento reale di Password dimenticata?.
+
+Pulsante Password dimenticata? nel login N/V: resetPasswordForEmail solo con
+il mapping selezionato, mai con il campo Account editabile. Ritorno tramite
+Site URL già configurato; nessuna modifica Dashboard. Cooldown per persona
+60 secondi in memoria, double-submit bloccato, feedback aria-live controllato;
+cambio persona invalida feedback tardivi. Nessuna password/token salvati/loggati,
+nessuna modifica al login/recovery validato, Ricordami, session restore o backend.
+Cache production scorochiatu-shell-v59; pubblicazione completata.
+Test locali: Auth 82/82, Browser Auth 43/43, UX 24/24, Smoke 436/436,
+PWA 18/18, RLS 40/40, DB 52/52, browser feature 39/39, SDK/PWA 10/10 con AMR otp e 10/10 senza AMR.
+Sintassi 56/56 e diff check PASS. Invio email simulato nei test dell’agente; test reale del pulsante confermato dall’utente.
 
 ## Checkpoint production v58 — precedente alla release v59
 
@@ -51,19 +69,6 @@ sintassi 56/56 e diff check PASS.
 SDK Supabase v2 reale con Auth/membership simulati e PWA: 8/8 con AMR otp,
 8/8 senza AMR; credenziali sintetiche generate a runtime, nessun test Auth live.
 I checkpoint datati sotto descrivono i rispettivi cicli storici.
-
-## Release v59 — pubblicazione autorizzata
-
-Pulsante Password dimenticata? nel login N/V: resetPasswordForEmail solo con
-il mapping selezionato, mai con il campo Account editabile. Ritorno tramite
-Site URL già configurato; nessuna modifica Dashboard. Cooldown per persona
-60 secondi in memoria, double-submit bloccato, feedback aria-live controllato;
-cambio persona invalida feedback tardivi. Nessuna password/token salvati/loggati,
-nessuna modifica al login/recovery validato, Ricordami, session restore o backend.
-Cache release scorochiatu-shell-v59; commit/push/deployment autorizzati dall’utente.
-Test locali: Auth 82/82, Browser Auth 43/43, UX 24/24, Smoke 436/436,
-PWA 18/18, RLS 40/40, DB 52/52, browser feature 39/39, SDK/PWA 10/10 con AMR otp e 10/10 senza AMR.
-Sintassi 56/56 e diff check PASS. Invio email simulato; test reale dell’invio dal nuovo pulsante ancora da confermare.
 
 ## Project purpose
 

@@ -6,7 +6,12 @@ sc(r)occhiaTu è una web app pensata per rendere più semplice e divertente la d
 
 L'esperienza parte dalla scelta e continua dopo il film: appuntamenti, voti, recensioni, saghe e ricordi delle serate. Il tono è cinematografico e leggero, con attenzione all'uso da smartphone. Può essere uno spazio per amici, coinquilini o una coppia: conta condividere i film.
 
-## Stato corrente: release v59
+## Stato corrente: produzione v59
+
+Commit `9545693090920cab20d4ef67b97b8647db7ae947`, push e deployment Vercel completati.
+Production verificata: 41/41 file runtime HTTP 200 e identici al commit,
+cache PWA scorochiatu-shell-v59. L’utente conferma il funzionamento reale
+del pulsante “Password dimenticata?”.
 
 La precedente release v58 è pubblicata al commit `f3c49fd110592e9d8883f5e797809cf6fc34c0f2`, cache PWA
 `scorochiatu-shell-v58`. Push e deployment Vercel completati; 41/41 file runtime
@@ -35,7 +40,7 @@ proposta automatica al prossimo accesso resta una verifica distinta.
 
 **Release v59:** pulsante “Password dimenticata?” nel login, invio
 solo all’account N/V selezionato, conferma discreta e cooldown di un minuto.
-Cache v59; pubblicazione autorizzata, invio hosted ancora da collaudare. [Dettagli](docs/AUTH_SUPABASE.md#richiesta-link-dal-login--v59).
+Cache v59; pubblicata e testata dall’utente in production. [Dettagli](docs/AUTH_SUPABASE.md#richiesta-link-dal-login--v59).
 
 ## Come funziona
 
@@ -76,7 +81,7 @@ La programmazione ha un'unica fonte: gli eventi `movie_nights`. Il client non le
 
 L'app gestisce **uno spazio con due profili preconfigurati**, senza registrazione o gruppi indipendenti. L’ingresso mantiene persona → Account/Password e usa Supabase Auth con mapping protetto e RLS, con l'opzione «Ricordami su questo dispositivo». Le password non sono nel codice né nello storage applicativo. Il form normale usa username/current-password; il form recovery usa new-password.
 
-**Auth/RLS verificata in produzione:** cutover completato, accesso DB riservato ai due membri e canali Realtime privati. Il collaudo reale del cutover v50 sui due dispositivi ha confermato login, dati, persistenza sessione, Realtime, Match Live e logout. La versione Auth originaria era `2bd43a6`/v50; production corrente v58, disponibile su [Vercel](https://sc-r-occhia-tu.vercel.app). [Stato tecnico e rollback d’emergenza](docs/AUTH_SUPABASE.md).
+**Auth/RLS verificata in produzione:** cutover completato, accesso DB riservato ai due membri e canali Realtime privati. Il collaudo reale del cutover v50 sui due dispositivi ha confermato login, dati, persistenza sessione, Realtime, Match Live e logout. La versione Auth originaria era `2bd43a6`/v50; production corrente v59, disponibile su [Vercel](https://sc-r-occhia-tu.vercel.app). [Stato tecnico e rollback d’emergenza](docs/AUTH_SUPABASE.md).
 
 `votes` è esclusa dalla publication Realtime e dall’accesso applicativo;
 la tabella e i suoi dati restano conservati. Il rollback ripristina la
@@ -131,12 +136,14 @@ sintassi 56/56 e diff check PASS.
 Simulazione recovery con SDK Supabase v2 reale e PWA: 8/8 con AMR otp e
 8/8 senza AMR. Auth/membership sono simulati, le credenziali generate a runtime;
 PostgreSQL temporaneo. Nessun test locale scrive Supabase.
-Production: 41/41 file runtime identici al commit, HTTP 200 e SW v58.
+Verifica HTTP della release v58: 41/41 file runtime identici al commit, HTTP 200 e SW v58.
 Recovery reale v58 e salvataggio automatico Apple/Safari confermati dall’utente;
 collaudo completo condiviso e proposta automatica delle credenziali restano distinti.
 Verifiche v59: Auth 82/82, Browser Auth 43/43, UX 24/24, Smoke 436/436,
 PWA 18/18, RLS 40/40, DB 52/52, browser feature 39/39, SDK/PWA 10/10 con AMR otp e 10/10 senza AMR;
-sintassi 56/56 e diff check PASS; nessuna email reale inviata nei test.
+sintassi 56/56 e diff check PASS; nessuna email reale inviata nei test dell’agente.
+Production v59: 41/41 file runtime identici al commit e HTTP 200;
+nuovo pulsante confermato funzionante nel test reale dell’utente.
 
 L’ingresso richiede verifica online: il mirror offline è disponibile solo dopo autorizzazione nella stessa esecuzione e con JWT valido. La sessione temporanea e l’autofill dipendono dal browser; il logout locale lascia indipendente l’altro dispositivo. Rimane un’app per due membri preconfigurati. I CSV manuali sono conservati fuori da Git e non costituiscono un backup completo Supabase.
 

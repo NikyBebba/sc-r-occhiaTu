@@ -2,7 +2,13 @@
 
 Ultimo aggiornamento: 9 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
 
-## Release v59 — Password dimenticata?, 9 ottobre 2026
+## Produzione v59 — Password dimenticata?, 9 ottobre 2026
+
+Commit `9545693090920cab20d4ef67b97b8647db7ae947`, pubblicato su origin/main.
+[Deployment Vercel](https://vercel.com/nicholas-projects-69881b7f/sc-r-occhia-tu/3Kf3VaWZ11p3btvByD28VKvRV9eu) completato; HTTP production 41/41 file runtime
+identici al commit e tutti HTTP 200. Pulsante, mapping N/V, recovery e service
+worker scorochiatu-shell-v59 verificati via HTTP. L’utente conferma che
+“Password dimenticata?” funziona nel test reale in production.
 
 Pulsante nel login dopo la scelta N/V, type=button, separato dal submit.
 La richiesta usa resetPasswordForEmail esclusivamente con CONFIG.AUTH_EMAILS
@@ -13,13 +19,14 @@ per persona in memoria; rete/configurazione/rate limit hanno messaggi controllat
 Un cambio persona invalida i feedback tardivi. Nessun login/reset automatico,
 nessuna modifica password/sessione/Ricordami o storage da parte della richiesta.
 Recovery verificato v58 e backend invariati. Cache release scorochiatu-shell-v59.
-Pubblicazione autorizzata dall’utente; nei test nessun invio reale di email.
+Pubblicazione completata. L’agente non ha inviato email reali durante i test.
 
 Verifiche v59: Auth 82/82, Browser Auth 43/43, UX 24/24, Smoke 436/436,
 PWA 18/18, RLS locale 40/40, DB 52/52, Individual/Rewatch browser 39/39.
 Sintassi 56/56 e diff check PASS.
 SDK pubblico reale + Auth locale + PWA: 10/10 con AMR otp e 10/10 senza AMR; invio N/V simulato
-incluso. La verifica locale non attesta ancora l’invio email del nuovo pulsante hosted.
+incluso. Test reale del nuovo pulsante hosted confermato dall’utente;
+le simulazioni locali restano distinte dal collaudo reale.
 
 ## Storico: produzione v58 — login standard e recovery, 9 ottobre 2026
 
@@ -613,11 +620,12 @@ Phase 28 — Ciak Loader e skeleton implementata localmente: al primo ingresso, 
 | Serate | Programma/Oggi/annullo conservano candidatura; nuova conclusione la consuma | RPC v54 atomica; retry completed non consuma ricandidature |
 | Voti e testi | Personali leggibili da entrambi, scrivibili solo dal proprietario Auth | Nessuna copia privata/pubblica; N+V solo dati/azioni condivisi |
 
-Verifiche v58: Smoke 436/436, Auth 77/77, RLS locale 40/40, DB Individual/Rewatch 52/52,
-PWA 18/18, Chromium Auth 36/36, UX 24/24, Individual/Rewatch browser 39/39,
+Verifiche v59: Smoke 436/436, Auth 82/82, RLS locale 40/40, DB Individual/Rewatch 52/52,
+PWA 18/18, Chromium Auth 43/43, UX 24/24, Individual/Rewatch browser 39/39,
 sintassi 56/56 e diff check PASS.
-SDK reale simulato: 8/8 AMR otp e 8/8 senza AMR. Production HTTP 41/41.
-DB v54 applicato e audit live confermati dall’utente; frontend v55–v58 pubblicati.
+SDK reale simulato: 10/10 AMR otp e 10/10 senza AMR. Production HTTP 41/41, SW v59.
+DB v54 applicato e audit live confermati dall’utente; frontend v55–v59 pubblicati.
+Funzionamento reale di Password dimenticata? confermato dall’utente.
 L’utente conferma recovery hosted v58 e login successivo per N/V, oltre al
 salvataggio automatico Apple/Safari. Questo non attesta tutti i flussi condivisi
 o la proposta automatica delle credenziali al prossimo accesso.
@@ -632,9 +640,9 @@ L'utente apprezza aggiunte come «Continua la saga», il ticket più curato e le
 
 ## Prossimo lavoro
 
-Priorità corrente: pubblicazione autorizzata della v59 e test reale
-dell’invio email dal pulsante N/V. Recovery reale
-v58 e login successivo sono confermati; proposta automatica Apple/Safari e
+La v59 è pubblicata e l’utente conferma il funzionamento reale del pulsante
+Password dimenticata?. Recovery reale v58 e login successivo sono confermati;
+proposta automatica Apple/Safari e
 casi specifici Ricordami/restore non sono nuovi risultati hosted dichiarati.
 Completare anche il collaudo condiviso Home → Storico, N/V, film fuori Lista,
 oro Together, Segna come non visto e Ricordi. Nessuna nuova migration prevista.
@@ -720,7 +728,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - Recovery reale v58 e login successivo N/V confermati, salvataggio automatico
   Apple/Safari confermato; collaudo condiviso completo distinto da questi risultati.
 - Pulsante Password dimenticata? e cache v59 descritti nel nuovo checkpoint;
-  pubblicazione autorizzata e invio hosted ancora da collaudare.
+  deployment e verifica HTTP completati; test reale del pulsante confermato dall’utente.
 
 ---
 
