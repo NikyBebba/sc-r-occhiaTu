@@ -1548,3 +1548,46 @@ details[open] > .memory-summary::before { transform: rotate(90deg); }
 .personal-history-tabs #historySwitchV[aria-pressed="true"] { background:var(--color-persona-v); }
 
 #recoveryForm .auth-password-input { margin-bottom: 16px; }
+
+/* Movie card: informazioni primarie visibili, azioni e testi su richiesta. */
+.movie-card-section { border-top:1px solid var(--bordo-vetro); }
+.movie-card-section:first-child { border-top:0; }
+.movie-card-section > summary { display:flex; align-items:center; gap:8px; min-height:44px; cursor:pointer; list-style:none; font-size:12px; font-weight:600; color:var(--color-testo-2); }
+.movie-card-section > summary::-webkit-details-marker { display:none; }
+.movie-card-section > summary > i { margin-left:auto; font-size:10px; transition:transform var(--duration-fast); }
+.movie-card-section[open] > summary > i { transform:rotate(180deg); }
+.movie-card-summary { font-size:10px; font-weight:400; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.movie-card-section-body { display:flex; flex-direction:column; gap:8px; padding:2px 0 12px; }
+.movie-card-review { padding:10px; border:1px solid var(--bordo-vetro); border-radius:var(--radius-lg); background:var(--color-chip); }
+.movie-card-review-text { font-size:12px; line-height:1.5; font-style:italic; margin-top:4px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.movie-card-review-text.is-clamped { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+.movie-card-review-toggle { font-size:12px; color:var(--color-testo-2); text-decoration:underline; }
+.movie-card-review-toggle[hidden] { display:none; }
+.movie-card-delete { border-top:1px solid var(--bordo-vetro); margin-top:4px; }
+.history-search { position:relative; margin:12px 0 16px; }
+.history-search > i { position:absolute; left:12px; top:14px; font-size:13px; color:var(--color-testo-2); pointer-events:none; }
+.history-search input { width:100%; min-height:44px; padding:10px 12px 10px 34px; border:1px solid var(--bordo-vetro); border-radius:var(--radius-lg); background:var(--color-chip); color:var(--color-testo-1); font-size:14px; }
+#movieGrid { align-items:start; }
+
+/* Gestione: gruppi brevi e righe per contesto, touch target sempre 44px. */
+.movie-card-management { display:flex; flex-direction:column; align-items:stretch; gap:10px; }
+.movie-card-management > button { width:auto; align-self:flex-start; font-size:12px; }
+.movie-card-management-group h4 { font-size:10px; font-weight:600; color:var(--color-testo-2); margin-bottom:4px; }
+.movie-card-list-row { display:flex; align-items:center; flex-wrap:wrap; gap:4px 8px; font-size:12px; }
+.movie-card-list-row button { padding:6px 10px; font-size:12px; }
+.movie-card-evaluation-row { display:flex; align-items:center; justify-content:space-between; min-height:44px; font-size:12px; }
+.movie-card-evaluation-row + .movie-card-evaluation-row { margin-top:8px; }
+.movie-card-evaluation-row > div { display:flex; gap:8px; }
+.movie-card-icon-action { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:var(--radius-lg); }
+.movie-card-evaluation-remove { color:var(--color-testo-2); background:var(--color-chip); }
+.movie-card-evaluation-remove:hover { color:#fda4af; }
+.movie-card-management > .movie-card-delete { align-self:stretch; width:100%; padding-top:8px; text-align:left; }
+.movie-card-icon-action:focus-visible { outline:2px solid var(--color-dettaglio); outline-offset:2px; }
+.evaluation-removal-choices { display:flex; flex-direction:column; gap:8px; }
+.evaluation-removal-choices.hidden { display:none; }
+.evaluation-removal-choices button { min-height:44px; padding:8px 12px; border-radius:var(--radius-lg); background:var(--color-chip); color:var(--color-testo-1); font-size:14px; }
+.evaluation-removal-choices button:last-child { color:#fda4af; }
+
+/* Identità nelle Valutazioni: variante compatta del quadratino del login. */
+.movie-card-evaluation-badge { flex:0 0 auto; width:auto; min-width:32px; height:32px; padding:0 6px; border-radius:10px; background:color-mix(in srgb, var(--person-accent, var(--color-persona-n)) 65%, #000); color:#fff; font-size:12px; white-space:nowrap; }
+.movie-card-evaluation-badge.is-shared { min-width:40px; background:var(--color-oro); color:#0f172a; }

@@ -35,7 +35,8 @@ async function vetoMovie(id, title) {
     await showConfirmModal('Veto già usato', 'Hai già usato il tuo veto per questa settimana.');
     return;
   }
-  loadMovies();
+  await loadMovies();
+  refreshVetoDetail(id);
 }
 
 // Toglie il veto: nessuna conferma (azione reversibile, come il voto).
@@ -43,5 +44,14 @@ async function unvetoMovie(id) {
   const v = vetoForMovieThisWeek(id);
   if (!v || v.person !== currentUser) return;
   await removeVeto(currentUser, id); // 0 righe o errore => nothing to do (già rimosso)
-  loadMovies();
+  await loadMovies();
+  refreshVetoDetail(id);
+}
+
+function refreshVetoDetail(id) {
+  if (document.getElementById('detailModal').classList.contains('hidden')
+      || document.getElementById('detailBody').dataset.movieId !== String(id)) return;
+  const movie = movies.find(m => m.id === id);
+  const control = document.getElementById('detailVetoAction');
+  if (movie && control) control.innerHTML = detailVetoActionHtml(movie);
 }

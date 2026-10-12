@@ -55,6 +55,7 @@ async function checkLoginState() {
 function showLanding() {
   clearPasswordResetNotice();
   if (typeof resetWatchForms === 'function') resetWatchForms();
+  if (typeof resetHistorySearch === 'function') resetHistorySearch();
   if (typeof resetMemoriesState === 'function') resetMemoriesState();
   modalStack = [];
   document.getElementById('appRoot').inert = false;

@@ -84,8 +84,8 @@ function render() {
   const inWheel = dashboardView === 'wheel' && !inMatch;
   const inHistory = dashboardView === 'history';
   const inLibrary = !inHome && !inWheel;
-  const historyFilms = inHistory ? movies.filter(m => m[currentTab === 'history_v' ? 'seen_v' : 'seen_n'] === true)
-    .sort((a,b) => String(a.title || '').localeCompare(String(b.title || ''), 'it')) : [];
+  const historyFilms = inHistory ? historyMoviesFor(currentTab === 'history_v' ? 'V' : 'N') : [];
+  document.getElementById('historySearch')?.classList.toggle('hidden', !inHistory);
   const historySwitch = document.getElementById('historySwitch');
   if (historySwitch) historySwitch.classList.toggle('!hidden', !inHistory);
   ['N','V'].forEach(person => document.getElementById('historySwitch'+person)?.setAttribute('aria-pressed', String(currentTab === 'history_'+person.toLowerCase())));
@@ -181,7 +181,7 @@ function render() {
   const statusFilter = currentTab === 'all' ? null : currentTab;
   const filtered = inHistory ? historyFilms : sortMovies(filterMoviesByState(movies, statusFilter), listSortKey, listSortDir);
   if (filtered.length === 0) {
-    grid.innerHTML = inHistory ? '<p class="col-span-full text-sm text-slate-400">Le visioni personali compariranno qui. Puoi aggiungere un film scegliendo Solo Storico.</p>' : emptyListStateHtml();
+    grid.innerHTML = inHistory ? (historyQuery.trim() ? '<p class="col-span-full text-sm text-slate-400" role="status">Nessun film corrisponde alla ricerca nello storico selezionato.</p>' : '<p class="col-span-full text-sm text-slate-400">Le visioni personali compariranno qui. Puoi aggiungere un film scegliendo Solo Storico.</p>') : emptyListStateHtml();
   }
 
   const vetoedIds = vetoedMovieIdsThisWeek();

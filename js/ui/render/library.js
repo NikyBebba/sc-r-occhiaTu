@@ -177,3 +177,21 @@ function resetListFiltersUI() {
   renderSortDirBtn();
   render();
 }
+
+// Ricerca Storico indipendente dai filtri Lista, solo sui film già caricati.
+let historyQuery = '';
+function onHistorySearchInput() {
+  historyQuery = document.getElementById('historySearchInput')?.value || '';
+  render();
+}
+function resetHistorySearch() {
+  historyQuery = '';
+  const input = document.getElementById('historySearchInput');
+  if (input) input.value = '';
+}
+function historyMoviesFor(person, query = historyQuery) {
+  const needle = String(query).trim().toLocaleLowerCase('it');
+  return movies.filter(movie => movie[person === 'V' ? 'seen_v' : 'seen_n'] === true
+    && (!needle || [movie.title, movie.director].some(value => String(value || '').toLocaleLowerCase('it').includes(needle))))
+    .sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), 'it'));
+}

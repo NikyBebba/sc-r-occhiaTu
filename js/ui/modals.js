@@ -113,27 +113,43 @@ function personBadge(code) {
 }
 
 // ---- Modale conferma generica (sostituisce confirm()) ----
-function showConfirmModal(title, message) {
+function showConfirmModal(title, message, choices = null) {
   return new Promise(resolve => {
+    const returnFocus = document.activeElement;
     document.getElementById('confirmTitle').textContent = title;
     document.getElementById('confirmMessage').textContent = message;
     openModal('confirmModal');
     const yes = document.getElementById('confirmYes');
     const no = document.getElementById('confirmNo');
+    const options = document.getElementById('confirmChoices');
+    if (options) { options.innerHTML = ''; options.classList.toggle('hidden', !choices); }
+    yes.classList.toggle('hidden', !!choices);
     const cleanup = (result) => {
       yes.onclick = null; no.onclick = null;
+      if (options) { options.innerHTML = ''; options.classList.add('hidden'); }
+      yes.classList.remove('hidden');
       closeModal('confirmModal');
+      if (returnFocus?.isConnected) returnFocus.focus?.({ preventScroll: true });
       resolve(result);
     };
+    if (choices && options) choices.forEach(choice => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = choice.label;
+      button.dataset.removalChoice = choice.value;
+      button.onclick = () => cleanup(choice.value);
+      options.appendChild(button);
+    });
     yes.onclick = () => cleanup(true);
     no.onclick = () => cleanup(false);
+    no.focus?.();
   });
 }
 
-// Focus tastiera confinato al modale Ricordi; Esc usa lo stack esistente.
+// Focus tastiera confinato a Ricordi e conferma; Esc usa lo stack esistente.
 document.addEventListener('keydown', event => {
-  if (event.key !== 'Tab' || modalStackTop() !== 'statsModal') return;
-  const items = [...document.getElementById('statsModal').querySelectorAll('button, summary, [tabindex="0"]')]
+  if (event.key !== 'Tab' || !['statsModal', 'confirmModal'].includes(modalStackTop())) return;
+  const items = [...document.getElementById(modalStackTop()).querySelectorAll('button, summary, [tabindex="0"]')]
     .filter(element => !element.disabled && element.getClientRects().length);
   const first = items[0], last = items[items.length - 1];
   if (!first) return;

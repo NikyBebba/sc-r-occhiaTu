@@ -58,6 +58,92 @@ function reviewCardsHtml(movie) {
   }).join('');
 }
 
+// Disclosure locale alla card: i form e le guardie dati restano quelli esistenti.
+function cardSectionHtml(label, content, summary = '') {
+  if (!content.trim()) return '';
+  return `<details class="movie-card-section"><summary><span>${label}</span>${summary ? `<span class="movie-card-summary">${escapeHtml(summary)}</span>` : ''}<i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary><div class="movie-card-section-body card-action-row">${content}</div></details>`;
+}
+
+function cardReviewsHtml(movie) {
+  const reviews = ['N', 'V', 'both'].filter(person => reviewTextFor(movie, person));
+  return cardSectionHtml(reviews.length === 1 ? 'Recensione' : `Recensioni · ${reviews.length}`, reviews.map(person => {
+    const label = person === 'both' ? sharedPeopleLabel() : person;
+    const score = person === 'both' ? togetherRating(movie) : personalRating(movie, person);
+    return `<div class="movie-card-review"><span class="text-[11px] font-bold text-indigo-300">Recensione ${escapeHtml(label)}${score !== null ? ` · ★ ${formatMovieRating(score)}/10` : ''}</span><p class="movie-card-review-text is-clamped">“${escapeHtml(reviewTextFor(movie, person))}”</p><button type="button" class="movie-card-review-toggle" aria-expanded="false" hidden>Mostra altro<span class="sr-only"> · Recensione ${escapeHtml(label)}</span></button></div>`;
+  }).join(''));
+}
+
+function cardEvaluationsHtml(movie, projection) {
+  if (movie.surprise_by && movie.surprise_by !== currentUser) return '';
+  const contexts = [];
+  if (personalVoteButtonHtml(movie)) contexts.push(currentUser);
+  if (projection.nightId || togetherSeen(movie)) contexts.push('both');
+  if (!contexts.length) return '';
+  const id = jsAttrEscape(movie.id);
+  return `<div class="movie-card-management-group"><h4>Valutazioni</h4>${contexts.map(person => {
+    const label = person === 'both' ? sharedPeopleLabel() : CONFIG.PEOPLE[person]?.label || person;
+    const hasData = (person === 'both' ? togetherRating(movie) : personalRating(movie, person)) !== null || !!reviewTextFor(movie, person);
+    const editableRemoval = person !== 'both' || togetherSeen(movie);
+    const edit = hasData ? 'Modifica voto e recensione' : 'Aggiungi voto o recensione';
+    return `<div class="movie-card-evaluation-row" data-evaluation-context="${person}"><span class="auth-person-initial movie-card-evaluation-badge${person === 'V' ? ' auth-person-v' : person === 'both' ? ' is-shared' : ''}" aria-label="Valutazione ${escapeHtml(label)}">${escapeHtml(label)}</span><div>
+      <button type="button" onclick="${person === 'both' ? 'addReview' : 'addPersonalReview'}('${id}')" class="movie-card-icon-action ${person === 'both' ? 'shared-vote-action' : 'personal-vote-action personal-vote-' + person.toLowerCase()}" aria-label="${edit} ${escapeHtml(label)}" title="${edit} ${escapeHtml(label)}"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+      ${hasData && editableRemoval ? `<button type="button" onclick="removeEvaluationUI('${id}', '${person}')" class="movie-card-icon-action movie-card-evaluation-remove" aria-label="Rimuovi voto o recensione ${escapeHtml(label)}" title="Rimuovi voto o recensione ${escapeHtml(label)}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>` : ''}
+    </div></div>`;
+  }).join('')}</div>`;
+}
+
+// Il veto resta raggiungibile dalla scheda grande, con le condizioni originali.
+function detailVetoActionHtml(movie) {
+  if ((movie.surprise_by && movie.surprise_by !== currentUser) || !normalListEligible(movie)) return '';
+  const id = jsAttrEscape(movie.id), veto = vetoForMovieThisWeek(movie.id);
+  if (veto) return veto.person === currentUser ? `<button onclick="unvetoMovie('${id}')" class="min-h-11 px-3 py-2 rounded-lg text-rose-300 bg-rose-900/50">Togli il veto</button>` : '';
+  return `<button onclick="vetoMovie('${id}', '${jsAttrEscape(movie.title)}')" class="min-h-11 px-3 py-2 rounded-lg text-slate-300 bg-slate-800">Vieta questa settimana</button>`;
+}
+
+function cardOperationsHtml(m, projection, isSurpriseHidden) {
+  const eligible = m.status === 'watchlist' || projection.nightId || m.status === 'watched';
+  const id = jsAttrEscape(m.id);
+  const title = jsAttrEscape(m.title);
+  let programming = '', management = '';
+  if (eligible) {
+    if (!isSurpriseHidden) {
+      management += personalWatchButtonHtml(m) + `<div class="movie-card-management-group"><h4>Lista</h4>${rewatchActionsHtml(m, { compact: true })}</div>`;
+      if (!projection.nightId || isRewatch(m)) {
+        programming += `<div class="flex gap-2"><button onclick="quickTonightUI('${id}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded font-medium">Oggi</button><button onclick="scheduleMovie('${id}')" aria-label="Programma la serata" class="flex-1 px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded">Programma</button></div>
+          <button onclick="toggleCinemaWatchlist('${id}')" class="w-full min-h-9 px-2 py-1.5 text-xs text-amber-200 hover:text-amber-100 underline">${m.cinema_watchlist ? 'Sposta in Streaming' : 'Sposta al cinema / prossimamente'}</button>`;
+      }
+    }
+    if (projection.nightId) {
+      programming += projectionInfoHtml(m) + `<button onclick="finishTogetherNightUI('${id}', '${jsAttrEscape(projection.nightId)}')" class="min-h-11 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">Completa serata</button>`;
+    }
+    management += cardEvaluationsHtml(m, projection);
+  }
+  if (m.matched === false) management += `<button onclick="retryMatch('${id}', '${title}')" class="text-amber-400 hover:text-amber-300 underline">Correggi titolo e ricerca di nuovo</button>`;
+  management += `<button onclick="deleteMovieConfirm('${id}', '${title}')" class="movie-card-delete min-h-11 text-rose-400 hover:text-rose-300 rounded-lg"><i class="fa-solid fa-trash" aria-hidden="true"></i> Rimuovi film</button>`;
+  const summary = projection.nightId ? formatNightDate(projection.scheduled_date, projection.scheduled_time) : '';
+  return `<div class="movie-card-sections pt-2 border-t border-slate-800/80 text-xs">${cardSectionHtml('Programmazione', programming, summary)}${cardSectionHtml('Gestione', `<div class="movie-card-management">${management}</div>`)}</div>`;
+}
+
+// Native details/summary gestiscono tastiera e stato aperto senza handler per ogni CTA.
+function bindCardDisclosure(card) {
+  const sections = card.querySelectorAll?.('.movie-card-section') || [];
+  sections.forEach(section => section.addEventListener('toggle', () => {
+    if (!section.open) return;
+    sections.forEach(other => { if (other !== section) other.open = false; });
+    section.querySelectorAll('.movie-card-review').forEach(review => {
+      const text = review.querySelector('p');
+      const button = review.querySelector('button');
+      if (button.getAttribute('aria-expanded') !== 'true') button.hidden = text.scrollHeight <= text.clientHeight + 1;
+    });
+  }));
+  card.querySelectorAll?.('.movie-card-review-toggle').forEach(button => button.addEventListener('click', () => {
+    const expanded = button.getAttribute('aria-expanded') !== 'true';
+    button.setAttribute('aria-expanded', String(expanded));
+    button.previousElementSibling.classList.toggle('is-clamped', !expanded);
+    button.firstChild.textContent = expanded ? 'Mostra meno' : 'Mostra altro';
+  }));
+}
+
 // ---- Il Nostro Cinema — una card per ogni serata completata, anche rewatch.
 // Nessun timbro d'origine: il ticket PNG non viene conservato nel database. ----
 // Costruzione della card e binding del dettaglio; il coordinatore la inserisce nella griglia.
@@ -103,9 +189,6 @@ function createMovieCard(m, vetoedIds) {
         <div>
           <div class="flex items-start justify-between gap-2">
             <h3 class="font-bold text-slate-100 text-base leading-snug">${isSurpriseHidden ? '???' : escapeHtml(m.title)}</h3>
-            <button onclick="deleteMovieConfirm('${m.id}', '${jsAttrEscape(m.title)}')" class="text-slate-400 hover:text-rose-400 transition shrink-0" title="Rimuovi">
-              <i class="fa-solid fa-trash text-xs"></i>
-            </button>
           </div>
           ${m.director ? `<div class="mt-1 text-[10px] text-slate-400 truncate" title="${escapeHtml(m.director)}"><i class="fa-solid fa-user mr-1"></i>${escapeHtml(m.director)}</div>` : ''}
           <div class="flex items-center gap-2 mt-1 flex-wrap">
@@ -115,7 +198,6 @@ function createMovieCard(m, vetoedIds) {
             ${projection.nightId && currentTab === 'tonight' ? `<span class="badge bg-indigo-600/90"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatNightDate(projection.scheduled_date, projection.scheduled_time))}</span>` : ''}
           </div>
           ${viewingStatusHtml(m)}
-          ${m.matched === false ? `<button onclick="retryMatch('${m.id}', '${jsAttrEscape(m.title)}')" class="mt-1 text-[10px] text-amber-400 hover:text-amber-300 underline">Correggi titolo e ricerca di nuovo</button>` : ''}
           ${(m.imdb_rating || m.rt_rating || m.metacritic_rating) ? `
             <div class="rating-holo flex gap-2 mt-1 px-2 py-1 rounded text-[10px] text-slate-400">
               ${m.imdb_rating ? `<span><i class="fa-solid fa-star text-amber-400"></i> IMDb ${m.imdb_rating}</span>` : ''}
@@ -123,37 +205,10 @@ function createMovieCard(m, vetoedIds) {
               ${m.metacritic_rating ? `<span class="text-emerald-400">MC ${m.metacritic_rating}</span>` : ''}
             </div>
           ` : ''}
-          ${reviewCardsHtml(m)}
+          ${cardReviewsHtml(m)}
           ${sagaButtonHtml(m)}
         </div>
-        ${(m.status === 'watchlist' || projection.nightId || m.status === 'watched') ? `
-        <div class="card-action-row flex flex-col gap-2 pt-2 border-t border-slate-800/80 text-xs">
-          ${!isSurpriseHidden ? personalWatchButtonHtml(m) : ''}
-          ${!isSurpriseHidden ? rewatchActionsHtml(m) : ''}
-          ${!isSurpriseHidden && (!projection.nightId || isRewatch(m)) ? `
-            <div class="flex gap-2">
-              <button onclick="quickTonightUI('${m.id}')" class="flex-1 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded font-medium">Oggi</button>
-              <button onclick="scheduleMovie('${m.id}')" aria-label="Programma la serata" class="flex-1 px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded">Programma</button>
-              ${normalListEligible(m) && !isVetoed
-                ? `<button onclick="vetoMovie('${m.id}', '${jsAttrEscape(m.title)}')" aria-label="Vieta questa settimana" class="px-2 py-1.5 bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 rounded" title="Vieta questa settimana"><i class="fa-solid fa-ban"></i></button>`
-                : (normalListEligible(m) && vetoForMovieThisWeek(m.id) && vetoForMovieThisWeek(m.id).person === currentUser
-                  ? `<button onclick="unvetoMovie('${m.id}')" aria-label="Togli il veto" class="px-2 py-1.5 bg-rose-900/50 hover:bg-rose-900/80 text-rose-300 rounded" title="Togli il veto"><i class="fa-solid fa-rotate-left"></i></button>`
-                  : '')}
-            </div>
-            ${!isSurpriseHidden ? `<button onclick="toggleCinemaWatchlist('${jsAttrEscape(m.id)}')" class="w-full min-h-9 px-2 py-1.5 text-xs text-amber-200 hover:text-amber-100 underline">${m.cinema_watchlist ? 'Sposta in Streaming' : 'Sposta al cinema / prossimamente'}</button>` : ''}
-          ` : ''}
-          ${projection.nightId ? `
-            ${projectionInfoHtml(m)}
-            ${`<button onclick="finishTogetherNightUI('${jsAttrEscape(m.id)}', '${jsAttrEscape(projection.nightId)}')" class="flex-1 min-h-11 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">Completa serata</button>`}
-            ${sharedVoteButtonHtml(m)}
-          ` : ''}
-          ${togetherSeen(m) && !projection.nightId && !isSurpriseHidden ? `
-            ${sharedVoteButtonHtml(m)}
-          ` : ''}
-          ${personalVoteButtonHtml(m)}
-          ${personalRemovalButtonsHtml(m)}
-        </div>
-        ` : ''}
+        ${cardOperationsHtml(m, projection, isSurpriseHidden)}
       </div>
     `;
     // Step3 phase9 — dettaglio film: il click sulla card apre il modale, ma
@@ -162,9 +217,10 @@ function createMovieCard(m, vetoedIds) {
     card.addEventListener('click', e => {
       if (isSurpriseHidden) return;
       const t = e && e.target;
-      if (t && t.closest && t.closest('button, a, input, select, textarea')) return;
+      if (t && t.closest && t.closest('button, a, input, select, textarea, details, summary')) return;
       openMovieDetail(m.id, card);
     });
+    bindCardDisclosure(card);
     return card;
 }
 
@@ -175,11 +231,12 @@ function knownMovieStatusHtml(movie) {
   const label = state.N && state.V ? "Entrambi l’avete già visto" : state.N ? "N l’ha già visto" : state.V ? "V l’ha già visto" : 'Già nel catalogo';
   return `<div class="text-xs text-amber-300">${label}${state.together ? ' · Visto insieme' : ''}${movie.in_shared_list ? ' · In Lista' : ' · Fuori Lista'}</div>`;
 }
-function rewatchActionsHtml(movie) {
+function rewatchActionsHtml(movie, { compact = false } = {}) {
   const rewatch = isRewatch(movie);
   const badge = movie.in_shared_list ? `<span class="badge bg-indigo-600/80">${rewatch ? 'In gioco' : 'In Lista'}</span>` : '<span class="text-xs text-slate-400">Fuori Lista</span>';
   // Ricandidare titoli già visti insieme è una futura azione; Programma/Oggi restano disponibili.
   const toggle = togetherSeen(movie) && !movie.in_shared_list ? '' : `<button onclick="toggleSharedList('${jsAttrEscape(movie.id)}')" class="min-h-11 px-3 py-2 rounded-lg bg-indigo-600/20 text-indigo-300">${movie.in_shared_list ? 'Togli dalla Lista' : rewatch ? 'Rimetti in gioco' : 'Aggiungi alla nostra Lista'}</button>`;
+  if (compact) return `<div class="movie-card-list-row"><span>${rewatch ? 'Rewatch · ' : ''}${badge}</span>${toggle}</div>`;
   return `<div class="text-sm text-slate-300">${rewatch ? 'Rewatch · Entrambi l’avete già visto · ' : ''}${badge}</div>${toggle}`;
 }
 function personalRemovalButtonsHtml(movie) {

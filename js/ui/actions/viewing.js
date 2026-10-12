@@ -188,7 +188,7 @@ async function removePersonalRating(id) {
   if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
   if (!(await showConfirmModal('Rimuovere il tuo voto?', 'Lo stato visto del film e la recensione resteranno invariati.'))) return;
   if (!isAppAuthorized() || epoch !== authEpoch) return;
-  if (await savePersonalReview(id, null)) await loadMovies();
+  if (await removeEvaluationData(id, currentUser, 'rating')) await loadMovies();
   else showActionError('Non siamo riusciti a rimuovere il voto.');
 }
 async function removePersonalText(id) {
@@ -198,6 +198,49 @@ async function removePersonalText(id) {
   const movie = movies.find(m => m.id === id);
   if (!movie || !(await showConfirmModal('Rimuovere la tua recensione?', 'Il tuo voto e lo stato visto del film resteranno invariati.'))) return;
   if (!isAppAuthorized() || epoch !== authEpoch) return;
-  if (await savePersonalReview(id, personalRating(movie, currentUser), '')) await loadMovies();
+  if (await removeEvaluationData(id, currentUser, 'text')) await loadMovies();
   else showActionError('Non siamo riusciti a rimuovere la recensione.');
+}
+
+// Unico percorso di rimozione: patch limitate a voto/testo del contesto scelto.
+async function removeEvaluationData(id, by, part) {
+  requireAppIdentity();
+  const movie = movies.find(m => m.id === id);
+  if (!movie || !['rating', 'text', 'both'].includes(part)
+      || !['N', 'V'].includes(currentUser) || (by !== currentUser && by !== 'both')
+      || (by === 'both' && !togetherSeen(movie))
+      || (movie.surprise_by && movie.surprise_by !== currentUser)) return false;
+  if (by !== 'both') return savePersonalReview(id,
+    part === 'text' ? personalRating(movie, by) : null, part === 'rating' ? undefined : '');
+  return updateMovie(id, {
+    ...(part !== 'text' ? { seen_rating_together: null } : {}),
+    ...(part !== 'rating' ? { review_text_together: '' } : {})
+  });
+}
+
+async function removeEvaluationUI(id, by) {
+  requireAppIdentity();
+  const epoch = authEpoch;
+  const movie = movies.find(m => m.id === id);
+  if (!movie || !['N', 'V'].includes(currentUser) || (by !== currentUser && by !== 'both')
+      || (by === 'both' && !togetherSeen(movie))
+      || (movie.surprise_by && movie.surprise_by !== currentUser)) return;
+  const hasRating = (by === 'both' ? togetherRating(movie) : personalRating(movie, by)) !== null;
+  const hasText = !!reviewTextFor(movie, by);
+  if (!hasRating && !hasText) return;
+  const label = by === 'both' ? sharedPeopleLabel() : CONFIG.PEOPLE[by]?.label || by;
+  let part;
+  if (hasRating && hasText) part = await showConfirmModal('Cosa vuoi rimuovere?',
+    `Valutazione ${label}. Lo stato visto e le serate resteranno invariati.`, [
+      { value: 'rating', label: 'Solo voto' }, { value: 'text', label: 'Solo recensione' },
+      { value: 'both', label: 'Voto e recensione' }
+    ]);
+  else {
+    part = hasRating ? 'rating' : 'text';
+    if (!(await showConfirmModal(hasRating ? 'Rimuovere il voto?' : 'Rimuovere la recensione?',
+      `Valutazione ${label}. Lo stato visto e le serate resteranno invariati.`))) return;
+  }
+  if (!part || !isAppAuthorized() || epoch !== authEpoch) return;
+  if (await removeEvaluationData(id, by, part)) await loadMovies();
+  else showActionError('Non siamo riusciti a rimuovere la valutazione. Riprova.');
 }

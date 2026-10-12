@@ -2669,7 +2669,7 @@ async function okA(name, fn) {
     okAll = okAll && html.includes('Alpha Watch') && html.indexOf('Beta Tonight') === -1
       && html.indexOf('Gamma Watched') === -1 && html.indexOf('Delta Proposal') === -1
       && cnt(html, 'markSeenUI') === 1 && cnt(html, 'voteMovie') === 0 && cnt(html, 'quickTonightUI') === 1
-      && cnt(html, 'scheduleMovie') === 1 && cnt(html, 'vetoMovie') === 1 && cnt(html, 'addReview') === 0;
+      && cnt(html, 'scheduleMovie') === 1 && cnt(html, 'vetoMovie') === 0 && cnt(html, 'addReview') === 0;
     currentTab = 'tonight';
     movieNights = fixtureCompletedMovies(movies); render();
     html = document.getElementById('movieGrid').innerHTML;
@@ -2707,7 +2707,7 @@ async function okA(name, fn) {
     const ok = html.includes('Alpha Watch') && html.includes('Beta Tonight')
       && html.includes('Gamma Watched') && html.includes('Delta Proposal')
       && cnt(html, 'markSeenUI') === 3 && cnt(html, 'voteMovie') === 0 // watchlist + tonight + Together personale
-      && cnt(html, 'quickTonightUI') === 2 && cnt(html, 'scheduleMovie') === 2 && cnt(html, 'vetoMovie') === 1
+      && cnt(html, 'quickTonightUI') === 2 && cnt(html, 'scheduleMovie') === 2 && cnt(html, 'vetoMovie') === 0
       && cnt(html, 'addReview') === 2
       && cnt(html, 'bg-sky-700/90') === 1 // badge "stasera" solo per il film tonight
       && cnt(html, 'deleteMovieConfirm') === 4; // ogni card ha comunque il cestino (nessun errore per status ignoto)
@@ -2868,7 +2868,7 @@ async function okA(name, fn) {
     } finally { movieNights = fixtureNightsBefore; }
   }));
 
-  ok('azioni voto: personale sotto insieme, nome/colore utente, nessun duplicato e sorpresa protetta', run(() => {
+  ok('azioni voto card: righe personale/insieme, ownership, colore e sorpresa protetta', run(() => {
     const fixtureNightsBefore = movieNights; try {
     const previous = movies, user = currentUser, tab = currentTab;
     currentTab = 'watched';
@@ -2879,8 +2879,8 @@ async function okA(name, fn) {
         const html = document.getElementById('movieGrid')._children[0].innerHTML;
         const name = escapeHtml(CONFIG.PEOPLE[person]?.label || person);
         if (!html.includes('personal-vote-' + person.toLowerCase())
-          || !html.includes('Modifica voto ' + name)
-          || html.indexOf('Modifica voto ' + escapeHtml(sharedPeopleLabel())) > html.indexOf('Modifica voto ' + name)
+          || !html.includes('Modifica voto e recensione ' + name)
+          || html.indexOf('Modifica voto e recensione ' + name) > html.indexOf('Modifica voto e recensione ' + escapeHtml(sharedPeopleLabel()))
           || (html.match(/addPersonalReview\(/g) || []).length !== 1
           || html.includes('Modifica la tua recensione')) return false;
       }
@@ -2987,7 +2987,7 @@ async function okA(name, fn) {
       movieNights=fixtureCompletedMovies(movies); render();
       const html = document.getElementById('movieGrid')._children[0].innerHTML;
       const joint = escapeHtml(sharedPeopleLabel());
-      return html.includes('shared-vote-action') && html.includes('Modifica voto ' + joint)
+      return html.includes('shared-vote-action') && html.includes('Modifica voto e recensione ' + joint)
         && html.includes(joint + ' <i class="fa-solid fa-star" aria-hidden="true"></i> 8,3/10')
         && html.includes('Recensione ' + joint) && !html.includes('Modifica voto insieme')
         && document.getElementById('statsGrid').innerHTML.includes('Voto medio');
@@ -3423,7 +3423,7 @@ async function okA(name, fn) {
     movies = savedMovies; votes = savedVotes; currentUser = prevUser; currentTab = prevTab;
     return before.includes('markSeenUI') && before.includes("L'ho già visto")
       && !before.includes('voteMovie') && !before.includes('Match!')
-      && after.includes('Modifica voto ' + escapeHtml(CONFIG.PEOPLE.N?.label || 'N'))
+      && after.includes('Aggiungi voto o recensione ' + escapeHtml(CONFIG.PEOPLE.N?.label || 'N'))
       && after.includes('addPersonalReview') && after.includes('undoSeenUI');
   }));
 
@@ -3704,7 +3704,7 @@ async function okA(name, fn) {
   }));
 
   console.log('\n[render — pulsante "Togli veto"]');
-  ok('unveto: solo sul veto PROPRIO (veto altrui e assente → nessun bottone)', run(() => {
+  ok('dettaglio unveto: solo sul veto PROPRIO (veto altrui e assente → nessun bottone)', run(() => {
     const saved = movies;
     const prevUser = currentUser, prevTab = currentTab, prevVetoes = vetoes;
     const wk = currentWeekKey();
@@ -3716,21 +3716,23 @@ async function okA(name, fn) {
     let ok1, ok2, ok3;
     vetoes = [{ id: 'vx1', person: 'N', movie_id: 'A', week_key: wk }];
     render();
-    let html = document.getElementById('movieGrid').innerHTML;
+    const noCardVeto = !document.getElementById('movieGrid').innerHTML.includes('vetoMovie');
+    renderMovieDetail(movies[0]);
+    let html = document.getElementById('detailBody').innerHTML;
     ok1 = html.indexOf('onclick="unvetoMovie(') !== -1 && html.indexOf('onclick="vetoMovie(') === -1;
     vetoes = [{ id: 'vx2', person: 'V', movie_id: 'A', week_key: wk }];
-    render();
-    html = document.getElementById('movieGrid').innerHTML;
+    renderMovieDetail(movies[0]);
+    html = document.getElementById('detailBody').innerHTML;
     ok2 = html.indexOf('unvetoMovie') === -1 && html.indexOf('onclick="vetoMovie(') === -1;
     vetoes = [];
-    render();
-    html = document.getElementById('movieGrid').innerHTML;
+    renderMovieDetail(movies[0]);
+    html = document.getElementById('detailBody').innerHTML;
     ok3 = html.indexOf('unvetoMovie') === -1 && html.indexOf('onclick="vetoMovie(') !== -1;
     currentTab = prevTab;
     currentUser = prevUser;
     vetoes = prevVetoes;
     movies = saved;
-    return ok1 && ok2 && ok3;
+    return noCardVeto && ok1 && ok2 && ok3;
   }));
 
   console.log('\n[proiezioni — oggi, snack, luogo e proposte visibili]');

@@ -333,6 +333,11 @@
           <button id="historySwitchN" type="button" aria-pressed="true" onclick="setTab('history_n')">Storico N</button>
           <button id="historySwitchV" type="button" aria-pressed="false" onclick="setTab('history_v')">Storico V</button>
         </div>
+        <div id="historySearch" class="history-search hidden">
+          <label for="historySearchInput" class="sr-only">Cerca nello storico per titolo o regista</label>
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <input id="historySearchInput" type="search" placeholder="Cerca nello storico…" autocomplete="off" oninput="onHistorySearchInput()">
+        </div>
         <div id="movieGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
       </section>
     </main>
@@ -589,9 +594,10 @@
         <button onclick="cancelConfirmModal()" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <p id="confirmMessage" class="text-sm text-slate-400"></p>
+      <div id="confirmChoices" class="evaluation-removal-choices hidden"></div>
       <div class="flex justify-center gap-2 pt-2">
-        <button id="confirmNo" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
-        <button id="confirmYes" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-sm font-medium">Conferma</button>
+        <button id="confirmNo" class="min-h-11 px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
+        <button id="confirmYes" class="min-h-11 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-sm font-medium">Conferma</button>
       </div>
     </div>
   </div>
