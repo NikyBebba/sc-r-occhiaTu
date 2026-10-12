@@ -1,14 +1,16 @@
 # Phase 8.3 — Film al cinema e prossimamente
 
 Stato corrente: flag cinema implementato, migration Step 10 già applicata;
-produzione v54 e candidato frontend v55 locale, cache v55.
-Le viste Streaming/Cinema appartengono alla Lista. Storico v55 è autonomo
-dalla Home, ha solo switch N/V e include tutti i rispettivi seen=true anche
+**produzione v60** al 12 ottobre 2026. [Baseline ufficiale](MASTER_CONTEXT.md).
+Le viste Streaming/Cinema appartengono alla Lista. Storico è autonomo
+dalla Home, ha switch N/V e include tutti i rispettivi seen=true anche
 al cinema e fuori Lista, senza filtri disponibilità/ordinamento Lista.
 Ricordi conserva statistiche, Serate concluse e Dopo il film, senza Storico.
 La candidatura in_shared_list resta distinta da cinema e visto personale;
 nessuna modifica v55 ai predicati Ruota/Match o al modello DB.
-[UX corrente](UX_NAVIGATION_MEMORIES.md).
+[UX corrente](UX_NAVIGATION_MEMORIES.md). Storico dispone ora della ricerca
+locale N/V; [card pubblicate](MOVIE_CARD_DISCLOSURE.md). Le verifiche dei cicli
+precedenti sotto sono storiche, senza riaprire la release conclusa.
 
 ## Posizione storica nella roadmap
 

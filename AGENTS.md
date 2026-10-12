@@ -1,13 +1,58 @@
 # AGENTS.md — sc(r)occhiaTu
 
-Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 9 ottobre 2026 (frontend v59 in produzione e pulsante Password dimenticata? testato dall’utente, recovery v58 verificato; Auth/RLS e migration v54 già applicate).
+Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 12 ottobre 2026 (release v60 conclusa e verificata in produzione; Auth/RLS, v54 e migration incrementale snack già applicate).
 Prima di progettare una fase leggere [docs/MASTER_CONTEXT.md](docs/MASTER_CONTEXT.md):
-è la fonte dello stato corrente, delle decisioni UX e della roadmap. Le sezioni
+è la fonte dello stato corrente e delle decisioni UX. Per priorità future leggere
+[docs/PRODUCT_ROADMAP.md](docs/PRODUCT_ROADMAP.md); per scalabilità leggere
+[docs/ARCHITECTURE_VISION.md](docs/ARCHITECTURE_VISION.md). Le sezioni
 storiche del master context descrivono cicli precedenti, non lo stato finale.
 Per modelli e flussi specifici consultare anche le specifiche Phase 22/23/38/41.
 Vincoli, sicurezza e contratto Match di questo file restano applicabili.
 
-## Stato corrente v59 production
+## Stato corrente v60 production
+
+Baseline ufficiale: commit `0813e721e963191b285f357789a9dddd967c6162`,
+`fix: preserve movie nights and editable memories`,
+[produzione](https://sc-r-occhia-tu.vercel.app/), cache `scorochiatu-shell-v60`.
+Release conclusa e verificata: 45/45 file hosted HTTP 200 e identici al commit,
+bootstrap online PASS, responsive 320/390/768 PASS, zero errori JS online,
+nessun asset mancante. Risultati registrati, non nuovi test live di questo task.
+
+Precedente release inclusa: `91ecb9b4adeb82cefb7d5fdbd1a2e1a54bd7a248`,
+`feat: redesign movie cards and add history search`.
+Card con progressive disclosure, principali informazioni/stati/voti visibili,
+Trailer/saga indipendenti, Gestione compatta e valutazioni N/V/N+V contestuali
+con badge identità login; veto nel dettaglio, ricerca locale Storico N/V.
+Personal watch state indipendente da Together; i due pallini oro non alterano seen.
+
+Serate proposed/confirmed con orario raggiunto concludibili oltre mezzanotte
+anche dopo reload; nessuna finestra 2/3, duplicazione o modifica automatica di
+data/ora. Future/completed/cancelled/skipped escluse dal completamento pendente;
+arretrati in cartellone senza monopolizzare Home. Ricordi tutto chiuso a nuova
+apertura, scelte manuali preservate nei rerender dello stesso modal.
+Snack solo visualizzato nelle card Ricordi; modifica da Gestione → Valutazioni
+→ N+V → modifica, con precompilazione/aggiunta e vuoto → NULL sull’evento
+Together selezionato, corretto anche per rewatch. Luogo invariato.
+Voto/testo N+V restano sul film; snack/location sul singolo evento.
+
+`database/supabase-migration-completed-night-snack.sql` applicata manualmente
+al Supabase reale dall’utente: RPC edit consente snack completed, preserva
+location e protezioni schedule/stati terminali/Auth/membership/ownership;
+ritorna prima dell’UPDATE movies. Non modificare/rieseguire la migration v54.
+[Contratto v60](docs/MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
+
+Import JustWatch concluso: 354 titoli, 354/354 risolti, 337 nuovi, 436 totali al
+termine dell’import; shared list, seen_v e Together preservati, nessuna serata
+fittizia o rating/review inventata. Sleepers, Nuovo Cinema Paradiso, The Prestige
+e American Psycho intenzionalmente non seen_n. Scary Movie poi visto da N anche
+personalmente, con Together conservato. Non correggere il DB; artefatti import
+fuori repository. Conteggi dell’import distinti da un nuovo audit live.
+
+Debito PWA non bloccante: online PASS, shell offline caricata ma
+`tailwind is not defined` nel test offline, collegato a Tailwind CDN e
+non introdotto dalla v60. Futura fase hardening/offline/PWA, nessun fix implicito.
+
+## Storico: produzione v59 — Password dimenticata?
 
 Commit `9545693090920cab20d4ef67b97b8647db7ae947`, origin/main allineato alla release.
 Push/deployment Vercel completati. HTTP: 41/41 file runtime identici al commit,
@@ -31,7 +76,8 @@ Production commit `f3c49fd110592e9d8883f5e797809cf6fc34c0f2`, SW `scorochiatu-sh
 Push e deployment Vercel completati; 41/41 file runtime HTTP 200 e identici al commit.
 Migration Individual/Rewatch v54 eseguita una sola volta dall’utente; audit
 pre/post 24/24 e checkpoint integro. Non rieseguire cutover o migration.
-Le release frontend successive non modificano database, RLS, RPC o account.
+Le release frontend v55–v59 non modificavano database, RLS, RPC o account;
+la v60 include la migration incrementale snack descritta nel checkpoint corrente.
 
 Login standard: N/V → Account precompilato visibile/editabile → Password.
 Username email con autocomplete="username"; password con
@@ -84,8 +130,17 @@ Web app condivisa per **due persone, N e V**, che permette di:
 - consultare «Ricordi» / «Titoli di coda», storico mensile e quattro riepiloghi;
 - consultare gli altri capitoli di una saga TMDb e aggiungerli esplicitamente.
 
-La direzione del prodotto è: **un piccolo spazio condiviso per due persone
-che trasforma la scelta di un film in una piccola esperienza/rituale**.
+La versione privata è un piccolo spazio per due persone; la direzione di
+prodotto copre **discovery → proposta → decisione condivisa → programmazione
+→ visione → valutazione → ricordo**. Tracking personale e interazioni condivise
+sono centrali; la roadmap supera il solo catalogo/watchlist/tracker.
+
+Ogni nuova feature significativa va valutata su **Content / User / Group /
+Community**. N e V sono progressivamente due istanze di User: usare N/V dove
+necessario oggi, evitare hardcoding superfluo quando una soluzione altrettanto
+semplice è generalizzabile. Nessun refactoring prematuro o migrazione automatica.
+La prossima grande fase è Discovery & Recommendation Engine, prima di
+multiutente e serie; separare recommendation personale e di gruppo.
 
 L'esperienza deve essere: semplice, mobile-first, condivisa, veloce, ludica,
 cinematografica, personale. Il tono deve essere leggero e giocoso, con riferimenti
@@ -195,8 +250,8 @@ theme (head) → config → format → haptics → audio → api(omdb+tmdb → i
 - `scripts/audit-data-model.js` — audit solo GET paginati (`--live`) o fixture
   (`--file=...`), output aggregato senza ID/titoli/credenziali. Distingue legacy
   senza eventi, mirror divergenti/chiusi, multi-eventi e date mancanti; non migra.
-- `data/movie-watchlist.json` — lista ufficiale titoli (source of truth), N: 116
-  + V: 15 = 131.
+- `data/movie-watchlist.json` — fonte ufficiale storica dell’import iniziale, N: 116
+  + V: 15 = 131; non inventario corrente del catalogo dopo JustWatch.
 
 Stato core: variabili globali (`movies`, `vetoes`, `movieNights`,
 `currentUser`, `currentTab`, `dbMode`). Ogni azione segue il ciclo:
@@ -276,7 +331,7 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 
 ## Modello dati
 
-- `app_members(user_id UUID FK auth.users, person UNIQUE N/V)`: migration locale,
+- `app_members(user_id UUID FK auth.users, person UNIQUE N/V)`: migration applicata,
   mapping amministrativo; membro legge solo se stesso, nessuna scrittura client.
 
 - `movies(id, title, added_by, status, duration, platform, poster,
@@ -329,6 +384,10 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
     possono puntare allo stesso film (rewatch), storico persistente per
     calendario/streak future.
   - `date NULL` = pick veloce "Oggi" (senza data fissa).
+  - RPC edit consente snack/location su completed; schedule protetto,
+    cancelled/skipped protetti. Edit ritorna prima dell’UPDATE movies.
+    Snack vuoto → NULL sull’evento selezionato; voti/testi N+V sul film.
+    Migration snack incrementale già applicata, v54 storica immutata.
 
 ## UX principles
 
@@ -375,18 +434,24 @@ bonus sottotitolo-prefisso + alias documentati, fallback OMDb, idempotente).
 
 ## Feature pianificate (NON implementate)
 
+Ordine autorevole: [roadmap Fase 0–10](docs/PRODUCT_ROADMAP.md). Fase 0 baseline
+implementata; prossima Fase 1 Discovery & Recommendation Engine, poi Decision
+Engine, competitive analysis, Architecture V2, serie, account, lobby,
+intelligence 2.0, community e productization. Nessuna fase TO-BE è già presente.
+Le idee precedenti sotto sono EXPLORATORY, non priorità parallele alla Fase 1.
+
 Hot Picks (richiede ulteriori dati e migration autorizzata), export .ics, giorno fisso
 settimanale, streak, gamification senza leaderboard, Poster Flip,
 raccomandazioni avanzate, statistiche personali, eventuale spazio Extra,
 citazione casuale, wildcard TMDb nella Ruota ed easter egg.
 **Nessuna va implementata senza una fase dedicata.** Non riproporre come
 future saghe, ticket, calendario, audio, temi, PWA o voti decimali: sono presenti.
-Per le priorità precise leggere il master context aggiornato.
+Per le priorità precise leggere la roadmap ufficiale e il master context aggiornato.
 
 ## Vincoli tecnici
 
 - Dipendenze ancora via CDN (Tailwind Play, Font Awesome, supabase-js).
-- PWA presente: manifest e service worker, cache release `scorochiatu-shell-v59`; domini API,
+- PWA presente: manifest e service worker, cache release `scorochiatu-shell-v60`; domini API,
   Supabase, poster e YouTube sempre esclusi dall'intercettazione. Le icone PWA
   sono provvisorie; non confondere l'app-shell offline con dati remoti disponibili.
 - HTML delle card generato come stringhe: usare `escapeHtml`/`jsAttrEscape`

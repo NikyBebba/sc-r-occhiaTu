@@ -4,7 +4,18 @@ Lifecycle oltre mezzanotte, Ricordi chiuso all’apertura e snack nel form N+V
 validati. L’utente conferma PASS end-to-end su localhost contro Supabase reale.
 La migration snack è già stata applicata manualmente dall’utente nel progetto
 corretto; nessuna nuova esecuzione o scrittura reale da parte dell’agente.
-Pubblicazione Git/Vercel autorizzata; app-shell aggiornato a cache v60.
+Pubblicazione Git/Vercel completata: baseline ufficiale
+`0813e721e963191b285f357789a9dddd967c6162`,
+`fix: preserve movie nights and editable memories`, app-shell
+`scorochiatu-shell-v60`. Release conclusa e verificata in
+[produzione](https://sc-r-occhia-tu.vercel.app/): 45/45 file hosted HTTP 200 e
+identici al commit, bootstrap online PASS, responsive 320/390/768 PASS,
+nessun errore JS online e nessun asset mancante. Risultati del ciclo concluso,
+non nuovi test live di questo aggiornamento documentale.
+
+Debito non bloccante: shell offline caricata, ma `tailwind is not defined` nel
+test offline a causa della dipendenza Tailwind CDN; non introdotto dalla v60.
+Futuro hardening/offline/PWA. [Stato operativo](MASTER_CONTEXT.md).
 
 ## Audit e riproduzione
 
@@ -77,11 +88,20 @@ apertura, rerender/Realtimes preservano scelte manuali, focus e scroll;
 la paginazione conserva la semantica precedente. Tutto solo in memoria,
 con summary nativi, aria-expanded e tastiera. Statistiche/contenuti invariati.
 
-## Snack nel form N+V — UX validata
+## Snack nel form N+V — contratto IMPLEMENTED
+
+Percorso: **Gestione → Valutazioni → N+V → modifica**. Gestisce voto,
+recensione, luogo e snack nel contesto Together selezionato. Snack e luogo
+appartengono allo specifico evento scelto anche in rewatch; voto/testo N+V
+restano sul film e non sono valutazioni autonome per ciascuna serata.
+Snack presente precompilato, assente aggiungibile, campo svuotato → NULL.
+La card Ricordi mostra snack senza modificarlo direttamente.
 
 Inserimento: popup Programma/Oggi, elenco snack, testo custom max 80 e scelta
 vuota; persistenza esclusivamente su movie_nights.snack via manage_movie_night.
-Il ramo edit v54 rifiuta cambi snack su completed con COMPLETED_SNACK_FROZEN.
+Nel contratto storico v54 il ramo edit rifiutava cambi snack su completed
+con COMPLETED_SNACK_FROZEN; questa restrizione è superata dalla migration
+incrementale applicata, descritta sotto.
 Il luogo invece è già modificabile nel form recensione: confirmReview chiama
 updateMovieNight con la sola location; l'adattatore passa lo snack corrente
 alla RPC e p_set_location=true. Questo percorso e la sua UX restano invariati.
@@ -142,4 +162,6 @@ end-to-end del nuovo form locale sul backend reale è PASS, confermato dall’ut
 
 Le suite automatiche usano scritture simulate. Il PASS end-to-end su localhost
 contro il backend reale è confermato dall’utente e distinto dai test automatici.
-Dopo pubblicazione resta utile una prova del form dalla PWA aggiornata.
+La release è conclusa e verificata in produzione secondo la baseline sopra.
+Il precedente PASS localhost/backend reale resta distinto dalla verifica hosted.
+Non attribuire alla verifica HTTP casi Auth/locking non dichiarati.

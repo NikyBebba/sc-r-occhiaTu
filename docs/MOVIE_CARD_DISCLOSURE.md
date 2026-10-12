@@ -1,4 +1,28 @@
-# Movie card e ricerca Storico — redesign validato, 12 ottobre 2026
+# Movie card e ricerca Storico — contratto pubblicato
+
+## Stato corrente — IMPLEMENTED, 12 ottobre 2026
+
+Release `91ecb9b4adeb82cefb7d5fdbd1a2e1a54bd7a248`,
+`feat: redesign movie cards and add history search`, pubblicata e inclusa nella
+baseline production v60 `0813e721e963191b285f357789a9dddd967c6162`.
+[Baseline e verifica production](MASTER_CONTEXT.md).
+
+Progressive disclosure; informazioni/stati/voti principali sempre visibili.
+Trailer e Continua la saga restano CTA indipendenti quando disponibili.
+Recensioni, Programmazione e Gestione richiudibili; Gestione compatta e
+modifica/rimozione voto/recensione contestuali. Badge identità N/V/N+V coerenti
+con il login, distinti dai pallini visto. Veto settimanale nel dettaglio.
+Seen personali indipendenti da Together, che colora entrambi i pallini oro
+senza cambiare seen_n/seen_v. Ricerca locale Storico per titolo/regista,
+con switch N/V e vincolo del rispettivo seen.
+
+Il secondo pass Gestione prevale sulle destinazioni del primo audit (veto
+prima nella card, ora nel dettaglio). Il form N+V nella v60 include anche
+snack/luogo della movie night Together selezionata; completamento pendente solo
+quando l’orario è raggiunto. [Contratto v60](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
+Voto/testo condivisi restano sul film, senza nuove valutazioni per evento.
+
+## Archivio: audit e pass locali prima della pubblicazione
 
 Redesign mirato richiesto dall’utente. Le sezioni seguenti registrano l’audit
 e i pass locali, svolti prima dell’autorizzazione a commit e push. Nessuna

@@ -1,13 +1,15 @@
 # Phase 23 — Ricordi / Titoli di coda
 
-Stato corrente, 9 ottobre 2026: frontend v55 locale su backend v54 già
-migrato/pubblicato. Ricordi contiene statistiche, Serate concluse per anno/mese
-e Dopo il film/recensioni, senza Storico personale. Storico è una destinazione
-autonoma Home con switch N/V e card della Lista, indipendente dalla candidatura
-e dai filtri Lista. I personali usano seen_n/seen_v; Together dai completed
-colora entrambi i pallini originali d’oro senza cambiare i booleani.
-N+V identifica i voti/recensioni condivisi; nessun terzo indicatore Together.
-Cache locale v55. [Specifica e verifiche correnti](UX_NAVIGATION_MEMORIES.md).
+Stato corrente: 12 ottobre 2026, **IMPLEMENTED in produzione v60**.
+[Baseline ufficiale](MASTER_CONTEXT.md). Ricordi conserva statistiche,
+Serate concluse per anno/mese e Dopo il film, senza Storico personale.
+Tutte le disclosure sono chiuse a ogni nuova apertura; le aperture manuali
+restano nei rerender dello stesso modal. Snack visibile nelle card, modificabile
+solo dal form Gestione → Valutazioni → N+V sull’evento selezionato.
+Voto/testo N+V restano sul film. [Contratto v60](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
+Storico Home con switch N/V e ricerca locale: [card/ricerca](MOVIE_CARD_DISCLOSURE.md).
+Together dai completed colora i due pallini oro senza modificare seen_n/seen_v.
+Le sezioni originali sotto sono storiche, con verifiche limitate al proprio ciclo.
 
 ## Archivio della fase originale — 5 ottobre 2026
 

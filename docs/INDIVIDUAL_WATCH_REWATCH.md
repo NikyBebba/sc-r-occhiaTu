@@ -1,13 +1,25 @@
-# Individual Watch Status, Storico e Rewatch — v54 production / v55 locale
+# Individual Watch Status, Storico e Rewatch
 
-Checkpoint 9 ottobre 2026: v54 pubblicata al commit
-`7855c16cae940c4f1b9a3d4267cc9c0db95c9107`, cache production v54.
-Migration applicata integralmente una sola volta dall’utente, audit
-pre/post 24/24 e confronto integrale checkpoint tutti true.
-Verifica HTTP v54 PASS; primo uso reale backend/caricamento positivo,
-con problemi UX affrontati dalla v55. Non è un collaudo completo v54/v55.
-La v55 è frontend locale, cache v55; nessun commit/push/deploy v55.
-Le protezioni DB v54 restano invariate e non vanno riapplicate.
+Stato corrente: 12 ottobre 2026, **IMPLEMENTED in produzione v60**,
+commit `0813e721e963191b285f357789a9dddd967c6162`.
+[Baseline e verifiche](MASTER_CONTEXT.md). Migration v54 applicata una sola
+volta dall’utente; non rieseguirla né modificarla. Ownership personale e assi
+seen/candidatura/Together conservati. La dichiarazione personale è indipendente
+anche quando Together esiste; oro sui due pallini senza cambiare seen_n/seen_v.
+Storico dalla Home con ricerca locale titolo/regista e switch N/V;
+[card pubblicate](MOVIE_CARD_DISCLOSURE.md).
+
+La RPC è ora aggiornata dalla [migration snack completed](../database/supabase-migration-completed-night-snack.sql),
+applicata manualmente dall’utente: edit consente snack/location sui completed,
+con schedule e altri stati terminali protetti, ritorno prima dell’UPDATE movies.
+[V60: lifecycle/Ricordi e dettagli N+V](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
+Voto/testo N+V sul film; snack/luogo sulla movie night selezionata.
+Le sezioni v54/v55 sotto conservano audit, checkpoint e verifiche originarie.
+Checkpoint storico v54: commit `7855c16cae940c4f1b9a3d4267cc9c0db95c9107`,
+cache v54; audit pre/post 24/24 e confronto integrale checkpoint tutti true,
+HTTP PASS. Il primo uso reale positivo attestava backend/caricamento e non
+un collaudo completo di ogni flusso; le rifiniture frontend v55 furono poi
+pubblicate. Questi risultati storici restano distinti dalla baseline v60.
 
 ## Contratto
 
@@ -106,7 +118,9 @@ INSERT/UPDATE/DELETE diretti su movie_nights sono revocati anche a livello
 colonna; TRUNCATE revocato su entrambe le tabelle. SELECT/RLS/Realtime e le
 altre tabelle conservano il contratto esistente. Complete/cancel/confirm
 sono idempotenti sugli stati ammessi; completed non riapribile, cancellabile
-o riassegnabile dal client. Edit completed modifica il luogo, non data/snack.
+o riassegnabile dal client. Edit completed oggi modifica luogo/snack, non
+la programmazione; la precedente protezione snack v54 è superata soltanto
+dalla migration incrementale applicata nella v60.
 Le conclusioni non programmate senza evento riutilizzano il completed già
 presente per i retry; rewatch successivi creano un evento tramite Oggi/Programma.
 
@@ -306,7 +320,7 @@ Per v55 non serve SQL: eventuale commit/push/deploy richiede autorizzazione.
 
 Non ripetere i passaggi DB conclusi. Il ciclo v55 modifica solo frontend e documentazione.
 
-## UX finale v55 (locale)
+## Archivio: UX finale v55 prima della pubblicazione
 
 Storico è una destinazione interna autonoma, aperta dal widget Home, non un
 modale e non una voce della bottom navigation. Riusa movieGrid e

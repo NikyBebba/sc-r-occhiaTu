@@ -1,7 +1,9 @@
 # Proiezioni: oggi, programmazione e dettagli
 
-Checkpoint corrente: 9 ottobre 2026, produzione v54 / frontend locale v55,
-cache candidata v55. I popup Oggi/Programma restano invariati nella v55.
+Stato corrente: 12 ottobre 2026, **IMPLEMENTED in produzione v60**.
+[Baseline ufficiale](MASTER_CONTEXT.md). Oggi/Programma e contratto di
+programmazione solo su movie_nights conservati. Le verifiche v48 in fondo
+sono storiche. [Lifecycle oltre mezzanotte e modifica N+V](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
 
 ## Esperienza implementata
 
@@ -17,13 +19,21 @@ crea eventi. Il risultato Ruota resta disponibile se si annulla il popup.
 «Snack e luogo» nel hero, nelle card programmate e in «In cartellone» permette
 di cambiare o rimuovere entrambi i dettagli, prima o dopo l'accettazione.
 Non cambia data, ora, stato, autore, voto o recensione e non crea un altro evento.
-Il luogo resta disponibile nel form voto/recensione e nelle Serate concluse di Ricordi; concludere
-rapidamente una proiezione conserva il luogo già scelto.
+Il luogo resta disponibile nel form voto/recensione e visibile nelle Serate
+concluse di Ricordi; concludere rapidamente conserva quello già scelto.
+Su Together completed, Gestione → Valutazioni → N+V → modifica gestisce anche
+snack: presente precompilato, assente aggiungibile, vuoto → NULL. Snack/luogo
+puntano alla movie night selezionata anche nei rewatch; voto/testo N+V restano
+sul film. Le card Ricordi mostrano lo snack senza modificarlo direttamente.
 
 «In cartellone» vive sotto il hero, fuori dalla vecchia sidebar nascosta.
 Mostra le altre proiezioni attive in formato compatto. Il proponente vede
 l'attesa; l'altro utente può accettare o rifiutare anche mentre c'è un film per
-oggi. Il hero mantiene la priorità di oggi. Il pannello non duplica l'evento
+oggi. Il hero privilegia oggi e poi il prossimo futuro; gli arretrati restano
+nel cartellone senza monopolizzarlo. Proposed/confirmed con orario raggiunto
+restano concludibili oltre mezzanotte e dopo reload, senza finestra 2/3,
+nuova serata o modifica automatica data/ora; future e closed escluse.
+Il pannello non duplica l’evento
 principale e resta nascosto nel Match; il calendario conserva la sua vista.
 Le azioni indirizzano l'ID dell'evento, anche se due eventi riguardano lo stesso film.
 Titoli di sorprese non rivelate restano nascosti.
@@ -53,8 +63,12 @@ film contrassegnati cinema, anche se la libreria mostra quella categoria.
 
 ## Dati e sincronizzazione
 
-Nessun cambio di schema v55: snack e luogo usano `movie_nights.snack/location` già
-esistenti. Scelta rapida: confirmed, date/time NULL, confirmed_at registrato.
+Snack e luogo usano `movie_nights.snack/location` già esistenti. La v60
+include la [migration incrementale RPC](../database/supabase-migration-completed-night-snack.sql),
+applicata manualmente dall’utente: snack anche su completed, location nel
+percorso esistente, schedule/stati terminali protetti e ritorno edit prima
+dell’UPDATE movies. Auth/membership/ownership invariati, migration v54 immutata.
+Scelta rapida: confirmed, date/time NULL, confirmed_at registrato.
 Programmazione: proposed, data/ora e proposed_by. Dopo i test reali della
 transizione superati sui due client, movie_nights è l’unica fonte:
 nessun fallback/dual-write ai dettagli legacy del film. Catalogo snack

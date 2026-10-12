@@ -1,6 +1,7 @@
 # Phase 38 — Voti decimali da tastierino
 
-Checkpoint corrente: 9 ottobre 2026, produzione v54 / frontend locale v55.
+Stato corrente: 12 ottobre 2026, **IMPLEMENTED in produzione v60**.
+[Baseline ufficiale](MASTER_CONTEXT.md); i checkpoint originali sotto sono storici.
 I voti personali sono leggibili da entrambi e scrivibili solo dal proprietario
 Auth; nessuna copia privata/pubblica. Solo Storico ammette voto assente.
 Nuova candidatura di un film visto dal proponente richiede il suo voto,
@@ -14,7 +15,9 @@ Il runtime corrente legge soltanto i campi moderni: il fallback legacy 1–5
 in lettura. Together deriva esclusivamente dai completed e colora entrambi
 i pallini originali N/V d’oro, senza cambiare gli stati personali.
 Storico autonomo dalla Home, switch N/V senza filtri Lista; Ricordi dedicato
-alle memorie condivise. Nessuna modifica v55 a DB o logica dei voti; cache v55.
+alle memorie condivise. Ricerca locale Storico e valutazioni contestuali nelle
+[card pubblicate](MOVIE_CARD_DISCLOSURE.md); il form N+V include snack/luogo
+dell’evento selezionato, senza spostare i voti dal film. [V60](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
 [Contratto corrente e suite](INDIVIDUAL_WATCH_REWATCH.md).
 
 ## Archivio: implementazione Phase 38 e verifiche originarie

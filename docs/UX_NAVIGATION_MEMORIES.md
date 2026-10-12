@@ -1,8 +1,10 @@
 # Navigazione persistente e Ricordi scalabili
 
-Checkpoint: 9 ottobre 2026. Produzione **v54**, candidato frontend locale **v55**,
-senza commit/push/deploy v55. Nessuna modifica v55 a DB, migration/rollback,
-RLS/RPC, Auth, trasporto Realtime, Match Live o semantica candidacy/Rewatch.
+Stato corrente: 12 ottobre 2026, **IMPLEMENTED in produzione v60**.
+[Baseline ufficiale](MASTER_CONTEXT.md); navigazione e ownership conservate.
+Ricerca Storico e card: [contratto pubblicato](MOVIE_CARD_DISCLOSURE.md).
+Ricordi/lifecycle/snack: [contratto v60](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
+Le verifiche v55 in fondo sono un archivio locale, non lo stato di pubblicazione.
 
 ## Navigazione
 
@@ -32,9 +34,11 @@ Il widget Home Storico apre la destinazione interna `history` attraverso
 `activateDestination('history')` e `setTab('history_n'/'history_v')`.
 Riusa `librarySection`, `movieGrid` e `createMovieCard`: stessa struttura,
 griglia responsive, card, apertura dettaglio e protezioni sorpresa della Lista.
-In alto mostra soltanto lo switch **Storico N | Storico V**, oltre a titolo,
-conteggio e ritorno Home. Nessun filtro Streaming/Cinema, ricerca o ordinamento
-Lista. I film sono ordinati alfabeticamente per titolo.
+In alto mostra switch **Storico N | Storico V**, titolo, conteggio, ritorno Home
+e ricerca locale per titolo/regista. Nessun filtro Streaming/Cinema o
+ordinamento Lista; i film sono alfabetici. La query è condivisa tra switch,
+conservata in memoria durante render e azzerata alla landing/logout; non genera
+fetch per tasto e filtra sempre dopo il seen personale selezionato.
 
 N usa esclusivamente `seen_n === true`, V `seen_v === true`; le due collezioni
 possono sovrapporsi e ignorano `in_shared_list`, filtri Lista e Together.
@@ -60,8 +64,9 @@ i booleani. Nessun terzo indicatore; N+V resta per dati/azioni condivisi.
 Ricordi non contiene Storico personale. Rimane dedicato a statistiche,
 Serate concluse e Dopo il film/recensioni condivise.
 Header del modale sticky; contenuto scorre all'interno. Serate concluse è un
-details aperto di default, con Anno → Mese → card. Al primo caricamento con
-eventi datati si aprono anno e mese più recenti; altri gruppi sono chiusi.
+details chiuso di default, con Anno → Mese → card. A ogni nuova apertura
+sono chiusi In numeri, Serate concluse, Dopo il film, anni/mesi, gruppo senza
+data e singoli testi; nessuna apertura automatica dell’ultimo anno/mese.
 Ogni gruppo mostra il numero di eventi, inclusi rewatch. Data non registrata
 è separata e chiusa. Se non ci sono eventi, rimane il messaggio esistente.
 Regole night.date/completed_at, annullate escluse, protezione sorpresa,
@@ -74,8 +79,11 @@ controlli vuoti; il testo completo usa un details per film. Recensioni personali
 restano nelle card/scheda, senza fusioni o cambi al modello dati.
 
 Lo stato vive soltanto in memoria: sezioni aperte, anno/mese, testi e limite
-Mostra altre sopravvivono a chiusura/riapertura e rerender Realtime. showLanding
-lo resetta all'uscita/lock Auth. Nessun localStorage aggiunto.
+Mostra altre mantengono i comportamenti previsti durante i rerender dello
+stesso modal. Le aperture manuali sono preservate solo nella stessa apertura;
+una nuova apertura azzera le disclosure, e showLanding resetta all’uscita/lock
+Auth. Nessun localStorage aggiunto. Snack solo visualizzato nelle card Ricordi:
+si modifica dal form N+V sull’evento selezionato, anche nei rewatch.
 Prima di ricreare il contenuto si acquisisce lo stato DOM perché toggle è
 asincrono; eventi di nodi già rimossi sono ignorati. Focus ripristinato tramite
 ID stabili senza scroll automatico. Mostra altre porta focus al primo elemento
@@ -89,9 +97,9 @@ focus al trigger alla chiusura; Esc usa lo stack modali esistente.
 - js/ui/render/memories.js: stato temporaneo, gruppi e rendering limitato.
 - js/ui/modals.js e js/main.js: focus/inert e reset della presentazione.
 - js/ui/render/cards.js e js/ui/sagas.js: indicatori originali condivisi; stato Together dorato sui due badge.
-- service-worker.js: cache candidata v55; precache invariato.
+- service-worker.js: cache production v60; dipendenze API escluse dall’intercettazione.
 
-## Verifiche locali v55
+## Archivio: verifiche locali v55 prima della pubblicazione
 
 Smoke **436/436**, Auth **48/48**, RLS **40/40**, DB Individual/Rewatch **52/52**,
 PWA **15/15**, Chromium Auth **18/18**, Chromium UX **24/24**, feature **39/39**,

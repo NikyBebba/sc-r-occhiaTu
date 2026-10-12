@@ -1,13 +1,14 @@
 # Phase 41 — Continuiamo la saga?
 
-Checkpoint corrente, 9 ottobre 2026: produzione v54, frontend locale v55,
-cache candidata v55. Le saghe riusano viewingStatusHtml delle card: due badge
+Stato corrente: 12 ottobre 2026, **IMPLEMENTED in produzione v60**.
+[Baseline ufficiale](MASTER_CONTEXT.md). Continua la saga resta CTA indipendente
+nel [redesign card pubblicato](MOVIE_CARD_DISCLOSURE.md), quando applicabile. Le saghe riusano viewingStatusHtml delle card: due badge
 circolari originali N/V, personali dai seen quando non Together, entrambi oro
 con Together dai completed. Nessun terzo badge/SVG o testo visibile Together.
 L’oro non modifica seen_n/seen_v. N+V resta valido per voti/recensioni condivisi.
 Le stesse card sono consultabili nella destinazione Storico dalla Home,
 con switch N/V senza filtri Lista; Ricordi non contiene Storico personale.
-Nessuna modifica v55 a dati, candidature, RPC o Match Live.
+Saghe, dedup e candidatura conservati; nessuna modifica al contratto Match Live.
 
 La fase originale fu autorizzata dopo la verifica di ticket e temi e verificata
 localmente. I risultati e i limiti di quel ciclo sono conservati sotto; lo stato

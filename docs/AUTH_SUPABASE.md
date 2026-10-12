@@ -2,10 +2,16 @@
 
 Auth/RLS concluse l’8 ottobre 2026, originariamente distribuite con
 `2bd43a6458733d479b32c790a6da5982f425dbce` e cache v50.
-Produzione corrente: v59 al commit `9545693090920cab20d4ef67b97b8647db7ae947`,
-cache `scorochiatu-shell-v59`. Push e deployment Vercel completati; HTTP
-41/41 file runtime identici al commit e tutti HTTP 200. L’utente conferma
-il funzionamento reale del pulsante “Password dimenticata?”.
+Produzione corrente: **v60**, commit `0813e721e963191b285f357789a9dddd967c6162`,
+`fix: preserve movie nights and editable memories`, cache `scorochiatu-shell-v60`.
+Release conclusa/verificata: 45/45 file hosted HTTP 200 e identici al commit,
+bootstrap online e responsive 320/390/768 PASS, nessun errore JS online/asset
+mancante. [Baseline ufficiale](MASTER_CONTEXT.md).
+Auth/recovery/password reset restano quelli validati nelle v58/v59. La v60
+aggiorna la sola RPC serate tramite migration incrementale snack completed
+applicata manualmente dall’utente: nessuna modifica Auth/membership/ownership,
+RLS, account o publication. [Contratto snack](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
+Il test reale di Password dimenticata? v59 resta confermato.
 
 Checkpoint storico v58 (base della release v59) al commit `f3c49fd110592e9d8883f5e797809cf6fc34c0f2`,
 [Vercel Production](https://sc-r-occhia-tu.vercel.app), cache `scorochiatu-shell-v58`.
@@ -87,7 +93,8 @@ applica un cooldown di 60 secondi per persona dopo successo o HTTP 429.
 Cooldown solo in memoria, senza timer o storage; non sostituisce i limiti server.
 Errori rete/configurazione/rate limit hanno testo controllato, senza errori SDK grezzi.
 Cambiare persona/uscire invalida il feedback della richiesta precedente.
-Cache production v59, deployment e verifica HTTP completati.
+Checkpoint di introduzione v59: deployment e verifica HTTP completati;
+il pulsante è incluso nella produzione corrente v60.
 Funzionamento reale del pulsante confermato dall’utente. Nei test dell’agente
 UI/invio sono simulati, senza email reali inviate. Auth 82/82, Browser Auth 43/43, SDK pubblico con server locale/PWA 10/10 con AMR otp e 10/10 senza AMR.
 

@@ -1,17 +1,22 @@
 # Transizione dati: film, proiezioni e legacy
 
-Stato corrente, 9 ottobre 2026: produzione v54, frontend candidato v55.
-Programmazione e Together derivano da movie_nights; Together richiede
-status completed. Scritture serate solo tramite RPC v54, status del film
-normalizzato dagli eventi; marker legacy conservati/congelati.
-Visioni personali = seen_n/seen_v; candidatura indipendente = in_shared_list.
-I fallback di voto/testo attribuibili sono stati materializzati dalla migration
-v54 e non sono più letti dal runtime. Nessuna modifica DB nel fix v55.
+Stato corrente: 12 ottobre 2026, **IMPLEMENTED in produzione v60**.
+[Baseline ufficiale e verifiche](MASTER_CONTEXT.md).
+Programmazione e Together derivano da movie_nights; Together richiede completed.
+Scritture serate solo tramite manage_movie_night, con migration v54 già applicata
+e successiva migration snack completed applicata manualmente dall’utente.
+Edit completed consente snack/location, protegge schedule e stati terminali e
+ritorna prima dell’UPDATE movies. [Contratto v60](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
+Nessun fallback/dual-write ai dettagli legacy sul film; colonne conservate
+per rollback. votes dormiente senza I/O remoto, accesso applicativo o publication.
 
-Storico v55 è autonomo dalla Home, N/V dai rispettivi seen, sovrapposto e
-fuori dal vincolo Lista. Ricordi conserva serate/statistiche/recensioni.
-I due pallini originali sono oro con Together senza riscrivere i seen.
-[Contratto corrente](INDIVIDUAL_WATCH_REWATCH.md).
+Personali = seen_n/seen_v; candidatura = in_shared_list; indipendenti da Together.
+Fallback voto/testo attribuibili materializzati dalla v54, non letti dal runtime.
+Storico dalla Home con ricerca locale N/V, fuori dal vincolo Lista; Ricordi
+conserva serate/statistiche/recensioni, tutto chiuso a nuova apertura.
+[Contratto film/visioni](INDIVIDUAL_WATCH_REWATCH.md).
+Il modello futuro è separato in [ARCHITECTURE_VISION](ARCHITECTURE_VISION.md):
+nessuna migrazione automatica o modifica delle SQL storiche.
 
 Le sezioni seguenti sono l’archivio dei cicli v48/v47 del 5 ottobre: i mirror,
 i privilegi e i fallback descritti nella prima fase non sono il modello attuale.

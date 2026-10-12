@@ -1,8 +1,199 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.59
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.60
 
-Ultimo aggiornamento: 9 ottobre 2026. Documento unico di contesto e roadmap; le versioni precedenti restano nella cronologia Git.
+Ultimo aggiornamento: 12 ottobre 2026. Fonte dello stato operativo AS-IS. Roadmap e visione TO-BE hanno documenti dedicati; la cronologia delle fasi è conservata sotto.
 
-## Produzione v59 — Password dimenticata?, 9 ottobre 2026
+## Produzione v60 — baseline ufficiale, 12 ottobre 2026
+
+**IMPLEMENTED / AS-IS.** Release conclusa e verificata in produzione, confermata
+dall’utente: commit `0813e721e963191b285f357789a9dddd967c6162`,
+`fix: preserve movie nights and editable memories`.
+[App in produzione](https://sc-r-occhia-tu.vercel.app/), service worker
+`scorochiatu-shell-v60`. Verifica production registrata: **45/45 file hosted
+HTTP 200 e identici al commit**, bootstrap online PASS, responsive
+**320/390/768 PASS**, nessun errore JS online e nessun asset mancante.
+Sono risultati della release conclusa, non verifiche live ripetute nel presente
+aggiornamento documentale.
+
+Release precedente inclusa: `91ecb9b4adeb82cefb7d5fdbd1a2e1a54bd7a248`,
+`feat: redesign movie cards and add history search`.
+Auth/RLS, recovery v58 e Password dimenticata? v59 restano operativi.
+La migration v54 resta applicata una sola volta; la successiva
+[migration snack completed](../database/supabase-migration-completed-night-snack.sql)
+è stata applicata manualmente dall’utente al Supabase reale. Non rieseguire
+cutover, backfill o migration; non modificare la migration storica v54.
+
+## Mappa documentale e precedenza
+
+| Ruolo | Documento autorevole | Natura |
+| --- | --- | --- |
+| Overview e accesso alla documentazione | [README](../README.md) | AS-IS sintetico |
+| Stato operativo, semantiche consolidate e checkpoint | Questo MASTER_CONTEXT | AS-IS; sezioni Storico/Archivio conservano i cicli passati |
+| Architettura runtime, sicurezza e regole di sviluppo | [AGENTS](../AGENTS.md), sezione Consolidation qui sotto | AS-IS; nessun framework/bundler/backend nuovo |
+| Auth, RLS e procedure Supabase | [AUTH_SUPABASE](AUTH_SUPABASE.md) | AS-IS; cutover/rollback sono procedure storiche o d’emergenza |
+| Film, personali, candidatura, Together e rewatch | [INDIVIDUAL_WATCH_REWATCH](INDIVIDUAL_WATCH_REWATCH.md), [DATA_MODEL_TRANSITION](DATA_MODEL_TRANSITION.md) | Contratti AS-IS e audit storici |
+| Card e ricerca Storico | [MOVIE_CARD_DISCLOSURE](MOVIE_CARD_DISCLOSURE.md) | Contratto finale AS-IS e pass locali archiviati |
+| Lifecycle, Ricordi e modifica snack | [MOVIE_NIGHTS_MIDNIGHT_MEMORIES](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md), [PROIEZIONI](PROIEZIONI.md), [UX_NAVIGATION_MEMORIES](UX_NAVIGATION_MEMORIES.md) | AS-IS; verifiche datate separate |
+| Timeline, riepiloghi, cinema, decimali e saghe | Specifiche Phase 22/23/8.3/38/41 | Apertura corrente; sezioni originali storiche |
+| Direzione e priorità di prodotto | [PRODUCT_ROADMAP](PRODUCT_ROADMAP.md) | Fase 0 IMPLEMENTED; Fasi 1–10 PLANNED, opzioni EXPLORATORY |
+| Scalabilità e modello futuro | [ARCHITECTURE_VISION](ARCHITECTURE_VISION.md) | Principio operativo; modello TO-BE, nessuna migrazione autorizzata |
+
+Il checkpoint v60 e i contratti finali prevalgono sui pass storici. La vecchia
+sequenza Step/Phase è un archivio di implementazione e non ordina il lavoro
+futuro. I tre documenti locali `IMPORT_HISTORY_N*.md`, attualmente non tracciati,
+registrano preparazione, approvazioni e piano dell’import: sono evidenze locali
+storiche, non istruzioni per ripeterlo né roadmap. Restano fuori da questa
+pubblicazione insieme agli artefatti dell’import; il risultato consolidato è
+registrato qui sotto.
+
+## Core operativo corrente — AS-IS
+
+Stack e ordine dei moduli restano quelli di [AGENTS](../AGENTS.md): script
+classici vanilla, stato globale e domini store/actions/render; nessun nuovo
+framework, bundler o backend. Supabase conserva contenuti/eventi, veto e
+sessioni/swipe Match; TMDb/OMDb forniscono metadati, canvas Ruota e ticket.
+Realtime core su movies/vetoes/movie_nights, resync debounced e render solo
+su dati cambiati; Match usa il canale temporaneo separato con Presence.
+
+Login persona → Account/Password → Supabase Auth verificato → app_members.
+L’email editabile deve corrispondere alla persona selezionata; Password
+dimenticata? usa solo il mapping, con cooldown 60 secondi per persona.
+Recovery solo da PASSWORD_RECOVERY reale verificato online con sessione,
+membership e scadenza; successo → logout locale → login, reload → nuovo link.
+Ricordami/restore e protezioni contro risposte obsolete restano conservati.
+
+RLS attiva, due membri preconfigurati, Realtime privato/public access OFF;
+publication movies/movie_nights/swipe_sessions/swipes/vetoes. votes è conservata
+senza accesso applicativo, I/O remoto o publication. Legacy di programmazione
+congelato, nessun fallback/dual-write; fallback voto/testo attribuibili già
+materializzati dalla v54. Non riaprire policy pubbliche o rieseguire cutover.
+
+Già disponibili: Match Live (pendingMatch dai dati, riconoscimento via Continua,
+metriche solo di sessione), Ruota/sorpresa, veto, Streaming/Cinema, calendario,
+saghe con aggiunta esplicita, ticket PNG (origine solo in memoria), temi
+automatici, audio/haptics opt-in e loader. Ownership dei personali, protezioni
+anti-spoiler/anti-XSS e rimozioni contestuali restano nei contratti specifici.
+
+## Semantiche consolidate — AS-IS v60
+
+### Film, Storico e card
+
+Un film è un contenuto unico; una serata è un evento `movie_nights` e può
+ripetersi per lo stesso film. `seen_n`, `seen_v` e `in_shared_list` sono assi
+indipendenti. Together deriva solo dagli eventi completed: colora entrambi
+i pallini N/V oro senza scrivere seen_n/seen_v. Rewatch nel pool corrente =
+`seen_n && seen_v && !together`; la candidatura decide se è In gioco.
+“Segna come non visto” toglie solo il proprio seen e conserva voto, recensione,
+candidatura, eventi e Together. La dichiarazione personale è consentita anche
+su film Together senza alterare i dati condivisi.
+
+Card con progressive disclosure: informazioni, stati e voti principali sempre
+visibili; Trailer e Continua la saga (quando applicabile) restano CTA indipendenti.
+Recensioni, Programmazione e Gestione sono sezioni richiudibili; Gestione è
+compatta. Valutazioni N/V/N+V usano badge identità coerenti con il login,
+distinti dai pallini dello stato visto. Modifica/rimozione contestuale consente
+solo voto, solo recensione o entrambi, preservando i dati estranei al contesto.
+Il veto settimanale si gestisce nel dettaglio, con regole e proprietà invariate.
+
+Storico è autonomo dalla Home, con switch N/V, rispettivo seen=true, card e
+ordine alfabetico; ignora candidatura e filtri Lista. La ricerca **locale** per
+titolo/regista opera sullo Storico personale selezionato; query condivisa tra
+switch, solo in memoria, nessun fetch per tasto. Le viste possono sovrapporsi;
+Together non aggiunge automaticamente film allo Storico personale.
+
+### Serate oltre mezzanotte
+
+Una proposed/confirmed il cui orario è raggiunto resta concludibile dopo il
+cambio di data. L’eleggibilità è ricostruita dai dati anche al reload, senza
+marker locale né finestra artificiale fino alle 2/3. Futuri e stati
+completed/cancelled/skipped sono esclusi dal completamento pendente.
+Data/ora si interpretano localmente; nessun orario serale inventato se manca
+l’ora. Quick confirmed usa confirmed_at; un vecchio quick senza timestamp
+resta completabile manualmente senza inventarne la data.
+
+Si conclude l’evento originale per ID: nessuna duplicazione o modifica automatica
+di scheduled_date/time (nomi degli adattatori UI) o di date/time sull’evento.
+Niente auto-completamento, auto-annullo o scadenza. Home privilegia oggi, poi il
+prossimo evento futuro; gli arretrati restano nel cartellone/In programma senza
+monopolizzare il banner. Le proposte mantengono accetta/rifiuta/attesa.
+Nuovo completed consuma la candidatura atomicamente; retry non consuma una
+ricandidatura successiva. Seen e dati personali restano intatti.
+
+### Ricordi e Gestione → Valutazioni → N+V → modifica
+
+Ricordi conserva In numeri, Serate concluse e Dopo il film. **Tutte le sezioni,
+anni/mesi e testi partono chiusi a ogni nuova apertura**. Le aperture manuali,
+focus e scroll sono preservati nei rerender dello stesso modal, solo in memoria.
+Le card delle serate concluse restano pulite: snack visibile se presente,
+nessuna modifica diretta dello snack dalla card Ricordi.
+
+Il form N+V gestisce voto, recensione, luogo e snack nel contesto della visione
+Together selezionata. Snack precompilato, modificabile e aggiungibile se assente;
+svuotare il campo salva NULL. Nei rewatch viene modificata la movie night
+selezionata corretta. Il luogo conserva il percorso esistente.
+**Confine di persistenza attuale:** voto/testo N+V restano sul film
+(`seen_rating_together`, `review_text_together`); snack/location sono dati del
+singolo evento. Il form non introduce valutazioni autonome per ogni rewatch.
+
+La RPC manage_movie_night aggiornata consente snack anche su completed e
+location nel percorso esistente; schedule completed protetto, cancelled/skipped
+protetti, Auth/membership/ownership invariati. Il ramo edit ritorna prima
+dell’UPDATE movies, evitando update/trigger inutili sul film. Voto/testo non
+sono payload ammessi nel ramo edit: conservano il percorso di salvataggio
+esistente. [Contratto tecnico e verifiche](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
+
+## Import JustWatch concluso — stato dati consolidato
+
+Fonte: **354 titoli, 354/354 risolti; 337 nuovi film inseriti; 436 film totali
+al termine dell’import**. È un checkpoint dell’import, non un conteggio live
+ricalcolato oggi o un totale garantito per ogni uso futuro.
+Shared list preservata; seen_v e Together non alterati dall’import. Nessuna
+movie night fittizia, nessuna data di visione, rating o review inventata.
+
+Intenzionalmente NON seen_n nonostante la fonte JustWatch: **Sleepers,
+Nuovo Cinema Paradiso, The Prestige, American Psycho**. Non correggerli
+automaticamente. **Scary Movie** è stato successivamente marcato visto
+personalmente da N, conservando anche la visione Together.
+Artefatti, snapshot, backup e report dell’import restano esclusi dal repository.
+La lista iniziale `data/movie-watchlist.json` (131 titoli) è una fonte storica
+dell’import iniziale, non l’inventario aggiornato del catalogo.
+
+## Debito noto PWA/offline — non bloccante
+
+Produzione online verificata. L’app-shell offline si carica, ma nel test offline
+compare `tailwind is not defined`, collegato all’attuale dipendenza Tailwind
+CDN. Il problema **non è stato introdotto dalla v60**; va valutato in una futura
+fase di hardening/offline/PWA, senza correzioni in questo task.
+Caricare la shell non equivale ad avere dati remoti disponibili: ingresso e
+restore richiedono verifica Auth online; mirror solo nel runtime già autorizzato
+con JWT valido. Errori Auth/RLS non autorizzano fallback offline.
+
+## Direzione successiva — TO-BE
+
+Il ciclo di prodotto è **discovery → proposta → decisione condivisa →
+programmazione → visione → valutazione → ricordo**. Le interazioni condivise
+sono centrali, accanto al tracking personale.
+La prossima grande fase è **Discovery & Recommendation Engine**; precede
+multiutente e serie. Personal recommendation e group recommendation sono
+concetti distinti. Cosa Guardiamo?, Ruota, Surprise e Match Live sono destinati
+a diventare superfici dello stesso Recommendation/Decision Engine, senza
+cambiare ora il contratto Match o spacciare un motore futuro per implementato.
+
+Ogni nuova feature significativa va valutata ai livelli **Content / User /
+Group / Community**. N e V sono progressivamente due istanze di User;
+continuano a essere usati dove necessario oggi. Evitare nuovo hardcoding non
+necessario quando una soluzione altrettanto semplice è generalizzabile, senza
+refactoring prematuri. [Roadmap ordinata Fase 0–10](PRODUCT_ROADMAP.md) e
+[principio e direzione del modello](ARCHITECTURE_VISION.md) sono i riferimenti
+TO-BE. Nessuna migrazione, nuova feature o modifica live autorizzata da questi
+documenti.
+
+## Cronologia delle release e delle fasi
+
+Le sezioni datate successive conservano stato, limiti e risultati del proprio
+ciclo. Formulazioni “locale”, “da pubblicare” o “da collaudare” non riaprono
+release oggi concluse e non attestano verifiche più ampie di quelle registrate.
+
+## Storico: produzione v59 — Password dimenticata?, 9 ottobre 2026
 
 Commit `9545693090920cab20d4ef67b97b8647db7ae947`, pubblicato su origin/main.
 [Deployment Vercel](https://vercel.com/nicholas-projects-69881b7f/sc-r-occhia-tu/3Kf3VaWZ11p3btvByD28VKvRV9eu) completato; HTTP production 41/41 file runtime
@@ -608,29 +799,13 @@ Phase 26 — Audio Manager implementata localmente: pulsante opt-in nel pannello
 
 Phase 28 — Ciak Loader e skeleton implementata localmente: al primo ingresso, dopo 160 ms di attesa, un ciak compare sotto la navbar e due sagome di movie card nella libreria. Il render cancella sempre il timer e rimuove lo stato `aria-busy`, così una risposta rapida non produce flash tardivi; il movimento ridotto usa la regola globale già presente. Una lettura iniziale che rigetta usa il mirror locale e termina il caricamento. Nessuna migration. Cache PWA `v19`; smoke locale **310/310 PASS**; resa visiva da verificare su smartphone.
 
-## Quadro rapido — v59
+## Quadro rapido — v60
 
-| Area | Stato corrente | Confine |
-| --- | --- | --- |
-| Login / recovery | Account + Password; reset solo da PASSWORD_RECOVERY verificato | Nessuna autorizzazione da email editata, OTP o storage; reset reale N/V e salvataggio Apple/Safari confermati |
-| Lista e scelta | Candidatura `in_shared_list`; Ruota/Match escludono Together, eventi attivi, cinema e veto | Contratto Match Live invariato |
-| Storico | Destinazione Home, switch N/V, rispettivo seen=true, ordine alfabetico e card normali | Fuori da Ricordi, nessun filtro Lista; viste sovrapponibili |
-| Ricordi / Titoli di coda | Quattro riepiloghi, Serate concluse anno/mese, Dopo il film | Eventi completed e recensioni condivise; nessuna cronologia personale inventata |
-| Stato visto | Due pallini originali: personali dai seen, entrambi oro con Together dai completed | Nessun terzo indicatore; oro non modifica i seen |
-| Serate | Programma/Oggi/annullo conservano candidatura; nuova conclusione la consuma | RPC v54 atomica; retry completed non consuma ricandidature |
-| Voti e testi | Personali leggibili da entrambi, scrivibili solo dal proprietario Auth | Nessuna copia privata/pubblica; N+V solo dati/azioni condivisi |
-
-Verifiche v59: Smoke 436/436, Auth 82/82, RLS locale 40/40, DB Individual/Rewatch 52/52,
-PWA 18/18, Chromium Auth 43/43, UX 24/24, Individual/Rewatch browser 39/39,
-sintassi 56/56 e diff check PASS.
-SDK reale simulato: 10/10 AMR otp e 10/10 senza AMR. Production HTTP 41/41, SW v59.
-DB v54 applicato e audit live confermati dall’utente; frontend v55–v59 pubblicati.
-Funzionamento reale di Password dimenticata? confermato dall’utente.
-L’utente conferma recovery hosted v58 e login successivo per N/V, oltre al
-salvataggio automatico Apple/Safari. Questo non attesta tutti i flussi condivisi
-o la proposta automatica delle credenziali al prossimo accesso.
-
-Regola repository: database locali, dump e backup sono esclusi da Git. I file SQL in `database/` descrivono schema e migration, senza esportazioni dei dati.
+La baseline, i contratti finali e i risultati production sono nelle sezioni
+AS-IS in apertura. Le suite locali dei cicli v59/v60 sono documentate nei
+checkpoint e nelle specifiche, senza presentarli come nuovi test hosted.
+Database locali, dump, backup e artefatti dell’import sono esclusi da Git;
+`database/` contiene schema e migration, senza esportazioni dei dati.
 
 ## Criterio per le prossime idee
 
@@ -640,14 +815,11 @@ L'utente apprezza aggiunte come «Continua la saga», il ticket più curato e le
 
 ## Prossimo lavoro
 
-La v59 è pubblicata e l’utente conferma il funzionamento reale del pulsante
-Password dimenticata?. Recovery reale v58 e login successivo sono confermati;
-proposta automatica Apple/Safari e
-casi specifici Ricordami/restore non sono nuovi risultati hosted dichiarati.
-Completare anche il collaudo condiviso Home → Storico, N/V, film fuori Lista,
-oro Together, Segna come non visto e Ricordi. Nessuna nuova migration prevista.
-Taste/Recommendation Engine e nuove statistiche richiedono una fase dedicata.
-Non attribuire al primo uso reale v54 il collaudo completo di queste funzioni.
+Release v60 conclusa: il prossimo incremento significativo è la Fase 1
+Discovery & Recommendation Engine della [roadmap ufficiale](PRODUCT_ROADMAP.md).
+Prima di implementarlo servono una fase dedicata, inventario dei segnali realmente
+disponibili, obiettivi e verifica del principio Content/User/Group/Community.
+Multiutente e serie seguono l’ordine concordato; nessun SQL/refactoring automatico.
 
 ### Storico: checklist delle fasi precedenti (checkpoint v44)
 
@@ -688,12 +860,12 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 - **Storico**: destinazione Home dei film personali N/V, sovrapposti e indipendenti dalla candidatura.
 - **Together**: visione insieme provata esclusivamente da movie_nights completed, distinta dai seen.
 - **Segna come non visto**: rimuove solo il proprio seen, senza cancellare gli altri dati.
-- **Prossimo Film**: il hero dà priorità alla serata attiva di oggi (`tonightPick()`), poi alla più vicina nel tempo (`nextMoviePick()`).
+- **Prossimo Film**: `homeNightPick()` privilegia la serata attiva di oggi, poi il prossimo evento futuro. Gli arretrati restano nel cartellone senza monopolizzare il hero.
 - **Ticket**: artefatto finale della Scelta (Phase 18, implementato). Mostra la Match % se l'origine è Match Live, "Scelto con la Ruota" se da Ruota, "Proposto da N/V" se da proposta diretta. Origine tracciata solo in-memory per la sessione di navigazione corrente, non persistita.
 
 ---
 
-## Stato attuale del codice — v59
+## Archivio: stato del codice al checkpoint v59
 
 - Supabase Auth/mapping N/V e RLS attivi; login standard e recovery v58
   descritti nel checkpoint iniziale. Nessuna modifica backend, privilegi,
@@ -755,7 +927,11 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 ---
 
-## Ordine di implementazione — 9 Step
+## Archivio: precedente ordine di implementazione — 9 Step
+
+Questa sequenza storica usa numeri Phase diversi dalle Fasi 0–10 della roadmap
+ufficiale. I TODO qui registrati non costituiscono priorità correnti; le feature
+pubblicate e il debito residuo sono descritti nelle sezioni AS-IS iniziali.
 
 ### ✅ STEP 1 — Foundation (COMPLETO)
 - Phase 0 — Typography (Plus Jakarta Sans, pesi 300–800) ✅
@@ -832,7 +1008,7 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 ---
 
-## Architettura concettuale di riferimento
+## Archivio: architettura concettuale dei primi cicli
 
 ```
                      sc(r)occhiaTu
@@ -868,15 +1044,15 @@ Changelog v2.13: STEP 4 completo (Phase 15 Ruota→serata, Phase 16 Match % di s
 
 - Origine del Ticket (Match Live/Ruota/diretta) tracciata solo in-memory (`markTicketOrigin`/`ticketOriginOf`), persa al refresh/nuova sessione di navigazione — lo storico Phase 21 mostra serate concluse senza attribuire un'origine non salvata
 - Colonna legacy `movies.genre` (ex mood) non più letta/scritta: valutare drop in una migration
-- Doppio livello `movie_nights` + mirror legacy su `movies` (`night_confirmed`, `scheduled_*`): adattatori unificati, mirror ancora scritti e fallback conservati; dismissione e dual-write atomico da progettare dopo l'audit dei client. [Transizione](DATA_MODEL_TRANSITION.md).
-- `votes`: dato opzionale, fuori da render/Realtime core; resta 1 voto live osservato, API legacy e storage preservati. Nessun drop/archivio eseguito.
+- Programmazione solo su `movie_nights`, tramite RPC; mirror legacy su `movies` congelati, senza fallback/dual-write runtime. Un rollback a frontend precedenti richiede riallineamento esplicito. [Transizione](DATA_MODEL_TRANSITION.md).
+- `votes`: tabella/dati legacy conservati, API dormienti senza I/O remoto; nessun accesso applicativo né publication. Il singolo voto osservato era un conteggio storico, non un nuovo audit live.
 - Stato globale e dipendenze tra script classici conservati dopo Consolidation; eventuale isolamento ulteriore richiede una fase dedicata. `AGENTS.md` allineato alla nuova mappa dei domini.
 - Icone PWA **provvisorie** (generate via script, non un asset di design reale) — da sostituire quando disponibile
 - `via.placeholder.com` (fallback poster) risulta irraggiungibile dall'ambiente di sviluppo — non blocca nulla oggi (il dettaglio usa un gradiente CSS quando manca il poster), ma va verificato in un contesto reale prima di contarci altrove
 
 ---
 
-## Decisioni definitive v2.14
+## Archivio: decisioni v2.14 (rileggere con i contratti AS-IS)
 
 - **Match Live non si modifica**: resta Tinder-like a swipe ed è l’unico luogo in cui avviene il match tra N e V.
 - **Niente Match asincrono**: la vecchia UX like/dislike sulle Movie Card viene eliminata.
