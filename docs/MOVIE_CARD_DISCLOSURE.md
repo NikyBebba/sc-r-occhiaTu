@@ -22,6 +22,14 @@ snack/luogo della movie night Together selezionata; completamento pendente solo
 quando l’orario è raggiunto. [Contratto v60](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
 Voto/testo condivisi restano sul film, senza nuove valutazioni per evento.
 
+## Candidato locale Fase 0.5A
+
+Evoluzione **locale non pubblicata**, Fase 0.5A: la griglia monta solo la pagina
+corrente (massimo 24 card); i poster conservano il contenitore da 192 px con
+`loading="lazy"` e `decoding="async"`. Ricerca Storico debounced 250 ms;
+contratti delle card invariati. [Paginazione e stato](BOUNDED_PAGINATION.md).
+Le verifiche e descrizioni dell’archivio seguente riguardano il ciclo precedente.
+
 ## Archivio: audit e pass locali prima della pubblicazione
 
 Redesign mirato richiesto dall’utente. Le sezioni seguenti registrano l’audit

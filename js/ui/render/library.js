@@ -5,11 +5,93 @@
 // Il debounce (~250ms) evita un render ad ogni tasto; il valore del campo
 // resta intatto su render/resync realtime. ----
 let searchDebounceTimer = null;
+let historySearchDebounceTimer = null;
+const resultPages = new Map();
+let activeResultsPage = null;
+
+function cancelListingSearch() {
+  clearTimeout(searchDebounceTimer);
+  clearTimeout(historySearchDebounceTimer);
+  searchDebounceTimer = historySearchDebounceTimer = null;
+}
+function resetResultPages(scope) {
+  cancelListingSearch();
+  for (const key of resultPages.keys()) {
+    if ((key.startsWith('history_') ? 'history' : 'library') === scope) resultPages.delete(key);
+  }
+}
+function resetPaginationUI() {
+  cancelListingSearch();
+  resultPages.clear();
+  activeResultsPage = null;
+  renderResultsPager(null);
+}
+function resultCriteriaKey() {
+  return JSON.stringify(currentTab.startsWith('history_') ? [historyQuery] : [listFilterState(), listSortKey, listSortDir]);
+}
+function currentResultsModel(results) {
+  const criteria = resultCriteriaKey();
+  const saved = resultPages.get(currentTab);
+  const model = paginateResults(results, saved?.criteria === criteria ? saved.pageIndex : 0);
+  resultPages.set(currentTab, { criteria, pageIndex: model.pageIndex });
+  activeResultsPage = model;
+  return model;
+}
+function renderResultsPager(model) {
+  activeResultsPage = model;
+  const visible = !!model && model.pageCount > 1;
+  for (const position of ['Top', 'Bottom']) {
+    const pager = document.getElementById('resultsPager' + position);
+    if (!pager) continue;
+    pager.classList.toggle('hidden', !visible);
+    if (!visible) continue;
+    pager.querySelector('[data-page-previous]').disabled = !model.hasPrevious;
+    pager.querySelector('[data-page-next]').disabled = !model.hasNext;
+    pager.querySelector('[data-page-number]').textContent = `${model.pageIndex + 1} di ${model.pageCount}`;
+    pager.querySelector('[data-page-range]').textContent = `${model.rangeStart}–${model.rangeEnd} di ${model.totalResults}`;
+  }
+  const status = document.getElementById('resultsPageStatus');
+  const message = visible ? `Pagina ${model.pageIndex + 1} di ${model.pageCount}, film ${model.rangeStart}–${model.rangeEnd} di ${model.totalResults}` : '';
+  if (status && status.textContent !== message) status.textContent = message;
+}
+function changeResultsPage(direction, event) {
+  if (!activeResultsPage || ![-1, 1].includes(direction)) return;
+  // A pending query already changed the criteria: resolve it before paging.
+  if (searchDebounceTimer || historySearchDebounceTimer) {
+    cancelListingSearch();
+    render();
+  }
+  const model = activeResultsPage;
+  if (!model || (direction < 0 ? !model.hasPrevious : !model.hasNext)) return;
+  resultPages.set(currentTab, { criteria: resultCriteriaKey(), pageIndex: model.pageIndex + direction });
+  render();
+  const anchor = document.getElementById('resultsStart');
+  if (!anchor) return;
+  // Keyboard activation moves focus out of the replaced page. Touch activation
+  // does not summon focus; both paths scroll only after an explicit page change.
+  if (event?.detail === 0) anchor.focus({ preventScroll: true });
+  const header = document.querySelector('.site-nav');
+  const destinations = document.querySelector('.destination-nav');
+  const offset = (header?.getBoundingClientRect().height || 0)
+    + (destinations && getComputedStyle(destinations).position === 'sticky' ? destinations.getBoundingClientRect().height : 0) + 12;
+  window.scrollTo({ top: Math.max(0, window.scrollY + anchor.getBoundingClientRect().top - offset), behavior: 'auto' });
+}
+function scheduleListingSearch(history) {
+  const tab = currentTab, view = dashboardView, person = currentUser;
+  const epoch = authEpoch;
+  cancelListingSearch();
+  const callback = () => {
+    searchDebounceTimer = historySearchDebounceTimer = null;
+    if (currentTab === tab && dashboardView === view && currentUser === person && authEpoch === epoch && isAppAuthorized()) render();
+  };
+  if (history) historySearchDebounceTimer = setTimeout(callback, 250);
+  else searchDebounceTimer = setTimeout(callback, 250);
+}
 function onSearchInput() {
   const input = document.getElementById('movieSearchInput');
   listQuery = (input && input.value) || '';
-  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
-  searchDebounceTimer = setTimeout(() => { searchDebounceTimer = null; render(); }, 250);
+  resetResultPages('library');
+  scheduleListingSearch(false);
 }
 
 // Contatori delle pill di stato, calcolati con i FILTRI ATTIVI: coerenti con
@@ -110,18 +192,21 @@ function syncListFilterSelects() {
   }
 }
 function setProposerFilter(v) {
+  if (listProposer !== (v === 'all' ? '' : v)) resetResultPages('library');
   listProposer = v === 'all' ? '' : v;
   const sel = document.getElementById('proposerFilterSelect');
   if (sel) sel.value = v;
   render();
 }
 function setGenreListFilter(v) {
+  if (listGenre !== (v === 'all' ? '' : v)) resetResultPages('library');
   listGenre = v === 'all' ? '' : v;
   const sel = document.getElementById('genreListFilterSelect');
   if (sel) sel.value = v;
   render();
 }
 function setPlatformFilter(v) {
+  if (listPlatform !== (v === 'all' ? '' : v)) resetResultPages('library');
   listPlatform = v === 'all' ? '' : v;
   const sel = document.getElementById('platformFilterSelect');
   if (sel) sel.value = v;
@@ -135,6 +220,7 @@ function renderAvailabilitySwitch() {
 }
 function setAvailabilityFilter(v) {
   if (v !== 'streaming' && v !== 'cinema') return;
+  if (v !== listAvailability || listPlatform) resetResultPages('library');
   listAvailability = v;
   listPlatform = '';
   const platform = document.getElementById('platformFilterSelect');
@@ -142,6 +228,7 @@ function setAvailabilityFilter(v) {
   render();
 }
 function setListSortKey(v) {
+  if (listSortKey !== (v || 'added')) resetResultPages('library');
   listSortKey = v || 'added';
   const sel = document.getElementById('sortKeySelect');
   if (sel) sel.value = listSortKey;
@@ -157,6 +244,7 @@ function renderSortDirBtn() {
   if (btn) btn.title = listSortDir === 'desc' ? 'Decrescente' : 'Crescente';
 }
 function toggleListSortDir() {
+  resetResultPages('library');
   listSortDir = listSortDir === 'desc' ? 'asc' : 'desc';
   renderSortDirBtn();
   render();
@@ -165,6 +253,7 @@ function toggleListSortDir() {
 // Azzera i filtri (stato + DOM) e ri-render: ricerca, dropdown (torna a "all")
 // e sort (chiave "added" + direzione desc), lasciando intatti i dataset-cache.
 function resetListFiltersUI() {
+  resetResultPages('library');
   resetListFilters();
   const input = document.getElementById('movieSearchInput');
   if (input) input.value = '';
@@ -182,9 +271,11 @@ function resetListFiltersUI() {
 let historyQuery = '';
 function onHistorySearchInput() {
   historyQuery = document.getElementById('historySearchInput')?.value || '';
-  render();
+  resetResultPages('history');
+  scheduleListingSearch(true);
 }
 function resetHistorySearch() {
+  resetResultPages('history');
   historyQuery = '';
   const input = document.getElementById('historySearchInput');
   if (input) input.value = '';

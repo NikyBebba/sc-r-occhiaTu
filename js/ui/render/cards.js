@@ -162,7 +162,7 @@ function createMovieCard(m, vetoedIds) {
 
     card.innerHTML = `
       <div class="relative h-48 bg-slate-900 overflow-hidden">
-        <img src="${poster}" alt="${escapeHtml(m.title)}" class="w-full h-full object-cover ${isSurpriseHidden ? 'surprise-blur' : ''}">
+        <img loading="lazy" decoding="async" src="${poster}" alt="${escapeHtml(m.title)}" class="w-full h-full object-cover ${isSurpriseHidden ? 'surprise-blur' : ''}">
         ${!isSurpriseHidden ? `<div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" aria-hidden="true"></div>` : ''}
         ${isSurpriseHidden ? `
           <div class="surprise-overlay bg-black/40">

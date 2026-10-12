@@ -38,6 +38,10 @@ non va rieseguita né va modificata la migration storica v54.
 
 ## Esperienza disponibile
 
+Candidato locale Fase 0.5A, non pubblicato: [paginazione limitata a 24 card e
+hardening delle liste](docs/BOUNDED_PAGINATION.md). La produzione resta v60;
+il bug fast-scroll NAV-01 rimane aperto separatamente.
+
 - **Libreria e Storico:** ricerca/picker TMDb, dedup, filtri, viste Streaming/Cinema,
   card e dettaglio. Storico N/V usa il rispettivo stato personale, con ricerca
   locale per titolo/regista e ordine alfabetico, anche fuori dalla Lista.

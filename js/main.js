@@ -53,6 +53,7 @@ async function checkLoginState() {
 }
 
 function showLanding() {
+  if (typeof resetPaginationUI === 'function') resetPaginationUI();
   clearPasswordResetNotice();
   if (typeof resetWatchForms === 'function') resetWatchForms();
   if (typeof resetHistorySearch === 'function') resetHistorySearch();
@@ -70,6 +71,7 @@ function showLanding() {
 }
 
 function showRecoveryScreen(message = '') {
+  if (typeof resetPaginationUI === 'function') resetPaginationUI();
   clearPasswordResetNotice();
   pendingUser = null;
   document.getElementById('landingScreen').classList.add('hidden');

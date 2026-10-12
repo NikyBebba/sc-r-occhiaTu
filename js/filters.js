@@ -184,3 +184,21 @@ function statusCountsFor(list) {
   counts.tonight = filterMoviesByState(list, 'tonight').length;
   return counts;
 }
+
+// Bounded rendering: the source dataset and result count remain independent
+// of the items mounted by the UI. Indices are zero-based.
+const PAGE_SIZE = 24;
+function paginateResults(results, pageIndex = 0) {
+  const totalResults = results.length;
+  const pageCount = Math.ceil(totalResults / PAGE_SIZE);
+  const requested = Number.isFinite(pageIndex) ? Math.trunc(pageIndex) : 0;
+  const index = Math.max(0, Math.min(requested, Math.max(0, pageCount - 1)));
+  const start = index * PAGE_SIZE;
+  return {
+    items: results.slice(start, start + PAGE_SIZE), totalResults,
+    pageIndex: index, pageSize: PAGE_SIZE, pageCount,
+    hasPrevious: index > 0, hasNext: index + 1 < pageCount,
+    rangeStart: totalResults ? start + 1 : 0,
+    rangeEnd: Math.min(start + PAGE_SIZE, totalResults)
+  };
+}

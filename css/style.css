@@ -1591,3 +1591,12 @@ details[open] > .memory-summary::before { transform: rotate(90deg); }
 /* Identità nelle Valutazioni: variante compatta del quadratino del login. */
 .movie-card-evaluation-badge { flex:0 0 auto; width:auto; min-width:32px; height:32px; padding:0 6px; border-radius:10px; background:color-mix(in srgb, var(--person-accent, var(--color-persona-n)) 65%, #000); color:#fff; font-size:12px; white-space:nowrap; }
 .movie-card-evaluation-badge.is-shared { min-width:40px; background:var(--color-oro); color:#0f172a; }
+
+.results-pager { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin: 12px 0; }
+.results-pager.hidden { display: none; }
+.results-pager button { min-height: 44px; min-width: 44px; padding: 8px; border-radius: 12px; color: var(--color-accent-light, #c7d2fe); font-size: 12px; white-space: nowrap; }
+.results-pager button:hover:not(:disabled) { background: rgba(99, 102, 241, .15); }
+.results-pager button:disabled { opacity: .35; cursor: default; }
+.results-pager button:focus-visible, #resultsStart:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 3px; }
+.results-page-info { display: flex; flex-direction: column; align-items: center; min-width: 0; font-size: 12px; white-space: nowrap; }
+.results-page-info small { color: #94a3b8; font-size: 10px; }

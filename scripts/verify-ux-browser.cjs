@@ -59,7 +59,15 @@ let checks=0;
   await page.setViewportSize({width,height:width===320?568:844});
   await check('navigation long list '+width,async()=>{
    await page.evaluate(()=>{setTab('all');activateDestination('library');});await page.waitForTimeout(400);
-   assert((await page.locator('#movieGrid > *').count())>=45);
+   assert.equal(await page.locator('#movieGrid .movie-ticket').count(),24);
+   const total = await page.evaluate(()=>activeResultsPage.totalResults);
+   assert(total>=45);
+   const firstPage = await page.locator('#movieGrid h3').allTextContents();
+   await page.evaluate(()=>changeResultsPage(1,{detail:1}));
+   const secondPage = await page.locator('#movieGrid h3').allTextContents();
+   assert.equal(secondPage.length,Math.min(24,total-24));
+   assert.equal(new Set([...firstPage,...secondPage]).size,firstPage.length+secondPage.length);
+   await page.evaluate(()=>changeResultsPage(-1,{detail:1}));
    await page.evaluate(()=>window.scrollTo(0,document.body.scrollHeight));await page.waitForTimeout(100);
    assert(await page.evaluate(()=>scrollY>500));
    const nav=await page.locator('#destinationNav').boundingBox();assert(nav.y>=0&&nav.y+nav.height<=page.viewportSize().height+1);

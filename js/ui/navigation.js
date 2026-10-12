@@ -30,6 +30,7 @@ function syncLibraryNavigation() {
 function setTab(tab) {
   if (!TAB_KEYS.includes(tab)) return;
   if (tab === 'match' && dbMode !== 'supabase') return;
+  cancelListingSearch();
   const enteringView = dashboardView !== 'library';
   dashboardView = tab === 'history_n' || tab === 'history_v' ? 'history' : 'library';
   if (tab === 'match') {
@@ -61,6 +62,7 @@ function setTab(tab) {
 }
 
 function openWheelView() {
+  cancelListingSearch();
   if (currentTab === 'match') { clearMatchState(); leaveMatch(); currentTab = matchPrevTab; }
   dashboardView = 'wheel';
   syncLibraryNavigation();
@@ -69,6 +71,7 @@ function openWheelView() {
 }
 
 function openDashboardHome() {
+  cancelListingSearch();
   if (currentTab === 'match') { clearMatchState(); leaveMatch(); currentTab = matchPrevTab; }
   dashboardView = 'home';
   syncLibraryNavigation();

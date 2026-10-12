@@ -52,6 +52,17 @@ Debito PWA non bloccante: online PASS, shell offline caricata ma
 `tailwind is not defined` nel test offline, collegato a Tailwind CDN e
 non introdotto dalla v60. Futura fase hardening/offline/PWA, nessun fix implicito.
 
+## Candidato locale Fase 0.5A — bounded pagination, non pubblicato
+
+Baseline Git `a089a7e477b4c8147b02a0d6b56c6307db7fa3b0`; cache candidata
+v61, produzione v60 invariata. `PAGE_SIZE = 24`: ricerca/filtri/sort precedono
+lo slice; `movies` e logiche non visuali restano sull’intero dataset. Stato
+pagina per tab in memoria, reset di scope sui criteri e reset completo alla
+landing/lock/logout. Griglia nascosta rilasciata; poster lazy/async, Storico
+debounced 250 ms. [Contratto e test](docs/BOUNDED_PAGINATION.md).
+NAV-01 resta aperto separatamente; non aggiungere guardie touch speculative.
+Nessuna modifica Supabase, migration, Auth semantics o artefatti import.
+
 ## Storico: produzione v59 — Password dimenticata?
 
 Commit `9545693090920cab20d4ef67b97b8647db7ae947`, origin/main allineato alla release.

@@ -1101,7 +1101,7 @@ async function okA(name, fn) {
     movies.push(m);
     const prevUser = currentUser;
     m.surprise_by = 'N';
-    currentTab = 'watchlist';
+    setTab('watchlist');
     currentUser = 'V';
     render();
     const away = document.getElementById('movieGrid').innerHTML.indexOf('Annulla sorpresa') === -1;
@@ -1466,7 +1466,7 @@ async function okA(name, fn) {
     const oldUser = currentUser, oldTab = currentTab, oldSb = sb, oldMode = dbMode;
     const oldPending = pendingCinemaWatchlist, oldAvailability = listAvailability;
     try {
-      movies = []; sb = null; dbMode = 'local'; currentUser = 'N'; currentTab = 'watchlist';
+      movies = []; sb = null; dbMode = 'local'; currentUser = 'N'; setTab('watchlist');
       searchTmdbCandidates = async () => [{ id: 8001, title: 'Film futuro', year: '2027', poster: '' }];
       fetchTmdbDetailsById = async id => ({ title: 'Film futuro', tmdb_id: id, matched: true, genres: [], platform: 'Streaming' });
       document.getElementById('addTitle').value = 'Film futuro';
@@ -1946,7 +1946,7 @@ async function okA(name, fn) {
     const prevUser = currentUser; currentUser = 'N';
     movies.push({ id: 'dur-null', title: 'Niente Durata', in_shared_list: true, status: 'watchlist', duration: null, platform: 'CINEMA-TEST-NULL', poster: '', added_by: 'N', genre: 'azione' });
     movies.push({ id: 'dur-ok', title: 'Con Durata', in_shared_list: true, status: 'watchlist', duration: '126 min', platform: 'DUR-TEST', poster: '', added_by: 'N', genre: 'azione' });
-    currentTab = 'watchlist';
+    setTab('watchlist');
     render();
     const html = document.getElementById('movieGrid').innerHTML;
     const okNull = html.indexOf('</i> CINEMA-TEST-NULL') !== -1 && html.indexOf('CINEMA-TEST-NULL •') === -1 && html.indexOf('null min') === -1;
@@ -1957,7 +1957,7 @@ async function okA(name, fn) {
   }));
   ok('render card: meta "P • anno • durata" + regista su riga propria (title escapato, truncate)', run(() => {
     const prevUser = currentUser; currentUser = 'N';
-    const prevTab = currentTab; currentTab = 'watchlist';
+    const prevTab = currentTab; setTab('watchlist');
     const saved = movies;
     movies = [
       { id: 'c-full', title: 'Full', in_shared_list: true, status: 'watchlist', release_year: 1972, duration: '148 min', platform: 'P-FULL', poster: '', added_by: 'N', genre: 'azione', director: 'Sergio Leone, Tonino Valerii' }
@@ -1973,7 +1973,7 @@ async function okA(name, fn) {
   }));
   ok('render card: regista con caratteri speciali escapato in title e testo (niente injection)', run(() => {
     const prevUser = currentUser; currentUser = 'N';
-    const prevTab = currentTab; currentTab = 'watchlist';
+    const prevTab = currentTab; setTab('watchlist');
     const saved = movies;
     movies = [
       { id: 'c-xss', title: 'Xss', in_shared_list: true, status: 'watchlist', release_year: 2000, duration: null, platform: 'P', poster: '', added_by: 'N', genre: 'azione', director: 'A, B & "C" <D>' }
@@ -1990,7 +1990,7 @@ async function okA(name, fn) {
   }));
   ok('render card: meta-blocco null-aware — solo durata, solo anno, entrambi null (mai "•" isolato né null/undefined)', run(() => {
     const prevUser = currentUser; currentUser = 'N';
-    const prevTab = currentTab; currentTab = 'watchlist';
+    const prevTab = currentTab; setTab('watchlist');
     const saved = movies;
     const grid = () => document.getElementById('movieGrid').innerHTML;
     const badTokens = ['null', 'undefined', '• •'];
@@ -2497,7 +2497,7 @@ async function okA(name, fn) {
   ok('Cinema: card distinta con gli stessi comandi Oggi/Programma e nessun dropdown Tutti/Solo streaming', run(() => {
     const old = { m: movies, tab: currentTab, availability: listAvailability, q: listQuery, g: listGenre, p: listPlatform, author: listProposer };
     try {
-      listQuery = ''; listGenre = ''; listPlatform = ''; listProposer = ''; currentTab = 'watchlist';
+      listQuery = ''; listGenre = ''; listPlatform = ''; listProposer = ''; setTab('watchlist');
       movies = [{ id: 'cinema-card', title: 'Cinema card', in_shared_list: true, status: 'watchlist', cinema_watchlist: true }];
       listAvailability = 'cinema'; render();
       const html = document.getElementById('movieGrid').innerHTML;

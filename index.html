@@ -338,7 +338,19 @@
           <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
           <input id="historySearchInput" type="search" placeholder="Cerca nello storico…" autocomplete="off" oninput="onHistorySearchInput()">
         </div>
+        <div id="resultsStart" role="region" tabindex="-1" aria-label="Risultati film"></div>
+        <nav id="resultsPagerTop" class="results-pager hidden" aria-label="Pagine dei film, inizio risultati">
+          <button type="button" data-page-previous aria-controls="movieGrid" onclick="changeResultsPage(-1, event)">‹ Precedente</button>
+          <div class="results-page-info"><span data-page-number></span><small data-page-range></small></div>
+          <button type="button" data-page-next aria-controls="movieGrid" onclick="changeResultsPage(1, event)">Successiva ›</button>
+        </nav>
+        <p id="resultsPageStatus" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
         <div id="movieGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        <nav id="resultsPagerBottom" class="results-pager hidden" aria-label="Pagine dei film, fine risultati">
+          <button type="button" data-page-previous aria-controls="movieGrid" onclick="changeResultsPage(-1, event)">‹ Precedente</button>
+          <div class="results-page-info"><span data-page-number></span><small data-page-range></small></div>
+          <button type="button" data-page-next aria-controls="movieGrid" onclick="changeResultsPage(1, event)">Successiva ›</button>
+        </nav>
       </section>
     </main>
   </div>

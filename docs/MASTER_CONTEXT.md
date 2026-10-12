@@ -22,6 +22,20 @@ La migration v54 resta applicata una sola volta; la successiva
 è stata applicata manualmente dall’utente al Supabase reale. Non rieseguire
 cutover, backfill o migration; non modificare la migration storica v54.
 
+## Candidato locale Fase 0.5A — non pubblicato
+
+**Implementazione locale, non produzione.** Sulla baseline Git
+`a089a7e477b4c8147b02a0d6b56c6307db7fa3b0`, le liste sono paginate a
+24 card: dataset completo → ricerca → filtri → ordinamento → paginazione →
+render. `movies`, contatori e opzioni conservano il dataset completo;
+pagine indipendenti per tab, criteri Libreria condivisi e query Storico N/V
+condivisa. Debounce Storico 250 ms, poster lazy/async e griglia rilasciata
+quando nascosta. Cache candidata locale v61; **produzione ancora v60**.
+[Contratto, stato UI e verifiche](BOUNDED_PAGINATION.md).
+NAV-01 (ritorno involontario a Home durante fast-scroll su iPhone/PWA) resta
+aperto: osservato sul device reale, non riprodotto nell’audit; nessuna guardia
+touch o modifica del bootstrap. Nessuna modifica DB/Auth/migration/dati.
+
 ## Mappa documentale e precedenza
 
 | Ruolo | Documento autorevole | Natura |

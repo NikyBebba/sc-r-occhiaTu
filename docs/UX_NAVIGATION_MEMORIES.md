@@ -8,6 +8,13 @@ Le verifiche v55 in fondo sono un archivio locale, non lo stato di pubblicazione
 
 ## Navigazione
 
+Candidato **locale non pubblicato** Fase 0.5A: [bounded pagination](BOUNDED_PAGINATION.md)
+nelle liste e nello Storico, 24 card, pager sopra/sotto, pagine indipendenti per
+tab; ricerca Storico debounced 250 ms. Prev/Next scorre all’inizio dei risultati
+sotto header/nav, senza scroll applicativo nei rerender automatici. La
+navigazione volontaria esistente conserva il proprio comportamento di scroll;
+il cambio tab ripristina la pagina a criteri invariati. NAV-01 resta aperto.
+
 Un solo nav responsive con Home, Match, Ruota, Lista, Ricordi: fisso in basso
 sotto 768 px nelle viste interne, integrato visivamente sotto l'header sticky
 da 768 px. Nella Home mobile barra e relativo spazio riservato sono rimossi;

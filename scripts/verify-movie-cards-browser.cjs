@@ -231,16 +231,16 @@ let checks=0;
   await page.evaluate(()=>resetCardFixture());
   await check('History N title/director, empty, no results and live N/V switch '+width,async()=>{
    const input=page.locator('#historySearchInput');const calls=await page.evaluate(()=>fixtureCalls.length);
-   await input.fill('sCaRy');assert.deepEqual(await page.locator('#movieGrid h3').allTextContents(),['Scary Movie']);
-   await input.fill('WAYANS');assert.deepEqual(await page.locator('#movieGrid h3').allTextContents(),['Scary Movie']);
+   await input.fill('sCaRy');await page.waitForFunction(()=>historySearchDebounceTimer===null);assert.deepEqual(await page.locator('#movieGrid h3').allTextContents(),['Scary Movie']);
+   await input.fill('WAYANS');await page.waitForFunction(()=>historySearchDebounceTimer===null);assert.deepEqual(await page.locator('#movieGrid h3').allTextContents(),['Scary Movie']);
    await page.locator('#historySwitchV').click();assert.equal(await page.locator('#movieGrid h3').count(),0);assert(await page.getByText('Nessun film corrisponde alla ricerca nello storico selezionato.').isVisible());
-   await input.fill('REGISTA V');assert.deepEqual(await page.locator('#movieGrid h3').allTextContents(),['Avventura V']);
-   await input.fill('avventura');assert.deepEqual(await page.locator('#movieGrid h3').allTextContents(),['Avventura V']);
+   await input.fill('REGISTA V');await page.waitForFunction(()=>historySearchDebounceTimer===null);assert.deepEqual(await page.locator('#movieGrid h3').allTextContents(),['Avventura V']);
+   await input.fill('avventura');await page.waitForFunction(()=>historySearchDebounceTimer===null);assert.deepEqual(await page.locator('#movieGrid h3').allTextContents(),['Avventura V']);
    await page.locator('#historySwitchN').click();assert.equal(await page.locator('#movieGrid h3').count(),0);
-   await input.fill('');assert.equal(await page.locator('#movieGrid h3').count(),3);
-   await input.fill('zzzzz');assert.equal(await page.locator('#movieGrid h3').count(),0);
+   await input.fill('');await page.waitForFunction(()=>historySearchDebounceTimer===null);assert.equal(await page.locator('#movieGrid h3').count(),3);
+   await input.fill('zzzzz');await page.waitForFunction(()=>historySearchDebounceTimer===null);assert.equal(await page.locator('#movieGrid h3').count(),0);
    assert.equal(await page.evaluate(()=>fixtureCalls.length),calls);assert.equal(await input.inputValue(),'zzzzz');
-   await input.fill('');await page.locator('#historySwitchV').click();assert.equal(await page.locator('#movieGrid h3').count(),2);assert.equal(await card().count(),0);
+   await input.fill('');await page.waitForFunction(()=>historySearchDebounceTimer===null);await page.locator('#historySwitchV').click();assert.equal(await page.locator('#movieGrid h3').count(),2);assert.equal(await card().count(),0);
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   });
  }

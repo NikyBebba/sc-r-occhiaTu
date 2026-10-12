@@ -145,6 +145,7 @@ function render() {
   // Vista Match: il pannello filtri/ricerca della LISTA è ignorato (il Match
   // ha il suo stato). La vista occupa #movieGrid con early-return.
   if (currentTab === 'match') {
+    renderResultsPager(null);
     renderMatch();
     renderScheduled();
     renderVetoInfo();
@@ -161,6 +162,7 @@ function render() {
   // invariata. I filtri della LISTA sono ignorati (il calendario ha il suo
   // stato), ma le pill continuano a mostrare i contatori coi filtri attivi.
   if (currentTab === 'calendar') {
+    renderResultsPager(null);
     renderCalendar();
     renderScheduled();
     renderVetoInfo();
@@ -179,14 +181,16 @@ function render() {
   // currentTab: 'all' = tutti, 'tonight' = film con eventi attivi; le altre
   // viste usano il ciclo del film. Pipeline: filtri (filters.js) + sort null-last.
   const statusFilter = currentTab === 'all' ? null : currentTab;
-  const filtered = inHistory ? historyFilms : sortMovies(filterMoviesByState(movies, statusFilter), listSortKey, listSortDir);
-  if (filtered.length === 0) {
+  const filtered = !inLibrary ? [] : inHistory ? historyFilms : sortMovies(filterMoviesByState(movies, statusFilter), listSortKey, listSortDir);
+  const page = inLibrary ? currentResultsModel(filtered) : null;
+  renderResultsPager(page);
+  if (inLibrary && filtered.length === 0) {
     grid.innerHTML = inHistory ? (historyQuery.trim() ? '<p class="col-span-full text-sm text-slate-400" role="status">Nessun film corrisponde alla ricerca nello storico selezionato.</p>' : '<p class="col-span-full text-sm text-slate-400">Le visioni personali compariranno qui. Puoi aggiungere un film scegliendo Solo Storico.</p>') : emptyListStateHtml();
   }
 
   const vetoedIds = vetoedMovieIdsThisWeek();
 
-  filtered.forEach(m => {
+  (page?.items || []).forEach(m => {
     grid.appendChild(createMovieCard(m, vetoedIds));
   });
 
