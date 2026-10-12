@@ -537,12 +537,15 @@
       </div>
       <div id="reviewLocationWrap">
         <div id="reviewNightSelectWrap" class="hidden mb-3">
-          <label for="reviewNightSelect" class="block text-sm font-medium text-slate-200 mb-1">Serata del luogo</label>
+          <label for="reviewNightSelect" class="block text-sm font-medium text-slate-200 mb-1">Serata</label>
           <select id="reviewNightSelect" onchange="selectReviewNight()" class="field w-full"></select>
         </div>
         <label for="reviewLocation" class="block text-sm font-medium text-slate-200 mb-1">Dove l’avete visto? <span class="text-slate-400 font-normal">(facoltativo)</span></label>
         <input id="reviewLocation" type="text" maxlength="120" autocomplete="off" class="field w-full" placeholder="Es. Sul divano, al cinema, in terrazza…">
         <p class="text-xs text-slate-400 mt-1">Il luogo appartiene a questa serata, anche se rivedrete il film.</p>
+        <label for="reviewSnack" class="block text-sm font-medium text-slate-200 mt-3 mb-1">Snack <span class="text-slate-400 font-normal">(facoltativo)</span></label>
+        <input id="reviewSnack" type="text" maxlength="80" autocomplete="off" class="field w-full min-h-11" placeholder="Es. popcorn, pizza…">
+        <p class="text-xs text-slate-400 mt-1">Svuota il campo per togliere lo snack da questa serata.</p>
       </div>
       <p id="reviewHelp" class="text-xs text-slate-400"></p>
       <p id="reviewError" class="hidden text-sm text-rose-300" role="alert"></p>
@@ -628,11 +631,11 @@
         <button onclick="closeModal('statsModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="memories-content space-y-5">
-      <section aria-labelledby="cinemaHighlightsTitle">
-        <h4 id="cinemaHighlightsTitle" class="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2"><i class="fa-solid fa-chart-bar text-sky-400" aria-hidden="true"></i> In numeri</h4>
-        <div id="statsGrid" class="grid grid-cols-2 gap-3"></div>
-      </section>
-      <details id="nightHistorySection" data-memory-key="history" class="memory-section" open ontoggle="if (typeof rememberMemorySection === 'function') rememberMemorySection('history', this.open, this)">
+      <details id="numbersSection" data-memory-key="numbers" class="memory-section" ontoggle="rememberMemorySection('numbers', this.open, this)">
+        <summary id="cinemaHighlightsTitle" class="memory-summary"><span class="text-sm font-bold text-slate-300 flex items-center gap-2"><i class="fa-solid fa-chart-bar text-sky-400" aria-hidden="true"></i> In numeri</span></summary>
+        <div id="statsGrid" class="memory-body grid grid-cols-2 gap-3"></div>
+      </details>
+      <details id="nightHistorySection" data-memory-key="history" class="memory-section" ontoggle="if (typeof rememberMemorySection === 'function') rememberMemorySection('history', this.open, this)">
         <summary id="nightHistoryTitle" class="memory-summary">
           <span class="text-sm font-bold text-slate-200 flex items-center gap-2"><i class="fa-solid fa-ticket text-amber-400" aria-hidden="true"></i> Serate concluse</span>
           <span id="nightHistoryCount" class="text-xs text-slate-400"></span>

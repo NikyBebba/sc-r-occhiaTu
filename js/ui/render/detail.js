@@ -145,7 +145,7 @@ function renderMovieDetail(m) {
     <div class="detail-viewing">${viewingStatusHtml(m)}</div>
     ${reviewCardsHtml(m)}
     ${sagaButtonHtml(m)}
-    ${activeNightForMovie(m.id) || togetherSeen(m) ? sharedVoteButtonHtml(m) : ''}
+    ${nightIsDue(activeNightForMovie(m.id)) || togetherSeen(m) ? sharedVoteButtonHtml(m) : ''}
     ${personalWatchButtonHtml(m)}
     ${personalVoteButtonHtml(m)}
     ${personalRemovalButtonsHtml(m)}

@@ -17,12 +17,12 @@ function nextMovieTimeLabel(pick, now = Date.now()) {
   return `⏳ tra ${days > 0 ? days + 'g ' : ''}${hours}h ${mins}m`;
 }
 
-function renderNextMovieBox() {
+function renderNextMovieBox(now = new Date()) {
   const box = document.getElementById('nextMovieBox');
   if (!box) return;
   const hero = document.getElementById('nextMovieHero');
-  const tonight = tonightPick();
-  const rawPick = tonight || nextMoviePick();
+  const tonight = tonightPick(now);
+  const rawPick = homeNightPick(now);
   const sourceMovie = movies.find(m => m.id === rawPick?.id);
   const pick = rawPick && sourceMovie?.surprise_by && sourceMovie.surprise_by !== currentUser
     ? { ...rawPick, title: 'Film a sorpresa', poster: null } : rawPick;
@@ -36,7 +36,7 @@ function renderNextMovieBox() {
   }
 
   const pending = pick.proposed_by && !pick.night_confirmed;
-  const countdown = nextMovieTimeLabel(pick);
+  const countdown = nextMovieTimeLabel(pick, now.getTime());
   const countdownHtml = escapeHtml(countdown);
   const dateHtml = pick.scheduled_date ? escapeHtml(formatNightDate(pick.scheduled_date, pick.scheduled_time)) : '';
   const safeId = jsAttrEscape(pick.id);
@@ -53,7 +53,7 @@ function renderNextMovieBox() {
       <button onclick="confirmNightUI('${safeId}'${nightTarget})" class="next-movie-action next-movie-primary">Accetta proposta</button>
       <button onclick="cancelNightUI('${safeId}', '${safeTitle}'${nightTarget})" class="next-movie-action next-movie-secondary">Rifiuta</button>`;
   } else {
-    actionsHtml = `${tonight ? `<button onclick="finishTogetherNightUI('${safeId}'${nightTarget})" class="next-movie-action next-movie-primary">Completa serata</button>` : ''}
+    actionsHtml = `${nightIsDue(movieNights.find(n => n.id === pick.nightId), now) ? `<button onclick="finishTogetherNightUI('${safeId}'${nightTarget})" class="next-movie-action next-movie-primary">Completa serata</button>` : ''}
       <button onclick="cancelNightUI('${safeId}', '${safeTitle}'${nightTarget})" class="next-movie-action next-movie-secondary">Annulla proiezione</button>`;
   }
 
@@ -86,7 +86,7 @@ function renderNextMovieBox() {
   `;
 }
 
-function projectionActionsHtml(pick) {
+function projectionActionsHtml(pick, now = new Date(), { showCompletion = true } = {}) {
   const id = jsAttrEscape(pick.id);
   const title = jsAttrEscape(pick.title);
   const target = pick.nightId ? `, '${jsAttrEscape(pick.nightId)}'` : '';
@@ -94,7 +94,7 @@ function projectionActionsHtml(pick) {
     if (pick.proposed_by !== currentUser) return `<button onclick="confirmNightUI('${id}'${target})" class="projection-accept">Accetta proposta</button><button onclick="cancelNightUI('${id}', '${title}'${target})">Rifiuta</button>`;
     return `<span class="projection-wait">In attesa di conferma</span><button onclick="cancelNightUI('${id}', '${title}'${target})">Annulla proposta</button>`;
   }
-  return '';
+  return showCompletion && nightIsDue(movieNights.find(n => n.id === pick.nightId), now) ? `<button onclick="finishTogetherNightUI('${id}'${target})" class="projection-accept">Completa serata</button><button onclick="cancelNightUI('${id}', '${title}'${target})">Annulla proiezione</button>` : '';
 }
 
 function projectionInfoHtml(movie) {
@@ -106,14 +106,14 @@ function projectionInfoHtml(movie) {
   return `<div class="projection-card-info"><p><i class="fa-solid ${pending ? 'fa-hourglass-half' : 'fa-calendar-check'}" aria-hidden="true"></i> ${pending ? 'Proposta da confermare' : 'Proiezione in programma'} · ${escapeHtml(formatNightDate(pick.scheduled_date, pick.scheduled_time))}</p>
     ${pick.snack ? `<p>🍿 ${escapeHtml(pick.snack)}</p>` : ''}
     ${pick.location ? `<p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${escapeHtml(pick.location)}</p>` : ''}
-    <div class="projection-actions">${projectionActionsHtml(pick)}${night ? `<button onclick="editNightDetailsUI('${jsAttrEscape(movie.id)}', '${jsAttrEscape(night.id)}')">Snack e luogo</button>` : ''}</div></div>`;
+    <div class="projection-actions">${projectionActionsHtml(pick, new Date(), { showCompletion: false })}${night ? `<button onclick="editNightDetailsUI('${jsAttrEscape(movie.id)}', '${jsAttrEscape(night.id)}')">Snack e luogo</button>` : ''}</div></div>`;
 }
 
-function renderScheduled() {
+function renderScheduled(now = new Date()) {
   const container = document.getElementById('scheduledList');
   const panel = document.getElementById('scheduledPanel');
   if (!container) return;
-  const pick = tonightPick() || nextMoviePick();
+  const pick = homeNightPick(now);
   const active = activeNights();
   const entries = active.filter(n => n.id !== pick?.nightId)
     .map(n => {
@@ -127,10 +127,10 @@ function renderScheduled() {
     const title = hidden ? 'Film a sorpresa' : m.title;
     const actionPick = { ...m, title };
     return `<article class="upcoming-projection">
-      <div class="upcoming-projection-copy"><p class="dashboard-eyebrow">${m.proposed_by && !m.night_confirmed ? 'PROPOSTA' : 'PROSSIMA PROIEZIONE'}</p><h3>${escapeHtml(title)}</h3>
+      <div class="upcoming-projection-copy"><p class="dashboard-eyebrow">${m.proposed_by && !m.night_confirmed ? 'PROPOSTA' : nightIsDue(movieNights.find(n => n.id === m.nightId), now) ? 'DA CONCLUDERE' : 'PROSSIMA PROIEZIONE'}</p><h3>${escapeHtml(title)}</h3>
       <p>${escapeHtml(formatNightDate(m.scheduled_date, m.scheduled_time))}${!hidden && (m.cinema_watchlist || m.platform) ? ' · ' + escapeHtml(m.cinema_watchlist ? 'Al cinema' : m.platform) : ''}${m.snack ? ' · ' + escapeHtml(m.snack) : ''}</p>
       ${m.location ? `<p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${escapeHtml(m.location)}</p>` : ''}</div>
-      <div class="projection-actions">${projectionActionsHtml(actionPick)}${m.nightId ? `<button onclick="editNightDetailsUI('${jsAttrEscape(m.id)}', '${jsAttrEscape(m.nightId)}')">Snack e luogo</button>` : ''}</div>
+      <div class="projection-actions">${projectionActionsHtml(actionPick, now)}${m.nightId ? `<button onclick="editNightDetailsUI('${jsAttrEscape(m.id)}', '${jsAttrEscape(m.nightId)}')">Snack e luogo</button>` : ''}</div>
     </article>`;
   }).join('');
 }

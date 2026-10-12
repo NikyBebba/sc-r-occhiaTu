@@ -10,7 +10,10 @@ let memoriesReturnFocus = null;
 function openModal(id) {
   const el = document.getElementById(id);
   if (!el) return;
-  if (id === 'statsModal' && el.classList.contains('hidden')) memoriesReturnFocus = document.activeElement;
+  if (id === 'statsModal' && el.classList.contains('hidden')) {
+    memoriesReturnFocus = document.activeElement;
+    if (typeof prepareMemoriesOpening === 'function') prepareMemoriesOpening();
+  }
   el.classList.remove('hidden');
   if (!modalStack.includes(id)) modalStack.push(id);
   wireBackdropClose(el, id);

@@ -38,6 +38,8 @@ async function manageMovieNight(action, id, nightId = null, details = {}) {
   const epoch = authEpoch;
   const movie = movies.find(m => m.id === id);
   if (!movie) return null;
+  if (action === 'edit' && (details.sharedRating != null || details.sharedText != null
+      || (details.snack != null && (typeof details.snack !== 'string' || details.snack.length > 80)))) return null;
   if (sb) {
     let result;
     try {
@@ -65,6 +67,7 @@ async function manageMovieNight(action, id, nightId = null, details = {}) {
       assertAuthEpoch(epoch);
       return row;
     }
+    if (action === 'edit') { saveLocal(); return row; }
     normalizeLocalMovie(movie, { ...movie });
     if (details.sharedRating != null) movie.seen_rating_together = details.sharedRating;
     if (details.sharedText != null) movie.review_text_together = details.sharedText;
@@ -91,7 +94,8 @@ async function manageMovieNight(action, id, nightId = null, details = {}) {
     if (!night) return null;
     if (action === 'edit') {
       if (!['proposed','confirmed','completed'].includes(night.status)) return null;
-      if (night.status !== 'completed' && Object.hasOwn(details,'snack')) night.snack = details.snack;
+      if (night.status === 'completed' && (details.date != null || details.time != null)) return null;
+      if (Object.hasOwn(details,'snack')) night.snack = details.snack;
     } else if (action === 'confirm') {
       if (!['proposed','confirmed'].includes(night.status) || (night.status === 'proposed' && night.proposed_by === currentUser)) return null;
       night.status = 'confirmed'; night.confirmed_at ||= now;
@@ -105,6 +109,7 @@ async function manageMovieNight(action, id, nightId = null, details = {}) {
     } else return null;
     if (Object.hasOwn(details,'location')) night.location = details.location;
   }
+  if (action === 'edit') { saveLocal(); return night; }
   if (details.sharedRating != null) movie.seen_rating_together = details.sharedRating;
   if (details.sharedText != null) movie.review_text_together = details.sharedText;
   normalizeLocalMovie(movie, { ...movie });
@@ -148,13 +153,12 @@ async function completeNight(id, location = undefined, nightId = undefined, revi
 // 1) Serate (movie_nights): priorità a quelle con data (prossima più vicina);
 //    se nessuna ha data, si usano quelle "stasera" senza data.
 // Senza evento attivo non esiste una proiezione, anche con mirror legacy.
-function nextMoviePick() {
-  const active = activeNights();
+function nextMoviePick(active = activeNights()) {
   const dated = active.filter(n => n.date);
   const bucket = dated.length ? dated : active;
 
   const sorted = bucket
-    .map(n => ({ n, t: n.date ? new Date(`${n.date}T${n.time || '21:30'}:00`).getTime() : NaN }))
+    .map(n => ({ n, t: n.date ? nightStartTime(n) : NaN }))
     .sort((a, b) => (Number.isNaN(a.t) ? 1 : Number.isNaN(b.t) ? -1 : a.t - b.t))
     .map(x => x.n);
 
@@ -190,4 +194,34 @@ function tonightPick(now = new Date()) {
     return { id: m.id, title: m.title, poster: m.poster, ...nightProjectionFields(night) };
   }
   return null;
+}
+
+// Data e ora di calendario sono locali; timestamp quick è un istante assoluto.
+// Senza ora, è noto solo il giorno: nessun orario serale viene inventato.
+function nightStartTime(night) {
+  if (!night) return NaN;
+  if (night.date == null) return night.confirmed_at ? new Date(night.confirmed_at).getTime() : NaN;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(night.date)) return NaN;
+  const [year, month, day] = night.date.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return NaN;
+  if (night.time) {
+    if (!/^\d{2}:\d{2}(?::\d{2})?$/.test(night.time)) return NaN;
+    const [hour, minute, second = 0] = night.time.split(':').map(Number);
+    if (hour > 23 || minute > 59 || second > 59) return NaN;
+    date.setHours(hour, minute, second, 0);
+  }
+  return date.getTime();
+}
+function nightIsDue(night, now = new Date()) {
+  if (!night || !['proposed', 'confirmed'].includes(night.status)) return false;
+  // Un quick confermato senza timestamp resta completabile manualmente,
+  // ma non viene inventata una data per promuoverlo nel banner.
+  if (night.date == null && !night.confirmed_at) return night.status === 'confirmed';
+  const start = nightStartTime(night);
+  return Number.isFinite(start) && start <= now.getTime();
+}
+function homeNightPick(now = new Date()) {
+  // Gli arretrati rimangono nel cartellone, senza scadenze o auto-annulli.
+  return tonightPick(now) || nextMoviePick(activeNights().filter(n => n.date && nightStartTime(n) > now.getTime()));
 }

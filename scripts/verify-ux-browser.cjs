@@ -125,13 +125,12 @@ let checks=0;
   });
  }
  await page.evaluate(()=>resetMemoriesState());await page.locator('[data-destination="memories"]').click();
- await check('year/month latest defaults, counts, undated and rewatches',async()=>{
+ await check('all memories disclosures closed initially, counts, undated and rewatches',async()=>{
   assert.equal(await page.locator('#nightHistoryCount').innerText(),'47 serate');
-  assert(await page.locator('#nightHistorySection').evaluate(el=>el.open));
+  assert(!(await page.locator('#nightHistorySection').evaluate(el=>el.open)));
+  assert.equal(await page.locator('#statsModal details[open]').count(),0);
   const groups=await page.locator('#nightHistory details').evaluateAll(elements=>elements.map(el=>({label:el.querySelector('summary').innerText,open:el.open})));
-  assert(groups.find(g=>g.label.includes('2026')&&!g.label.includes('ottobre')&&!g.label.includes('settembre')).open);
-  assert(groups.find(g=>g.label.includes('ottobre')).open);assert(!groups.find(g=>g.label.includes('2025')&&!g.label.includes('settembre')).open);
-  assert(!groups.find(g=>g.label.includes('Data non registrata')).open);
+  assert(groups.every(group=>!group.open));
   assert.equal(await page.locator('.history-ticket').count(),47);
   assert(!(await page.locator('#reviewSection').evaluate(el=>el.open)));
  });
@@ -147,13 +146,13 @@ let checks=0;
   assert.equal(await page.locator('#reviewTimeline .review-item').count(),20);assert(await page.locator('#reviewItem-m1').evaluate(el=>el.open));
   assert(await page.locator('#reviewSection').evaluate(el=>el.open));assert.equal(await page.evaluate(()=>document.activeElement.id),'reviewItem-m1-toggle');
   assert(Math.abs(await page.locator('#memoriesScroll').evaluate(el=>el.scrollTop)-before)<3);
-  await page.locator('#nightHistorySection > summary').click();await page.evaluate(()=>render());assert(!(await page.locator('#nightHistorySection').evaluate(el=>el.open)));
+  await page.locator('#nightHistorySection > summary').click();await page.locator('#nightHistorySection > summary').click();await page.evaluate(()=>render());assert(!(await page.locator('#nightHistorySection').evaluate(el=>el.open)));
  });
- await check('close/reopen preserves sections and Show more limit',async()=>{
+ await check('close/reopen closes every disclosure and preserves Show more limit',async()=>{
   await page.locator('.memories-header button').click();await page.locator('[data-destination="memories"]').click();
   assert(!(await page.locator('#nightHistorySection').evaluate(el=>el.open)));
-  assert(await page.locator('#reviewSection').evaluate(el=>el.open));assert.equal(await page.locator('#reviewTimeline .review-item').count(),20);
-  assert(await page.locator('#reviewItem-m1').evaluate(el=>el.open));
+  assert(!(await page.locator('#reviewSection').evaluate(el=>el.open)));assert.equal(await page.locator('#reviewTimeline .review-item').count(),20);
+  assert(!(await page.locator('#reviewItem-m1').evaluate(el=>el.open)));assert.equal(await page.locator('#statsModal details[open]').count(),0);
  });
  await check('keyboard focus trap and Escape restores opener',async()=>{
   await page.locator('.memories-header button').focus();await page.keyboard.press('Shift+Tab');assert.equal(await page.evaluate(()=>document.activeElement.textContent.trim()),'Chiudi');

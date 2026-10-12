@@ -134,5 +134,53 @@ let checks=0;
   assert.deepEqual(row,{seen_n:true,seen_rating_n:'8.3',review_text_n:'Text',in_shared_list:true});
  });
  await test('rollback dopo uso bloccato',async()=>{await assert.rejects(exec(rollback),/dati successivi/);await exec('ROLLBACK');assert.equal((await q("SELECT count(*)::int AS n FROM pg_trigger WHERE tgname='movie_watch_guard'"))[0].n,1);});
+ // Migration incrementale candidata: il backfill v54 sopra resta storico e intatto.
+ const snackMigration=read('supabase-migration-completed-night-snack.sql');
+ const signature='public.manage_movie_night(text,uuid,uuid,date,text,text,text,boolean,numeric,text)';
+ const functionContract=async()=>q("SELECT prosecdef,proconfig,proacl::text FROM pg_proc WHERE oid=$1::regprocedure",[signature]);
+ const grantsBefore=await functionContract();
+ await test('Snack migration idempotente, ACL/security definer/search_path invariati',async()=>{
+  await exec(snackMigration);await exec(snackMigration);assert.deepEqual(await functionContract(),grantsBefore);
+ });
+ const snackNight=(await q("SELECT * FROM movie_nights WHERE movie_id=$1 AND status='completed' ORDER BY created_at DESC LIMIT 1",[uid(72)]))[0];
+ const readSnackState=async()=>({night:(await q('SELECT * FROM movie_nights WHERE id=$1',[snackNight.id]))[0],movie:(await q('SELECT * FROM movies WHERE id=$1',[uid(72)]))[0]});
+ for(const person of ['N','V'])for(const [label,next] of [['A→B','Snack B'],['B→NULL',null],['NULL→A','Snack A']])await test(person+': completed snack '+label+' e nessun altro campo cambia',async()=>{
+  if(label==='A→B')await rpc(person,'edit',uid(72),snackNight.id,{p_snack:'Snack A'});
+  const before=await readSnackState();await rpc(person,'edit',uid(72),snackNight.id,{p_snack:next});const after=await readSnackState();
+  assert.deepEqual(after,{night:{...before.night,snack:next},movie:before.movie});
+ });
+ await test('Snack + data/ora/voto/recensione protetti: rifiuto atomico',async()=>{
+  for(const extra of [{p_date:'2030-01-01'},{p_time:'22:30'},{p_shared_rating:9},{p_shared_text:'Forbidden'}]){
+   const before=await readSnackState();await assert.rejects(rpc('N','edit',uid(72),snackNight.id,{p_snack:'Forbidden',...extra}),/IMMUTABLE_NIGHT_SCHEDULE|UNEXPECTED_SHARED_REVIEW/);assert.deepEqual(await readSnackState(),before);
+  }
+  await assert.rejects(rpc('V','edit',uid(70),snackNight.id,{p_snack:'Wrong movie'}),/NIGHT_NOT_FOUND/);
+  await assert.rejects(as('N',"SELECT * FROM manage_movie_night(p_action=>'edit',p_movie_id=>$1,p_night_id=>$2,p_status=>'confirmed')",[uid(72),snackNight.id]),/does not exist/);
+ });
+ await test('Luogo dalla recensione resta editabile e conserva snack',async()=>{
+  const before=await readSnackState();await rpc('V','edit',uid(72),snackNight.id,{p_snack:before.night.snack,p_location:'Terrazza',p_set_location:true});
+  const after=await readSnackState();assert.deepEqual(after,{night:{...before.night,location:'Terrazza'},movie:before.movie});
+ });
+ await test('Edit snack/luogo non esegue UPDATE del film né i suoi trigger',async()=>{
+  await exec("CREATE FUNCTION public.test_no_movie_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'UNEXPECTED_MOVIE_UPDATE'; END $$; CREATE TRIGGER test_no_movie_update BEFORE UPDATE ON public.movies FOR EACH ROW EXECUTE FUNCTION public.test_no_movie_update()");
+  try {
+   await rpc('N','edit',uid(72),snackNight.id,{p_snack:'Snack A'});
+   await rpc('V','edit',uid(72),snackNight.id,{p_snack:'Snack A',p_location:'Casa',p_set_location:true});
+  } finally { await exec('DROP TRIGGER test_no_movie_update ON public.movies; DROP FUNCTION public.test_no_movie_update()'); }
+ });
+ await test('Cancelled/skipped chiusi; proposed/confirmed conservano edit esistente',async()=>{
+  for(const status of ['cancelled','skipped','proposed','confirmed']){
+   const [night]=await q('INSERT INTO movie_nights(movie_id,status,date,time,snack,location,proposed_by) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *',[uid(72),status,'2026-10-12','22:30','A','Casa','V']);
+   if(['cancelled','skipped'].includes(status)){await assert.rejects(rpc('N','edit',uid(72),night.id,{p_snack:'B'}),/NIGHT_CLOSED/);assert.deepEqual((await q('SELECT * FROM movie_nights WHERE id=$1',[night.id]))[0],night);}
+   else{const [edited]=await rpc('N','edit',uid(72),night.id,{p_snack:'B',p_location:'Sala',p_set_location:true});assert.deepEqual(edited,{...night,snack:'B',location:'Sala'});}
+  }
+ });
+ await test('Membri N/V invariati; terzo account/anon e DML diretto restano negati',async()=>{
+  for(const person of ['X','anon'])await assert.rejects(rpc(person,'edit',uid(72),snackNight.id,{p_snack:'Forbidden'}),/AUTH_REQUIRED|permission denied/);
+  for(const person of ['N','V']){await denied(person,'UPDATE movie_nights SET snack=$1 WHERE id=$2',['Forbidden',snackNight.id]);const other=person==='N'?'v':'n';await denied(person,`UPDATE movies SET seen_${other}=NOT seen_${other} WHERE id=$1`,[uid(72)]);}
+ });
+ await test('Limite snack 80 e completed non riapribile/cancellabile restano invariati',async()=>{
+  const before=await readSnackState();await assert.rejects(rpc('N','edit',uid(72),snackNight.id,{p_snack:'x'.repeat(81)}),/INVALID_NIGHT_DETAILS/);
+  for(const action of ['confirm','cancel'])await assert.rejects(rpc('N',action,uid(72),snackNight.id),/NIGHT_CLOSED/);assert.deepEqual(await readSnackState(),before);
+ });
  await db.close();console.log(`Individual/Rewatch DB: ${checks}/${checks} PASS (PostgreSQL locale)`);
 })().catch(e=>{console.error('FAIL '+e.message);process.exitCode=1;});

@@ -3889,13 +3889,13 @@ async function okA(name, fn) {
     movies = savedM; movieNights = savedN;
     return okR;
   }));
-  ok('scheduledList: nulla di datato → pannello nascosto', run(() => {
+  ok('scheduledList: quick senza data conferma resta nel cartellone compatto', run(() => {
     const savedM = movies, savedN = movieNights;
     movies = [{ id: 'ma', title: 'M A', status: 'tonight', scheduled_date: null, added_by: 'N', platform: 'P', poster: '' }];
     movieNights = [{ id: 'n1', movie_id: 'ma', date: null, time: null, status: 'confirmed', proposed_by: 'N' }];
     renderScheduled();
     const html = document.getElementById('scheduledList').innerHTML;
-    const okR = html === '' && document.getElementById('scheduledPanel').classList.contains('hidden');
+    const okR = html.includes('Completa serata') && !document.getElementById('scheduledPanel').classList.contains('hidden');
     movies = savedM; movieNights = savedN;
     return okR;
   }));
@@ -3931,7 +3931,7 @@ async function okA(name, fn) {
     movies = savedM; movieNights = savedN;
     return okR;
   }));
-  ok('scheduledList: mirror watched/watchlist ignorati; quick-only → pannello nascosto', run(() => {
+  ok('scheduledList: mirror ignorati; quick senza timestamp nel cartellone', run(() => {
     const savedM = movies, savedN = movieNights;
     movies = [
       { id: 'm1', title: 'Seen', status: 'watched', scheduled_date: '2026-10-20', added_by: 'N', platform: 'P', poster: '' },
@@ -3945,7 +3945,7 @@ async function okA(name, fn) {
     movieNights = [{ id: 'nq', movie_id: 'q1', date: null, time: null, status: 'confirmed', proposed_by: 'N' }];
     renderScheduled();
     const quick = document.getElementById('scheduledList').innerHTML;
-    const ok2 = quick === '' && document.getElementById('scheduledPanel').classList.contains('hidden');
+    const ok2 = quick.includes('Completa serata') && !document.getElementById('scheduledPanel').classList.contains('hidden');
     movies = savedM; movieNights = savedN;
     return ok1 && ok2;
   }));
@@ -5586,7 +5586,7 @@ async function okA(name, fn) {
     const prev = { pMovies: movies, pNights: movieNights };
     try {
       movies = [{ id: 'n1', title: 'N1', status: 'tonight', poster: 'https://ex/n1.jpg', added_by: 'N', duration: 111, platform: 'P' }];
-      movieNights = [{ id: 'nn', movie_id: 'n1', date: null, time: null, snack: null, proposed_by: 'N', status: 'proposed', confirmed_by: null }];
+      movieNights = [{ id: 'nn', movie_id: 'n1', date: null, time: null, snack: null, proposed_by: 'N', status: 'confirmed', confirmed_at: new Date().toISOString() }];
       const el = document.getElementById('nextMovieBox');
       // senza flag → niente bottone
       markTicketOrigin('n1', null);
@@ -5610,7 +5610,7 @@ async function okA(name, fn) {
       const hero = document.getElementById('nextMovieHero');
       const noPick = hero.classList.contains('hidden');
       movies = [{ id: 'h1', title: 'Film', status: 'tonight' }];
-      movieNights = [{ id: 'h-night', movie_id: 'h1', date: null, status: 'confirmed', proposed_by: 'N' }];
+      movieNights = [{ id: 'h-night', movie_id: 'h1', date: null, status: 'confirmed', proposed_by: 'N', confirmed_at: new Date().toISOString() }];
       renderNextMovieBox();
       const visible = !hero.classList.contains('hidden');
       currentTab = 'match'; renderNextMovieBox();
@@ -5682,7 +5682,8 @@ async function okA(name, fn) {
         { id: 'f', movie_id: 'future', date: '2020-01-01', time: '20:00', status: 'confirmed' },
         { id: 't', movie_id: 'today', date: today, time: '20:00', status: 'confirmed' }
       ];
-      renderNextMovieBox();
+      const [year, month, day] = today.split('-').map(Number);
+      renderNextMovieBox(new Date(year, month - 1, day, 23, 30));
       const hero = document.getElementById('nextMovieHero');
       const html = document.getElementById('nextMovieBox').innerHTML;
       return hero.classList.contains('is-tonight') && html.includes('Oggi')

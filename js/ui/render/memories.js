@@ -1,7 +1,12 @@
 // Stato esclusivamente in memoria, indipendente dai dati e dalle preferenze.
-let memoriesState = { sections: new Map(), initialized: false, fresh: true, reviewLimit: 10 };
+let memoriesState = { sections: new Map(), fresh: true, reviewLimit: 10 };
 function resetMemoriesState() {
-  memoriesState = { sections: new Map(), initialized: false, fresh: true, reviewLimit: 10 };
+  memoriesState = { sections: new Map(), fresh: true, reviewLimit: 10 };
+}
+function prepareMemoriesOpening() {
+  memoriesState.sections.clear();
+  memoriesState.fresh = true;
+  document.querySelectorAll('#statsModal details').forEach(section => { section.open = false; });
 }
 function memoryIsOpen(key, fallback = false) {
   return memoriesState.sections.has(key) ? memoriesState.sections.get(key) : fallback;
@@ -88,14 +93,6 @@ function renderNightHistory() {
     container.innerHTML = '<p class="text-sm text-slate-400">Le serate concluse compariranno qui.</p>';
     return;
   }
-  if (!memoriesState.initialized) {
-    const latest = entries.find(entry => entry.timelineDate)?.timelineDate.key.slice(0, 7);
-    if (latest) {
-      memoriesState.sections.set('year:' + latest.slice(0, 4), true);
-      memoriesState.sections.set('month:' + latest, true);
-      memoriesState.initialized = true;
-    }
-  }
   const groups = new Map();
   entries.forEach(entry => {
     const monthKey = entry.timelineDate ? entry.timelineDate.key.slice(0, 7) : '';
@@ -150,10 +147,15 @@ function renderStats() {
   });
   memoriesState.fresh = false;
   const focusId = document.activeElement?.closest?.('#statsModal') ? document.activeElement.id : null;
+  const numbersSection = document.getElementById('numbersSection');
+  if (numbersSection) {
+    numbersSection.open = memoryIsOpen('numbers');
+    numbersSection.querySelector?.('summary')?.setAttribute('aria-expanded', String(numbersSection.open));
+  }
   const historySection = document.getElementById('nightHistorySection');
   const reviewsSection = document.getElementById('reviewSection');
   if (historySection) {
-    historySection.open = memoryIsOpen('history', true);
+    historySection.open = memoryIsOpen('history');
     historySection.querySelector?.('summary')?.setAttribute('aria-expanded', String(historySection.open));
   }
   if (reviewsSection) {

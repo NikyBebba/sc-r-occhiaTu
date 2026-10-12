@@ -111,7 +111,7 @@ let checks=0;
   });
   await check('Programma then complete without rating '+width,async()=>{
    await (await cardAction('#movieGrid','Programma')).click();
-   await page.locator('#scheduleDate').fill('2026-11-10');await page.locator('#scheduleConfirm').click();
+   await page.locator('#scheduleDate').fill(await page.evaluate(()=>{const date=new Date();date.setDate(date.getDate()-1);return localDateKey(date);}));await page.locator('#scheduleConfirm').click();
    await page.waitForFunction(()=>activeNightForMovie('rewatch')?.status==='proposed');
    await (await cardAction('#movieGrid','Completa serata')).click();
    await page.waitForFunction(()=>togetherSeen(movies.find(m=>m.id==='rewatch')));
@@ -241,7 +241,7 @@ let checks=0;
    await page.locator('#libraryBack').click();assert(await page.locator('#homeHistory').isVisible());
    await page.locator('#homeMemories').click();assert(await page.locator('#statsModal').isVisible());
    assert.equal(await page.locator('#statsModal #historySwitch, #personalHistoryList, #personalHistoryTitle').count(),0);
-   assert(await page.locator('#statsGrid').isVisible());assert(await page.locator('#nightHistorySection').isVisible());assert(await page.locator('#reviewSection').isVisible());
+   await page.locator('#numbersSection > summary').click();assert(await page.locator('#statsGrid').isVisible());assert(await page.locator('#nightHistorySection').isVisible());assert(await page.locator('#reviewSection').isVisible());
    await page.keyboard.press('Escape');
   });
   await check('Original badges: all personal and Together combinations '+width,async()=>{

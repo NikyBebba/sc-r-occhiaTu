@@ -14,6 +14,7 @@ function selectReviewNight() {
   if (!night) return;
   document.getElementById('reviewNightId').value = night.id;
   document.getElementById('reviewLocation').value = night.location || '';
+  document.getElementById('reviewSnack').value = night.snack || '';
 }
 
 function openReviewFor(id, by) {
@@ -36,6 +37,7 @@ function openReviewFor(id, by) {
     ? (togetherSeen(movie) ? completedNights[0] : activeNightForMovie(id)) : null;
   document.getElementById('reviewNightId').value = reviewNight?.id || '';
   document.getElementById('reviewLocation').value = reviewNight?.location || '';
+  document.getElementById('reviewSnack').value = reviewNight?.snack || '';
   document.getElementById('reviewLocationWrap').classList.toggle('hidden', by !== 'both');
   const nightSelect = document.getElementById('reviewNightSelect');
   nightSelect.innerHTML = completedNights.length > 1 ? completedNights.map(n =>
@@ -68,7 +70,7 @@ function reviewTogetherFromSeen() {
 async function finishTogetherNightUI(id, nightId) {
   const movie = movies.find(m => m.id === id);
   const night = nightId ? activeNights().find(n => n.id === nightId && n.movie_id === id) : activeNightForMovie(id);
-  if (!movie || !night) return;
+  if (!movie || !night || !nightIsDue(night)) return;
   const completed = await completeNight(id, undefined, night.id);
   if (!completed) { showActionError('Non siamo riusciti a completare la serata. Riprova.'); return; }
   await loadMovies();
@@ -87,12 +89,19 @@ async function confirmReview() {
   const text = document.getElementById('reviewText').value.trim();
   const by = document.getElementById('reviewBy').value;
   const location = document.getElementById('reviewLocation').value.trim().slice(0, 120);
+  const snack = document.getElementById('reviewSnack').value.trim();
   const reviewNightId = document.getElementById('reviewNightId').value;
   const rawRating = document.getElementById('reviewRating').value;
   const rating = parseMovieRating(rawRating);
   const error = document.getElementById('reviewError');
   const saveButton = document.getElementById('reviewSaveButton');
   error.classList.add('hidden');
+  if (by === 'both' && snack.length > 80) {
+    error.textContent = 'Lo snack può avere al massimo 80 caratteri.';
+    error.classList.remove('hidden');
+    document.getElementById('reviewSnack').focus();
+    return;
+  }
   if (rating === null && !(by === currentUser && (by === 'N' || by === 'V') && !rawRating.trim())) {
     error.textContent = 'Scegli un voto da 0 a 10, con al massimo un decimale (es. 8,3).';
     error.classList.remove('hidden');
@@ -106,12 +115,24 @@ async function confirmReview() {
   let saved = false;
   if (by === 'both') {
     if (!viewingState(movie).together) {
-      saved = await completeNight(id, location || null, reviewNightId || undefined, { sharedRating: rating, sharedText: text });
+      saved = await completeNight(id, location || null, reviewNightId || undefined, { sharedRating: rating, sharedText: text, snack: snack || null });
+      // Complete conserva i dettagli dell'evento attivo; edit salva lo snack
+      // senza cambiare il lifecycle, anche dopo la prima conclusione.
+      if (saved) {
+        const night = reviewNightId ? movieNights.find(n => String(n.id) === reviewNightId && n.movie_id === id && n.status === 'completed') : completedNightsForMovie(id)[0];
+        if (night && (night.snack || '') !== snack) saved = await updateMovieNight(night.id, { snack: snack || null });
+      }
     } else {
-      saved = await updateMovie(id, { review_text_together: text, seen_rating_together: rating });
+      const reviewChanged = rating !== togetherRating(movie) || document.getElementById('reviewText').value !== reviewTextFor(movie, 'both');
+      saved = !reviewChanged || await updateMovie(id, { review_text_together: text, seen_rating_together: rating });
       if (saved && reviewNightId) {
         const night = movieNights.find(n => String(n.id) === reviewNightId && n.movie_id === id && n.status === 'completed');
-        if (night && (night.location || '') !== location) saved = await updateMovieNight(night.id, { location: location || null });
+        if (night) {
+          const patch = {};
+          if ((night.location || '') !== location) patch.location = location || null;
+          if ((night.snack || '') !== snack) patch.snack = snack || null;
+          if (Object.keys(patch).length) saved = await updateMovieNight(night.id, patch);
+        } else saved = false;
       }
     }
   } else if ((by === 'N' || by === 'V') && by === currentUser) {

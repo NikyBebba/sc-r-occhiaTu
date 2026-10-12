@@ -77,7 +77,7 @@ function cardEvaluationsHtml(movie, projection) {
   if (movie.surprise_by && movie.surprise_by !== currentUser) return '';
   const contexts = [];
   if (personalVoteButtonHtml(movie)) contexts.push(currentUser);
-  if (projection.nightId || togetherSeen(movie)) contexts.push('both');
+  if (nightIsDue(activeNightForMovie(movie.id)) || togetherSeen(movie)) contexts.push('both');
   if (!contexts.length) return '';
   const id = jsAttrEscape(movie.id);
   return `<div class="movie-card-management-group"><h4>Valutazioni</h4>${contexts.map(person => {
@@ -114,7 +114,7 @@ function cardOperationsHtml(m, projection, isSurpriseHidden) {
       }
     }
     if (projection.nightId) {
-      programming += projectionInfoHtml(m) + `<button onclick="finishTogetherNightUI('${id}', '${jsAttrEscape(projection.nightId)}')" class="min-h-11 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">Completa serata</button>`;
+      programming += projectionInfoHtml(m) + (nightIsDue(activeNightForMovie(m.id)) ? `<button onclick="finishTogetherNightUI('${id}', '${jsAttrEscape(projection.nightId)}')" class="min-h-11 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 rounded font-medium">Completa serata</button>` : '');
     }
     management += cardEvaluationsHtml(m, projection);
   }
