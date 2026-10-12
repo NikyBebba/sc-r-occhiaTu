@@ -192,7 +192,6 @@ function personalRemovalButtonsHtml(movie) {
 function personalWatchButtonHtml(movie) {
   if (!currentUser || (movie.surprise_by && movie.surprise_by !== currentUser)) return '';
   const ownSeen = movie['seen_' + currentUser.toLowerCase()] === true;
-  if (togetherSeen(movie) && !ownSeen) return '';
   const id = jsAttrEscape(movie.id);
   return ownSeen
     ? `<button onclick="undoSeenUI('${id}')" class="w-full min-h-11 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium inline-flex items-center justify-center gap-1.5" aria-label="Segna come non visto"><i class="fa-solid fa-eye-slash" aria-hidden="true"></i>Segna come non visto</button>`

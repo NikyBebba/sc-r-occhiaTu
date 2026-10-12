@@ -128,10 +128,16 @@ async function confirmReview() {
   if (newTogetherViewing) suggestSagaAfterViewing(id);
 }
 
-function markSeenUI(id) {
+async function markSeenUI(id) {
   const movie = movies.find(m => m.id === id);
   if (!movie || (currentUser !== 'N' && currentUser !== 'V')) return;
   if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
+  // Together e stato personale sono indipendenti: qui si salva solo il proprio flag.
+  if (togetherSeen(movie)) {
+    if (await markMovieSeen(id, currentUser)) await loadMovies();
+    else showActionError('Non siamo riusciti a salvare. Riprova.');
+    return;
+  }
   document.getElementById('seenMovieId').value = id;
   document.getElementById('seenTogetherButtonLabel').textContent = `Visto insieme? Vota ${sharedPeopleLabel()}`;
   const score = personalRating(movie, currentUser);

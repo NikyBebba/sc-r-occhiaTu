@@ -2680,7 +2680,7 @@ async function okA(name, fn) {
     movieNights = fixtureCompletedMovies(movies); render();
     html = document.getElementById('movieGrid').innerHTML;
     okAll = okAll && html.includes('Gamma Watched') && html.indexOf('Beta Tonight') === -1
-      && cnt(html, 'markSeenUI') === 0 && cnt(html, 'voteMovie') === 0 && cnt(html, 'addReview') === 1
+      && cnt(html, 'markSeenUI') === 1 && cnt(html, 'voteMovie') === 0 && cnt(html, 'addReview') === 1
       && cnt(html, 'quickTonightUI') === 1 && cnt(html, 'scheduleMovie') === 1 && cnt(html, 'vetoMovie') === 0;
     currentTab = prevTab;
     currentUser = prevUser;
@@ -2706,7 +2706,7 @@ async function okA(name, fn) {
     const html = document.getElementById('movieGrid').innerHTML;
     const ok = html.includes('Alpha Watch') && html.includes('Beta Tonight')
       && html.includes('Gamma Watched') && html.includes('Delta Proposal')
-      && cnt(html, 'markSeenUI') === 2 && cnt(html, 'voteMovie') === 0 // watchlist + tonight
+      && cnt(html, 'markSeenUI') === 3 && cnt(html, 'voteMovie') === 0 // watchlist + tonight + Together personale
       && cnt(html, 'quickTonightUI') === 2 && cnt(html, 'scheduleMovie') === 2 && cnt(html, 'vetoMovie') === 1
       && cnt(html, 'addReview') === 2
       && cnt(html, 'bg-sky-700/90') === 1 // badge "stasera" solo per il film tonight
@@ -2753,7 +2753,7 @@ async function okA(name, fn) {
     const watchCard = grid._children.find(c => c._innerHTML.indexOf('FW') !== -1);
     const watchedHasReview = watchedCard && watchedCard._innerHTML.indexOf('pt-2 border-t border-slate-800/80') !== -1
       && watchedCard._innerHTML.includes("addReview('f-d')")
-      && watchedCard._innerHTML.indexOf('markSeenUI') === -1;
+      && watchedCard._innerHTML.indexOf('markSeenUI') !== -1;
     const watchHasFooter = watchCard && watchCard._innerHTML.indexOf('pt-2 border-t border-slate-800/80') !== -1
       && watchCard._innerHTML.indexOf('markSeenUI') !== -1;
     movies = saved; currentUser = prevUser; currentTab = prevTab;
