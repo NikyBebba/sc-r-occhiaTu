@@ -1,6 +1,6 @@
 # Navigazione persistente e Ricordi scalabili
 
-Stato corrente: 12 ottobre 2026, **IMPLEMENTED in produzione v60**.
+Stato corrente: 12 ottobre 2026, **IMPLEMENTED + RELEASED in produzione v61**.
 [Baseline ufficiale](MASTER_CONTEXT.md); navigazione e ownership conservate.
 Ricerca Storico e card: [contratto pubblicato](MOVIE_CARD_DISCLOSURE.md).
 Ricordi/lifecycle/snack: [contratto v60](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
@@ -8,12 +8,13 @@ Le verifiche v55 in fondo sono un archivio locale, non lo stato di pubblicazione
 
 ## Navigazione
 
-Candidato **locale non pubblicato** Fase 0.5A: [bounded pagination](BOUNDED_PAGINATION.md)
+Fase 0.5A **rilasciata in produzione v61**: [bounded pagination](BOUNDED_PAGINATION.md)
 nelle liste e nello Storico, 24 card, pager sopra/sotto, pagine indipendenti per
 tab; ricerca Storico debounced 250 ms. Prev/Next scorre all’inizio dei risultati
 sotto header/nav, senza scroll applicativo nei rerender automatici. La
 navigazione volontaria esistente conserva il proprio comportamento di scroll;
-il cambio tab ripristina la pagina a criteri invariati. NAV-01 resta aperto.
+il cambio tab ripristina la pagina a criteri invariati. NAV-01 resta **OPEN**,
+non riprodotto nel harness; paginazione non dimostrata come fix.
 
 Un solo nav responsive con Home, Match, Ruota, Lista, Ricordi: fisso in basso
 sotto 768 px nelle viste interne, integrato visivamente sotto l'header sticky
@@ -104,7 +105,7 @@ focus al trigger alla chiusura; Esc usa lo stack modali esistente.
 - js/ui/render/memories.js: stato temporaneo, gruppi e rendering limitato.
 - js/ui/modals.js e js/main.js: focus/inert e reset della presentazione.
 - js/ui/render/cards.js e js/ui/sagas.js: indicatori originali condivisi; stato Together dorato sui due badge.
-- service-worker.js: cache production v60; dipendenze API escluse dall’intercettazione.
+- service-worker.js: cache production v61; dipendenze API escluse dall’intercettazione.
 
 ## Archivio: verifiche locali v55 prima della pubblicazione
 
@@ -118,7 +119,7 @@ accordion, focus/scroll, recensioni paginate e regressioni Match green;
 UX generale anche a 1280 px. SDK/Auth simulati, PostgreSQL locale.
 
 Le suite 20/20 UX e 400/400 Smoke erano la baseline storica v51/v52;
-non descrivono il candidato corrente. Nessun collaudo v55 production attribuito.
+non descrivono la release corrente. Nessun collaudo v55 production attribuito.
 
 ```sh
 node scripts/verify-ux-browser.cjs --playwright=/percorso/node_modules/playwright

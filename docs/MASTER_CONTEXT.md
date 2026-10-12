@@ -1,8 +1,23 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.60
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.61
 
-Ultimo aggiornamento: 12 ottobre 2026. Fonte dello stato operativo AS-IS. Roadmap e visione TO-BE hanno documenti dedicati; la cronologia delle fasi è conservata sotto.
+Ultimo aggiornamento: 13 ottobre 2026. Fonte dello stato operativo AS-IS. Roadmap e visione TO-BE hanno documenti dedicati; la cronologia delle fasi è conservata sotto.
 
-## Produzione v60 — baseline ufficiale, 12 ottobre 2026
+## Produzione v61 — baseline ufficiale, 12 ottobre 2026
+
+**IMPLEMENTED + RELEASED + PRODUCTION v61.** Commit runtime ufficiale
+`c8dfa6b9b370d75520d423413d8ca2506b285d39`,
+`perf: add bounded movie pagination`, branch main. Push completato;
+HEAD locale/origin/main/remote main allineati alla finalizzazione runtime.
+Vercel production verificata: **45/45 asset runtime HTTP 200 e identici al commit**,
+cache/service worker `scorochiatu-shell-v61`, smoke produzione **14 controlli PASS**,
+responsive **320/390/768 PASS**. Fixture production-test 436 film: massimo
+24 card renderizzate. Zero errori JS online, asset mancanti o richieste Supabase
+durante lo smoke; nessuna operazione Supabase/database.
+Sono verifiche della release pubblicata, non nuovi test di questo micro-pass.
+I benchmark pre-release del candidato restano distinti dalla verifica production
+nel [contratto di paginazione](BOUNDED_PAGINATION.md).
+
+## Checkpoint precedente: produzione v60 — 12 ottobre 2026
 
 **IMPLEMENTED / AS-IS.** Release conclusa e verificata in produzione, confermata
 dall’utente: commit `0813e721e963191b285f357789a9dddd967c6162`,
@@ -22,19 +37,22 @@ La migration v54 resta applicata una sola volta; la successiva
 è stata applicata manualmente dall’utente al Supabase reale. Non rieseguire
 cutover, backfill o migration; non modificare la migration storica v54.
 
-## Candidato locale Fase 0.5A — non pubblicato
+## Fase 0.5A — bounded pagination rilasciata in produzione v61
 
-**Implementazione locale, non produzione.** Sulla baseline Git
+**IMPLEMENTED + RELEASED.** Implementata a partire dalla baseline Git
 `a089a7e477b4c8147b02a0d6b56c6307db7fa3b0`, le liste sono paginate a
 24 card: dataset completo → ricerca → filtri → ordinamento → paginazione →
 render. `movies`, contatori e opzioni conservano il dataset completo;
 pagine indipendenti per tab, criteri Libreria condivisi e query Storico N/V
 condivisa. Debounce Storico 250 ms, poster lazy/async e griglia rilasciata
-quando nascosta. Cache candidata locale v61; **produzione ancora v60**.
+quando nascosta. Cache production `scorochiatu-shell-v61`; nessuna
+server-side pagination o virtualization.
 [Contratto, stato UI e verifiche](BOUNDED_PAGINATION.md).
 NAV-01 (ritorno involontario a Home durante fast-scroll su iPhone/PWA) resta
-aperto: osservato sul device reale, non riprodotto nell’audit; nessuna guardia
-touch o modifica del bootstrap. Nessuna modifica DB/Auth/migration/dati.
+**OPEN**: osservato sul device reale, non riprodotto nel harness automatico,
+root cause non identificata. La paginazione non è un fix dimostrato; probe
+diagnostico fuori dal prodotto, nessuna guardia touch o modifica del bootstrap.
+Nessuna modifica DB/Auth/migration/dati.
 
 ## Mappa documentale e precedenza
 
@@ -51,7 +69,7 @@ touch o modifica del bootstrap. Nessuna modifica DB/Auth/migration/dati.
 | Direzione e priorità di prodotto | [PRODUCT_ROADMAP](PRODUCT_ROADMAP.md) | Fase 0 IMPLEMENTED; Fasi 1–10 PLANNED, opzioni EXPLORATORY |
 | Scalabilità e modello futuro | [ARCHITECTURE_VISION](ARCHITECTURE_VISION.md) | Principio operativo; modello TO-BE, nessuna migrazione autorizzata |
 
-Il checkpoint v60 e i contratti finali prevalgono sui pass storici. La vecchia
+Il checkpoint v61 e i contratti finali prevalgono sui pass storici. La vecchia
 sequenza Step/Phase è un archivio di implementazione e non ordina il lavoro
 futuro. I tre documenti locali `IMPORT_HISTORY_N*.md`, attualmente non tracciati,
 registrano preparazione, approvazioni e piano dell’import: sono evidenze locali
@@ -87,7 +105,7 @@ saghe con aggiunta esplicita, ticket PNG (origine solo in memoria), temi
 automatici, audio/haptics opt-in e loader. Ownership dei personali, protezioni
 anti-spoiler/anti-XSS e rimozioni contestuali restano nei contratti specifici.
 
-## Semantiche consolidate — AS-IS v60
+## Semantiche consolidate — AS-IS v61 (contratti v60 conservati)
 
 ### Film, Storico e card
 
@@ -175,8 +193,9 @@ dell’import iniziale, non l’inventario aggiornato del catalogo.
 
 Produzione online verificata. L’app-shell offline si carica, ma nel test offline
 compare `tailwind is not defined`, collegato all’attuale dipendenza Tailwind
-CDN. Il problema **non è stato introdotto dalla v60**; va valutato in una futura
-fase di hardening/offline/PWA, senza correzioni in questo task.
+CDN. Debito preesistente, **non introdotto dalla v60 né dalla v61** e non bloccante per la
+produzione online; full offline capability non ancora raggiunta. Nessuna
+correzione in questo aggiornamento documentale.
 Caricare la shell non equivale ad avere dati remoti disponibili: ingresso e
 restore richiedono verifica Auth online; mirror solo nel runtime già autorizzato
 con JWT valido. Errori Auth/RLS non autorizzano fallback offline.
@@ -813,10 +832,10 @@ Phase 26 — Audio Manager implementata localmente: pulsante opt-in nel pannello
 
 Phase 28 — Ciak Loader e skeleton implementata localmente: al primo ingresso, dopo 160 ms di attesa, un ciak compare sotto la navbar e due sagome di movie card nella libreria. Il render cancella sempre il timer e rimuove lo stato `aria-busy`, così una risposta rapida non produce flash tardivi; il movimento ridotto usa la regola globale già presente. Una lettura iniziale che rigetta usa il mirror locale e termina il caricamento. Nessuna migration. Cache PWA `v19`; smoke locale **310/310 PASS**; resa visiva da verificare su smartphone.
 
-## Quadro rapido — v60
+## Quadro rapido — v61
 
 La baseline, i contratti finali e i risultati production sono nelle sezioni
-AS-IS in apertura. Le suite locali dei cicli v59/v60 sono documentate nei
+AS-IS in apertura. Le suite locali dei cicli v59/v60/v61 sono documentate nei
 checkpoint e nelle specifiche, senza presentarli come nuovi test hosted.
 Database locali, dump, backup e artefatti dell’import sono esclusi da Git;
 `database/` contiene schema e migration, senza esportazioni dei dati.
@@ -829,7 +848,7 @@ L'utente apprezza aggiunte come «Continua la saga», il ticket più curato e le
 
 ## Prossimo lavoro
 
-Release v60 conclusa: il prossimo incremento significativo è la Fase 1
+Release v61 conclusa: il prossimo incremento significativo è la Fase 1
 Discovery & Recommendation Engine della [roadmap ufficiale](PRODUCT_ROADMAP.md).
 Prima di implementarlo servono una fase dedicata, inventario dei segnali realmente
 disponibili, obiettivi e verifica del principio Content/User/Group/Community.

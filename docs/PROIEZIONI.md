@@ -1,6 +1,7 @@
 # Proiezioni: oggi, programmazione e dettagli
 
-Stato corrente: 12 ottobre 2026, **IMPLEMENTED in produzione v60**.
+Stato corrente: 13 ottobre 2026, **IMPLEMENTED in produzione v61**,
+con i contratti precedenti conservati.
 [Baseline ufficiale](MASTER_CONTEXT.md). Oggi/Programma e contratto di
 programmazione solo su movie_nights conservati. Le verifiche v48 in fondo
 sono storiche. [Lifecycle oltre mezzanotte e modifica N+V](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).

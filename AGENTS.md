@@ -1,6 +1,6 @@
 # AGENTS.md — sc(r)occhiaTu
 
-Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 12 ottobre 2026 (release v60 conclusa e verificata in produzione; Auth/RLS, v54 e migration incrementale snack già applicate).
+Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 13 ottobre 2026 (release v61 conclusa e verificata in produzione; Auth/RLS, v54 e migration incrementale snack già applicate).
 Prima di progettare una fase leggere [docs/MASTER_CONTEXT.md](docs/MASTER_CONTEXT.md):
 è la fonte dello stato corrente e delle decisioni UX. Per priorità future leggere
 [docs/PRODUCT_ROADMAP.md](docs/PRODUCT_ROADMAP.md); per scalabilità leggere
@@ -9,16 +9,21 @@ storiche del master context descrivono cicli precedenti, non lo stato finale.
 Per modelli e flussi specifici consultare anche le specifiche Phase 22/23/38/41.
 Vincoli, sicurezza e contratto Match di questo file restano applicabili.
 
-## Stato corrente v60 production
+## Stato corrente v61 production — IMPLEMENTED + RELEASED
 
-Baseline ufficiale: commit `0813e721e963191b285f357789a9dddd967c6162`,
-`fix: preserve movie nights and editable memories`,
-[produzione](https://sc-r-occhia-tu.vercel.app/), cache `scorochiatu-shell-v60`.
+Baseline ufficiale: commit `c8dfa6b9b370d75520d423413d8ca2506b285d39`,
+`perf: add bounded movie pagination`, branch main; push completato e
+HEAD locale/origin/main/remote main allineati alla finalizzazione runtime. Vercel
+[produzione](https://sc-r-occhia-tu.vercel.app/) verificata, cache `scorochiatu-shell-v61`.
 Release conclusa e verificata: 45/45 file hosted HTTP 200 e identici al commit,
-bootstrap online PASS, responsive 320/390/768 PASS, zero errori JS online,
-nessun asset mancante. Risultati registrati, non nuovi test live di questo task.
+smoke produzione 14 controlli PASS, responsive 320/390/768 PASS; fixture
+production-test 436 film, massimo 24 card. Zero errori JS online, asset
+mancanti o richieste Supabase durante lo smoke; nessuna operazione database.
+Risultati registrati, non nuovi test live di questo task.
 
-Precedente release inclusa: `91ecb9b4adeb82cefb7d5fdbd1a2e1a54bd7a248`,
+La release v60 `0813e721e963191b285f357789a9dddd967c6162`
+(`fix: preserve movie nights and editable memories`) resta inclusa.
+Precedente release card inclusa: `91ecb9b4adeb82cefb7d5fdbd1a2e1a54bd7a248`,
 `feat: redesign movie cards and add history search`.
 Card con progressive disclosure, principali informazioni/stati/voti visibili,
 Trailer/saga indipendenti, Gestione compatta e valutazioni N/V/N+V contestuali
@@ -50,17 +55,21 @@ fuori repository. Conteggi dell’import distinti da un nuovo audit live.
 
 Debito PWA non bloccante: online PASS, shell offline caricata ma
 `tailwind is not defined` nel test offline, collegato a Tailwind CDN e
-non introdotto dalla v60. Futura fase hardening/offline/PWA, nessun fix implicito.
+debito preesistente, non introdotto dalla v60 né dalla v61. Full offline capability non
+ancora raggiunta; nessun fix implicito nel presente aggiornamento.
 
-## Candidato locale Fase 0.5A — bounded pagination, non pubblicato
+## Fase 0.5A — bounded pagination rilasciata in produzione v61
 
-Baseline Git `a089a7e477b4c8147b02a0d6b56c6307db7fa3b0`; cache candidata
-v61, produzione v60 invariata. `PAGE_SIZE = 24`: ricerca/filtri/sort precedono
+Implementata dalla baseline Git `a089a7e477b4c8147b02a0d6b56c6307db7fa3b0`;
+**IMPLEMENTED + RELEASED + PRODUCTION v61**, cache `scorochiatu-shell-v61`.
+`PAGE_SIZE = 24`: ricerca/filtri/sort precedono
 lo slice; `movies` e logiche non visuali restano sull’intero dataset. Stato
 pagina per tab in memoria, reset di scope sui criteri e reset completo alla
 landing/lock/logout. Griglia nascosta rilasciata; poster lazy/async, Storico
 debounced 250 ms. [Contratto e test](docs/BOUNDED_PAGINATION.md).
-NAV-01 resta aperto separatamente; non aggiungere guardie touch speculative.
+NAV-01 **OPEN**: osservato su device reale, non riprodotto nel harness
+automatico, root cause non identificata; la paginazione non è un fix dimostrato.
+Probe diagnostico fuori dal prodotto; non aggiungere guardie touch speculative.
 Nessuna modifica Supabase, migration, Auth semantics o artefatti import.
 
 ## Storico: produzione v59 — Password dimenticata?
@@ -462,7 +471,7 @@ Per le priorità precise leggere la roadmap ufficiale e il master context aggior
 ## Vincoli tecnici
 
 - Dipendenze ancora via CDN (Tailwind Play, Font Awesome, supabase-js).
-- PWA presente: manifest e service worker, cache release `scorochiatu-shell-v60`; domini API,
+- PWA presente: manifest e service worker, cache release `scorochiatu-shell-v61`; domini API,
   Supabase, poster e YouTube sempre esclusi dall'intercettazione. Le icone PWA
   sono provvisorie; non confondere l'app-shell offline con dati remoti disponibili.
 - HTML delle card generato come stringhe: usare `escapeHtml`/`jsAttrEscape`

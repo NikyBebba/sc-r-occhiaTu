@@ -11,14 +11,18 @@ condivisa → programmazione → visione → valutazione → ricordo**. Il track
 personale resta importante; le interazioni tra persone sono un elemento
 centrale della value proposition.
 
-## Stato corrente — IMPLEMENTED
+## Stato corrente — IMPLEMENTED + RELEASED + PRODUCTION v61
 
 [Produzione](https://sc-r-occhia-tu.vercel.app/): release conclusa e verificata,
-commit `0813e721e963191b285f357789a9dddd967c6162`,
-`fix: preserve movie nights and editable memories`, **PWA/service worker v60**.
+commit `c8dfa6b9b370d75520d423413d8ca2506b285d39`,
+`perf: add bounded movie pagination`, **PWA/cache scorochiatu-shell-v61**.
+Push su main completato, HEAD locale/origin/main/remote main allineati alla finalizzazione runtime;
+Vercel production verificata.
 Verifica registrata: **45/45 file hosted HTTP 200 e identici al commit**,
-bootstrap online PASS, responsive 320/390/768 PASS, nessun errore JS online
-né asset mancante. Questi esiti appartengono alla release; non sono nuovi test
+smoke produzione **14 controlli PASS**, responsive 320/390/768 PASS; fixture
+production-test 436 film con massimo 24 card. Zero errori JS online, asset
+mancanti o richieste Supabase durante lo smoke; nessuna operazione database.
+Questi esiti appartengono alla release; non sono nuovi test
 live di questo aggiornamento documentale.
 
 La precedente release `91ecb9b4adeb82cefb7d5fdbd1a2e1a54bd7a248`,
@@ -38,9 +42,10 @@ non va rieseguita né va modificata la migration storica v54.
 
 ## Esperienza disponibile
 
-Candidato locale Fase 0.5A, non pubblicato: [paginazione limitata a 24 card e
-hardening delle liste](docs/BOUNDED_PAGINATION.md). La produzione resta v60;
-il bug fast-scroll NAV-01 rimane aperto separatamente.
+Fase 0.5A **rilasciata in produzione v61**: [paginazione limitata a 24 card e
+hardening delle liste](docs/BOUNDED_PAGINATION.md). NAV-01 resta **OPEN**:
+osservato su device reale, non riprodotto nel harness, root cause non identificata.
+La paginazione non è un fix dimostrato di NAV-01.
 
 - **Libreria e Storico:** ricerca/picker TMDb, dedup, filtri, viste Streaming/Cinema,
   card e dettaglio. Storico N/V usa il rispettivo stato personale, con ricerca
@@ -80,7 +85,8 @@ già autorizzato con JWT valido. Errori Auth/RLS non autorizzano fallback.
 
 **Debito noto, non bloccante:** online verificato; l’app-shell offline si carica,
 ma il test offline mostra `tailwind is not defined`, collegato alla dipendenza
-Tailwind CDN e non introdotto dalla v60. Da valutare in futuro nel hardening PWA.
+Tailwind CDN: debito preesistente, non introdotto dalla v60 né dalla v61 e non bloccante per
+la produzione online. Full offline capability non ancora raggiunta.
 
 ## Documentazione ufficiale
 

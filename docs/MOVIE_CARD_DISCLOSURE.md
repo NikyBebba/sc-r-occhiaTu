@@ -4,7 +4,7 @@
 
 Release `91ecb9b4adeb82cefb7d5fdbd1a2e1a54bd7a248`,
 `feat: redesign movie cards and add history search`, pubblicata e inclusa nella
-baseline production v60 `0813e721e963191b285f357789a9dddd967c6162`.
+baseline production v61 `c8dfa6b9b370d75520d423413d8ca2506b285d39`.
 [Baseline e verifica production](MASTER_CONTEXT.md).
 
 Progressive disclosure; informazioni/stati/voti principali sempre visibili.
@@ -22,9 +22,9 @@ snack/luogo della movie night Together selezionata; completamento pendente solo
 quando l’orario è raggiunto. [Contratto v60](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
 Voto/testo condivisi restano sul film, senza nuove valutazioni per evento.
 
-## Candidato locale Fase 0.5A
+## Fase 0.5A — IMPLEMENTED + RELEASED, production v61
 
-Evoluzione **locale non pubblicata**, Fase 0.5A: la griglia monta solo la pagina
+Evoluzione **rilasciata in produzione v61**, Fase 0.5A: la griglia monta solo la pagina
 corrente (massimo 24 card); i poster conservano il contenitore da 192 px con
 `loading="lazy"` e `decoding="async"`. Ricerca Storico debounced 250 ms;
 contratti delle card invariati. [Paginazione e stato](BOUNDED_PAGINATION.md).

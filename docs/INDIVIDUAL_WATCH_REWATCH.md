@@ -1,7 +1,7 @@
 # Individual Watch Status, Storico e Rewatch
 
-Stato corrente: 12 ottobre 2026, **IMPLEMENTED in produzione v60**,
-commit `0813e721e963191b285f357789a9dddd967c6162`.
+Stato corrente: 13 ottobre 2026, **IMPLEMENTED in produzione v61**,
+commit `c8dfa6b9b370d75520d423413d8ca2506b285d39`; contratti precedenti conservati.
 [Baseline e verifiche](MASTER_CONTEXT.md). Migration v54 applicata una sola
 volta dall’utente; non rieseguirla né modificarla. Ownership personale e assi
 seen/candidatura/Together conservati. La dichiarazione personale è indipendente
@@ -19,7 +19,7 @@ Checkpoint storico v54: commit `7855c16cae940c4f1b9a3d4267cc9c0db95c9107`,
 cache v54; audit pre/post 24/24 e confronto integrale checkpoint tutti true,
 HTTP PASS. Il primo uso reale positivo attestava backend/caricamento e non
 un collaudo completo di ogni flusso; le rifiniture frontend v55 furono poi
-pubblicate. Questi risultati storici restano distinti dalla baseline v60.
+pubblicate. Questi risultati storici restano distinti dalla baseline corrente v61.
 
 ## Contratto
 

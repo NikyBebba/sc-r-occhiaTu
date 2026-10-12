@@ -1,11 +1,20 @@
 # Fase 0.5A — Bounded pagination e performance hardening
 
-## Stato: IMPLEMENTED LOCAL, non pubblicato
+## Stato: IMPLEMENTED + RELEASED + PRODUCTION v61
 
-Candidato sulla baseline Git `a089a7e477b4c8147b02a0d6b56c6307db7fa3b0`.
-La produzione resta il commit `0813e721e963191b285f357789a9dddd967c6162`,
-service worker v60; la cache **candidata locale** è `scorochiatu-shell-v61`.
-Nessun commit, push, deploy, intervento Supabase o modifica dei dati reali.
+Release ufficiale: commit `c8dfa6b9b370d75520d423413d8ca2506b285d39`,
+`perf: add bounded movie pagination`, branch main. Push completato;
+HEAD locale/origin/main/remote main allineati alla finalizzazione runtime.
+Vercel production verificata, service worker/cache `scorochiatu-shell-v61`.
+Implementata dalla baseline Git `a089a7e477b4c8147b02a0d6b56c6307db7fa3b0`.
+Nessuna operazione Supabase/database o modifica dei dati reali.
+
+Verifica production della release: **45/45 asset runtime HTTP 200 e identici al
+commit**, smoke **14 controlli PASS**, responsive **320/390/768**; fixture
+production-test 436 film con **massimo 24 card**. Zero errori JS online, asset
+mancanti o richieste Supabase durante lo smoke. Questi risultati sono distinti
+dai benchmark e dal gate locale pre-release sotto; non sono nuovi test eseguiti
+in questo aggiornamento documentale.
 [Baseline e semantiche consolidate](MASTER_CONTEXT.md).
 
 ## Pipeline e confine del render
@@ -80,10 +89,11 @@ Indici movie-night, cache persistenti e refactoring generale sono esclusi.
 Personal/Together, voti/recensioni, card disclosure, Trailer, saghe, Gestione,
 movie nights, Ricordi, Match, Auth/RLS e dati DB conservano i contratti v60.
 
-## NAV-01 resta aperto
+## NAV-01 — OPEN
 
 Il ritorno involontario a Home osservato su Safari/PWA iPhone non è stato
-riprodotto; root cause aperta. La paginazione affronta costi di render misurati,
+riprodotto nel harness automatico; root cause non identificata.
+La paginazione affronta costi di render misurati,
 non costituisce un fix dimostrato del bug. Nessuna guardia touch speculativa,
 nuova gesture o correzione bootstrap. Il probe diagnostico rimane temporaneo
 fuori dal prodotto (`/tmp/sc-scroll-probe.js` nella sessione di audit).
@@ -92,8 +102,8 @@ La suite Chromium usa touch/flick CDP verticali/diagonali, rilascio vicino a
 header/navbar e rerender durante touch sulle viste Tutti, Da vedere, In programma,
 Storico N/V a 320/390/768. Verifica view/tab/pagina e assenza di detail involontari.
 WebKit verifica wheel/rerender agli stessi viewport: **non simula un flick
-Safari iOS/PWA equivalente**. Necessario collaudo reale iPhone dopo un eventuale
-deploy autorizzato, senza dichiarare NAV-01 risolto.
+Safari iOS/PWA equivalente**. La release è stata approvata dopo revisione tecnica
+e collaudo manuale; ciò non dimostra la risoluzione né la causa di NAV-01.
 
 ## Verifiche riproducibili
 
@@ -108,10 +118,12 @@ deploy autorizzato, senza dichiarare NAV-01 risolto.
   snack, PWA, smoke, syntax e diff. Le suite che richiedevano tutte le card nel
   DOM ora navigano le pagine; le verifiche funzionali restano attive.
 
-Il debito Tailwind offline preesistente rimane non bloccante e separato:
-non è stato corretto qui e non indica un malfunzionamento online della v60.
+Il debito offline/PWA preesistente resta non bloccante per la produzione online:
+app-shell disponibile offline, ma errore noto `tailwind is not defined` dovuto
+alla dipendenza runtime da Tailwind CDN. Non introdotto da v60/v61 e non corretto
+in questo task; full offline capability non ancora raggiunta.
 
-## Benchmark implementazione — 436 film, 24/pagina
+## Benchmark del candidato pre-release — 436 film, 24/pagina
 
 Stessa fixture dell’audit/prototipo: 436 film, 100 serate, poster SVG locali
 300×450, rete esterna bloccata, Auth sintetica. Mediane render sincrono di
@@ -146,7 +158,7 @@ finale, con pausa intenzionale 250 ms. Home monta zero card della movie grid.
 Risultati e harness di benchmark restano in `/tmp/sc-pagination-implemented*`,
 fuori dal repository; non contengono dati o credenziali reali.
 
-## Gate finale locale
+## Gate finale locale pre-release
 
 | Suite | Esito |
 | --- | --- |
