@@ -3,7 +3,7 @@
 // ============================================
 
 let currentTab = 'watchlist'; // 'all' | 'watchlist' | 'tonight' | 'watched' | 'calendar' | 'match'
-let dashboardView = 'home'; // 'home' | 'wheel' | 'library' | 'history'
+let dashboardView = 'home'; // 'home' | 'wheel' | 'library' | 'history' | 'recommendations'
 // Tab da cui si è entrati nel Match (per "Esci" = pausa). Default 'watchlist'.
 let matchPrevTab = 'watchlist';
 
@@ -79,6 +79,16 @@ function openDashboardHome() {
   window.scrollTo?.({ top: 0, behavior: 'smooth' });
 }
 
+function openRecommendationView() {
+  cancelListingSearch();
+  if (currentTab === 'match') { clearMatchState(); leaveMatch(); currentTab = matchPrevTab; }
+  dashboardView = 'recommendations';
+  syncLibraryNavigation();
+  calculateRecommendations();
+  render();
+  window.scrollTo?.({ top: 0, behavior: 'smooth' });
+}
+
 // Pillola animata della libreria: #tabIndicator (absolute inside
 // #segControl) trasla left/width per stare sotto la vista attiva.
 // Guardie: in ambienti privi di geometrie (stub/harness)
@@ -118,6 +128,7 @@ function activeDestination() {
   if (dashboardView === 'home') return 'home';
   if (dashboardView === 'wheel') return 'wheel';
   if (dashboardView === 'history') return 'history';
+  if (dashboardView === 'recommendations') return null;
   return currentTab === 'calendar' ? null : 'library';
 }
 

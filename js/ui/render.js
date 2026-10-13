@@ -83,8 +83,9 @@ function render() {
   const inMatch = currentTab === 'match';
   const inHome = dashboardView === 'home' && !inMatch;
   const inWheel = dashboardView === 'wheel' && !inMatch;
+  const inRecommendations = dashboardView === 'recommendations' && !inMatch;
   const inHistory = dashboardView === 'history';
-  const inLibrary = !inHome && !inWheel;
+  const inLibrary = !inHome && !inWheel && !inRecommendations;
   const historyFilms = inHistory ? historyMoviesFor(currentTab === 'history_v' ? 'V' : 'N') : [];
   document.getElementById('historySearch')?.classList.toggle('hidden', !inHistory);
   const historySwitch = document.getElementById('historySwitch');
@@ -95,6 +96,8 @@ function render() {
     sceltaCta.classList.toggle('hidden', !inHome);
     sceltaCta.classList.toggle('is-home', inHome);
   }
+  const recommendationSection = document.getElementById('recommendationSection');
+  if (recommendationSection) recommendationSection.classList.toggle('hidden', !inRecommendations);
   const sidebar = document.getElementById('dashboardSidebar');
   if (sidebar) {
     sidebar.classList.toggle('!hidden', !inWheel);
@@ -103,6 +106,7 @@ function render() {
   if (library) {
     library.classList.toggle('!hidden', !inLibrary);
   }
+  if (typeof renderRecommendationView === 'function') renderRecommendationView(inRecommendations);
   const libraryBack = document.getElementById('libraryBack');
   if (libraryBack) libraryBack.classList.toggle('hidden', inMatch);
   const matchHeader = document.getElementById('matchViewHeader');

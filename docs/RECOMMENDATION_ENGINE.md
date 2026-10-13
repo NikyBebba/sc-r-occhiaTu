@@ -1,9 +1,9 @@
 # Recommendation Engine v2 — stable preference core
 
-**PHASE 5 IMPLEMENTED LOCALLY / IN CODEBASE / NOT YET CONSUMER-INTEGRATED.**
-Il Core esistente è riallineato, non ricostruito. Produzione frontend v61 invariata;
-moduli non caricati da index.html né precachati dal service worker. Nessuna
-integrazione Cosa Guardiamo?, Ruota o generazione deck Match, nessun deploy.
+**PHASE 6 CONSUMER-INTEGRATED LOCALLY / NOT DEPLOYED.**
+Il Core v2 approvato è il motore runtime di Cosa Guardiamo?; produzione frontend
+v61 invariata. I moduli sono caricati da index.html e inclusi nel precache locale
+con candidata cache v62. La Ruota e Match restano separati.
 DB Personal Preference già installato/verificato; store/UI Phase 3–4 solo locali.
 **DO NOT COLLECT REAL PERSONAL PREFERENCES YET** fino a rollout autorizzato e
 verifica dei client N/V aggiornati, inclusa cache PWA.
@@ -212,5 +212,50 @@ regressioni e determinismo; **non** predictive accuracy, soddisfazione o qualit�
 reale. Serviranno feedback post-rollout e validazione consumer separata.
 
 NAV-01 OPEN/non riprodotto e debito Tailwind offline restano invariati.
-Prossima fase: integrazione autorizzata Cosa Guardiamo?; Match deck generation più
-avanti, Session Context Model molto più avanti e soltanto se giustificato.
+La Phase 6 integra ora Cosa Guardiamo? come primo consumer; generazione deck
+Match resta separata e Session Context Model fuori scope, da valutare solo se
+giustificato.
+
+## Phase 6 consumer Cosa Guardiamo?
+
+Stato aggiornato: **CONSUMER-INTEGRATED LOCALLY / NOT DEPLOYED**. La vista
+`Cosa guardiamo?` è ora il primo consumer runtime del modello
+`stable-G4-polarity-v2 / v2.0.0`. Il percorso è Store già pronto →
+`RecommendationAdapters.fromMovies` → `RecommendationEngine.recommend` e
+`RecommendationEngine.rerank` → renderer consumer. L’adapter riceve N, V,
+Together, feature ed eventi dalla memoria Store corrente; nessun fetch/cache
+separato e nessun dato Match/legacy.
+
+I candidati provengono soltanto da `in_shared_list`; `context: all` mantiene
+Streaming e Cinema disponibili, senza filtri consumer preesistenti da trasferire.
+Core esclude completed e serate proposed/confirmed. Seen, Dislike, cancelled e
+skipped non diventano esclusioni o segnali positivi. Gli output sono mostrati
+nell’ordine prodotto dal Core, in batch deterministici da cinque; Altri
+suggerimenti invoca di nuovo il Core escludendo gli ID già presentati. UNKNOWN,
+LOW_EVIDENCE, INFERRED e OBSERVED hanno presentazioni distinte; non si mostrano
+score grezzi, percentuali o `5/10` sintetici. Le reason UI sono proiezioni delle
+reason strutturate restituite dal Core.
+
+Aprire la vista o premere Aggiorna ricalcola. Mentre la vista resta aperta,
+Realtime conserva l’ordine visibile e segnala dati cambiati; l’utente aggiorna
+esplicitamente. Recensioni testuali non invalidano il ranking. Errori Core sono
+isolati alla vista, senza algoritmo alternativo. Benchmark sintetico a 437 film
+misura separatamente adapter, profili, recommend, diversity e DOM render; non
+dimostra qualità predittiva reale. Le prove browser Chromium/WebKit usano fixture
+sintetiche. Nessuna preference live è stata creata.
+
+La lista precache di `service-worker.js` include i moduli recommendation e il
+candidato locale incrementa la cache da v61 a v62; produzione resta v61. `index.html`
+e service worker devono essere rilasciati insieme per evitare shell/moduli
+disallineati. Il sanity check read-only sui dati reali non è stato eseguito:
+manca il JWT membro richiesto dal percorso sicuro e non è stato usato fallback
+anonimo.
+
+Il pulsante “Torna alla home” della vista recommendation ora riusa integralmente
+il testo e il pattern `dashboard-back` degli altri pulsanti equivalenti. Il
+candidato resta locale, senza deploy o raccolta di preferenze reali. Il shell
+v62 precache include
+`/js/recommendation/config.js`, `/js/recommendation/core.js`,
+`/js/recommendation/adapters.js` e `/js/ui/recommendations.js`. Recommendation
+rimane non integrato in Match Live,
+Ruota o altre superfici, e non è ancora deployed.

@@ -206,6 +206,7 @@
         </div>
         <div class="dashboard-choice-actions">
           <button id="tabMatch" onclick="setTab('match')" class="dashboard-match-btn home-mode home-mode-match hidden" aria-label="Apri Match Live" aria-current="false"><span class="home-mode-icon"><i class="fa-solid fa-heart" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Trova il Match</strong><small>Due sì fanno un Match.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
+          <button onclick="openRecommendationView()" class="dashboard-choice-btn home-mode home-mode-recommendation" aria-label="Apri Cosa guardiamo?"><span class="home-mode-icon"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Cosa guardiamo?</strong><small>Una proposta dai vostri giudizi.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
           <button onclick="openWheelView()" class="dashboard-choice-btn home-mode home-mode-wheel" aria-label="Apri la ruota della fortuna"><span class="home-mode-icon"><i class="fa-solid fa-rotate" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Gira la Ruota</strong><small>Un giro e salta fuori il film.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
           <button onclick="setTab('watchlist')" class="dashboard-choice-btn home-mode home-mode-list" aria-label="Sfoglia la lista dei film"><span class="home-mode-icon"><i class="fa-solid fa-film" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Sfoglia la lista</strong><small id="homeWatchlistCount">La lista aspetta il primo titolo.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
         </div>
@@ -217,6 +218,21 @@
             <button onclick="setTab('watched')" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-solid fa-star" aria-hidden="true"></i></span><span><strong>Visti e recensioni</strong><small id="homeWatchedCount">Qui finiscono i film già visti.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
             <button onclick="setTab('calendar')" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-regular fa-calendar" aria-hidden="true"></i></span><span><strong>Calendario</strong><small>Le proiezioni passate e quelle in arrivo.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
           </div>
+        </div>
+      </section>
+
+      <section id="recommendationSection" class="hidden space-y-5 min-w-0" aria-label="Cosa guardiamo?" aria-busy="false">
+        <div class="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-800">
+          <div class="flex items-start justify-between gap-3">
+            <div><p class="dashboard-eyebrow">PROPOSTE DALLA LISTA CONDIVISA</p><h2 class="text-lg font-bold text-slate-100">Cosa guardiamo?</h2><p class="text-sm text-slate-400 mt-1">Ordinate in base ai giudizi personali e ai voti condivisi.</p></div>
+            <button type="button" onclick="openDashboardHome()" class="dashboard-back" aria-label="Torna alla home"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Torna alla home</button>
+          </div>
+          <p id="recommendationStatus" class="text-sm text-slate-400 mt-4" role="status" aria-live="polite"></p>
+          <div id="recommendationStale" class="hidden mt-3 rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm text-slate-300" role="status">I giudizi o la lista sono cambiati. Aggiorna le proposte quando vuoi.<button type="button" onclick="refreshRecommendations()" class="ml-2 underline underline-offset-2">Aggiorna</button></div>
+          <div id="recommendationResults" class="recommendation-results mt-4" aria-label="Proposte ordinate"></div>
+          <div id="recommendationEmpty" class="hidden mt-4 text-sm text-slate-400" role="status"></div>
+          <div id="recommendationError" class="hidden mt-4 text-sm text-rose-200" role="alert">Non riusciamo a preparare le proposte. Riprova tra poco.</div>
+          <button id="recommendationMore" type="button" onclick="showMoreRecommendations()" class="hidden mt-4 min-h-11 rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:border-slate-500">Altri suggerimenti</button>
         </div>
       </section>
 
@@ -729,6 +745,10 @@
   <script src="js/ui/render/projections.js"></script>
   <script src="js/ui/render/detail.js"></script>
   <script src="js/ui/render.js"></script>
+  <script src="js/recommendation/config.js"></script>
+  <script src="js/recommendation/core.js"></script>
+  <script src="js/recommendation/adapters.js"></script>
+  <script src="js/ui/recommendations.js"></script>
   <script src="js/ui/calendar.js"></script>
   <script src="js/ui/match.js"></script>
   <script src="js/ui/ticket.js"></script>

@@ -2,6 +2,28 @@
 
 Ultimo aggiornamento: 13 ottobre 2026. Fonte dello stato operativo AS-IS. Roadmap e visione TO-BE hanno documenti dedicati; la cronologia delle fasi è conservata sotto.
 
+## Phase 6 — Consumer Cosa Guardiamo? integrato localmente
+
+**CONSUMER-INTEGRATED LOCALLY / NOT DEPLOYED.** `Cosa Guardiamo?` è il primo
+consumer reale del Recommendation Core v2: Store già caricato → adapter N/V →
+Core → risultati spiegabili. Candidate pool solo shared list, senza fallback;
+completed e serate proposed/confirmed esclusi, Seen/Dislike/cancelled/skipped
+non esclusi per principio. Il Core determina suitability, ordine e diversity;
+nessuno shuffle o boost UI. La vista usa batch deterministici da cinque e
+“Altri suggerimenti” chiede al Core i successivi candidati escludendo quelli già
+mostrati. UNKNOWN resta senza punteggio numerico; ragioni e stati evidence sono
+tradotti in microcopy senza percentuali.
+
+Il ranking non salta durante Realtime: aggiornamenti dello Store marcano la vista
+come obsoleta e l’utente può aggiornare esplicitamente; rientrare ricalcola dai
+dati correnti. Loading attende il completamento del bootstrap Store. La Ruota e
+Match Live mantengono i propri percorsi. Il candidato locale prepara la cache
+v62 con tutti i moduli Core inclusi nel precache; la produzione resta v61 fino a
+un release autorizzato. Il sanity check sui dati reali è bloccato: il percorso
+read-only esistente richiede un JWT membro che non è disponibile in questa
+sessione. **Nessun deploy o raccolta di preferenze reali.** Dettagli e verifiche in
+[Recommendation Engine](RECOMMENDATION_ENGINE.md#phase-6-consumer-cosa-guardiamo).
+
 ## Produzione v61 — baseline ufficiale, 12 ottobre 2026
 
 **IMPLEMENTED + RELEASED + PRODUCTION v61.** Commit runtime ufficiale

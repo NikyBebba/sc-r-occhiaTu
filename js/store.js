@@ -24,6 +24,7 @@ const MOVIE_SELECT_FIELDS = [
 let movies = [];
 let vetoes = [];  // { id, person, movie_id, week_key }
 let movieNights = []; // { id, movie_id, date, time, snack, location, proposed_by, status, ... }
+let storeReady = false; // true only after the current authenticated session has a complete Store snapshot
 
 // Modalità di persistenza corrente. 'supabase' = DB raggiungibile e usato.
 // 'local' = database degradato/non raggiungibile: usiamo il mirror in
@@ -58,6 +59,7 @@ function loadLocal() {
   vetoes = JSON.parse(localStorage.getItem('scorochiatu_vetoes') || '[]');
   movieNights = JSON.parse(localStorage.getItem('scorochiatu_movie_nights') || '[]');
   if (!Array.isArray(movieNights)) movieNights = [];
+  storeReady = true;
 }
 
 // Legge tutto da Supabase. Se fallisce (o se siamo in modalità locale e nel
@@ -120,6 +122,7 @@ async function loadMovies() {
   } else {
     loadLocal();
   }
+  storeReady = true;
   render();
 }
 
@@ -141,6 +144,7 @@ async function resyncQuiet() {
   } else {
     loadLocal();
   }
+  storeReady = true;
   if (dataSignature() !== prev) render();
 }
 

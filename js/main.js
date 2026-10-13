@@ -250,6 +250,7 @@ function showApp() {
   const person = CONFIG.PEOPLE[currentUser];
   badge.innerHTML = `<span class="badge ${person.badgeClass}">${person.label}</span>`;
   beginInitialLoading();
+  storeReady = false;
   subscribeRealtime();
   loadMovies().catch(() => {
     if (!isAppAuthorized() || entryEpoch !== authEpoch) return;

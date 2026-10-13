@@ -1346,12 +1346,22 @@ textarea:focus-visible {
   .dashboard-choice-actions { grid-template-columns: 1.3fr 1fr 1fr; }
   .dashboard-match-btn { grid-column: auto; }
   .dashboard-choice.is-home { grid-template-columns: 1fr; }
-  .dashboard-choice.is-home .dashboard-choice-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .dashboard-choice.is-home .dashboard-choice-actions:has(> #tabMatch.hidden) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-choice.is-home .dashboard-choice-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .dashboard-choice.is-home .dashboard-choice-actions:has(> #tabMatch.hidden) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .dashboard-choice.is-home .home-mode { grid-template-columns: 1fr 20px; min-height: 230px; padding: 24px; gap: 18px 10px; }
   .dashboard-choice.is-home .home-mode-icon { grid-column: 1 / -1; width: 64px; height: 64px; font-size: 27px; }
   .home-mode-copy strong { font-size: 19px; }
 }
+
+.dashboard-choice.is-home .home-mode-recommendation { --mode-color: var(--color-cielo); }
+.recommendation-results { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.recommendation-card { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-width: 0; padding: 10px; border: 1px solid var(--color-bordo-forte); border-radius: 14px; background: color-mix(in srgb, var(--color-vetro) 88%, transparent); }
+.recommendation-poster { display: block; width: 62px; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 9px; background: var(--color-chip); }
+.recommendation-title { overflow-wrap: anywhere; font-size: 14px; font-weight: 700; color: var(--color-testo-1); }
+.recommendation-meta { margin-top: 4px; color: var(--color-testo-3); font-size: 11px; line-height: 1.45; }
+.recommendation-open { min-width: 44px; min-height: 44px; border-radius: 999px; color: var(--color-testo-2); }
+.recommendation-open:hover, .recommendation-open:focus-visible { color: var(--color-testo-1); background: var(--color-chip); outline: 2px solid var(--color-accento); outline-offset: 2px; }
+@media (min-width: 768px) { .recommendation-results { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 #wheelPanel {
   background: radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--color-accento) 16%, transparent), transparent 52%), var(--color-vetro);

@@ -1,4 +1,4 @@
-// Dormant module: not loaded by index.html or the production service worker.
+// Stable Recommendation Core v2 configuration, loaded by the local Cosa Guardiamo? consumer.
 // These empirical defaults are not truths about the personal rating scale.
 const RecommendationConfig = (() => {
   const config = {
