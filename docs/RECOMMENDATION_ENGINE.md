@@ -1,181 +1,216 @@
-# Recommendation Engine v1 — pure core
+# Recommendation Engine v2 — stable preference core
 
-**IMPLEMENTED LOCALLY / NOT YET CONSUMER-INTEGRATED:** checkpoint di
-implementazione STEP 3 della Fase 1. STEP 3B consolida il codice in Git,
-senza integrazione consumer o release runtime.
-Produzione invariata: runtime v61, baseline repository
-`c0037f8b979c0ef866eba02fc191c3becf53ba28`. I nuovi moduli non sono caricati
-da `index.html` e non sono nella cache PWA. Nessun deploy in STEP 3B.
-Home/Cosa Guardiamo?, Ruota, Match Live e tutti gli altri consumer restano AS-IS.
+**PHASE 5 IMPLEMENTED LOCALLY / IN CODEBASE / NOT YET CONSUMER-INTEGRATED.**
+Il Core esistente è riallineato, non ricostruito. Produzione frontend v61 invariata;
+moduli non caricati da index.html né precachati dal service worker. Nessuna
+integrazione Cosa Guardiamo?, Ruota o generazione deck Match, nessun deploy.
+DB Personal Preference già installato/verificato; store/UI Phase 3–4 solo locali.
+**DO NOT COLLECT REAL PERSONAL PREFERENCES YET** fino a rollout autorizzato e
+verifica dei client N/V aggiornati, inclusa cache PWA.
 
-## Moduli e API
+Checkpoint storico: STEP 3B `635f17e2b2e03c5386f0b0e446aeb3e4923ee474`, originale
+STEP 3 `c0037f8b979c0ef866eba02fc191c3becf53ba28`. Model B/G4 v1 con learning
+Match è una baseline storica superata, disponibile in Git per il confronto.
 
-- [config](../js/recommendation/config.js): default immutabili e versionati.
-- [core](../js/recommendation/core.js): funzioni pure, indipendenti dal modello N/V.
-- [adapters](../js/recommendation/adapters.js): traduzione esplicita dello schema corrente.
-- [test sintetici](../scripts/verify-recommendation.js): nessun export personale.
+Match è REAL SESSION DECISION DATA, non stable taste. I dati vengono
+preservati dal runtime e dal DB; il Recommendation adapter non li proietta e il
+Core non li legge. Nessun decay/freshness/session agreement nel modello stabile.
+Personal Like + Match Nope e Personal Dislike + Match Like sono stati validi.
 
-Le API principali sono `RecommendationEngine.recommend(context, config)` e
-`RecommendationEngine.rerank(rankedResults, size, config)`. CommonJS per i test;
-script classici, nell'ordine config/core/adapters, per un eventuale caricamento
-futuro. Nessun bundler o dipendenza nuova. Il core non legge DOM, storage,
-Supabase, globali UI, orologio corrente, randomness o API esterne.
+Stable personal learning → profili individuali → Couple Recommendation →
+compatibilità/ranking → futuro consumer Cosa Guardiamo? → eventuali nuovi deck
+Match → scelta della sessione → visione → eventuale feedback stabile esplicito.
+Un deck già attivo non viene mutato dal Core. Session Context Model è fuori scope.
+User-centric profiles e composizione di gruppi rimangono
+[DEFERRED / ARCHITECTURE-READY](ARCHITECTURE_VISION.md): applicazione/adapter N/V,
+learning parametrizzato per ID opaco e aggregation distinta, nessuna migration multi-user.
+
+## Source of truth
+
+| Dato | Personal stable taste | Shared taste | Altri usi |
+|---|---|---|---|
+| Personal Rating | sì, observation primaria | no | feedback, non richiede Seen |
+| Explicit Personal Preference | sì, solo senza rating | no | TRUE/FALSE/NULL; nessun rating sintetico |
+| Seen N/V | no | no | esposizione, massa gusto zero |
+| Personal Review | no scoring | no | testo, nessun NLP |
+| Shared list | no | no | candidate pool primaria |
+| Completed Together | no | no | esposizione/eligibility |
+| Together Rating | no | sì | canale/profilo distinto |
+| Together Review | no | no scoring | testo |
+| Match Like/Nope, Double Like/Nope, disagreement | no | no | session history preservata fuori Core |
+| proposed/confirmed | no | no | esclusione operativa |
+| cancelled/skipped | no | no | eventi; non esclusione o dislike |
+| legacy votes/vetoes | no | no | esclusi dal Core, runtime preservato |
+
+## API e adapter
+
+[config](../js/recommendation/config.js), [core](../js/recommendation/core.js),
+[adapter](../js/recommendation/adapters.js). Pure functions; niente I/O, DOM,
+storage, Supabase, globali applicativi, current time o randomness. CommonJS nei
+test e script classici config/core/adapters per un futuro consumer; nessun bundler.
+
+`recommend(context, config)` e `rerank(results, size, config)` restano invariati.
+`buildProfile(signals, normalizedFeatures, ignoredAsOf, config)` conserva il terzo
+argomento per compatibilità ma non lo consuma. `asOf` non è più richiesto né
+restituito nei metadata: la selezione di uno snapshot storico è responsabilità
+del chiamante, non un decay del gusto. Profile learning non dipende da due utenti;
+recommend/aggregateGroup mantengono esattamente due ID distinti opachi.
 
 ```js
 const context = {
-  users: [{ id: 'user-a' }, { id: 'user-b' }],
-  group: { id: 'group-a' },
-  asOf: '2026-01-15T00:00:00Z',
-  candidates: [{ movieId: 'film-a', title: 'Film sintetico',
-    inSharedList: true, cinema: false }],
+  users: [{ id: 'user-a' }, { id: 'user-b' }], group: { id: 'group-a' },
+  candidates: [{ movieId: 'film-a', title: 'Sintetico', inSharedList: true, cinema: false }],
   contentFeatures: { 'film-a': { genres: ['Dramma'], directors: ['Regista'],
     cast: ['Attore'], runtimeMinutes: 110, releaseYear: 2005, collectionId: null } },
-  personalSignals: { 'user-a': { ratings: [], match: [], seen: [] }, 'user-b': {} },
-  sharedSignals: { ratings: [], events: [], completedMovieIds: [] },
-  constraints: { context: 'streaming', maxRuntimeMinutes: 120 }
+  personalSignals: { 'user-a': { ratings: [], preferences: [{contentId:'film-a',value:false}] }, 'user-b': {} },
+  sharedSignals: { ratings: [], events: [], completedMovieIds: [] }, constraints: {context:'streaming'}
 };
-const ranked = RecommendationEngine.recommend(context, RecommendationConfig);
-const shortlist = RecommendationEngine.rerank(ranked, 5, RecommendationConfig);
+const ranked = RecommendationEngine.recommend(context);
+const shortlist = RecommendationEngine.rerank(ranked, 5);
 ```
 
-La v1 richiede **esattamente due utenti**, entrambi con ID opachi: zero, uno o
-più di due sono rifiutati anche da `aggregateGroup`. `supportedGroupSize=2` non
-può essere cambiato per aggirare questo contratto. ID non vuoti sono preservati
-esattamente, senza normalizzazione testuale che perda le chiavi dei segnali.
-`contentFeatures` comprende anche lo storico non candidato. Rating:
-`{contentId, value}`. Match: `{contentId, sessionId, liked, createdAt}`;
-`liked` booleano e timestamp esplicito con timezone. Eventi:
-`{movieId, status}`. `asOf` è obbligatorio: timestamp zonato o millisecondi epoch
-validi. Nessun fallback a Date.now. Timestamp Match invalidi non creano evidenza;
-date future hanno freshness limitata a uno. Il chiamante deve selezionare i dati
-appropriati alla data di una valutazione storica.
+Adapter `fromMovies({movies, movieNights?, userIds?, groupId?, constraints?})` usa
+l'intero catalogo per imparare, candidatura per filtrare. Mappa `seen_rating_n/v`,
+`personal_liked_n/v`, Together rating, feature ed eventi. FALSE preservato;
+missing/NULL/valori non booleani = nessuna preference. Non deriva preference da
+rating/Seen/testo/Match. Con rating valido ignora una preference anche incoerente.
+Reviews/Seen sono descrizione non scoring. Timestamp preference non necessario:
+nessun decay. ID opachi, token/dataset ordinati, duplicati equivalenti deduplicati,
+conflitti di rating/candidate/preference effettiva rifiutati. Preference storiche
+conflittuali sul contenuto rated vengono ignorate perché non attive.
 
-Output: `movieId`, `title`, `personal[userId]`, `group`, `reasons`, `metadata` e
-feature normalizzate per il reranking. Metadata include model/config version,
-asOf normalizzato UTC e provenance delle osservazioni deduplicate. Nessuna azione
-di persistenza o programmazione. Le funzioni di normalizzazione/profile/group
-sono esportate anche per test numerici; `buildProfile` richiede feature già
-normalizzate e asOf esplicito.
+## Observation e rating transform
 
-## Eligibility
+Una sola observation effettiva user/movie: valid rating > manual preference >
+unknown. Rating 0 valido; numeric finito 0–10 con al massimo un decimale.
+DB/store cancellano preference con save/edit/remove rating; il Core non conserva
+vecchie preference da ripristinare: lo snapshot dopo rimozione contiene NULL.
 
-Shared list → no Together completed → no proposed/confirmed → contesto →
-constraint espliciti → dedup → suitability → ranking. Movie ID duplicati
-equivalenti collassano; duplicati conflittuali sono rifiutati, senza scegliere
-in base all'ordine di input. Contesto iniziale `streaming`; anche `cinema`/`all`.
+Polarità definitiva: `<5.5 NEGATIVE`, `>=5.5 && <7 NEUTRAL`, `>=7 POSITIVE`.
+Non materializzata nel DB; derivata deterministicamente anche sui boundary
+5.0/5.4/5.5/6.0/6.5/6.9/7.0/8.0/9.5 e zero/dieci.
 
-Seen personale, anche di entrambi, non esclude. Cancelled/skipped non sono
-dislike. Generi richiesti: OR sui nomi normalizzati; durata: min/max inclusivi.
-Se un constraint richiede un metadato mancante, il candidato è escluso: non viene
-dichiarato compatibile. `excludeMovieIds` è un'esclusione esplicita del chiamante,
-non una derivazione dal vecchio Veto. Nessuna availability verificata promessa.
+```
+center = (sumRatings + 12*7)/(nRatings+12)
+relativeRatingAffinity = clamp((rating-center)/2.5,-1,1)
+absoluteSignal = clamp((rating-6.25)/3.75,-1,1)
+stableSignal = 0                        se NEUTRAL
+             = absoluteSignal+.10*relative altrimenti
+POSITIVE: clamp(stableSignal,0,1); NEGATIVE: clamp(stableSignal,-1,0)
+```
 
-Surprise e Veto sono **DEPRECATED / TARGET REMOVE**, ma rimangono nel runtime
-AS-IS; l'adapter non li espone. Il core non usa `choiceEligible()`. Match Nope
-resta un feedback contestuale distinto e non è un'esclusione permanente.
+F1 risolto: 19×9.5 + 8 → center 8.515625, relativo -0.20625, polarità POSITIVE,
+stableSignal 0.4460416667, compatibility index 7.2302083333; vecchio indice 3.96875.
+Nessuna negative protection generata da quel rating sotto media.
 
-## Personal Model B
+Preference TRUE/FALSE = direzione +1/-1, massa .50. Rating massa 1. Nessun decay.
+Neutral rating conserva massa/conoscenza pur avendo direzione zero. Valori osservati
+non trasformati in altri voti. `observedRating`, `observedPreference`,
+`absolutePolarity`, `relativeRatingAffinity`, `stableSignal` e `provenance` separati.
+`score` è alias compatibile di `compatibilityIndex`, **non voto previsto**.
+Rating diretto: indice `5+5*stableSignal`, confidence .95.
+Preference diretta: indice `5+5*direction*(.50/(.50+3))`, confidence
+`.95*(.50/(.50+3))`; Like 5.7142857, Dislike 4.2857143, confidence .1357143.
+Sono indici del modello, non rating sintetici 5.7/4.3 dell'utente.
 
-Genre/director/cast normalizzati testualmente e deduplicati, senza ID personali
-canonici inventati. Registi multipli supportati; cast limitato ai nomi ricevuti,
-senza otto osservazioni per otto attori. Runtime valido nei bucket <100,
-100–119, 120–149, >=150; era per decennio; collection con ID TMDb positivo.
-Missing: affinity/confidence zero, nessuna rinormalizzazione delle altre famiglie.
+## Feature inference e confidence
 
-Centro = `(sum(rating) + tau * anchor) / (n + tau)`; zero rating è valido.
-Signal = clamp di `(rating - center) / scale` in [-1,+1]. Anchor 7 e tau 12
-sono **parametri empirici iniziali**, non verità sul gradimento o sulla scala.
-Un segnale sotto il centro significa relativo sotto riferimento, non "detestato".
-Nessun rating usa l'anchor internamente senza creare massa.
+Famiglie invariate: genre .30, director .20, cast .10, runtime .15, era .10,
+collection .15. Token normalizzati/deduplicati; runtime <100/100–119/120–149/≥150,
+era per decennio, collection TMDb positiva. Missing non rinormalizza i pesi.
+Ogni observation distribuisce massa sui token della famiglia, senza moltiplicarla
+per numero di attori. Supporto da rating/preference personali esclusivamente.
 
-Massa divisa fra token di ogni famiglia. Token affinity = signedMass /
-`(evidenceMass + lambda)`; confidence token = evidenceMass / stesso denominatore.
-Score = 5 + 5 × somma delle affinità medie pesate per famiglia. Confidence =
-confidence feature pesata × totalMass / `(totalMass + profileLambda)`.
-**Compatibility index, non prossimo voto previsto. Confidence euristica, non
-probabilità calibrata.** Score/confidence bounded, missing non premiato.
+Affinity token = signedMass/(evidenceMass+3); confidence token = mass/(mass+3).
+Indice interno = 5+5×somma delle affinità medie pesate. Confidence predittiva =
+confidence feature pesata × totalMass/(totalMass+4). Nessuno shrinkage supplementare
+sulla direzione della preference prima di accumularla. Singola observation produce
+confidenza inferita bassa intenzionale; crescita/supporto pertinente sono testati.
 
-Rating diretto del candidato: stato `observed`, confidence 0,95 configurata,
-reason factual con valore originale. Prediction: `weak` sotto 0,2, altrimenti
-`estimated`; soglia configurabile. Confidence zero: `unknown`, score pubblico
-null e internalScore 5. Seen e testi delle recensioni non producono gusto.
+Reliability dell'observation esplicita: .95 euristico sia rating sia preference;
+information richness: massa 1/.50. Confidence predittiva e group confidence sono
+campi distinti da reliability e richness, non probabilità calibrate.
+Stati: OBSERVED per declaration diretta; UNKNOWN senza supporto pertinente,
+score/compatibilityIndex NULL e confidence 0; LOW_EVIDENCE se confidence >0 ma <.2,
+indice pubblico NULL, interno disponibile; INFERRED se confidence ≥.2.
+Rating 6 è OBSERVED/NEUTRAL, observedRating=6, indice=5, confidence>0: non Unknown.
 
-Match è opzionale. Rating prevale sullo stesso contenuto. Swipe deduplicati per
-sessione/contenuto, poi collassati per contenuto: signal medio pesato per
-freshness, massa massima matchWeight × freshness massima, non somma illimitata.
-Conflitti nella stessa risposta o rating duplicati differenti sono errori di
-input. I support ID sono contenuti distinti. Nessun CSV nel prodotto.
+## Shared Together e least misery
 
-## G4 protetto e shared evidence
+Together Rating costruisce un profilo separato, con la stessa trasformazione dei
+rating. Non distribuito nei profili N/V. Contributo = `.40*cShared*(indexShared-5)`,
+limitato a ±.20. Completed alone/testo non generano taste/confidence.
 
-Confidence bilanciata = minimo personale. Base = 5 + confidence bilanciata ×
-`(media score interni - 5 - beta * range)`. Nessuna media pesata per confidence.
-Negative evidence = min di zero e `confidence * (score - 5)` di ogni utente;
-se negativa, base limitata superiormente a 5 + negative evidence.
-Simmetria rispetto all'identità degli utenti; nessun peso maggiore per più dati.
+Base = `5 + min(cN,cV)*(min(indexN,indexV)-5)`. Nessuna media ponderata dalla
+quantità di dati. Più observation aumenta conoscenza, non peso politico. Swap
+N/V produce risultati di coppia equivalenti. Mutual-upside non implementato.
+Group confidence = min personale; sharedEvidenceConfidence separata.
 
-Together ha un profilo distinto con la stessa normalizzazione dei rating; non
-trasferisce voti a utenti. Completed è esposizione/eligibility, non gradimento.
-Contributo = togetherWeight × confidence condivisa × delta score, con cap.
-Accordo Match: ultima sessione con risposte di tutti gli utenti forniti;
-timestamp ultimo e ID sessione come tie-break. All Like/All Nope contribuiscono
-separatamente, divergenti zero. Questo contributo diretto si aggiunge all'evidenza
-contestuale personale: due livelli intenzionali e dichiarati, non due rating.
+Protezione moderata **provisional**: cap suitability a 4 quando esiste negative
+direct observation con absolute polarity NEGATIVE e reliability ≥.6, oppure
+prediction INFERRED con indice <4 e confidence ≥.6. Per direct categorical il
+criterio è reliability della dichiarazione, non finta ricchezza quantitativa.
+Together positivo viene soppresso, negativo conservato. `negativeProtectionApplied`
+è vero solo se il cap o la soppressione ha effetto; contributi/suppressed tracciati.
+Un Dislike diretto può quindi limitare a 4 anche con peer Unknown; group confidence
+resta zero. Scelta conservativa esplicita da validare, non un veto o esclusione.
 
-Forte negativo: confidence >=0,6 e score interno <4; Together/Match positivi
-sono soppressi, quelli negativi conservati. Reasons riportano contributo applicato
-zero e `suppressed` quando necessario. Nessuna esclusione/Veto implicita.
-Group confidence è il minimo personale; `sharedEvidenceConfidence` riferisce
-affinità Together, `sharedContextFreshness` la recency dell'accordo Match:
-freshness non è confidence di gusto. Aggregazione per due utenti opachi;
-semantiche per un utente o gruppi maggiori richiedono un futuro modello validato.
+## Eligibility, reasons e diversity
 
-## Config e reasons
+Shared list obbligatoria. Completed/proposed/confirmed esclusi; Seen di N/V/entrambi,
+cancelled/skipped e Dislike non esclusi. Constraint espliciti genre OR, durata
+inclusiva, contesto streaming/cinema/all, excludeMovieIds. Metadato mancante richiesto
+→ esclusione; niente fallback fuori Lista o rilassamento. Empty pool → empty result.
+Surprise/Veto/external quality non modificano questo Core; runtime preservato.
 
-Model `B-G4-protected-v1`, config `v1.0.0`. Tutti i pesi, soglie e bucket vivono
-in config. Famiglie 0,30/0,20/0,10/0,15/0,10/0,15; rating 1; Match 0,25,
-magnitude 0,5, half-life 14 giorni; scale 2,5; lambda feature/profile 3/4;
-Together 0,4, cap 0,2; Double Like +0,03, Double Nope -0,04; beta 0,5.
-Seen e quality prior zero: valori nonzero rifiutati in questa v1. Nessun parsing
-quality necessario, nessun rating esterno aumenta score o confidence.
-Modifiche future ai parametri devono aggiornare esplicitamente configVersion.
+Reasons: PERSONAL_RATING_POSITIVE/NEUTRAL/NEGATIVE, EXPLICIT_LIKE/DISLIKE,
+TOGETHER_RATING, FEATURE_AFFINITY, UNKNOWN, LOW_EVIDENCE, NEGATIVE_PROTECTION;
+anche SHARED_LIST_CANDIDATE, RUNTIME_CONTEXT e DIVERSITY_SELECTION pertinenti.
+Factual/inferred/status/model, IDs/supporto unici, rating/preference support,
+massa e contributo. UNKNOWN/LOW_EVIDENCE sono stato, non finta evidenza.
+Nomi di feature solo con supporto per token ≥2, affinity >.01, confidence >.02,
+contributo ≥.001. Sotto questi limiti resta eventuale provenance aggregata senza
+claim nominali, così un contributo reale non perde attribuzione. Collection può
+usare rating **o** preference, mai Match/Seen. Shared suppression: contributo
+applicato zero e flag, senza reason cosmetiche o Match reasons.
 
-Reasons strutturate factual/inferred, persona/gruppo, token, polarity relativa,
-support ID unici, rating/context support, massa, strength, confidence e contributo.
-Affinità nominali richiedono supporto attribuibile al singolo token su almeno due
-contenuti, affinity >0,01, confidence >0,02 e contributo assoluto >=0,001.
-Collection **rated** richiede almeno due contenuti con rating, non soli Match.
-Nessun nome attore dedotto dalla famiglia cast aggregata. Nessuna promessa di
-"genere preferito", "scelta sicura" o "vi piacerà". Rating osservati e constraint
-possono avere reason factual con un solo contenuto; Together diretto è factual.
+Ranking: suitability decrescente, titolo normalizzato, ID. Diversity invariata:
+finestra iniziale 30, genere/regista penalty .03/.03, una entry per collection,
+shortlist default 5. `group.score` invariato; presentationScore separato.
+**Limiti noti:** finestra iniziale soltanto; collection cap può lasciare meno di
+cinque, senza espansione/relaxation automatica. Nessun redesign in Phase 5.
 
-## Reranking e adapter
+## Config baseline sperimentale e verifica
 
-Ranking stabile: group score decrescente, titolo normalizzato, movie ID;
-nessun altro tie-break di gusto implicito. Reranking separato sui primi 30,
-ordinamento suitability ricostruito prima del limite del pool, anche se l'input
-è permutato. Duplicati equivalenti collassano; risultati duplicati conflittuali
-sono rifiutati. Greedy deterministico: overlap generi ×0,03, regista ripetuto ×0,03, cap una
-collection, default cinque. `group.score` invariato; `presentationScore`,
-`diversityAdjustment` e reason `DIVERSITY_SELECTION` separati. Pool insufficiente
-o cap impediscono cinque: meno elementi, senza duplicazione o rilassamento.
-Nessun novelty bonus/exploration slot automatico.
+Model `stable-G4-polarity-v2`, config `v2.0.0`. Parametri sopra configurabili salvo
+soglie semantiche prodotto 5.5/7; override dei vecchi parametri Match rifiutati,
+nessun parametro Match attivo. Pesi, transform, confidence, Together e cap restano
+baseline sperimentali, non calibrati definitivamente. Modifiche richiedono versioning.
 
-`RecommendationAdapters.fromMovies({movies, movieNights, matchHistory?, asOf,
-userIds?, groupId?, constraints?})` traduce N/V; mapping di default N/V, sostituibile
-con ID opachi. Dataset completo per profili, candidatura per eligibility. Seen
-personali/review preservate come descrizione, non preferenza. Non legge globali
-e non fa I/O. Nessuna migration USER/GROUP né modifica Auth/RLS.
+`node scripts/verify-recommendation.js`: 132 controlli, inclusi I1–I14, boundary/F1,
+unknown/neutral, no double counting, Match getter mai letto, density/swap,
+purity, determinismo, eligibility, supporto, shrinkage e diversity.
+`node scripts/verify-recommendation-calibration.js`: seed **20261013**, baseline v1
+letta da Git al checkpoint STEP 3B, 437 film sintetici/48 candidati, 20 rating N,
+7 V, 3 Together; progressioni preference N 0/25/50/100/200, V 0/5/10/20/20.
+Nessun dato personale live o export. Confronta overlap, Spearman, coverage pubblica,
+confidence media, swap e Match invariance; la coverage v1 includeva anche weak
+scores, quindi non è confrontabile come qualità della previsione.
 
-## Verifica
+| Preference N/V | Top10 overlap v1/v2 | Spearman | Coverage v2 N/V su 48 | Mean confidence v2 N/V |
+|---|---:|---:|---|---|
+| 0/0 | 3/10 | .218 | 38/5 | .289/.108 |
+| 25/5 | 2/10 | -.453 | 41/10 | .398/.142 |
+| 50/10 | 1/10 | -.478 | 41/21 | .467/.181 |
+| 100/20 | 1/10 | -.308 | 41/41 | .541/.241 |
+| 200/20 | 1/10 | -.308 | 41/41 | .612/.241 |
 
-`node scripts/verify-recommendation.js`: fixture sintetiche, formule numeriche,
-rating zero, cold start, cast mass, Match, shared, eligibility, reasons nominali,
-diversity, input congelati, permutazioni e invarianti. I probe personali restano
-temporanei fuori repository. Lo snapshot storico STEP 2 produce 90 candidati e
-la stessa top 10/shortlist cinque, senza differenze materiali di scoring; reasons
-più rigorose per token e freshness separata dalla confidence.
+Match changes e swap producono output di coppia IDENTICAL in tutti gli scenari.
+I cambiamenti di ranking sono delta semantici documentati, non ottimizzati per
+una metrica sintetica. Questi test dimostrano coerenza, invarianti, matematica,
+regressioni e determinismo; **non** predictive accuracy, soddisfazione o qualità
+reale. Serviranno feedback post-rollout e validazione consumer separata.
 
-La produzione rimane v61. NAV-01 OPEN/non riprodotto e debito Tailwind offline
-invariati; nessun fix attribuito al motore. Roadmap Fase 1 continua con futura
-integrazione Cosa Guardiamo?, poi Ruota, poi creazione nuovi deck Match.
+NAV-01 OPEN/non riprodotto e debito Tailwind offline restano invariati.
+Prossima fase: integrazione autorizzata Cosa Guardiamo?; Match deck generation più
+avanti, Session Context Model molto più avanti e soltanto se giustificato.

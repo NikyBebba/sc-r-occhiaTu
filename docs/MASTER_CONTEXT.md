@@ -54,25 +54,22 @@ root cause non identificata. La paginazione non è un fix dimostrato; probe
 diagnostico fuori dal prodotto, nessuna guardia touch o modifica del bootstrap.
 Nessuna modifica DB/Auth/migration/dati.
 
-## Fase 1 / STEP 3 — Recommendation core locale
+## Fase 1 / STEP 3 — Recommendation core in codebase
 
-**IMPLEMENTED LOCALLY / NOT YET CONSUMER-INTEGRATED.** Personal Model B e
-G4 protetto, adapter N/V e test sintetici; config versionata, score come indice
-di compatibilità e confidence euristica. Moduli non caricati da index/PWA;
-produzione e consumer restano v61. [Contratto del motore](RECOMMENDATION_ENGINE.md).
-Seen neutro, qualità esterna esclusa, Match storico opzionale passato come input,
+**IMPLEMENTED IN CODEBASE / NOT YET CONSUMER-INTEGRATED.** Phase 5 locale:
+Stable Preference v2/G4 least-misery, adapter N/V e test sintetici. Personal Rating
+ed Explicit Preference con precedence, polarità assoluta protetta da inversioni
+relative; Together Rating in canale shared separato. Match è session-only e non
+entra in taste/reasons/confidence. Config versionata, indice di compatibilità e
+confidence euristica. Moduli non caricati da index/PWA; produzione e consumer
+restano v61. [Contratto del motore](RECOMMENDATION_ENGINE.md).
+Seen neutro, shared list candidatura, completed esposizione; qualità esterna esclusa,
 profili personali/shared distinti e diversity separata. Surprise/Veto sono
 deprecated nel target e indipendenti dal nuovo core; runtime AS-IS invariato,
 cleanup separato. Nessuna modifica DB/Auth/RLS né integrazione Home/Ruota/Match.
-NAV-01 e debito Tailwind/offline invariati. Questo checkpoint locale non modifica
-le verifiche production sopra né le fasi storiche. STEP 3B consolida il codice
-in Git senza integrazione consumer o deploy.
-
-Prima dell'integrazione consumer: DATA CLEANUP PRE-RECOMMENDATION in task
-separato controllato, previa verifica live di vecchie swipe_sessions/swipes e
-movie_nights cancelled di sviluppo/test. La classificazione test/reale dello
-snapshot storico è un'ipotesi da verificare; le visioni reali vanno preservate.
-Nessuna query, cancellazione o backup eseguiti nel presente step.
+NAV-01 e debito Tailwind/offline invariati. STEP 3B consolidato nel commit
+`635f17e2b2e03c5386f0b0e446aeb3e4923ee474`, senza integrazione consumer o deploy.
+Le verifiche production sopra e le fasi storiche restano distinte.
 
 ## Mappa documentale e precedenza
 

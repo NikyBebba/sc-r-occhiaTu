@@ -1,6 +1,12 @@
 // Form di voto/recensione e visione personale/condivisa.
 // Riusa store/viewing, store/nights e le etichette dello storico nei renderer.
 
+// Intent snapshots belong to the existing forms, not to preference UI.
+let personalReviewDraft = null;
+let seenRatingDraft = null;
+function bindRatingIntent(input, draft) {
+  input.oninput = () => { draft.ratingTouched = true; };
+}
 // ---- Visione e recensioni ----
 function completedNightsForMovie(id) {
   return movieNights.filter(n => n.movie_id === id && n.status === 'completed')
@@ -17,10 +23,11 @@ function selectReviewNight() {
   document.getElementById('reviewSnack').value = night.snack || '';
 }
 
-function openReviewFor(id, by) {
+function openReviewFor(id, by, trigger) {
   const movie = movies.find(m => m.id === id);
   if (!movie || (by !== 'both' && by !== currentUser)) return;
   if (movie.surprise_by && movie.surprise_by !== currentUser) return;
+  judgmentReturnFocus = {id,by,person:currentUser,epoch:authEpoch,trigger:trigger || document.activeElement};
   document.getElementById('reviewMovieId').value = id;
   const existingText = reviewTextFor(movie, by);
   const existingScore = by === 'both' ? togetherRating(movie) : personalRating(movie, by);
@@ -30,7 +37,7 @@ function openReviewFor(id, by) {
   document.getElementById('reviewTextOptional').classList.remove('hidden');
   document.getElementById('reviewModalTitle').textContent = by === 'both'
     ? `${hasReview ? 'Modifica voto o recensione' : 'Voto e recensione'} ${sharedPeopleLabel()}`
-    : `Modifica voto ${CONFIG.PEOPLE[currentUser]?.label || currentUser}`;
+    : `Il tuo giudizio ${CONFIG.PEOPLE[currentUser]?.label || currentUser}`;
   document.getElementById('reviewMovieTitle').textContent = movie.title;
   const completedNights = by === 'both' && togetherSeen(movie) ? completedNightsForMovie(id) : [];
   const reviewNight = by === 'both'
@@ -46,20 +53,28 @@ function openReviewFor(id, by) {
   nightSelect.value = reviewNight?.id || '';
   document.getElementById('reviewNightSelectWrap').classList.toggle('hidden', completedNights.length <= 1);
   document.getElementById('reviewRating').value = formatMovieRating(existingScore);
+  personalReviewDraft = { id, by, epoch: authEpoch, initialRating: existingScore, initialText: existingText.trim(), ratingTouched: false, reviewTouched: false };
+  if (by !== 'both') bindPersonalJudgment('reviewRating', personalReviewDraft, movie);
+  else { document.getElementById('reviewRating').disabled=false; document.getElementById('reviewText').disabled=false; document.getElementById('reviewModal').setAttribute?.('aria-busy','false'); document.getElementById('reviewRatingJudgment').classList.add('hidden'); bindRatingIntent(document.getElementById('reviewRating'), personalReviewDraft); }
+  document.getElementById('reviewRating').required = by === 'both';
+  const reviewDraft = personalReviewDraft;
+  document.getElementById('reviewText').oninput = () => { reviewDraft.reviewTouched = true; };
   document.getElementById('reviewRatingLabel').textContent = by === 'both' ? `Il voto ${sharedPeopleLabel()} ★` : 'Il tuo voto ★';
   document.getElementById('reviewHelp').textContent = by === 'both'
     ? (hasReview
       ? 'Le modifiche non cambiano la data della serata registrata nello storico.'
       : 'Il voto è condiviso, il testo è facoltativo. Se c’è una serata attiva, verrà segnata come conclusa.')
-    : 'Il testo è facoltativo: svuotalo e salva per lasciare solo il voto. I voti dell’altra persona restano invariati.';
+    : 'Il testo è indipendente dal tuo giudizio: modificarlo non cambia voto o feedback rapido.';
   document.getElementById('reviewError').classList.add('hidden');
   document.getElementById('reviewSaveButton').disabled = false;
-  document.getElementById('reviewSaveButton').textContent = hasReview ? 'Salva modifiche' : 'Salva voto';
+  document.getElementById('reviewSaveButton').textContent = by === 'both' ? (hasReview ? 'Salva modifiche' : 'Salva voto') : 'Salva giudizio';
   if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
   openModal('reviewModal');
+  syncReviewEditor();
+  document.getElementById(by === 'both' || existingScore !== null ? 'reviewRating' : 'reviewRatingLike').focus();
 }
 
-function addReview(id) { openReviewFor(id, 'both'); }
+function addReview(id, trigger) { openReviewFor(id, 'both', trigger); }
 
 function reviewTogetherFromSeen() {
   const id = document.getElementById('seenMovieId').value;
@@ -77,11 +92,11 @@ async function finishTogetherNightUI(id, nightId) {
   if (completed) suggestSagaAfterViewing(id);
 }
 
-function addPersonalReview(id) {
+function addPersonalReview(id, trigger) {
   const movie = movies.find(m => m.id === id);
   if (!movie || (currentUser !== 'N' && currentUser !== 'V')) return;
 
-  openReviewFor(id, currentUser);
+  openReviewFor(id, currentUser, trigger);
 }
 
 async function confirmReview() {
@@ -110,8 +125,10 @@ async function confirmReview() {
   }
   const movie = movies.find(m => m.id === id);
   if (!movie || saveButton.disabled) return;
+  const submittedDraft = personalReviewDraft, operationEpoch = authEpoch;
   const newTogetherViewing = by === 'both' && !viewingState(movie).together;
   saveButton.disabled = true;
+  if (by !== 'both') { syncDraftPersonalJudgment('reviewRating', true); document.getElementById('reviewText').disabled = true; document.getElementById('reviewModal').setAttribute?.('aria-busy','true'); }
   let saved = false;
   if (by === 'both') {
     if (!viewingState(movie).together) {
@@ -136,16 +153,31 @@ async function confirmReview() {
       }
     }
   } else if ((by === 'N' || by === 'V') && by === currentUser) {
-    saved = await savePersonalReview(id, rating, text);
+    const draft = personalReviewDraft;
+    if (draft && (draft.id !== id || draft.by !== by || draft.epoch !== authEpoch)) {
+      saved = false;
+    } else {
+      const ratingOperation = draft ? draft.ratingTouched || rating !== draft.initialRating : rating !== personalRating(movie, by);
+      const reviewOperation = draft ? draft.reviewTouched || text !== draft.initialText : text !== reviewTextFor(movie, by).trim();
+      saved = await withPersonalJudgmentWrite(id, () => ratingOperation ? savePersonalReview(id, rating, reviewOperation ? text : undefined)
+        : draft?.preferenceTouched ? updateMovie(id, { ...draftPreferencePatch(draft, movie), ...(reviewOperation ? { ['review_text_'+by.toLowerCase()]:text } : {}) })
+        : reviewOperation ? savePersonalReviewText(id, text) : true);
+    }
   }
+  if (by !== 'both' && (operationEpoch !== authEpoch || !isAppAuthorized())) return;
+  if (by !== 'both' && submittedDraft !== personalReviewDraft) { if (saved) await loadMovies(); return; }
   saveButton.disabled = false;
+  if (by !== 'both') { syncDraftPersonalJudgment('reviewRating'); document.getElementById('reviewText').disabled=false; document.getElementById('reviewModal').setAttribute?.('aria-busy','false'); }
   if (!saved) {
-    error.textContent = 'Non siamo riusciti a salvare la recensione. Riprova.';
+    const message = movieMutationErrorMessage();
+    if (by !== 'both' && dbMode === 'supabase') { await loadMovies(); syncReviewEditor(); }
+    error.textContent = message || 'Non siamo riusciti a salvare la recensione. Riprova.';
     error.classList.remove('hidden');
     return;
   }
-  closeModal('reviewModal');
   await loadMovies();
+  if (operationEpoch !== authEpoch || !isAppAuthorized()) return;
+  closeModal('reviewModal');
   if (newTogetherViewing) suggestSagaAfterViewing(id);
 }
 
@@ -163,12 +195,17 @@ async function markSeenUI(id) {
   document.getElementById('seenTogetherButtonLabel').textContent = `Visto insieme? Vota ${sharedPeopleLabel()}`;
   const score = personalRating(movie, currentUser);
   document.getElementById('seenRating').value = formatMovieRating(score);
+  seenRatingDraft = { id, person: currentUser, epoch: authEpoch, initialRating: score, initialText: reviewTextFor(movie, currentUser).trim(), ratingTouched: false };
+  bindPersonalJudgment('seenRating', seenRatingDraft, movie);
+  document.getElementById('seenSaveButton').disabled = false;
   document.getElementById('seenReview').value = reviewTextFor(movie, currentUser);
   document.getElementById('seenRatingError').classList.add('hidden');
   openModal('seenModal');
 }
 
 async function confirmSeen() {
+  const saveButton = document.getElementById('seenSaveButton');
+  if (saveButton.disabled) return;
   const id = document.getElementById('seenMovieId').value;
   const raw = document.getElementById('seenRating').value;
   const rating = parseMovieRating(raw);
@@ -182,12 +219,30 @@ async function confirmSeen() {
   const reviewText = document.getElementById('seenReview').value.trim();
   const movie = movies.find(row => row.id === id);
   const newViewing = movie && !viewingState(movie)[currentUser];
-  const saved = await markMovieSeen(id, currentUser, rating, reviewText);
+  const draft = seenRatingDraft;
+  if (draft && (draft.id !== id || draft.person !== currentUser || draft.epoch !== authEpoch)) return;
+  const ratingOperation = (rating !== null && (draft ? draft.ratingTouched || rating !== draft.initialRating : rating !== personalRating(movie, currentUser))) || (draft?.initialRating !== null && draft?.initialRating !== undefined && draft.ratingTouched && !raw.trim());
+  const reviewOperation = reviewText !== (draft ? draft.initialText : reviewTextFor(movie, currentUser).trim());
+  saveButton.disabled = true;
+  syncDraftPersonalJudgment('seenRating', true);
+  let saved;
+  try {
+    saved = await withPersonalJudgmentWrite(id, () => draft?.preferenceTouched && !ratingOperation
+      ? updateMovie(id, { ['seen_'+currentUser.toLowerCase()]:true, ...draftPreferencePatch(draft,movie), ...(reviewOperation ? { ['review_text_'+currentUser.toLowerCase()]:reviewText } : {}) })
+      : ratingOperation && rating === null ? updateMovie(id, { ['seen_'+currentUser.toLowerCase()]:true, ['seen_rating_'+currentUser.toLowerCase()]:null, ...(reviewOperation ? { ['review_text_'+currentUser.toLowerCase()]:reviewText } : {}) })
+      : markMovieSeen(id, currentUser, ratingOperation ? rating : null, reviewOperation ? reviewText : null));
+  } catch (_) { saved = false; }
+  finally { saveButton.disabled = false; syncDraftPersonalJudgment('seenRating'); }
+  if (!isAppAuthorized() || (draft && draft.epoch !== authEpoch)) return;
+  if (draft && draft !== seenRatingDraft) { if (saved) await loadMovies(); return; }
   if (!saved) {
-    error.textContent = 'Non siamo riusciti a salvare. Riprova.';
+    error.textContent = movieMutationErrorMessage() || 'Giudizio non salvato. Controlla la connessione e riprova.';
+    if (dbMode === 'supabase') await loadMovies();
+    syncDraftPersonalJudgment('seenRating');
     error.classList.remove('hidden');
     return;
   }
+  seenRatingDraft = null;
   closeModal('seenModal');
   await loadMovies();
   if (newViewing) suggestSagaAfterViewing(id);
@@ -231,8 +286,8 @@ async function removeEvaluationData(id, by, part) {
       || !['N', 'V'].includes(currentUser) || (by !== currentUser && by !== 'both')
       || (by === 'both' && !togetherSeen(movie))
       || (movie.surprise_by && movie.surprise_by !== currentUser)) return false;
-  if (by !== 'both') return savePersonalReview(id,
-    part === 'text' ? personalRating(movie, by) : null, part === 'rating' ? undefined : '');
+  if (by !== 'both') return part === 'text' ? savePersonalReviewText(id, '')
+    : savePersonalReview(id, null, part === 'rating' ? undefined : '');
   return updateMovie(id, {
     ...(part !== 'text' ? { seen_rating_together: null } : {}),
     ...(part !== 'rating' ? { review_text_together: '' } : {})
@@ -264,4 +319,96 @@ async function removeEvaluationUI(id, by) {
   if (!part || !isAppAuthorized() || epoch !== authEpoch) return;
   if (await removeEvaluationData(id, by, part)) await loadMovies();
   else showActionError('Non siamo riusciti a rimuovere la valutazione. Riprova.');
+}
+
+// One complete editor; the lock is retained independently of modal lifecycle.
+const personalPreferencePending = new Set();
+let judgmentReturnFocus = null;
+function reviewEditorClosed() {
+  const target = judgmentReturnFocus;
+  judgmentReturnFocus = null;
+  personalReviewDraft = null;
+  if (!target || target.epoch !== authEpoch || target.person !== currentUser || !isAppAuthorized()) return;
+  const replacement = [...document.querySelectorAll('[data-judgment-movie]')].find(el =>
+    el.dataset.judgmentMovie === target.id && el.dataset.judgmentContext === target.by && el.getClientRects().length && !el.closest('[inert]'));
+  const fallback = document.getElementById('libraryBack');
+  const focus = target.trigger?.isConnected && target.trigger.getClientRects().length && !target.trigger.closest('[inert]') ? target.trigger
+    : replacement || (fallback?.getClientRects().length && !fallback.closest('[inert]') ? fallback : null);
+  focus?.focus({preventScroll:true});
+}
+function syncReviewEditor() {
+  const draft = personalReviewDraft;
+  if (!draft || document.getElementById('reviewModal').classList.contains('hidden')) return;
+  if (!isAppAuthorized() || draft.epoch !== authEpoch || (draft.by !== 'both' && draft.by !== currentUser)) { closeModal('reviewModal'); return; }
+  if (draft.by === 'both') return;
+  const movie = movies.find(m=>m.id===draft.id);
+  if (!movie) { closeModal('reviewModal'); return; }
+  if (!draft.ratingTouched) { draft.initialRating = personalRating(movie,currentUser); document.getElementById('reviewRating').value = formatMovieRating(draft.initialRating); }
+  if (!draft.preferenceTouched && !draft.ratingTouched) draft.preference = personalPreference(movie,currentUser);
+  if (!draft.reviewTouched) { draft.initialText = reviewTextFor(movie,currentUser).trim(); document.getElementById('reviewText').value = draft.initialText; }
+  const pending = personalPreferencePending.has(currentUser+':'+draft.id);
+  syncDraftPersonalJudgment('reviewRating',pending);
+  document.getElementById('reviewSaveButton').disabled = pending;
+  document.getElementById('reviewText').disabled = pending;
+  document.getElementById('reviewModal').setAttribute?.('aria-busy',String(pending));
+}
+
+// Shared draft grammar for Seen/Add/candidacy/personal review. No persistence here.
+const personalJudgmentDrafts = new Map();
+function bindPersonalJudgment(inputId, draft, movie = null) {
+  const input = document.getElementById(inputId), host = document.getElementById(inputId + 'Judgment');
+  draft.movieId = movie?.id || draft.id;
+  draft.preference = personalRating(movie || {}, currentUser) === null ? personalPreference(movie, currentUser) : null;
+  draft.preferenceTouched = false;
+  personalJudgmentDrafts.set(inputId, draft);
+  host.classList.remove('hidden');
+  host.classList.add('personal-judgment-form');
+  host.classList.toggle('auth-person-v', currentUser === 'V');
+  host.innerHTML = `<p id="${inputId}JudgmentLabel">Il tuo giudizio (facoltativo)</p><div class="personal-preference-options">
+    <button type="button" id="${inputId}Like" aria-pressed="false" onclick="chooseDraftPersonalPreference('${inputId}', true)"><i class="fa-solid fa-thumbs-up" aria-hidden="true"></i> Mi è piaciuto</button>
+    <button type="button" id="${inputId}Dislike" aria-pressed="false" onclick="chooseDraftPersonalPreference('${inputId}', false)"><i class="fa-solid fa-thumbs-down" aria-hidden="true"></i> Non mi è piaciuto</button></div><p id="${inputId}JudgmentHelp">Oppure, un voto da 0 a 10.</p>`;
+  input.oninput = () => { draft.ratingTouched = true; if (parseMovieRating(input.value) !== null) { draft.preference = null; draft.preferenceTouched = false; } syncDraftPersonalJudgment(inputId); };
+  syncDraftPersonalJudgment(inputId);
+}
+function syncDraftPersonalJudgment(inputId, pending = false) {
+  const draft = personalJudgmentDrafts.get(inputId);
+  if (!draft) return;
+  pending = pending || personalPreferencePending.has(currentUser+':'+draft.movieId);
+  const latest=movies.find(m=>m.id===draft.movieId);
+  const input = document.getElementById(inputId), persisted = (draft.initialRating !== null && draft.initialRating !== undefined) || (latest && personalRating(latest,currentUser)!==null);
+  const hasDraftRating = parseMovieRating(input.value) !== null;
+  for (const [suffix,value] of [['Like',true],['Dislike',false]]) {
+    const button = document.getElementById(inputId+suffix);
+    button.disabled = pending || persisted;
+    button.setAttribute?.('aria-pressed', String(!hasDraftRating && draft.preference === value));
+  }
+  input.disabled = pending;
+  document.getElementById(inputId+'JudgmentLabel').textContent = draft.judgmentRequired ? 'Il tuo giudizio' : 'Il tuo giudizio (facoltativo)';
+  document.getElementById(inputId+'JudgmentHelp').textContent = persisted
+    ? 'Per usare il giudizio rapido, rimuovi prima il voto e salva. La recensione resta indipendente.'
+    : hasDraftRating ? 'Il voto è il tuo giudizio. Il feedback rapido non verrà salvato.' : 'Oppure, un voto da 0 a 10. Premi di nuovo la scelta per rimuoverla.';
+}
+function chooseDraftPersonalPreference(inputId, value) {
+  const draft = personalJudgmentDrafts.get(inputId);
+  const input = document.getElementById(inputId);
+  if (!draft || input.disabled || (draft.initialRating !== null && draft.initialRating !== undefined)) return;
+  draft.preference = draft.preference === value ? null : value;
+  draft.preferenceTouched = true;
+  draft.ratingTouched = false; // Final preference intent must not send UPDATE OF rating NULL.
+  input.value = '';
+  syncDraftPersonalJudgment(inputId);
+}
+function draftPreferencePatch(draft) {
+  if (!draft?.preferenceTouched) return {};
+  // An explicit preference remains online-only, even when combined with Seen/review/candidacy.
+  return { ['personal_liked_'+currentUser.toLowerCase()]: draft.preference };
+}
+// All personal form writes share the movie/person lock; existing store APIs stay authoritative.
+async function withPersonalJudgmentWrite(id, operation) {
+  const key=currentUser+':'+id;
+  if(personalPreferencePending.has(key)) return false;
+  personalPreferencePending.add(key);
+  try { return await operation(); }
+  catch (_) { return false; }
+  finally { personalPreferencePending.delete(key); }
 }

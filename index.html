@@ -412,7 +412,7 @@
       <div class="flex items-center justify-between gap-2"><h3 id="addSeenModalTitle" class="text-lg font-bold">Hai già visto questo film?</h3><button onclick="closeModal('addSeenModal')" class="min-h-11 min-w-11" aria-label="Chiudi"><i class="fa-solid fa-xmark"></i></button></div>
       <div class="flex gap-3"><button class="min-h-11 flex-1 bg-slate-800 rounded-lg" onclick="confirmAddSeen(false)">No</button><button class="min-h-11 flex-1 bg-indigo-600 rounded-lg" onclick="chooseAddSeenYes()">Sì</button></div>
       <div id="addSeenKnown" class="text-sm text-slate-300"></div>
-      <div id="addSeenRatingWrap" class="hidden"><label for="addSeenDestination" class="block mb-2">Dove lo aggiungiamo?</label><select id="addSeenDestination" class="field w-full min-h-11 mb-3" onchange="updateAddDestinationHint()"><option value="history">Solo Storico</option><option value="list">Aggiungi anche alla nostra Lista</option></select><p id="addSeenHint" class="text-sm text-slate-400 mb-3"></p><label for="addSeenRating" class="block mb-2">Il tuo voto ★</label><input id="addSeenRating" type="text" inputmode="decimal" autocomplete="off" class="field w-full min-h-11" placeholder="Es. 8,3"><p class="text-xs text-slate-400 mt-2">Da 0 a 10 · un decimale facoltativo</p></div>
+      <div id="addSeenRatingWrap" class="hidden"><label for="addSeenDestination" class="block mb-2">Dove lo aggiungiamo?</label><select id="addSeenDestination" class="field w-full min-h-11 mb-3" onchange="updateAddDestinationHint()"><option value="history">Solo Storico</option><option value="list">Aggiungi anche alla nostra Lista</option></select><p id="addSeenHint" class="text-sm text-slate-400 mb-3"></p><div id="addSeenRatingJudgment"></div><label for="addSeenRating" class="block mb-2">Il tuo voto ★</label><input id="addSeenRating" type="text" inputmode="decimal" autocomplete="off" class="field w-full min-h-11" placeholder="Es. 8,3"><p class="text-xs text-slate-400 mt-2">Da 0 a 10 · un decimale facoltativo</p></div>
       <p id="addSeenError" class="hidden text-sm text-rose-300" role="alert"></p>
       <button id="addSeenSave" class="hidden min-h-11 w-full bg-indigo-600 rounded-lg" onclick="confirmAddSeen(true)">Salva</button>
     </div>
@@ -421,8 +421,9 @@
   <div id="listCandidateModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass-panel p-6 rounded-2xl max-w-sm w-full border border-slate-800 space-y-4">
       <h3 class="text-lg font-bold">Aggiungi alla nostra Lista</h3>
-      <p class="text-sm text-slate-300">Hai già visto questo film: per candidarlo serve il tuo voto.</p>
-      <label for="listCandidateRating" class="block">Il tuo voto ★</label><input id="listCandidateRating" class="field w-full min-h-11" inputmode="decimal" autocomplete="off" placeholder="Es. 8,3">
+      <p class="text-sm text-slate-300">Hai già visto questo film: aggiungi un tuo giudizio, rapido oppure con un voto.</p>
+
+      <div id="listCandidateRatingJudgment"></div><label for="listCandidateRating" class="block">Il tuo voto ★</label><input id="listCandidateRating" class="field w-full min-h-11" inputmode="decimal" autocomplete="off" placeholder="Es. 8,3">
       <p id="listCandidateError" class="text-sm text-rose-300" role="alert"></p>
       <div class="flex gap-3"><button onclick="closeModal('listCandidateModal')" class="min-h-11 flex-1 rounded-lg bg-slate-800">Annulla</button><button onclick="confirmListCandidate()" class="min-h-11 flex-1 rounded-lg bg-indigo-600">Aggiungi alla Lista</button></div>
     </div>
@@ -500,7 +501,7 @@
     </div>
   </div>
 
-  <!-- MODALE VISIONE PERSONALE: voto 0–10 obbligatorio, recensione facoltativa -->
+  <!-- MODALE VISIONE PERSONALE: giudizio personale facoltativo, recensione facoltativa -->
   <div id="seenModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div class="glass-panel p-6 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-slate-800 space-y-4">
       <div class="flex items-center justify-between gap-2">
@@ -509,20 +510,20 @@
       </div>
       <input type="hidden" id="seenMovieId">
       <div>
-        <label for="seenRating" class="block text-sm font-medium text-slate-200 mb-1">Il tuo voto <span class="text-amber-400">★</span></label>
-        <input type="text" id="seenRating" inputmode="decimal" autocomplete="off" class="field w-full min-h-11 px-3 py-2" placeholder="Es. 8,3" aria-describedby="seenRatingHint" required>
+        <div id="seenRatingJudgment"></div><label for="seenRating" class="block text-sm font-medium text-slate-200 mb-1">Il tuo voto <span class="text-amber-400">★</span></label>
+        <input type="text" id="seenRating" inputmode="decimal" autocomplete="off" class="field w-full min-h-11 px-3 py-2" placeholder="Es. 8,3" aria-describedby="seenRatingHint">
         <p id="seenRatingHint" class="text-xs text-slate-400 mt-1">Da 0 a 10 · un decimale facoltativo</p>
         <p id="seenRatingError" class="hidden text-xs text-rose-300 mt-1" role="alert"></p>
       </div>
       <div>
         <label for="seenReview" class="block text-sm font-medium text-slate-200 mb-1">Recensione <span class="text-slate-400 font-normal">(facoltativa)</span></label>
         <textarea id="seenReview" rows="3" class="field w-full" placeholder="Cosa ne pensi?"></textarea>
-        <p class="text-xs text-slate-400 mt-1">Puoi svuotare il testo e salvare per lasciare solo il voto.</p>
+        <p class="text-xs text-slate-400 mt-1">Il testo è indipendente dal tuo giudizio.</p>
       </div>
       <button onclick="reviewTogetherFromSeen()" class="w-full min-h-11 px-3 py-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-200 text-sm font-medium text-left"><i class="fa-solid fa-people-group mr-2" aria-hidden="true"></i><span id="seenTogetherButtonLabel">Visto insieme? Vota N+V</span></button>
       <div class="flex justify-end gap-2 pt-2">
         <button onclick="closeModal('seenModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
-        <button onclick="confirmSeen()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">Salva</button>
+        <button id="seenSaveButton" onclick="confirmSeen()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">Salva</button>
       </div>
     </div>
   </div>
@@ -539,7 +540,7 @@
       <input type="hidden" id="reviewNightId">
       <p id="reviewMovieTitle" class="text-sm text-slate-300"></p>
       <div>
-        <label for="reviewRating" id="reviewRatingLabel" class="block text-sm font-medium text-slate-200 mb-1">Il tuo voto <span class="text-amber-400">★</span></label>
+        <div id="reviewRatingJudgment"></div><label for="reviewRating" id="reviewRatingLabel" class="block text-sm font-medium text-slate-200 mb-1">Il tuo voto <span class="text-amber-400">★</span></label>
         <input type="text" id="reviewRating" inputmode="decimal" autocomplete="off" class="field w-full min-h-11 px-3 py-2" placeholder="Es. 8,3" aria-describedby="reviewRatingHint" required>
         <p id="reviewRatingHint" class="text-xs text-slate-400 mt-1">Da 0 a 10 · un decimale facoltativo</p>
       </div>

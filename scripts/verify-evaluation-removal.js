@@ -40,7 +40,8 @@ async function test(name, fn) { await fn(); checks++; console.log('PASS ' + name
       const before = structuredClone(context.movies[0]), nights = structuredClone(context.movieNights);
       await context.removeEvaluationUI('scary', by);
       const suffix = by === 'both' ? 'together' : by.toLowerCase();
-      const patch = by === 'both' ? {} : { ['seen_rating_' + suffix]: part === 'text' ? before['seen_rating_' + suffix] : null };
+      const patch = {};
+      if (by !== 'both' && part !== 'text') patch['seen_rating_' + suffix] = null;
       if (by === 'both' && part !== 'text') patch.seen_rating_together = null;
       if (part !== 'rating') patch['review_text_' + suffix] = '';
       assert.deepEqual(context.calls, [patch]); assert.deepEqual(context.movies[0], { ...before, ...patch });
@@ -76,7 +77,7 @@ async function test(name, fn) { await fn(); checks++; console.log('PASS ' + name
     reset(); context.answer = true; await context.removePersonalRating('scary');
     assert.deepEqual(context.calls, [{ seen_rating_n: null }]); assert.equal(context.movies[0].review_text_n, 'CULT');
     reset(); context.answer = true; await context.removePersonalText('scary');
-    assert.deepEqual(context.calls, [{ seen_rating_n: 7.3, review_text_n: '' }]);
+    assert.deepEqual(context.calls, [{ review_text_n: '' }]);
   });
   console.log(`Evaluation removal: ${checks}/${checks} PASS; all writes simulated`);
 })().catch(error => { console.error(error); process.exitCode = 1; });

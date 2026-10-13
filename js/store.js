@@ -16,6 +16,7 @@ const MOVIE_SELECT_FIELDS = [
   'id', 'title', 'added_by', 'status', 'duration', 'platform', 'poster', 'trailer_url',
   'matched', 'imdb_rating', 'rt_rating', 'metacritic_rating', 'seen_n', 'seen_v', 'in_shared_list', 'genre', 'surprise_by', 'tmdb_id', 'collection_id',
   'collection_name', 'cinema_watchlist', 'seen_rating_n', 'seen_rating_v',
+  'personal_liked_n', 'personal_liked_v', 'personal_liked_updated_at_n', 'personal_liked_updated_at_v',
   'seen_rating_together', 'review_text_n', 'review_text_v', 'review_text_together',
   'genres', 'release_year', 'director', 'overview', 'cast_names', 'created_at'
 ].join(',');
@@ -53,6 +54,7 @@ function saveLocal() {
 function loadLocal() {
   requireAppIdentity();
   movies = JSON.parse(localStorage.getItem('scorochiatu_movies') || '[]');
+  movies = Array.isArray(movies) ? movies.map(normalizeMoviePersonalFeedback) : [];
   vetoes = JSON.parse(localStorage.getItem('scorochiatu_vetoes') || '[]');
   movieNights = JSON.parse(localStorage.getItem('scorochiatu_movie_nights') || '[]');
   if (!Array.isArray(movieNights)) movieNights = [];
@@ -94,7 +96,7 @@ async function fetchAll() {
   }
   dbMode = 'supabase';
   return {
-    movies: moviesRes.data || [],
+    movies: (moviesRes.data || []).map(normalizeMoviePersonalFeedback),
     vetoes: vetoesRes.data || [],
     nights: nightsRes.data || []
   };
@@ -102,7 +104,7 @@ async function fetchAll() {
 
 function dataSignature() {
   // I vecchi like/dislike non sono rappresentati da alcuna vista corrente.
-  return JSON.stringify([movies, vetoes, movieNights]);
+  return JSON.stringify([movies.map(normalizeMoviePersonalFeedback), vetoes, movieNights]);
 }
 
 async function loadMovies() {

@@ -36,6 +36,7 @@ function makeEl(id) {
     },
     _children: [],
     appendChild(c) { this._children.push(c); }, remove() {}, focus() {}, scrollIntoView() {},
+    getClientRects() { return []; }, // No layout in this DOM stub; focus geometry is browser-tested.
     querySelector() { return makeEl('q'); }, querySelectorAll() { return []; }, querySelectorAll() { return []; },
     setAttribute(k, v) { this[k] = v; }, getAttribute(k) { return this[k]; },
     set innerHTML(v) { this._innerHTML = String(v); this._children = []; }, get innerHTML() { return this._innerHTML + this._children.map(c => (c._innerHTML || '')).join(''); },
@@ -2739,7 +2740,7 @@ async function okA(name, fn) {
     movies = saved; currentUser = prevUser; currentTab = prevTab;
     return okTicket;
   }));
-  ok('card: film visto mostra la modifica della recensione insieme nel footer', run(() => {
+  ok('card: film visto espone editor Together inline e Seen separato', run(() => {
     const fixtureNightsBefore = movieNights; try {
     const prevUser = currentUser, prevTab = currentTab, saved = movies;
     currentUser = 'N'; currentTab = 'all';
@@ -2752,7 +2753,7 @@ async function okA(name, fn) {
     const watchedCard = grid._children.find(c => c._innerHTML.indexOf('FD') !== -1);
     const watchCard = grid._children.find(c => c._innerHTML.indexOf('FW') !== -1);
     const watchedHasReview = watchedCard && watchedCard._innerHTML.indexOf('pt-2 border-t border-slate-800/80') !== -1
-      && watchedCard._innerHTML.includes("addReview('f-d')")
+      && watchedCard._innerHTML.includes("addReview('f-d', this)")
       && watchedCard._innerHTML.indexOf('markSeenUI') !== -1;
     const watchHasFooter = watchCard && watchCard._innerHTML.indexOf('pt-2 border-t border-slate-800/80') !== -1
       && watchCard._innerHTML.indexOf('markSeenUI') !== -1;
@@ -2878,14 +2879,14 @@ async function okA(name, fn) {
         currentUser = person; movieNights = fixtureCompletedMovies(movies); render();
         const html = document.getElementById('movieGrid')._children[0].innerHTML;
         const name = escapeHtml(CONFIG.PEOPLE[person]?.label || person);
-        if (!html.includes('personal-vote-' + person.toLowerCase())
-          || !html.includes('Modifica voto e recensione ' + name)
-          || html.indexOf('Modifica voto e recensione ' + name) > html.indexOf('Modifica voto e recensione ' + escapeHtml(sharedPeopleLabel()))
+        if (!html.includes('data-judgment-context="'+person+'"')
+          || !html.includes('Modifica il giudizio '+name)
           || (html.match(/addPersonalReview\(/g) || []).length !== 1
           || html.includes('Modifica la tua recensione')) return false;
       }
-      return personalVoteButtonHtml({ status: 'watched', surprise_by: 'N' }) === ''
-        && personalVoteButtonHtml({ in_shared_list: true, status: 'watchlist' }) === '';
+      currentUser='V';
+      return personalJudgmentSlotHtml({status:'watched',surprise_by:'N'},'V',false)===''
+        && personalJudgmentSlotHtml({in_shared_list:true,status:'watchlist'},'V',false)==='';
     } finally { movies = previous; currentUser = user; currentTab = tab; }
     } finally { movieNights = fixtureNightsBefore; }
   }));
@@ -2987,7 +2988,7 @@ async function okA(name, fn) {
       movieNights=fixtureCompletedMovies(movies); render();
       const html = document.getElementById('movieGrid')._children[0].innerHTML;
       const joint = escapeHtml(sharedPeopleLabel());
-      return html.includes('shared-vote-action') && html.includes('Modifica voto e recensione ' + joint)
+      return html.includes('viewing-score-together personal-judgment-slot') && html.includes('Modifica il giudizio ' + joint)
         && html.includes(joint + ' <i class="fa-solid fa-star" aria-hidden="true"></i> 8,3/10')
         && html.includes('Recensione ' + joint) && !html.includes('Modifica voto insieme')
         && document.getElementById('statsGrid').innerHTML.includes('Voto medio');
@@ -3423,7 +3424,7 @@ async function okA(name, fn) {
     movies = savedMovies; votes = savedVotes; currentUser = prevUser; currentTab = prevTab;
     return before.includes('markSeenUI') && before.includes("L'ho già visto")
       && !before.includes('voteMovie') && !before.includes('Match!')
-      && after.includes('Aggiungi voto o recensione ' + escapeHtml(CONFIG.PEOPLE.N?.label || 'N'))
+      && after.includes('Aggiungi il giudizio ' + escapeHtml(CONFIG.PEOPLE.N?.label || 'N'))
       && after.includes('addPersonalReview') && after.includes('undoSeenUI');
   }));
 
@@ -6220,7 +6221,8 @@ async function okA(name, fn) {
   })));
   await okA('Modifica recensione senza voto non forza un nuovo voto', runA(()=>withWatchFixture(async()=>{
     movies[0].review_text_n='Conservata';addPersonalReview('personal');document.getElementById('reviewRating').value='';document.getElementById('reviewText').value='Modificata';await confirmReview();
-    return movies[0].review_text_n==='Modificata'&&movies[0].seen_rating_n===null&&!movies[0].seen_n;
+    return movies[0].review_text_n==='Modificata'&&personalRating(movies[0],'N')===null
+      && !Object.hasOwn(movies[0],'seen_rating_n')&&!movies[0].seen_n;
   })));
   await okA('Client rifiuta INSERT e UPDATE personali altrui', runA(()=>withWatchFixture(async()=>{
     return !(await insertMovie({title:'Spoof',seen_v:true}))&&!(await updateMovie('personal',{seen_v:true}))&&!(await markMovieSeen('personal','V',10));

@@ -96,6 +96,9 @@ async function applyResolvedDetails(details, personalSeen = null) {
     document.getElementById('addSeenKnown').innerHTML = knownMovieStatusHtml(known);
     document.getElementById('addSeenDestination').value = 'history';
     document.getElementById('addSeenRating').value = known && personalRating(known, currentUser) !== null ? formatMovieRating(personalRating(known, currentUser)) : '';
+    pendingAddSeen.initialRating = known ? personalRating(known, currentUser) : null;
+    pendingAddSeen.ratingTouched = false;
+    bindPersonalJudgment('addSeenRating',pendingAddSeen,known);
     updateAddDestinationHint();
     document.getElementById('addSeenRatingWrap').classList.add('hidden');
     document.getElementById('addSeenError').classList.add('hidden');
@@ -150,6 +153,7 @@ async function applyResolvedDetails(details, personalSeen = null) {
       in_shared_list: personalSeen?.candidate !== false,
       ...(personalSeen?.seen ? { ['seen_' + currentUser.toLowerCase()]: true } : {}),
       ...(personalSeen?.rating != null ? { ['seen_rating_' + currentUser.toLowerCase()]: personalSeen.rating } : {}),
+      ...(typeof personalSeen?.preference === 'boolean' ? { ['personal_liked_'+currentUser.toLowerCase()]:personalSeen.preference } : {}),
       ...(pendingCinemaWatchlist ? { cinema_watchlist: true } : {}),
       duration: details.duration, platform: details.platform,
       poster: details.poster, trailer_url: details.trailerUrl,
@@ -196,7 +200,7 @@ async function bulkImportMovies() {
     const details = await fetchMovieDetails(clean);
     const existing = findDuplicateByTmdbId(details.tmdb_id);
     if (existing) {
-      if (!existing.in_shared_list && (!existing['seen_' + currentUser.toLowerCase()] || personalRating(existing,currentUser) !== null)) {
+      if (!existing.in_shared_list && (!existing['seen_' + currentUser.toLowerCase()] || hasPersonalFeedback(existing,currentUser))) {
         if (await updateMovie(existing.id,{ in_shared_list:true })) await loadMovies();
       }
       skippedTitles.push(clean); continue;
@@ -218,7 +222,7 @@ async function bulkImportMovies() {
       await loadMovies();
       const raced = findDuplicateByTmdbId(details.tmdb_id);
       if (inserted !== false && raced && !raced.in_shared_list
-        && (!raced['seen_' + currentUser.toLowerCase()] || personalRating(raced,currentUser) !== null)) {
+        && (!raced['seen_' + currentUser.toLowerCase()] || hasPersonalFeedback(raced,currentUser))) {
         if (await updateMovie(raced.id,{in_shared_list:true})) await loadMovies();
       }
       continue;
@@ -230,7 +234,7 @@ async function bulkImportMovies() {
   // Report finale leggibile invece di un contatore secco: qui vedi
   // esattamente cosa è stato saltato e cosa va controllato a mano.
   let summary = `Fatto: ${titles.length - skippedTitles.length} importati.`;
-  if (skippedTitles.length) summary += `<br>Già presenti (se fuori Lista e senza voto personale, candidali dalla card): ${escapeHtml(skippedTitles.join(', '))}`;
+  if (skippedTitles.length) summary += `<br>Già presenti (se fuori Lista e senza giudizio personale, candidali dalla card): ${escapeHtml(skippedTitles.join(', '))}`;
   if (unmatchedTitles.length) summary += `<br>⚠️ Da verificare (nessun riscontro trovato): ${escapeHtml(unmatchedTitles.join(', '))}`;
   progressEl.innerHTML = summary;
   btn.disabled = false;
@@ -308,32 +312,38 @@ async function confirmAddSeen(seen) {
   const ownSeen = seen || known?.['seen_' + currentUser.toLowerCase()] === true;
   const required = candidate && !known?.in_shared_list && ownSeen;
   const error = document.getElementById('addSeenError');
-  if ((seen && raw && rating === null) || (required && rating === null)) {
-    error.textContent = required ? 'Per candidare un film che hai già visto serve il tuo voto, da 0 a 10.' : 'Inserisci un voto da 0 a 10, con al massimo un decimale.';
+  if ((seen && raw && rating === null) || (required && rating === null && typeof pending.preference !== 'boolean' && !(known && hasPersonalFeedback(known, currentUser)))) {
+    error.textContent = required ? 'Per candidarlo aggiungi un tuo giudizio: voto oppure Mi è piaciuto / Non mi è piaciuto.' : 'Inserisci un voto da 0 a 10, con al massimo un decimale.';
     error.classList.remove('hidden');
     if (!seen) { chooseAddSeenYes(); document.getElementById('addSeenDestination').value = 'list'; updateAddDestinationHint(); }
     return;
   }
+  if (seen && typeof pending.preference === 'boolean' && (!sb || dbMode === 'local')) { error.textContent='Il giudizio rapido richiede la connessione.'; error.classList.remove('hidden'); return; }
   addSeenSaving = true;
+  syncDraftPersonalJudgment('addSeenRating',true);
+  document.getElementById('addSeenSave').disabled=true;
   try {
     pickerMode = 'add'; pendingAddedBy = pending.addedBy; pendingCinemaWatchlist = pending.cinema;
-    const saved = await applyResolvedDetails(pending.details, { seen, rating, candidate });
-    assertAuthEpoch(pending.epoch);
+    const ratingOperation = seen && ((rating !== null && (pending.ratingTouched || rating !== pending.initialRating)) || (pending.initialRating !== null && pending.ratingTouched && !raw));
+    const saved = await withPersonalJudgmentWrite(known?.id || 'new:'+pending.details.tmdb_id, () => applyResolvedDetails(pending.details, { seen, rating: ratingOperation ? rating : null, ratingOperation, candidate, ...(seen && pending.preferenceTouched && !ratingOperation ? { preference:pending.preference } : {}) }));
+    if (!isAppAuthorized() || pending.epoch !== authEpoch || pending !== pendingAddSeen) return;
     if (saved) closeModal('addSeenModal');
     else { error.textContent = 'Non siamo riusciti a salvare. Riprova.'; error.classList.remove('hidden'); }
-  } finally { addSeenSaving = false; }
+  } finally { addSeenSaving = false; syncDraftPersonalJudgment('addSeenRating'); document.getElementById('addSeenSave').disabled=false; }
 }
 function updateAddDestinationHint() {
   const known = pendingAddSeen && findDuplicateByTmdbId(pendingAddSeen.details.tmdb_id);
   const list = document.getElementById('addSeenDestination').value === 'list';
+  if (pendingAddSeen) { pendingAddSeen.judgmentRequired = list && !known?.in_shared_list; syncDraftPersonalJudgment('addSeenRating'); }
   document.getElementById('addSeenHint').textContent = known?.in_shared_list
-    ? 'È già in Lista: registri soltanto la tua visione. Il voto è facoltativo.'
-    : list ? 'Per aggiungerlo alla Lista serve il tuo voto.' : 'Fuori dalla Lista. Il voto è facoltativo.';
+    ? 'È già in Lista: registri soltanto la tua visione. Il giudizio è facoltativo.'
+    : list ? 'Per la Lista serve un tuo giudizio: rapido oppure con un voto.' : 'Fuori dalla Lista. Il giudizio è facoltativo.';
 }
 async function saveResolvedExisting(movie, personal) {
   const patch = {};
   if (personal?.seen) patch['seen_' + currentUser.toLowerCase()] = true;
-  if (personal?.rating != null) patch['seen_rating_' + currentUser.toLowerCase()] = personal.rating;
+  if (personal?.ratingOperation || personal?.rating != null) patch['seen_rating_' + currentUser.toLowerCase()] = personal.rating;
+  else if (Object.hasOwn(personal || {}, 'preference')) patch['personal_liked_'+currentUser.toLowerCase()] = personal.preference;
   if (personal?.candidate !== false) patch.in_shared_list = true;
   if (!Object.keys(patch).length) { showDuplicateNotice(movie); return true; }
   const saved = await updateMovie(movie.id, patch);
@@ -345,9 +355,11 @@ async function toggleSharedList(id) {
   requireAppIdentity();
   const movie = movies.find(m => m.id === id);
   if (!movie) return false;
-  if (!movie.in_shared_list && movie['seen_' + currentUser.toLowerCase()] && personalRating(movie,currentUser) === null) {
-    pendingListCandidate = { id, person: currentUser, epoch: authEpoch };
+  if (!movie.in_shared_list && movie['seen_' + currentUser.toLowerCase()] && !hasPersonalFeedback(movie,currentUser)) {
+    pendingListCandidate = { id, person: currentUser, epoch: authEpoch, judgmentRequired:true };
     document.getElementById('listCandidateRating').value = '';
+    pendingListCandidate.initialRating = personalRating(movie,currentUser);
+    bindPersonalJudgment('listCandidateRating',pendingListCandidate,movie);
     document.getElementById('listCandidateError').textContent = '';
     closeModal('detailModal');
     openModal('listCandidateModal');
@@ -355,7 +367,7 @@ async function toggleSharedList(id) {
   }
   const saved = await updateMovie(id, { in_shared_list: !movie.in_shared_list });
   if (saved) { await loadMovies(); refreshWatchDetail(id); }
-  else showActionError('Non siamo riusciti a cambiare la Lista. Riprova.');
+  else showActionError(movieMutationErrorMessage() || 'Non siamo riusciti a cambiare la Lista. Riprova.');
   return saved;
 }
 let listCandidateSaving = false;
@@ -364,19 +376,22 @@ async function confirmListCandidate() {
   if (!pending || listCandidateSaving) return;
   requireAppIdentity();
   if (pending.person !== currentUser || pending.epoch !== authEpoch) return;
-  const rating = parseMovieRating(document.getElementById('listCandidateRating').value);
+  const rawRating = document.getElementById('listCandidateRating').value;
+  const rating = parseMovieRating(rawRating);
+  const movie = movies.find(m => m.id === pending.id);
   const error = document.getElementById('listCandidateError');
-  if (rating === null) { error.textContent = 'Serve un voto da 0 a 10, con al massimo un decimale.'; return; }
+  if (!movie || (rawRating.trim() && rating === null) || (rating === null && typeof pending.preference !== 'boolean' && !hasPersonalFeedback(movie, currentUser))) { error.textContent = 'Aggiungi un tuo giudizio: voto oppure Mi è piaciuto / Non mi è piaciuto.'; return; }
   listCandidateSaving = true;
+  syncDraftPersonalJudgment('listCandidateRating',true);
   try {
-    const saved = await updateMovie(pending.id, { in_shared_list: true, ['seen_rating_' + currentUser.toLowerCase()]: rating });
-    assertAuthEpoch(pending.epoch);
-    if (!saved) { error.textContent = 'Candidatura non salvata. Riprova.'; return; }
+    const saved = await withPersonalJudgmentWrite(pending.id, () => updateMovie(pending.id, { in_shared_list: true, ...(rating === null ? draftPreferencePatch(pending,movie) : {}), ...(rating !== null ? { ['seen_rating_' + currentUser.toLowerCase()]: rating } : {}) }));
+    if (!isAppAuthorized() || pending.epoch !== authEpoch || pending !== pendingListCandidate) return;
+    if (!saved) { error.textContent = movieMutationErrorMessage() || 'Candidatura non salvata. Riprova.'; return; }
     await loadMovies();
     assertAuthEpoch(pending.epoch);
     pendingListCandidate = null;
     closeModal('listCandidateModal');
-  } finally { listCandidateSaving = false; }
+  } finally { listCandidateSaving = false; syncDraftPersonalJudgment('listCandidateRating'); }
 }
 function refreshWatchDetail(id) {
   const detail = document.getElementById('detailBody');
@@ -387,6 +402,9 @@ function refreshWatchDetail(id) {
 }
 
 function resetWatchForms() {
+  if (typeof personalJudgmentDrafts !== 'undefined') personalJudgmentDrafts.clear();
+  if (typeof personalReviewDraft !== 'undefined') personalReviewDraft = null;
+  if (typeof seenRatingDraft !== 'undefined') seenRatingDraft = null;
   pendingListCandidate = null;
   pendingAddSeen = null;
   pendingAddedBy = null;

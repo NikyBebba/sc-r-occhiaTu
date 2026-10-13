@@ -22,6 +22,26 @@ function personalRating(movie, person) {
   const value = movie[person === 'N' ? 'seen_rating_n' : 'seen_rating_v'];
   return validMovieRating(value) ? value : null;
 }
+function personalPreference(movie, person) {
+  if (!movie || !['N', 'V'].includes(person)) return null;
+  const value = movie['personal_liked_' + person.toLowerCase()];
+  return value === true || value === false ? value : null;
+}
+function hasPersonalFeedback(movie, person) {
+  return personalRating(movie, person) !== null || personalPreference(movie, person) !== null;
+}
+// Online only: no invented timestamp or local authoritative preference.
+async function setPersonalPreference(id, person, value) {
+  requireAppIdentity();
+  lastMovieMutationError = null;
+  if (!['N', 'V'].includes(person) || person !== currentUser) return rejectMovieMutation('PERSONAL_OWNER_REQUIRED');
+  if (value !== true && value !== false && value !== null) return rejectMovieMutation('INVALID_PERSONAL_PREFERENCE');
+  const movie = movies.find(m => m.id === id);
+  if (!movie) return false;
+  if (!sb || (typeof dbMode !== 'undefined' && dbMode === 'local')) return rejectMovieMutation('PERSONAL_PREFERENCE_ONLINE_REQUIRED');
+  if (value !== null && personalRating(movie, person) !== null) return rejectMovieMutation('PERSONAL_RATING_PRESENT');
+  return updateMovie(id, { ['personal_liked_' + person.toLowerCase()]: value });
+}
 function togetherRating(movie) {
   return validMovieRating(movie.seen_rating_together) ? movie.seen_rating_together : null;
 }
@@ -49,6 +69,7 @@ async function undoMovieSeen(id, person) {
   if (!movie || !canUndoSeen(movie, person)) return false;
   return updateMovie(id, { ['seen_' + person.toLowerCase()]: false });
 }
+// Explicit rating operation, including NULL -> NULL. Text may be omitted.
 async function savePersonalReview(id, rating, text) {
   requireAppIdentity();
   if ((currentUser !== 'N' && currentUser !== 'V') || (rating !== null && !validMovieRating(rating))) return false;
@@ -56,9 +77,16 @@ async function savePersonalReview(id, rating, text) {
   return updateMovie(id, { ['seen_rating_' + key]: rating,
     ...(typeof text === 'string' ? { ['review_text_' + key]: text.trim() } : {}) });
 }
+// A review-only operation NEVER includes the rating, even when locally known.
+async function savePersonalReviewText(id, text) {
+  requireAppIdentity();
+  if (!['N', 'V'].includes(currentUser) || typeof text !== 'string') return false;
+  return updateMovie(id, { ['review_text_' + currentUser.toLowerCase()]: text.trim() });
+}
 function hasOtherPersonalData(movie) {
   const key = currentUser === 'N' ? 'v' : 'n';
-  return movie['seen_' + key] === true || movie['seen_rating_' + key] != null || !!movie['review_text_' + key];
+  return movie['seen_' + key] === true || movie['seen_rating_' + key] != null || !!movie['review_text_' + key] || personalPreference(movie, currentUser === 'N' ? 'V' : 'N') !== null
+    || movie['personal_liked_updated_at_' + key] != null;
 }
 function canDeleteOrChangeIdentity(movie) {
   return !!movie && !hasOtherPersonalData(movie) && !movieNights.some(n => n.movie_id === movie.id);

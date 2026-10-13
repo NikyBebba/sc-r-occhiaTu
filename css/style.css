@@ -1600,3 +1600,19 @@ details[open] > .memory-summary::before { transform: rotate(90deg); }
 .results-pager button:focus-visible, #resultsStart:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 3px; }
 .results-page-info { display: flex; flex-direction: column; align-items: center; min-width: 0; font-size: 12px; white-space: nowrap; }
 .results-page-info small { color: #94a3b8; font-size: 10px; }
+
+/* Personal judgment shares the existing rating row; color identifies its author. */
+.personal-judgment-slot { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-width:44px; min-height:44px; border:0; background:transparent; padding:0; font:inherit; }
+.personal-judgment-slot.is-unknown { color:var(--color-testo-3); }
+.personal-preference-options { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.personal-preference-options button { min-height:64px; padding:8px; border:1px solid var(--color-bordo-forte); border-radius:var(--radius-md); color:var(--person-accent); font-size:13px; }
+.personal-preference-options button[aria-pressed="true"] { border:2px solid currentColor; font-weight:800; background:var(--color-chip); }
+.personal-preference-options button:disabled { opacity:.55; cursor:wait; }
+.viewing-scores { align-items:center; }
+
+.personal-judgment-slot:hover { text-decoration:underline; text-underline-offset:4px; }
+.viewing-score .fa-thumbs-up, .viewing-score .fa-thumbs-down { font-size:1.15em; line-height:1; }
+.personal-judgment-form { --person-accent:var(--color-persona-n); }
+.personal-judgment-form.auth-person-v { --person-accent:var(--color-persona-v); }
+.personal-judgment-form .personal-preference-options button { min-height:44px; }
+.personal-judgment-form p { font-size:12px; color:var(--color-testo-3); margin:6px 0; }

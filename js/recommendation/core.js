@@ -3,9 +3,6 @@ const RecommendationEngine = (() => {
   const defaults = typeof module !== 'undefined' && module.exports
     ? require('./config') : RecommendationConfig;
   const families = Object.keys(defaults.familyWeights);
-  const codes = { genre: 'GENRE_RELATIVE_AFFINITY', director: 'DIRECTOR_RELATIVE_AFFINITY',
-    cast: 'CAST_RELATIVE_AFFINITY', runtime: 'RUNTIME_PROFILE_EVIDENCE',
-    era: 'ERA_PROFILE_EVIDENCE', collection: 'COLLECTION_RATED_AFFINITY' };
   const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
   const bound = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
   const mean = values => values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
@@ -17,6 +14,10 @@ const RecommendationEngine = (() => {
     : typeof value === 'number' && Number.isFinite(value) ? String(value) : null;
   const finite = n => typeof n === 'number' && Number.isFinite(n);
   function configuration(overrides = {}) {
+    for (const key of ['matchWeight','matchSignalMagnitude','matchHalfLifeDays','doubleLikeContribution','doubleNopeContribution','disagreementBeta'])
+      if (Object.prototype.hasOwnProperty.call(overrides,key)) throw new TypeError('Removed stable config: '+key);
+    for (const key of Object.keys(overrides))
+      if (!Object.prototype.hasOwnProperty.call(defaults, key)) throw new TypeError('Unknown stable config: ' + key);
     const c = { ...defaults, ...overrides, familyWeights: { ...defaults.familyWeights, ...overrides.familyWeights },
       diversity: { ...defaults.diversity, ...overrides.diversity } };
     for (const [key, value] of Object.entries(c)) {
@@ -31,24 +32,26 @@ const RecommendationEngine = (() => {
       throw new RangeError('Family weights must be nonnegative and sum to one');
     if (!c.modelVersion || typeof c.modelVersion !== 'string' || !c.configVersion || typeof c.configVersion !== 'string')
       throw new TypeError('Explicit model/config versions required');
-    for (const key of ['ratingScale', 'featureShrinkageLambda', 'profileShrinkageLambda', 'matchHalfLifeDays',
-      'outputScale', 'ratingPrecision', 'eraYears', 'millisecondsPerDay', 'validationTolerance'])
+    for (const key of ['ratingScale', 'featureShrinkageLambda', 'profileShrinkageLambda', 'ratingAbsoluteScale',
+      'outputScale', 'ratingPrecision', 'eraYears', 'validationTolerance'])
       if (c[key] <= 0) throw new RangeError('Positive config required: ' + key);
-    for (const key of ['ratingWeight', 'matchWeight', 'matchSignalMagnitude', 'ratingCenterShrinkageTau',
-      'togetherWeight', 'togetherAbsoluteCap', 'doubleLikeContribution', 'disagreementBeta',
+    for (const key of ['ratingWeight', 'preferenceWeight', 'relativeAdjustment', 'ratingCenterShrinkageTau',
+      'togetherWeight', 'togetherAbsoluteCap',
       'reasonMinAffinity', 'reasonMinConfidence', 'reasonMinContribution'])
       if (c[key] < 0) throw new RangeError('Nonnegative config required: ' + key);
     if (c.seenPreferenceWeight !== 0 || c.qualityPriorWeight !== 0)
-      throw new RangeError('v1 supports neutral seen history and zero quality prior only');
+      throw new RangeError('Stable model supports neutral seen history and zero quality prior only');
     if (c.supportedGroupSize !== defaults.supportedGroupSize)
-      throw new RangeError('v1 requires exactly ' + defaults.supportedGroupSize + ' users');
-    if (c.observedConfidence <= 0 || c.doubleNopeContribution > 0 || c.matchSignalMagnitude > 1
-      || ![c.observedConfidence, c.estimatedConfidenceThreshold, c.strongNegativeConfidence,
+      throw new RangeError('Stable model requires exactly ' + defaults.supportedGroupSize + ' users');
+    if (c.observedConfidence <= 0 || ![c.observedConfidence, c.estimatedConfidenceThreshold, c.strongNegativeConfidence,
         c.reasonMinConfidence].every(v => v >= 0 && v <= 1)) throw new RangeError('Invalid signal/confidence config');
     if (!(c.scoreMin < c.neutral && c.neutral < c.scoreMax && c.ratingMin < c.ratingMax)
       || c.ratingAnchor < c.ratingMin || c.ratingAnchor > c.ratingMax
       || c.strongNegativeScore < c.scoreMin || c.strongNegativeScore >= c.neutral)
       throw new RangeError('Invalid score/rating bounds');
+    if (c.ratingNegativeBoundary !== 5.5 || c.ratingPositiveBoundary !== 7
+      || c.negativeProtectionCap < c.scoreMin || c.negativeProtectionCap >= c.neutral)
+      throw new RangeError('Invalid semantic polarity/protection bounds');
     if (!Number.isInteger(c.reasonMinSupport) || c.reasonMinSupport < 1
       || !Number.isInteger(c.eraYears) || !Number.isInteger(c.ratingPrecision)
       || !['maxPerCollection', 'rerankPoolSize', 'defaultShortlistSize'].every(k => Number.isInteger(c.diversity[k]))
@@ -57,13 +60,6 @@ const RecommendationEngine = (() => {
       || !c.runtimeBoundaries.every((v, i, a) => finite(v) && v > 0 && (!i || v > a[i - 1])))
       throw new RangeError('Runtime boundaries must be increasing');
     return c;
-  }
-  function timestamp(value) {
-    // Zoned strings only: no host-timezone dependence or implicit current time.
-    const n = finite(value) ? value : typeof value === 'string' && /(?:Z|[+-]\d\d:?\d\d)$/i.test(value)
-      ? Date.parse(value) : NaN;
-    if (!finite(n) || !finite(new Date(n).getTime())) throw new TypeError('Valid explicit zoned timestamp required');
-    return n;
   }
   function validRating(value, c = defaults) {
     return finite(value) && value >= c.ratingMin && value <= c.ratingMax
@@ -75,10 +71,23 @@ const RecommendationEngine = (() => {
     return (ratings.reduce((s, n) => s + n, 0) + c.ratingCenterShrinkageTau * c.ratingAnchor)
       / (ratings.length + c.ratingCenterShrinkageTau);
   }
-  function ratingSignal(value, center, config = defaults) {
+  function ratingPolarity(value, config = defaults) {
     const c = configuration(config);
-    if (!validRating(value, c) || !finite(center)) throw new TypeError('Valid rating and center required');
-    return bound((value - center) / c.ratingScale, -1, 1);
+    if (!validRating(value,c)) throw new TypeError('Valid rating required');
+    return value < c.ratingNegativeBoundary ? 'NEGATIVE' : value < c.ratingPositiveBoundary ? 'NEUTRAL' : 'POSITIVE';
+  }
+  function relativeRatingAffinity(value, center, config = defaults) {
+    const c = configuration(config);
+    if (!validRating(value,c) || !finite(center)) throw new TypeError('Valid rating and center required');
+    return bound((value-center)/c.ratingScale,-1,1);
+  }
+  function ratingSignal(value, center, config = defaults) {
+    const c = configuration(config), polarity=ratingPolarity(value,c);
+    const relative=relativeRatingAffinity(value,center,c);
+    if (polarity==='NEUTRAL') return 0;
+    const absolute=bound((value-c.ratingAbsoluteAnchor)/c.ratingAbsoluteScale,-1,1);
+    const signal=absolute+c.relativeAdjustment*relative;
+    return polarity==='POSITIVE' ? bound(signal,0,1) : bound(signal,-1,0);
   }
   function normalizeFeatures(raw = {}, config = defaults) {
     const c = configuration(config);
@@ -152,44 +161,32 @@ const RecommendationEngine = (() => {
     }
     return [...ratings.values()].sort((a, b) => compare(a.contentId, b.contentId));
   }
-  function matchRows(rows, asOf, c) {
-    const matches = new Map();
-    for (const row of rows || []) {
-      const contentId = id(row?.contentId), sessionId = id(row?.sessionId);
-      if (contentId === null || sessionId === null || typeof row.liked !== 'boolean') continue;
-      let at; try { at = timestamp(row.createdAt); } catch (_) { continue; }
-      const key = JSON.stringify([sessionId, contentId]);
-      const old = matches.get(key);
-      if (old && old.liked !== row.liked) throw new TypeError('Conflicting duplicate session response');
-      if (!old || at > old.at) matches.set(key, { contentId, sessionId, liked: row.liked, at,
-        freshness: Math.pow(2, -Math.max(0, asOf - at) / (c.millisecondsPerDay * c.matchHalfLifeDays)) });
-    }
-    return [...matches.values()].sort((a, b) => compare(a.contentId, b.contentId)
-      || compare(a.sessionId, b.sessionId) || a.at - b.at);
-  }
   function buildProfile(signals = {}, normalizedFeatures, asOf, config = defaults) {
-    const c = configuration(config), ratings = canonicalRatings(signals.ratings, c);
-    const at = timestamp(asOf);
-    const center = ratingCenter(ratings.map(r => r.value), c), direct = new Map(), observations = new Map();
+    // asOf remains an optional compatibility argument; stable learning has no clock.
+    const c=configuration(config), ratings=canonicalRatings(signals.ratings,c);
+    const center=ratingCenter(ratings.map(r=>r.value),c), direct=new Map(), observations=new Map();
     for (const r of ratings) {
-      const observation = { contentId: r.contentId, signal: ratingSignal(r.value, center, c),
-        mass: c.ratingWeight, source: 'rating', value: r.value };
-      direct.set(r.contentId, observation);
-      if (observation.mass > 0) observations.set(r.contentId, observation);
+      const polarity=ratingPolarity(r.value,c);
+      const observation={contentId:r.contentId, signal:ratingSignal(r.value,center,c), mass:c.ratingWeight,
+        source:'rating', value:r.value, absolutePolarity:polarity,
+        relativeRatingAffinity:relativeRatingAffinity(r.value,center,c),
+        provenance:'PERSONAL_RATING_'+polarity, observationReliability:c.observedConfidence};
+      direct.set(r.contentId,observation);
+      if(observation.mass>0) observations.set(r.contentId,observation);
     }
-    const contexts = matchRows(signals.match, at, c), grouped = new Map();
-    for (const row of contexts) {
-      if (!grouped.has(row.contentId)) grouped.set(row.contentId, []);
-      grouped.get(row.contentId).push(row);
+    const preferences=new Map();
+    for(const row of signals.preferences || []) {
+      const contentId=id(row?.contentId);
+      if(contentId===null || direct.has(contentId) || typeof row.value!=='boolean') continue;
+      if(preferences.has(contentId) && preferences.get(contentId)!==row.value) throw new TypeError('Conflicting duplicate preference');
+      preferences.set(contentId,row.value);
     }
-    for (const [contentId, rows] of grouped) {
-      if (direct.has(contentId)) continue;
-      const freshnessSum = rows.reduce((s, r) => s + r.freshness, 0);
-      const mass = c.matchWeight * Math.max(...rows.map(r => r.freshness));
-      if (!mass || !freshnessSum) continue;
-      observations.set(contentId, { contentId, mass, source: 'match',
-        signal: rows.reduce((s, r) => s + r.freshness * (r.liked ? 1 : -1) * c.matchSignalMagnitude, 0) / freshnessSum,
-        contexts: rows });
+    for(const [contentId,value] of [...preferences].sort((a,b)=>compare(a[0],b[0]))) {
+      const observation={contentId,signal:value?1:-1,mass:c.preferenceWeight,source:'preference',value,
+        absolutePolarity:value?'POSITIVE':'NEGATIVE',relativeRatingAffinity:null,
+        provenance:value?'EXPLICIT_LIKE':'EXPLICIT_DISLIKE',observationReliability:c.observedConfidence};
+      direct.set(contentId,observation);
+      if(observation.mass>0) observations.set(contentId,observation);
     }
     const ordered = [...observations.values()].sort((a, b) => compare(a.contentId, b.contentId));
     const stats = Object.fromEntries(families.map(f => [f, new Map()]));
@@ -203,26 +200,36 @@ const RecommendationEngine = (() => {
         stat.support.set(o.contentId, { source: o.source, mass });
       }
     }
-    return { center, direct, contexts, observations: ordered, stats,
+    return { center, direct, observations: ordered, stats,
       totalEvidenceMass: ordered.reduce((s, o) => s + o.mass, 0) };
   }
   function supportReason(code, support, extra) {
     const entries = [...support.entries()].sort((a, b) => compare(a[0], b[0]));
     return { code, kind: 'inferred', evidenceMovieIds: entries.map(([key]) => key),
       ratingSupport: entries.filter(([, s]) => s.source === 'rating').length,
-      contextSupport: entries.filter(([, s]) => s.source === 'match').length,
+      preferenceSupport: entries.filter(([, s]) => s.source === 'preference').length,
       effectiveEvidenceMass: entries.reduce((s, [, entry]) => s + entry.mass, 0), ...extra };
   }
   function predictPersonal(movieId, profile, f, userId, config = defaults) {
     const c = configuration(config), direct = profile.direct.get(movieId);
     if (direct) {
-      const internalScore = bound(c.neutral + c.outputScale * direct.signal, c.scoreMin, c.scoreMax);
-      return { score: internalScore, internalScore, confidence: c.observedConfidence, state: 'observed',
-        reasons: [factual('PERSONAL_RATING_OBSERVED', movieId, { userIds: [userId], value: direct.value,
-          ratingSupport: 1, contextSupport: 0, effectiveEvidenceMass: direct.mass,
-          strength: direct.signal, confidence: c.observedConfidence, scoreContribution: internalScore - c.neutral })] };
+      const richness=direct.mass;
+      const factor=direct.source==='preference' ? richness/(richness+c.featureShrinkageLambda) : 1;
+      const internalScore=bound(c.neutral+c.outputScale*direct.signal*factor,c.scoreMin,c.scoreMax);
+      const confidence=c.observedConfidence*factor;
+      return {score:internalScore,compatibilityIndex:internalScore,internalScore,confidence,
+        predictionConfidence:confidence,state:'OBSERVED',provenance:direct.provenance,
+        observedRating:direct.source==='rating'?direct.value:null,
+        observedPreference:direct.source==='preference'?direct.value:null,
+        absolutePolarity:direct.absolutePolarity,relativeRatingAffinity:direct.relativeRatingAffinity,
+        stableSignal:direct.signal,observationReliability:direct.observationReliability,informationRichness:richness,
+        reasons:[factual(direct.provenance,movieId,{userIds:[userId],observedValue:direct.value,
+          ratingSupport:direct.source==='rating'?1:0,preferenceSupport:direct.source==='preference'?1:0,
+          effectiveEvidenceMass:richness,absolutePolarity:direct.absolutePolarity,
+          relativeRatingAffinity:direct.relativeRatingAffinity,strength:direct.signal,confidence,
+          scoreContribution:internalScore-c.neutral})]};
     }
-    let delta = 0, featureConfidence = 0; const reasons = [];
+    let delta = 0, featureConfidence = 0; const reasons = [], contributingSupport = new Map();
     for (const family of families) {
       const affinities = [], confidences = [];
       for (const token of f[family]) {
@@ -231,13 +238,14 @@ const RecommendationEngine = (() => {
         const confidence = mass / (mass + c.featureShrinkageLambda);
         affinities.push(affinity); confidences.push(confidence);
         const contribution = c.outputScale * c.familyWeights[family] * affinity / f[family].length;
+        if (st && contribution !== 0 && c.familyWeights[family] > 0)
+          for (const [key, support] of st.support) contributingSupport.set(key, { ...support, mass: profile.direct.get(key)?.mass ?? support.mass });
         // Entity-specific support: aggregate cast evidence cannot name an unsupported actor.
-        const ratedSupport = st ? [...st.support.values()].filter(s => s.source === 'rating').length : 0;
-        if (st && st.support.size >= c.reasonMinSupport && (family !== 'collection' || ratedSupport >= c.reasonMinSupport)
+        if (st && st.support.size >= c.reasonMinSupport
           && Math.abs(affinity) > c.reasonMinAffinity
           && confidence > c.reasonMinConfidence && Math.abs(contribution) >= c.reasonMinContribution) {
-          reasons.push(supportReason(codes[family], st.support, { userIds: [userId], family, token,
-            polarity: affinity > 0 ? 'relative_positive' : 'relative_negative', strength: affinity,
+          reasons.push(supportReason('FEATURE_AFFINITY', st.support, { userIds: [userId], family, token,
+            polarity: affinity > 0 ? 'inferred_positive' : 'inferred_negative', strength: affinity,
             confidence, scoreContribution: contribution }));
         }
       }
@@ -248,86 +256,60 @@ const RecommendationEngine = (() => {
       / (profile.totalEvidenceMass + c.profileShrinkageLambda), 0, 1);
     const internalScore = confidence === 0 ? c.neutral
       : bound(c.neutral + c.outputScale * delta, c.scoreMin, c.scoreMax);
-    const directContexts = profile.contexts.filter(r => r.contentId === movieId);
-    for (const r of directContexts) if (c.matchWeight > 0 && r.freshness > 0)
-      reasons.push(factual(r.liked ? 'EXPLICIT_MATCH_LIKE' : 'EXPLICIT_MATCH_NOPE', movieId,
-        { userIds: [userId], contextSupport: 1, ratingSupport: 0, sessionId: r.sessionId,
-          freshness: r.freshness, occurredAt: new Date(r.at).toISOString() }));
-    return { score: confidence === 0 ? null : internalScore, internalScore, confidence,
-      state: confidence === 0 ? 'unknown' : confidence < c.estimatedConfidenceThreshold ? 'weak' : 'estimated',
-      reasons };
+    if (!reasons.length && Math.abs(internalScore-c.neutral) >= c.reasonMinContribution && contributingSupport.size)
+      reasons.push(supportReason('FEATURE_AFFINITY',contributingSupport,{userIds:[userId],strength:delta,confidence,
+        scoreContribution:internalScore-c.neutral,aggregateOnly:true}));
+    const state=confidence===0?'UNKNOWN':confidence<c.estimatedConfidenceThreshold?'LOW_EVIDENCE':'INFERRED';
+    const publicScore=state==='UNKNOWN'||state==='LOW_EVIDENCE'?null:internalScore;
+    return {score:publicScore,compatibilityIndex:publicScore,internalScore,confidence,predictionConfidence:confidence,
+      state,provenance:state==='INFERRED'?'FEATURE_AFFINITY':state,observedRating:null,observedPreference:null,
+      absolutePolarity:null,relativeRatingAffinity:null,stableSignal:delta,
+      observationReliability:null,informationRichness:profile.totalEvidenceMass,
+      reasons:[...reasons,...(state==='INFERRED'?[]:[{code:state,kind:'status',evidenceMovieIds:[],scoreContribution:0}])]};
   }
-  function sharedEvidence(movieId, sharedProfile, features, profiles, users, groupId, c) {
-    const joint = predictPersonal(movieId, sharedProfile, features, groupId, c);
-    const together = bound(c.togetherWeight * joint.confidence * (joint.internalScore - c.neutral),
-      -c.togetherAbsoluteCap, c.togetherAbsoluteCap);
-    const reasons = [];
-    if (Math.abs(together) >= c.reasonMinContribution && joint.reasons.length) {
-      const ids = [...new Set(joint.reasons.flatMap(r => r.evidenceMovieIds))].sort(compare);
-      reasons.push({ code: 'TOGETHER_RATING_AFFINITY', kind: joint.state === 'observed' ? 'factual' : 'inferred', groupId, evidenceMovieIds: ids,
-        ratingSupport: ids.length, contextSupport: 0, effectiveEvidenceMass: sharedProfile.observations
-          .filter(o => ids.includes(o.contentId)).reduce((sum, o) => sum + o.mass, 0),
-        confidence: joint.confidence, strength: joint.internalScore - c.neutral,
-        polarity: together > 0 ? 'relative_positive' : 'relative_negative', scoreContribution: together,
-        evidence: joint.reasons.map(({ userIds, ...reason }) => ({ ...reason, groupId,
-          code: reason.code === 'PERSONAL_RATING_OBSERVED' ? 'TOGETHER_RATING_AFFINITY' : reason.code })) });
-    }
-    const sessions = new Map();
-    for (const user of users) for (const row of profiles[user.id].contexts.filter(r => r.contentId === movieId)) {
-      if (!sessions.has(row.sessionId)) sessions.set(row.sessionId, new Map());
-      sessions.get(row.sessionId).set(user.id, row);
-    }
-    // Latest complete group response; ID breaks simultaneous-session ties deterministically.
-    const complete = [...sessions.entries()].filter(([, rows]) => rows.size === users.length)
-      .sort((a, b) => Math.max(...[...b[1].values()].map(r => r.at)) - Math.max(...[...a[1].values()].map(r => r.at))
-        || compare(a[0], b[0]));
-    let match = 0, freshness = 0;
-    if (complete.length && users.length > 1) {
-      const [sessionId, byUser] = complete[0], rows = [...byUser.values()];
-      freshness = Math.min(...rows.map(r => r.freshness));
-      const allLike = rows.every(r => r.liked), allNope = rows.every(r => !r.liked);
-      if (allLike || allNope) {
-        match = (allLike ? c.doubleLikeContribution : c.doubleNopeContribution) * freshness;
-        if (match !== 0) reasons.push(factual(allLike ? 'DOUBLE_MATCH_LIKE' : 'DOUBLE_MATCH_NOPE', movieId,
-          { groupId, userIds: users.map(u => u.id), sessionId, contextSupport: 1,
-            ratingSupport: 0, freshness, scoreContribution: match }));
-      }
-    }
-    return { together, match, reasons, confidence: joint.confidence, freshness: match === 0 ? 0 : freshness };
+  function sharedEvidence(movieId, sharedProfile, features, groupId, config = defaults) {
+    const c=configuration(config), joint=predictPersonal(movieId,sharedProfile,features,groupId,c);
+    const together=bound(c.togetherWeight*joint.confidence*(joint.internalScore-c.neutral),-c.togetherAbsoluteCap,c.togetherAbsoluteCap);
+    const evidence=joint.reasons.filter(r=>r.evidenceMovieIds.length);
+    const reasons=evidence.length && (joint.state==='OBSERVED'||Math.abs(together)>=c.reasonMinContribution)
+      ? [{code:'TOGETHER_RATING',kind:joint.state==='OBSERVED'?'factual':'inferred',groupId,
+        evidenceMovieIds:[...new Set(evidence.flatMap(r=>r.evidenceMovieIds))].sort(compare),
+        confidence:joint.confidence,scoreContribution:together,
+        evidence:evidence.map(({userIds,...r})=>({...r,groupId,code:'TOGETHER_RATING'}))}] : [];
+    return {together,reasons,confidence:joint.confidence};
   }
   function aggregateGroup(personal, shared = {}, config = defaults) {
-    const c = configuration(config);
-    if (!Array.isArray(personal) || personal.length !== c.supportedGroupSize)
-      throw new TypeError('v1 requires exactly ' + c.supportedGroupSize + ' personal scores');
-    if (!personal.every(p => p && finite(p.internalScore) && finite(p.confidence)
-        && p.internalScore >= c.scoreMin && p.internalScore <= c.scoreMax && p.confidence >= 0 && p.confidence <= 1))
-      throw new TypeError('Valid personal scores/confidence required');
-    const scores = personal.map(p => p.internalScore), confidence = Math.min(...personal.map(p => p.confidence));
-    let base = c.neutral + confidence * (mean(scores) - c.neutral
-      - c.disagreementBeta * (Math.max(...scores) - Math.min(...scores)));
-    const negative = Math.min(0, ...personal.map(p => p.confidence * (p.internalScore - c.neutral)));
-    if (negative < 0) base = Math.min(base, c.neutral + negative);
-    let together = shared.together ?? 0, match = shared.match ?? 0;
-    if (!finite(together) || !finite(match)) throw new TypeError('Finite shared contribution required');
-    const sharedConfidence = shared.confidence ?? 0, sharedFreshness = shared.freshness ?? 0;
-    if (![sharedConfidence, sharedFreshness].every(v => finite(v) && v >= 0 && v <= 1))
-      throw new TypeError('Valid shared confidence/freshness required');
-    const strongNegative = personal.some(p => p.confidence >= c.strongNegativeConfidence && p.internalScore < c.strongNegativeScore);
-    if (strongNegative) { together = Math.min(0, together); match = Math.min(0, match); }
-    return { score: bound(base + together + match, c.scoreMin, c.scoreMax), confidence,
-      sharedEvidenceConfidence: sharedConfidence, sharedContextFreshness: sharedFreshness,
-      contributions: { base, together, match }, sharedPositiveSuppressed: strongNegative };
+    const c=configuration(config);
+    if(!Array.isArray(personal)||personal.length!==c.supportedGroupSize) throw new TypeError('Requires exactly 2 personal scores');
+    if(!personal.every(p=>p&&finite(p.internalScore)&&finite(p.confidence)&&p.internalScore>=c.scoreMin&&p.internalScore<=c.scoreMax&&p.confidence>=0&&p.confidence<=1)) throw new TypeError('Valid personal scores/confidence required');
+    const confidence=Math.min(...personal.map(p=>p.confidence));
+    const base=c.neutral+confidence*(Math.min(...personal.map(p=>p.internalScore))-c.neutral);
+    let together=shared.together??0;
+    const sharedConfidence=shared.confidence??0;
+    if(!finite(together)) throw new TypeError('Finite shared contribution required');
+    if(!finite(sharedConfidence)||sharedConfidence<0||sharedConfidence>1) throw new TypeError('Valid shared confidence required');
+    const protectedUsers=personal.filter(p=>p.state==='OBSERVED'
+      ? p.absolutePolarity==='NEGATIVE' && p.observationReliability>=c.strongNegativeConfidence
+      : p.state==='INFERRED' && p.internalScore<c.strongNegativeScore && p.confidence>=c.strongNegativeConfidence);
+    const suppressed=protectedUsers.length>0 && together>0;
+    if(suppressed) together=0;
+    const beforeProtection=bound(base+together,c.scoreMin,c.scoreMax);
+    const score=protectedUsers.length?Math.min(beforeProtection,c.negativeProtectionCap):beforeProtection;
+    return {score,confidence,groupConfidence:confidence,sharedEvidenceConfidence:sharedConfidence,
+      contributions:{base,together,negativeProtection:score-beforeProtection},
+      negativeProtectionApplied:protectedUsers.length>0&&(suppressed||score<beforeProtection),
+      sharedPositiveSuppressed:suppressed};
   }
   function recommend(context, config = defaults) {
     const c = configuration(config);
     if (!context || !Array.isArray(context.users) || !Array.isArray(context.candidates))
       throw new TypeError('Users and candidates required');
     if (context.users.length !== c.supportedGroupSize)
-      throw new TypeError('v1 requires exactly ' + c.supportedGroupSize + ' users');
+      throw new TypeError('Stable model requires exactly ' + c.supportedGroupSize + ' users');
     const users = context.users.map(u => ({ id: id(u?.id) })).sort((a, b) => compare(a.id, b.id));
     if (users.some(u => u.id === null) || new Set(users.map(u => u.id)).size !== users.length)
       throw new TypeError('Unique opaque user identifiers required');
-    const at = timestamp(context.asOf), asOf = new Date(at).toISOString();
+    const at = undefined;
     const rawFeatures = context.contentFeatures || {}, normalized = Object.create(null);
     const ids = new Set([...Object.keys(rawFeatures), ...context.candidates.map(m => id(m?.movieId)).filter(Boolean)]);
     for (const movieId of [...ids].sort(compare)) normalized[movieId] = normalizeFeatures(
@@ -341,14 +323,14 @@ const RecommendationEngine = (() => {
     const results = eligibleCandidates(context.candidates, normalized, shared, context.constraints).map(movie => {
       const f = normalized[movie.movieId], personal = Object.create(null);
       for (const user of users) personal[user.id] = predictPersonal(movie.movieId, profiles[user.id], f, user.id, c);
-      const evidence = sharedEvidence(movie.movieId, joint, f, profiles, users, groupId, c);
+      const evidence = sharedEvidence(movie.movieId, joint, f, groupId, c);
       const group = aggregateGroup(users.map(u => personal[u.id]), evidence, c);
       const sharedReasons = evidence.reasons.map(reason => ({ ...reason,
         scoreContribution: group.sharedPositiveSuppressed && reason.scoreContribution > 0 ? 0 : reason.scoreContribution,
         suppressed: group.sharedPositiveSuppressed && reason.scoreContribution > 0 }));
       return { movieId: movie.movieId, title: movie.title, personal, group,
-        reasons: [...movie.reasons, ...users.flatMap(u => personal[u.id].reasons), ...sharedReasons],
-        metadata: { modelVersion: c.modelVersion, configVersion: c.configVersion, asOf,
+        reasons: [...movie.reasons, ...users.flatMap(u => personal[u.id].reasons), ...sharedReasons, ...(group.negativeProtectionApplied ? [{code:'NEGATIVE_PROTECTION',kind:'model',evidenceMovieIds:[movie.movieId],scoreContribution:group.contributions.negativeProtection,sharedPositiveSuppressed:group.sharedPositiveSuppressed}] : [])],
+        metadata: { modelVersion: c.modelVersion, configVersion: c.configVersion,
           evidenceProvenance: { personal: Object.fromEntries(users.map(u => [u.id, profiles[u.id].observations
             .map(o => ({ movieId: o.contentId, source: o.source, evidenceMass: o.mass }))])),
           shared: joint.observations.map(o => ({ movieId: o.contentId, source: 'together_rating', evidenceMass: o.mass })) } },
@@ -395,7 +377,7 @@ const RecommendationEngine = (() => {
     }
     return selected;
   }
-  return Object.freeze({ configuration, normalizeFeatures, validRating, ratingCenter, ratingSignal,
+  return Object.freeze({ configuration, normalizeFeatures, validRating, ratingCenter, ratingSignal, ratingPolarity, relativeRatingAffinity, sharedEvidence,
     eligibleCandidates, buildProfile, predictPersonal, aggregateGroup, recommend, rerank });
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RecommendationEngine;

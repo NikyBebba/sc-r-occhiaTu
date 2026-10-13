@@ -1,8 +1,8 @@
 // Explicit AS-IS input only. Does not fetch, write or consult application globals.
 const RecommendationAdapters = (() => {
   const engine = typeof module !== 'undefined' && module.exports ? require('./core') : RecommendationEngine;
-  const identities = [{ person: 'N', rating: 'seen_rating_n', seen: 'seen_n', review: 'review_text_n' },
-    { person: 'V', rating: 'seen_rating_v', seen: 'seen_v', review: 'review_text_v' }];
+  const identities = [{ person: 'N', rating: 'seen_rating_n', seen: 'seen_n', review: 'review_text_n', preference: 'personal_liked_n' },
+    { person: 'V', rating: 'seen_rating_v', seen: 'seen_v', review: 'review_text_v', preference: 'personal_liked_v' }];
   const cmp = (a, b) => a < b ? -1 : a > b ? 1 : 0;
   function runtimeMinutes(value) {
     if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : null;
@@ -11,9 +11,9 @@ const RecommendationAdapters = (() => {
     const minutes = hit ? Number(hit[1]) : NaN;
     return Number.isFinite(minutes) && minutes > 0 ? minutes : null;
   }
-  function fromMovies({ movies, movieNights = [], matchHistory = [], asOf,
+  function fromMovies({ movies, movieNights = [],
     userIds = { N: 'N', V: 'V' }, groupId = 'shared', constraints = { context: 'streaming' } }) {
-    if (!Array.isArray(movies) || !Array.isArray(movieNights) || !Array.isArray(matchHistory))
+    if (!Array.isArray(movies) || !Array.isArray(movieNights))
       throw new TypeError('Explicit arrays required');
     const byId = new Map();
     // Project first: unrelated legacy fields cannot influence duplicate resolution.
@@ -24,6 +24,7 @@ const RecommendationAdapters = (() => {
         features: { genres: movie.genres, directors: movie.director, cast: movie.cast_names,
           runtimeMinutes: runtimeMinutes(movie.duration), releaseYear: movie.release_year, collectionId: movie.collection_id },
         ratings: identities.map(i => engine.validRating(movie[i.rating]) ? movie[i.rating] : null),
+        preferences: identities.map(i => typeof movie[i.preference] === 'boolean' && !engine.validRating(movie[i.rating]) ? movie[i.preference] : null),
         seen: identities.map(i => movie[i.seen] === true), reviews: identities.map(i => movie[i.review] || null),
         togetherRating: engine.validRating(movie.seen_rating_together) ? movie.seen_rating_together : null,
         togetherReview: movie.review_text_together || null };
@@ -41,11 +42,9 @@ const RecommendationAdapters = (() => {
       ratings: ordered.filter(r => r.ratings[index] !== null).map(r => ({ contentId: r.movieId, value: r.ratings[index] })),
       seen: ordered.filter(r => r.seen[index]).map(r => r.movieId),
       reviews: ordered.filter(r => r.reviews[index] !== null).map(r => ({ contentId: r.movieId, text: r.reviews[index] })),
-      match: matchHistory.filter(r => r.person === identity.person && byId.has(String(r.movie_id)))
-        .map(r => ({ contentId: String(r.movie_id), sessionId: r.session_id,
-          liked: r.liked, createdAt: r.created_at }))
+      preferences: ordered.filter(r=>r.preferences[index]!==null).map(r=>({contentId:r.movieId,value:r.preferences[index]}))
     }]));
-    return { users, group: { id: groupId }, asOf, constraints: { ...constraints },
+    return { users, group: { id: groupId }, constraints: { ...constraints },
       candidates: ordered.map(({ movieId, title, inSharedList, cinema }) => ({ movieId, title, inSharedList, cinema })),
       contentFeatures: Object.fromEntries(ordered.map(r => [r.movieId, r.features])), personalSignals,
       sharedSignals: { ratings: ordered.filter(r => r.togetherRating !== null).map(r => ({ contentId: r.movieId, value: r.togetherRating })),

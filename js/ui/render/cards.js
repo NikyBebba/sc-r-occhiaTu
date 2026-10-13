@@ -22,6 +22,34 @@ function sharedVoteButtonHtml(movie) {
   return `<button onclick="addReview('${jsAttrEscape(movie.id)}')" class="shared-vote-action w-full min-h-11 px-3 py-2 rounded-lg font-medium">${label} ${escapeHtml(sharedPeopleLabel())}</button>`;
 }
 
+// One judgment slot: quantitative rating or manual preference, never both.
+function personalJudgmentSlotHtml(movie, person) {
+  if (movie.surprise_by && movie.surprise_by !== currentUser) return '';
+  const rating = personalRating(movie, person), value = personalPreference(movie, person);
+  const classes = 'viewing-score viewing-score-' + person.toLowerCase();
+  const editable = person === currentUser;
+  const eligible = viewingState(movie)[person] || togetherSeen(movie) || !!reviewTextFor(movie, person);
+  if (rating === null && value === null && !(editable && eligible)) return '';
+  const state = rating !== null ? 'rating' : value === true ? 'like' : value === false ? 'dislike' : 'unknown';
+  const content = rating !== null
+    ? `${person} <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(rating)}/10`
+    : `${person} <i class="fa-solid ${value === true ? 'fa-thumbs-up' : value === false ? 'fa-thumbs-down' : 'fa-ellipsis'}" aria-hidden="true"></i>`;
+  const description = rating !== null ? `voto ${formatMovieRating(rating)}/10` : value === true ? 'Mi è piaciuto' : value === false ? 'Non mi è piaciuto' : 'non ancora espresso';
+  const label = `${state === 'unknown' ? 'Aggiungi' : 'Modifica'} il giudizio ${person}: ${description} · ${movie.title}`;
+  return editable
+    ? `<button type="button" class="${classes} personal-judgment-slot${state === 'unknown' ? ' is-unknown' : ''}" data-judgment="${state}" data-judgment-movie="${escapeHtml(movie.id)}" data-judgment-context="${person}" aria-label="${escapeHtml(label)}" aria-haspopup="dialog" onclick="addPersonalReview('${jsAttrEscape(movie.id)}', this)">${content}</button>`
+    : `<span class="${classes}" data-judgment="${state}" data-judgment-context="${person}" aria-label="${escapeHtml(`${person}: ${description} · ${movie.title}`)}">${content}</span>`;
+}
+function togetherJudgmentSlotHtml(movie) {
+  if (!['N','V'].includes(currentUser) || (movie.surprise_by && movie.surprise_by !== currentUser)) return '';
+  const completed = togetherSeen(movie);
+  if (!completed && !nightIsDue(activeNightForMovie(movie.id))) return '';
+  const rating = completed ? togetherRating(movie) : null;
+  const label = rating !== null || reviewTextFor(movie,'both') ? 'Modifica' : 'Aggiungi';
+  const content = rating !== null ? `<i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(rating)}/10` : '<i class="fa-solid fa-ellipsis" aria-hidden="true"></i>';
+  return `<button type="button" class="viewing-score viewing-score-together personal-judgment-slot" data-judgment="${rating !== null ? 'rating' : 'unknown'}" data-judgment-movie="${escapeHtml(movie.id)}" data-judgment-context="both" aria-label="${label} il giudizio ${escapeHtml(sharedPeopleLabel())}: ${rating !== null ? 'voto '+formatMovieRating(rating)+'/10' : reviewTextFor(movie,'both') ? 'recensione senza voto' : 'non ancora espresso'} · ${escapeHtml(movie.title)}" aria-haspopup="dialog" onclick="addReview('${jsAttrEscape(movie.id)}', this)">${escapeHtml(sharedPeopleLabel())} ${content}</button>`;
+}
+
 function viewingStatusHtml(movie, { showRatings = true } = {}) {
   const seen = viewingState(movie);
   const label = seen.together ? 'Visto insieme da N e V'
@@ -29,20 +57,10 @@ function viewingStatusHtml(movie, { showRatings = true } = {}) {
     : seen.N ? 'Visto da N' : seen.V ? 'Visto da V' : 'Non ancora visto';
   // Together colora entrambi i badge originali, senza cambiare i fatti personali.
   const person = key => `<span class="viewing-person viewing-person-${key.toLowerCase()}${seen.together ? ' is-together' : seen[key] ? ' is-seen' : ''}" aria-label="${seen.together ? 'Visto insieme' : key + ': ' + (seen[key] ? 'visto personalmente' : 'non segnato come visto')}">${key}</span>`;
-  const scores = ['N', 'V'].map(key => {
-    const rating = personalRating(movie, key);
-    return rating === null ? '' : `<span class="viewing-score viewing-score-${key.toLowerCase()}">${key} <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(rating)}/10</span>`;
-  }).filter(Boolean);
-  const shared = togetherRating(movie);
-  if (shared !== null && seen.together) scores.push(`<span class="viewing-score viewing-score-together" aria-label="Voto insieme: ${formatMovieRating(shared)} su 10">${escapeHtml(sharedPeopleLabel())} <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(shared)}/10</span>`);
-  return `<div class="viewing-status" role="group" aria-label="${label}"><span class="viewing-label" aria-hidden="true">Visto da</span>${person('N')}${person('V')}</div>${showRatings && scores.length ? `<div class="viewing-scores" aria-label="Voti del film">${scores.join('')}</div>` : ''}`;
-}
-
-function personalVoteButtonHtml(movie) {
-  if ((currentUser !== 'N' && currentUser !== 'V') || (!togetherSeen(movie) && !viewingState(movie)[currentUser] && personalRating(movie, currentUser) === null && !reviewTextFor(movie, currentUser))
-      || (movie.surprise_by && movie.surprise_by !== currentUser)) return '';
-  const name = CONFIG.PEOPLE[currentUser]?.label || currentUser;
-  return `<button onclick="addPersonalReview('${jsAttrEscape(movie.id)}')" class="personal-vote-action personal-vote-${currentUser.toLowerCase()} w-full min-h-11 px-3 py-2 rounded-lg font-medium">Modifica voto ${escapeHtml(name)}</button>`;
+  const scores = ['N', 'V'].map(key => personalJudgmentSlotHtml(movie, key)).filter(Boolean);
+  const shared = togetherJudgmentSlotHtml(movie);
+  if (shared) scores.push(shared);
+  return `<div class="viewing-status" role="group" aria-label="${label}"><span class="viewing-label" aria-hidden="true">Visto da</span>${person('N')}${person('V')}</div>${showRatings && scores.length ? `<div class="viewing-scores" aria-label="Giudizi del film">${scores.join('')}</div>` : ''}`;
 }
 
 function reviewCardsHtml(movie) {
@@ -75,21 +93,11 @@ function cardReviewsHtml(movie) {
 
 function cardEvaluationsHtml(movie, projection) {
   if (movie.surprise_by && movie.surprise_by !== currentUser) return '';
-  const contexts = [];
-  if (personalVoteButtonHtml(movie)) contexts.push(currentUser);
-  if (nightIsDue(activeNightForMovie(movie.id)) || togetherSeen(movie)) contexts.push('both');
-  if (!contexts.length) return '';
-  const id = jsAttrEscape(movie.id);
-  return `<div class="movie-card-management-group"><h4>Valutazioni</h4>${contexts.map(person => {
-    const label = person === 'both' ? sharedPeopleLabel() : CONFIG.PEOPLE[person]?.label || person;
-    const hasData = (person === 'both' ? togetherRating(movie) : personalRating(movie, person)) !== null || !!reviewTextFor(movie, person);
-    const editableRemoval = person !== 'both' || togetherSeen(movie);
-    const edit = hasData ? 'Modifica voto e recensione' : 'Aggiungi voto o recensione';
-    return `<div class="movie-card-evaluation-row" data-evaluation-context="${person}"><span class="auth-person-initial movie-card-evaluation-badge${person === 'V' ? ' auth-person-v' : person === 'both' ? ' is-shared' : ''}" aria-label="Valutazione ${escapeHtml(label)}">${escapeHtml(label)}</span><div>
-      <button type="button" onclick="${person === 'both' ? 'addReview' : 'addPersonalReview'}('${id}')" class="movie-card-icon-action ${person === 'both' ? 'shared-vote-action' : 'personal-vote-action personal-vote-' + person.toLowerCase()}" aria-label="${edit} ${escapeHtml(label)}" title="${edit} ${escapeHtml(label)}"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
-      ${hasData && editableRemoval ? `<button type="button" onclick="removeEvaluationUI('${id}', '${person}')" class="movie-card-icon-action movie-card-evaluation-remove" aria-label="Rimuovi voto o recensione ${escapeHtml(label)}" title="Rimuovi voto o recensione ${escapeHtml(label)}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>` : ''}
-    </div></div>`;
-  }).join('')}</div>`;
+  // The complete inline editors replace pencils/personal bins. Together removal
+  // remains here because the shared form still requires a valid rating to save.
+  if (!togetherSeen(movie) || (togetherRating(movie) === null && !reviewTextFor(movie,'both'))) return '';
+  const label = sharedPeopleLabel();
+  return `<div class="movie-card-management-group"><h4>Valutazioni</h4><div class="movie-card-evaluation-row" data-evaluation-context="both"><span class="auth-person-initial movie-card-evaluation-badge is-shared" aria-label="Valutazione ${escapeHtml(label)}">${escapeHtml(label)}</span><div><button type="button" onclick="removeEvaluationUI('${jsAttrEscape(movie.id)}', 'both')" class="movie-card-icon-action movie-card-evaluation-remove" aria-label="Rimuovi voto o recensione ${escapeHtml(label)}" title="Rimuovi voto o recensione ${escapeHtml(label)}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button></div></div></div>`;
 }
 
 // Il veto resta raggiungibile dalla scheda grande, con le condizioni originali.

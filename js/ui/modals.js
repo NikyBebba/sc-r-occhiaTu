@@ -44,6 +44,7 @@ function closeModalNow(id) {
   const app = document.getElementById('appRoot');
   if (app) app.inert = modalStack.length > 0;
   if (typeof syncDestinationNavigation === 'function') syncDestinationNavigation();
+  if (id === 'reviewModal' && typeof reviewEditorClosed === 'function') reviewEditorClosed();
   if (id === 'statsModal' && !modalStack.length && isAppAuthorized()) memoriesReturnFocus?.focus?.({ preventScroll: true });
   if (id === 'addSeenModal' && typeof pendingAddSeen !== 'undefined') pendingAddSeen = null;
   if (id === 'themeModal') {
@@ -151,7 +152,7 @@ function showConfirmModal(title, message, choices = null) {
 
 // Focus tastiera confinato a Ricordi e conferma; Esc usa lo stack esistente.
 document.addEventListener('keydown', event => {
-  if (event.key !== 'Tab' || !['statsModal', 'confirmModal'].includes(modalStackTop())) return;
+  if (event.key !== 'Tab' || !['statsModal', 'confirmModal', 'seenModal', 'reviewModal', 'addSeenModal', 'listCandidateModal'].includes(modalStackTop())) return;
   const items = [...document.getElementById(modalStackTop()).querySelectorAll('button, summary, [tabindex="0"]')]
     .filter(element => !element.disabled && element.getClientRects().length);
   const first = items[0], last = items[items.length - 1];

@@ -50,12 +50,12 @@ let checks=0;
  await page.route('https://fixture.invalid/**',r=>r.abort());
  const fixtureClient=await page.evaluateHandle(()=>sb);
  const seed=async()=>page.evaluate(()=>{
-  sb=null;dbMode='local';movies=[{id:'snack-film',title:'Scary Movie',tmdb_id:4247,status:'watched',in_shared_list:false,seen_n:true,seen_v:false,seen_rating_n:7.3,review_text_n:'CULT',seen_rating_together:8.2,review_text_together:'Una serata memorabile'}];
+  sb=null;dbMode='local';movies=[{id:'snack-film',title:'Scary Movie',tmdb_id:4247,status:'watched',in_shared_list:false,seen_n:true,seen_v:false,seen_rating_n:7.3,review_text_n:'CULT',seen_rating_together:8.2,review_text_together:'Una serata memorabile',personal_liked_n:null,personal_liked_updated_at_n:null,personal_liked_v:false,personal_liked_updated_at_v:'2026-10-13T12:00:00Z'}];
   movieNights=['first','rewatch'].map((id,i)=>({id,movie_id:'snack-film',status:'completed',date:i?'2026-10-12':'2026-10-11',time:'22:30',snack:i?null:'Snack A',location:i?'Cinema':'Casa',proposed_by:'N',created_at:'2026-10-12T16:00:00Z',completed_at:i?'2026-10-12T21:30:00Z':'2026-10-11T21:30:00Z'}));vetoes=[];saveLocal();setTab('history_n');
  });
  const state=()=>page.evaluate(()=>({movies:movies,nights:movieNights}));
  const edit=async(night='first')=>{
-  const summary=page.locator('#movieGrid summary').filter({hasText:'Gestione'});if(!(await summary.evaluate(el=>el.parentElement.open)))await summary.click();await page.locator('#movieGrid [data-evaluation-context="both"] button').first().click();
+  await page.locator('#movieGrid button[data-judgment-context="both"]').click();
   assert(await page.locator('#detailModal').evaluate(el=>el.classList.contains('hidden')));
   await page.locator('#reviewNightSelect').selectOption(night);
  };

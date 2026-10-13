@@ -147,7 +147,6 @@ function renderMovieDetail(m) {
     ${sagaButtonHtml(m)}
     ${nightIsDue(activeNightForMovie(m.id)) || togetherSeen(m) ? sharedVoteButtonHtml(m) : ''}
     ${personalWatchButtonHtml(m)}
-    ${personalVoteButtonHtml(m)}
     ${personalRemovalButtonsHtml(m)}
     ${rewatchActionsHtml(m)}
     <div class="flex gap-2 mt-3"><button class="min-h-11 px-3 bg-indigo-600/20 rounded" onclick="quickTonightUI('${jsAttrEscape(m.id)}')">Oggi</button><button class="min-h-11 px-3 bg-slate-800 rounded" onclick="scheduleMovie('${jsAttrEscape(m.id)}')">Programma</button></div>
