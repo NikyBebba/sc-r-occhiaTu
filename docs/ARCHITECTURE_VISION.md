@@ -111,7 +111,7 @@ non vanno riaperte o indebolite per preparare il futuro.
 
 ## Recommendation e Decision Engine
 
-La prossima grande fase è Discovery & Recommendation Engine, **prima** della
+La priorità operativa è Discovery & Recommendation Engine, **prima** della
 progettazione multiutente e delle serie. Separare recommendation personale
 («cosa piace a me») da recommendation del gruppo («cosa funziona qui»).
 
@@ -119,9 +119,12 @@ Gli esempi `recommend(user_id)` e `recommend(group_id)` esprimono due contesti,
 non funzioni già presenti o una firma API definitiva. Una prima implementazione
 può usare adattamenti semplici dei dati privati esistenti; deve poter evolvere
 senza assumere che due colonne N/V esauriscano il dominio.
-Cosa Guardiamo?, Ruota, Surprise e Match Live potranno condividere segnali e
+Cosa Guardiamo?, Ruota e Match Live potranno condividere segnali e
 candidati mantenendo interazioni e contratti espliciti. Non cambiare ora
 pendingMatch, Continua, metriche o sessioni per anticipare questa convergenza.
+Il [core v1](RECOMMENDATION_ENGINE.md) è IMPLEMENTED LOCALLY / NOT YET
+CONSUMER-INTEGRATED; produzione v61 invariata. Surprise/Veto sono deprecated
+nel target, ancora presenti nel runtime e indipendenti dal nuovo motore.
 
 ## Series, gruppi e community
 

@@ -54,6 +54,26 @@ root cause non identificata. La paginazione non è un fix dimostrato; probe
 diagnostico fuori dal prodotto, nessuna guardia touch o modifica del bootstrap.
 Nessuna modifica DB/Auth/migration/dati.
 
+## Fase 1 / STEP 3 — Recommendation core locale
+
+**IMPLEMENTED LOCALLY / NOT YET CONSUMER-INTEGRATED.** Personal Model B e
+G4 protetto, adapter N/V e test sintetici; config versionata, score come indice
+di compatibilità e confidence euristica. Moduli non caricati da index/PWA;
+produzione e consumer restano v61. [Contratto del motore](RECOMMENDATION_ENGINE.md).
+Seen neutro, qualità esterna esclusa, Match storico opzionale passato come input,
+profili personali/shared distinti e diversity separata. Surprise/Veto sono
+deprecated nel target e indipendenti dal nuovo core; runtime AS-IS invariato,
+cleanup separato. Nessuna modifica DB/Auth/RLS né integrazione Home/Ruota/Match.
+NAV-01 e debito Tailwind/offline invariati. Questo checkpoint locale non modifica
+le verifiche production sopra né le fasi storiche. STEP 3B consolida il codice
+in Git senza integrazione consumer o deploy.
+
+Prima dell'integrazione consumer: DATA CLEANUP PRE-RECOMMENDATION in task
+separato controllato, previa verifica live di vecchie swipe_sessions/swipes e
+movie_nights cancelled di sviluppo/test. La classificazione test/reale dello
+snapshot storico è un'ipotesi da verificare; le visioni reali vanno preservate.
+Nessuna query, cancellazione o backup eseguiti nel presente step.
+
 ## Mappa documentale e precedenza
 
 | Ruolo | Documento autorevole | Natura |
@@ -66,7 +86,7 @@ Nessuna modifica DB/Auth/migration/dati.
 | Card e ricerca Storico | [MOVIE_CARD_DISCLOSURE](MOVIE_CARD_DISCLOSURE.md) | Contratto finale AS-IS e pass locali archiviati |
 | Lifecycle, Ricordi e modifica snack | [MOVIE_NIGHTS_MIDNIGHT_MEMORIES](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md), [PROIEZIONI](PROIEZIONI.md), [UX_NAVIGATION_MEMORIES](UX_NAVIGATION_MEMORIES.md) | AS-IS; verifiche datate separate |
 | Timeline, riepiloghi, cinema, decimali e saghe | Specifiche Phase 22/23/8.3/38/41 | Apertura corrente; sezioni originali storiche |
-| Direzione e priorità di prodotto | [PRODUCT_ROADMAP](PRODUCT_ROADMAP.md) | Fase 0 IMPLEMENTED; Fasi 1–10 PLANNED, opzioni EXPLORATORY |
+| Direzione e priorità di prodotto | [PRODUCT_ROADMAP](PRODUCT_ROADMAP.md) | Fase 0 IMPLEMENTED; Fase 1 core locale/integrazione PLANNED; Fasi 2–10 PLANNED, opzioni EXPLORATORY |
 | Scalabilità e modello futuro | [ARCHITECTURE_VISION](ARCHITECTURE_VISION.md) | Principio operativo; modello TO-BE, nessuna migrazione autorizzata |
 
 Il checkpoint v61 e i contratti finali prevalgono sui pass storici. La vecchia

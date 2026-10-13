@@ -21,7 +21,8 @@ interazioni condivise sono un elemento differenziante centrale: la direzione
 supera il solo movie tracker o un clone di Letterboxd/JustWatch. Il prodotto
 resta semplice, mobile-first, personale, ludico e cinematografico, adatto a
 coppie, amici, coinquilini o famiglia, senza una cornice esclusivamente romantica.
-Ruota e Surprise mantengono il loro ruolo nella scelta.
+Ruota mantiene il proprio ruolo nella scelta. Surprise e Veto sono
+DEPRECATED / TARGET REMOVE; restano nel runtime AS-IS fino al cleanup separato.
 
 ## Stati e ordine
 
@@ -39,7 +40,7 @@ Nessuna voce autorizza SQL, migrazioni, refactoring o nuove feature automatiche.
 | Fase | Direzione | Stato |
 | --- | --- | --- |
 | 0 | Core film stabile | IMPLEMENTED; refinement possibili |
-| 1 | Discovery & Recommendation Engine | PLANNED — prossima grande fase |
+| 1 | Discovery & Recommendation Engine | Core IMPLEMENTED LOCALLY; integrazione PLANNED — priorità operativa |
 | 2 | Decision Engine | PLANNED |
 | 3 | Competitive / Product Analysis | PLANNED, prima della grande espansione multiutente |
 | 4 | Product Architecture V2 / Multiuser ready | PLANNED, progettazione prima della migrazione |
@@ -64,10 +65,11 @@ non è un blocker della release v60 e non viene corretto da questa roadmap.
 
 ## Fase 1 — Discovery & Recommendation Engine
 
-**PLANNED — prossima grande fase.** Costruire un recommendation engine
-progressivamente sui dati realmente disponibili. Prima progettare un inventario
-di segnali, qualità/copertura, dati assenti e criteri di valutazione; non
-assumere che tutti i segnali elencati siano già persistiti.
+**Priorità operativa corrente.** Audit AS-IS e design/simulazione completati;
+[core Model B + G4 protetto](RECOMMENDATION_ENGINE.md) **IMPLEMENTED LOCALLY /
+NOT YET CONSUMER-INTEGRATED**. Nessuna release del motore; produzione v61
+invariata. Integrazione delle superfici **PLANNED**, progressivamente sui dati
+realmente disponibili; non assumere che tutti i segnali elencati siano persistiti.
 
 Segnali candidati **EXPLORATORY**: storico personale, voti personali, visioni
 Together, voti N+V, generi, registi, cast, anno, durata, collection/saghe,
@@ -86,7 +88,7 @@ Separare due domande:
 
 L’algoritmo futuro non deve basarsi esclusivamente sulle colonne N/V.
 La versione privata può adattare quei dati a identità utente e contesto gruppo
-senza migrare subito il DB. Cosa Guardiamo?, Ruota, Surprise e Match Live
+senza migrare subito il DB. Cosa Guardiamo?, Ruota e Match Live
 potranno progressivamente essere superfici dello stesso Recommendation/Decision
 Engine. Questa convergenza è futura; il contratto Match corrente resta valido.
 
@@ -97,7 +99,7 @@ Engine. Questa convergenza è futura; il contratto Match corrente resta valido.
 Il modello deve poter funzionare in futuro con gruppi di più di due membri.
 
 Possibili evoluzioni **EXPLORATORY**: suggerimenti intelligenti, filtri
-contestuali, ruota pesata, Surprise intelligente, esclusioni temporanee,
+contestuali, ruota pesata, esclusioni temporanee,
 compatibilità tra utenti, explanation/reason del suggerimento, disponibilità
 streaming e score di compatibilità. Definire le metriche prima di presentarle;
 la Match % oggi resta la metrica della sessione Match Live, non uno score di
