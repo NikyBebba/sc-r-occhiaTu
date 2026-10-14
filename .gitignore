@@ -15,6 +15,9 @@ pnpm-debug.log*
 dist/
 build/
 .cache/
+test-results/
+playwright-report/
+blob-report/
 
 # Log / temporanei
 *.log

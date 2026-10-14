@@ -1,6 +1,7 @@
 # Navigazione persistente e Ricordi scalabili
 
-Stato corrente: 12 ottobre 2026, **IMPLEMENTED + RELEASED in produzione v61**.
+Stato corrente: **IMPLEMENTED in produzione v62**; navigazione e Ricordi
+restano invariati nella release `a7d1f827c71e60c00aa72d6cf61f69642c80fc91`.
 [Baseline ufficiale](MASTER_CONTEXT.md); navigazione e ownership conservate.
 Ricerca Storico e card: [contratto pubblicato](MOVIE_CARD_DISCLOSURE.md).
 Ricordi/lifecycle/snack: [contratto v60](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
@@ -8,7 +9,7 @@ Le verifiche v55 in fondo sono un archivio locale, non lo stato di pubblicazione
 
 ## Navigazione
 
-Fase 0.5A **rilasciata in produzione v61**: [bounded pagination](BOUNDED_PAGINATION.md)
+Fase 0.5A, introdotta in v61 e inclusa in v62: [bounded pagination](BOUNDED_PAGINATION.md)
 nelle liste e nello Storico, 24 card, pager sopra/sotto, pagine indipendenti per
 tab; ricerca Storico debounced 250 ms. Prev/Next scorre all’inizio dei risultati
 sotto header/nav, senza scroll applicativo nei rerender automatici. La
@@ -105,7 +106,7 @@ focus al trigger alla chiusura; Esc usa lo stack modali esistente.
 - js/ui/render/memories.js: stato temporaneo, gruppi e rendering limitato.
 - js/ui/modals.js e js/main.js: focus/inert e reset della presentazione.
 - js/ui/render/cards.js e js/ui/sagas.js: indicatori originali condivisi; stato Together dorato sui due badge.
-- service-worker.js: cache production v61; dipendenze API escluse dall’intercettazione.
+- service-worker.js: cache production v62; dipendenze API escluse dall’intercettazione.
 
 ## Archivio: verifiche locali v55 prima della pubblicazione
 

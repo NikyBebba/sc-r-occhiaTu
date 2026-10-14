@@ -1,13 +1,28 @@
 # Explicit Personal Preference — contratto DB Phase 2
 
+## Stato corrente — release v62
+
+Schema Personal Preference live verificato e client/store/UI v62 rilasciati.
+Al sanity check read-only la preference live risultava N=1, V=0. Le preference
+live esistenti sono dati reali e non devono essere azzerate da cleanup, restore
+o reimport. Rating valido domina preference; rimuovere il rating lascia Unknown,
+senza resuscitare preference precedente. Prima di modificare preference,
+aggiornare i client/PWA rimasti a versioni precedenti a v62. Non si assume qui
+che entrambi i dispositivi siano stati verificati aggiornati.
+
+Le sezioni Phase 3–4.5 più sotto sono **HISTORICAL checkpoint notes**: frasi
+come “NOT DEPLOYED”, “DO NOT COLLECT” e conteggi dei test descrivono lo stato al
+checkpoint indicato, non il rollout corrente.
+
 **DB INSTALLED + LIVE VERIFIED**, applicazione manuale confermata dall’utente.
 POST indipendente del 13 ottobre 2026, 13:37:10 UTC: dati 10/10, schema 6/6,
 funzioni 5/5 PASS; fingerprint PRE/POST identici, sicurezza/FK invariate, zero
 orphan e tutti i nuovi campi NULL. Non rieseguire la migration.
 
-**Phase 3 client: IMPLEMENTED LOCALLY / NOT RELEASED.** Store/API compatibili;
-UI preference disponibile soltanto nel candidato locale Phase 4 (vedi sotto). Recommendation Core e consumer restano invariati,
-IN CODEBASE / NOT YET CONSUMER-INTEGRATED; nessun deploy o cambio cache/PWA.
+**HISTORICAL — checkpoint DB/Phase 3.** In quel momento lo Store/API era
+compatibile, ma UI e consumer non erano ancora rilasciati. Il rollout v62 e lo
+stato corrente sono descritti sopra; Recommendation Core e consumer sono
+documentati in [RECOMMENDATION_ENGINE](RECOMMENDATION_ENGINE.md).
 
 ## Artifact
 
@@ -86,18 +101,25 @@ visto richiede rating valido **oppure** preference non NULL della persona corren
 Si valuta NEW dopo normalizzazione. Rating 0, rating neutro, Like e Dislike sono
 feedback validi. Dislike non è veto. Errore: `PERSONAL_FEEDBACK_REQUIRED` (22023).
 Rimuovere successivamente feedback non espelle automaticamente dalla lista.
-Store/error mapping riallineati nella Phase 3; candidatura UI riallineata nella Phase 4 locale.
+Store/error mapping sono stati riallineati nella Phase 3. **HISTORICAL:** al
+checkpoint Phase 4 la candidatura UI era stata riallineata nel candidato locale.
+**CURRENT — v62 production:** la candidatura richiede feedback personale
+sufficiente, cioè un Rating valido **OR** una Explicit Preference non NULL.
+Rating 0 e Preference FALSE sono validi; Seen resta indipendente dal gusto.
+Questo stato non attesta che entrambi i client N/V siano stati verificati
+aggiornati.
 
-## Gate old client
+## HISTORICAL — gate old client prima della v62
 
 Il client production v61 `savePersonalReview()` in `js/store/viewing.js` include sempre
 `seen_rating_*` nel patch, anche per una recensione con rating NULL. Per il nuovo
 DB questo è intenzionalmente una rating operation e cancella la preference.
 
-**Migration installata + vecchio client è tollerabile solo finché non si
-raccolgono preference reali.** Prima della raccolta, aggiornare e verificare
-entrambi i client N/V, compresa la cache PWA. Non attivare UI preference ora.
-Non è supportato raccogliere preference reali con vecchie mutation recensione.
+La combinazione migration installata + vecchio client era tollerabile solo prima
+della raccolta reale. In v62 il review-only fix e il contratto Preference sono
+rilasciati; un client/PWA precedente a v62 non deve essere usato per modificare
+Personal Preferences. Le preference live esistenti vanno preservate. La verifica
+di aggiornamento di entrambi i dispositivi non è dedotta dalla sola release.
 
 ## Procedura PRE/POST — eseguita manualmente per questa migration
 
@@ -139,10 +161,10 @@ nuovo. Il vecchio client review-only non è un rollback compatibile.
 
 ## Phase 3 — contratto store/API candidato
 
-Il blocker review-only è risolto nel candidato locale, **non ancora nel client
-production v61**. DO NOT COLLECT REAL PERSONAL PREFERENCES YET: il gate operativo
-rimane fino a rollout e verifica di entrambi i client aggiornati. Nessuna UI
-Like/Dislike, modifica Match o integrazione Recommendation in questa fase.
+Al checkpoint Phase 3 il blocker review-only era risolto nel candidato locale,
+ma non nel client production v61. Il gate pre-rollout è stato superato con v62;
+questa sezione descrive lo stato storico. In questo checkpoint non c’erano UI
+Like/Dislike né integrazione Recommendation.
 
 | API/percorso | Mutation personale |
 |---|---|
@@ -226,10 +248,9 @@ concorrenza reale. Nessuna nuova politica last-write-wins basata su timestamp.
 
 ## Checkpoint Phase 4 — UI candidata locale, UX raffinata dalla Phase 4.5
 
-**IMPLEMENTED LOCALLY / NOT DEPLOYED.** DB live già pronto e verificato;
-produzione v61 ancora priva dei fix review-only Phase 3. Il gate operativo resta:
-**DO NOT COLLECT REAL PERSONAL PREFERENCES YET**, fino al rollout autorizzato e
-alla verifica di entrambi i client N/V, compresa la cache PWA.
+**HISTORICAL — IMPLEMENTED LOCALLY / NOT DEPLOYED al checkpoint Phase 4.** DB
+live già pronto e verificato; la produzione v61 era ancora priva dei fix
+review-only Phase 3. Il gate pre-rollout valeva fino alla pubblicazione v62.
 
 Card e dettaglio riusano `viewingStatusHtml()` e il medesimo personal judgment
 slot: rating numerico, altrimenti thumb-up/thumb-down, altrimenti controllo
@@ -273,10 +294,10 @@ implementazione o expected output. Nessuna preferenza reale creata sul live.
 
 ## Phase 4.5 — contratto UX Personal Judgment definitivo locale
 
-**REFINED LOCALLY / NOT DEPLOYED.** Produzione v61 invariata. Nessuna modifica
-DB/migration/Core Phase 5/Match/Together/Seen/ownership/Realtime. Il gate resta
-**DO NOT COLLECT REAL PERSONAL PREFERENCES YET** fino al rollout autorizzato e
-alla verifica dei due client aggiornati.
+**HISTORICAL — REFINED LOCALLY / NOT DEPLOYED al checkpoint Phase 4.5.** A quel
+checkpoint la produzione v61 era invariata e il gate pre-rollout restava attivo
+fino alla pubblicazione del client compatibile v62. La nota non descrive lo
+stato corrente.
 
 Personal Judgment = **Rating OR Explicit Preference**. Add già visto, Seen da
 card/dettaglio, candidatura e modifica personale espongono nello stesso form
@@ -320,12 +341,12 @@ cache/version bump rinviato al release gate.
 Verifica finale Phase 4.5: Personal Judgment UX Chromium/WebKit **256/256**
 ciascuna; Personal Preference UI **193/193** ciascuna; Store **77/77**, DB
 **85/85**, Smoke **436/436**, Recommendation Phase 5 invariata **132/132**.
-Core/store/migration/Match/Auth/PWA preservati; nessuna preference live o release.
+Core/store/migration/Match/Auth/PWA preservati; a quel checkpoint nessuna preference live o release.
 
 
 ## Phase 4.5 — consolidamento degli entry point (locale)
 
-**NOT DEPLOYED.** Personal Judgment display = Personal Judgment editor entry
+**HISTORICAL — NOT DEPLOYED al checkpoint di consolidamento.** Personal Judgment display = Personal Judgment editor entry
 point for current user. Lo slot proprio Rating / Like / Dislike / Unknown apre
 `addPersonalReview → openReviewFor(id, currentUser) → reviewModal`, con
 Preference, Rating e Review nello stesso editor. Il giudizio dell'altra persona
@@ -366,9 +387,9 @@ aprono anche il dettaglio della card.
 Core Phase 5, DB/migration, Store/API, Match, Auth, Together/Seen semantics e
 Realtime architecture restano invariati. Nessun nuovo asset; runtime coinvolto:
 index.html, css/style.css, actions/viewing, modals, render, render/cards e
-render/detail. Cache/version bump rinviato al release gate. Produzione v61;
-**DO NOT COLLECT REAL PERSONAL PREFERENCES YET** fino al rollout autorizzato dei
-client compatibili. Nessun test mutativo live.
+render/detail. Cache/version bump rinviato al release gate. Produzione allora
+v61; questa nota è storica e il client compatibile è stato rilasciato in v62.
+Nessun test mutativo live in quel checkpoint.
 
 Verifica del consolidamento: Personal Judgment UX **256/256 Chromium e
 256/256 WebKit**, Personal Preference UI **136/136 Chromium e 136/136 WebKit**,
@@ -379,4 +400,4 @@ campi estranei, completed, ownership e guardie. Store **77/77**, Preference DB
 Evaluation removal **22/22**, Auth **82/82 + 43/43 browser**, UX **24/24**,
 Pagination **34/34 + 41/41 per motore**, Midnight **36/36 + 19/19 browser**,
 Individual/Rewatch DB **65/65**, Snack **14/14**, RLS **40/40**, PWA **18/18**,
-syntax **95/95**, Smoke **436/436**. Tutti con dati sintetici/DB locale; nessuna preference live.
+syntax **95/95**, Smoke **436/436**. Tutti con dati sintetici/DB locale; nessuna preference live al checkpoint.

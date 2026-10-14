@@ -1,17 +1,19 @@
 # Visione architetturale e principio di scalabilità
 
-Aggiornamento: 12 ottobre 2026. **TO-BE** per il modello di dominio futuro;
+Aggiornamento: 14 ottobre 2026. **TO-BE** per il modello di dominio futuro;
 principio da applicare alla progettazione dei prossimi incrementi.
 [Stato AS-IS](MASTER_CONTEXT.md) e [roadmap Fase 0–10](PRODUCT_ROADMAP.md)
 restano separati. Questo documento non autorizza refactoring o migrazioni.
 
 ## Punto di partenza — AS-IS
 
-Oggi l’app privata usa due membri preconfigurati N/V, un catalogo `movies`,
-seen/voti/testi personali in colonne N/V, candidatura `in_shared_list` e
+Alla release v62 l’app privata usa due membri preconfigurati N/V, un catalogo
+`movies`, Personal Judgment in colonne N/V, candidatura `in_shared_list` e
 `movie_nights` per gli eventi condivisi. Together deriva esclusivamente da
 completed; voto/recensione N+V sono sul film, snack/luogo sulla singola serata.
-Non esistono gruppi multipli, serie, community o recommendation engine generale.
+`Cosa Guardiamo?` usa il Recommendation Core v2 come primo consumer. Non esistono
+gruppi multipli, serie TV o community; il Core non è ancora generalizzato oltre
+il contratto applicativo a due utenti.
 
 Il runtime usa HTML/JavaScript vanilla/CSS, dipendenze CDN, script classici,
 stato globale e domini store/UI separati. Realtime core unico, canale Match
@@ -111,28 +113,76 @@ non vanno riaperte o indebolite per preparare il futuro.
 
 ## Recommendation e Decision Engine
 
-La priorità operativa è Discovery & Recommendation Engine, **prima** della
-progettazione multiutente e delle serie. Separare recommendation personale
-(«cosa piace a me») da recommendation del gruppo («cosa funziona qui»).
+Discovery & Recommendation Core v2 e il primo consumer `Cosa Guardiamo?` sono
+implementati e rilasciati in v62. Le direzioni TO-BE restano separate dalla
+release: recommendation personale («cosa piace a me») e recommendation di gruppo
+(«cosa funziona qui») sono concetti distinti.
 
 Gli esempi `recommend(user_id)` e `recommend(group_id)` esprimono due contesti,
 non funzioni già presenti o una firma API definitiva. Una prima implementazione
 può usare adattamenti semplici dei dati privati esistenti; deve poter evolvere
 senza assumere che due colonne N/V esauriscano il dominio.
-Cosa Guardiamo?, Ruota e Match Live potranno condividere segnali e
-candidati mantenendo interazioni e contratti espliciti. Non cambiare ora
-pendingMatch, Continua, metriche o sessioni per anticipare questa convergenza.
-Il [core v1](RECOMMENDATION_ENGINE.md) è IMPLEMENTED LOCALLY / NOT YET
-CONSUMER-INTEGRATED; produzione v61 invariata. Surprise/Veto sono deprecated
-nel target, ancora presenti nel runtime e indipendenti dal nuovo motore.
+Cosa Guardiamo? consuma il Core v2. La Ruota resta indipendente; non esiste un
+piano approvato per sostituire Match Live con il Core. Qualsiasi futuro uso per
+nuovi deck Match richiederebbe una decisione dedicata e manterrebbe distinta la
+Session Decision. Non cambiare pendingMatch, Continua, metriche o sessioni per
+anticipare convergenze. Il [Core v2](RECOMMENDATION_ENGINE.md) è frozen
+semanticamente. Surprise/Veto sono deprecated nel target ma il runtime attuale
+conserva le semantiche esistenti; votes resta legacy senza nuove semantiche.
+
+Candidate generation e ranking sono separati. Il Core può ricevere candidati
+generati da fonti diverse; `Cosa Guardiamo?` v62 usa intenzionalmente soltanto la
+shared list. Un futuro discovery mode fuori lista è **ARCHITECTURE-READY /
+DEFERRED**: fonte del pool, filtri, retrieval, dimensione, UX, fonti esterne e
+fase di implementazione restano da decidere. Non è implementato né autorizzato.
+
+### User-centric Taste Profiles & Group Recommendation
+
+**DEFERRED / ARCHITECTURE-READY.** Direzione futura, non CURRENT RELEASE SCOPE
+né PLANNED MULTIUSER MIGRATION. Il prodotto attuale e il contratto applicativo
+restano N/V; l'aggregazione corrente resta per due utenti. Il learning stabile
+individuale e la composizione dei profili sono responsabilità separate:
+
+```text
+Stable observations(user) → Stable Taste Profile(user)
+profiles[] → Group Recommendation → compatible candidates
+compatible candidates → Session Decision / Match Live
+```
+
+Un profilo individuale potrà descrivere affinità per generi, registi, cast,
+collection, durata ed epoche/anni, con supporto, confidence e provenance,
+soltanto dove sostenuti dall'evidenza. Le osservazioni personali stabili sono
+Personal Rating ed Explicit Personal Like/Dislike secondo la precedence
+consolidata; seen resta exposure. Together Rating rimane shared evidence
+separata e non viene trasferito automaticamente ai profili personali.
+
+Match Live è Session Decision Data: le scelte di una serata/gruppo non
+modificano automaticamente il gusto stabile individuale. Un futuro Session
+Context Model potrà analizzare quei dati separatamente, se giustificato;
+non viene progettato o implementato ora. **More observations → more knowledge /
+confidence, NOT more voting power:** confidence e peso decisionale sono distinti.
+
+`buildProfile(userId, observations)` e `recommendForGroup(profiles[], candidates)`
+sono esempi concettuali, non nuove API da implementare. Un'eventuale superficie
+personale «Il mio profilo» potrà mostrare affinità supportate, confidence,
+quantità e provenienza dell'evidenza; nessun design/UI è previsto ora.
+
+Per le evoluzioni ancora pianificate o deferred, evitare nuova duplicazione N/V
+quando una funzione parametrizzata per utente è altrettanto semplice; mantenere profile learning
+separato da couple aggregation, senza rendere `buildProfile()` matematicamente
+dipendente da esattamente due utenti. Confinare N/V, dove ragionevole, negli
+adapter/store/application boundaries. Non modificare API pubbliche, schema DB,
+Auth, modello utenti, gruppi, Match Live o UI per anticipare il multiuser;
+non introdurre refactoring generalizzanti né ampliare lo scope della prima
+implementazione. Semplicità e sicurezza della release corrente restano prioritarie.
 
 ## Series, gruppi e community
 
 Series → Seasons → Episodes richiede un dominio e un tracking dedicati.
 Membri dello stesso gruppo possono essere a episodi differenti: progresso
 personale e condiviso vanno rappresentati separatamente. Account/profili e
-lobby seguono l’ordine della roadmap, senza diventare prerequisiti per iniziare
-la Fase 1.
+lobby restano fasi successive secondo la roadmap; la Fase 1 è parzialmente
+implementata in v62 come descritto nella sezione Recommendation.
 
 **MY RATING**, **GROUP/VIEWING RATING** e **COMMUNITY RATING** sono concetti
 distinti. Il futuro livello community richiede regole di pubblicazione,

@@ -1,24 +1,31 @@
 # Recommendation Engine v2 — stable preference core
 
-**PHASE 6 CONSUMER-INTEGRATED LOCALLY / NOT DEPLOYED.**
-Il Core v2 approvato è il motore runtime di Cosa Guardiamo?; produzione frontend
-v61 invariata. I moduli sono caricati da index.html e inclusi nel precache locale
-con candidata cache v62. La Ruota e Match restano separati.
-DB Personal Preference già installato/verificato; store/UI Phase 3–4 solo locali.
-**DO NOT COLLECT REAL PERSONAL PREFERENCES YET** fino a rollout autorizzato e
-verifica dei client N/V aggiornati, inclusa cache PWA.
+**CURRENT — IMPLEMENTED + RELEASED + PRODUCTION v62.** Il Core v2
+`stable-G4-polarity-v2 / v2.0.0` è semanticamente frozen ed è il motore runtime
+del primo consumer `Cosa Guardiamo?`. Release SHA
+`a7d1f827c71e60c00aa72d6cf61f69642c80fc91`; cache/service worker v62. Ruota e
+Match Live restano indipendenti. Il DB Preference è live; i client precedenti a
+v62 devono aggiornarsi prima di modificare preference. Le preference live già
+esistenti sono dati reali e non vanno azzerate da cleanup, restore o reimport.
 
 Checkpoint storico: STEP 3B `635f17e2b2e03c5386f0b0e446aeb3e4923ee474`, originale
 STEP 3 `c0037f8b979c0ef866eba02fc191c3becf53ba28`. Model B/G4 v1 con learning
 Match è una baseline storica superata, disponibile in Git per il confronto.
 
-Match è REAL SESSION DECISION DATA, non stable taste. I dati vengono
+## HISTORICAL — T0 e separazione architetturale al checkpoint pre-consumer
+
+T0: **2026-10-13 08:30:34.517453 UTC**. Cleanup concluso manualmente dall'utente,
+audit 14/14 PASS: eliminate 12 sessioni, 32 swipe e 32 cancelled di test;
+conservate tre completed, rating/review/seen reali. Non reimportare quei dati.
+[Checkpoint T0](MASTER_CONTEXT.md#data-cleanup-pre-recommendation--concluso--baseline-t0).
+
+Post-T0 Match è REAL SESSION DECISION DATA, non stable taste. I dati vengono
 preservati dal runtime e dal DB; il Recommendation adapter non li proietta e il
 Core non li legge. Nessun decay/freshness/session agreement nel modello stabile.
 Personal Like + Match Nope e Personal Dislike + Match Like sono stati validi.
 
 Stable personal learning → profili individuali → Couple Recommendation →
-compatibilità/ranking → futuro consumer Cosa Guardiamo? → eventuali nuovi deck
+compatibilità/ranking → consumer Cosa Guardiamo? v62 → eventuali nuovi deck
 Match → scelta della sessione → visione → eventuale feedback stabile esplicito.
 Un deck già attivo non viene mutato dal Core. Session Context Model è fuori scope.
 User-centric profiles e composizione di gruppi rimangono
@@ -216,10 +223,9 @@ La Phase 6 integra ora Cosa Guardiamo? come primo consumer; generazione deck
 Match resta separata e Session Context Model fuori scope, da valutare solo se
 giustificato.
 
-## Phase 6 consumer Cosa Guardiamo?
+## CURRENT — consumer Cosa Guardiamo? (release v62)
 
-Stato aggiornato: **CONSUMER-INTEGRATED LOCALLY / NOT DEPLOYED**. La vista
-`Cosa guardiamo?` è ora il primo consumer runtime del modello
+La vista `Cosa guardiamo?` è il primo consumer runtime del modello
 `stable-G4-polarity-v2 / v2.0.0`. Il percorso è Store già pronto →
 `RecommendationAdapters.fromMovies` → `RecommendationEngine.recommend` e
 `RecommendationEngine.rerank` → renderer consumer. L’adapter riceve N, V,
@@ -242,20 +248,23 @@ esplicitamente. Recensioni testuali non invalidano il ranking. Errori Core sono
 isolati alla vista, senza algoritmo alternativo. Benchmark sintetico a 437 film
 misura separatamente adapter, profili, recommend, diversity e DOM render; non
 dimostra qualità predittiva reale. Le prove browser Chromium/WebKit usano fixture
-sintetiche. Nessuna preference live è stata creata.
+sintetiche.
 
-La lista precache di `service-worker.js` include i moduli recommendation e il
-candidato locale incrementa la cache da v61 a v62; produzione resta v61. `index.html`
-e service worker devono essere rilasciati insieme per evitare shell/moduli
-disallineati. Il sanity check read-only sui dati reali non è stato eseguito:
-manca il JWT membro richiesto dal percorso sicuro e non è stato usato fallback
-anonimo.
+La lista precache di `service-worker.js` include i moduli recommendation e v62 è
+la cache in produzione. `index.html` e service worker sono stati rilasciati
+insieme per evitare shell/moduli disallineati. Il sanity check live è stato
+eseguito solo con GET, senza mutation: 437 movies, 91 shared-list, 3 completed,
+preference N=1/V=0 allo snapshot. Il ranking è risultato strutturalmente
+coerente; neutral, Unknown e negative protection non sono stati esercitati dai
+candidati live e restano coperti dai test sintetici. Il controllo fairness
+inizialmente segnalato dal verificatore non costituiva evidenza di bug Core.
+Nessuna ricalibrazione è stata richiesta. Questo controllo, come i test
+sintetici, non dimostra qualità predittiva reale.
 
 Il pulsante “Torna alla home” della vista recommendation ora riusa integralmente
 il testo e il pattern `dashboard-back` degli altri pulsanti equivalenti. Il
-candidato resta locale, senza deploy o raccolta di preferenze reali. Il shell
-v62 precache include
+shell v62 precache include
 `/js/recommendation/config.js`, `/js/recommendation/core.js`,
 `/js/recommendation/adapters.js` e `/js/ui/recommendations.js`. Recommendation
 rimane non integrato in Match Live,
-Ruota o altre superfici, e non è ancora deployed.
+Ruota o altre superfici.

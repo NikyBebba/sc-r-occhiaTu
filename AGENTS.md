@@ -1,6 +1,6 @@
 # AGENTS.md — sc(r)occhiaTu
 
-Istruzioni permanenti per le sessioni di sviluppo. Checkpoint: 13 ottobre 2026 (release v61 conclusa e verificata in produzione; Auth/RLS, v54 e migration incrementale snack già applicate).
+Istruzioni permanenti per le sessioni di sviluppo. Stato corrente: release v62 in produzione; Auth/RLS, v54, migration snack e Personal Preference già applicate.
 Prima di progettare una fase leggere [docs/MASTER_CONTEXT.md](docs/MASTER_CONTEXT.md):
 è la fonte dello stato corrente e delle decisioni UX. Per priorità future leggere
 [docs/PRODUCT_ROADMAP.md](docs/PRODUCT_ROADMAP.md); per scalabilità leggere
@@ -9,17 +9,21 @@ storiche del master context descrivono cicli precedenti, non lo stato finale.
 Per modelli e flussi specifici consultare anche le specifiche Phase 22/23/38/41.
 Vincoli, sicurezza e contratto Match di questo file restano applicabili.
 
-## Stato corrente v61 production — IMPLEMENTED + RELEASED
+## Stato corrente v62 production — IMPLEMENTED + RELEASED
 
-Baseline ufficiale: commit `c8dfa6b9b370d75520d423413d8ca2506b285d39`,
-`perf: add bounded movie pagination`, branch main; push completato e
-HEAD locale/origin/main/remote main allineati alla finalizzazione runtime. Vercel
-[produzione](https://sc-r-occhia-tu.vercel.app/) verificata, cache `scorochiatu-shell-v61`.
-Release conclusa e verificata: 45/45 file hosted HTTP 200 e identici al commit,
-smoke produzione 14 controlli PASS, responsive 320/390/768 PASS; fixture
-production-test 436 film, massimo 24 card. Zero errori JS online, asset
-mancanti o richieste Supabase durante lo smoke; nessuna operazione database.
-Risultati registrati, non nuovi test live di questo task.
+Release corrente: commit `a7d1f827c71e60c00aa72d6cf61f69642c80fc91`, cache
+`scorochiatu-shell-v62`. `Cosa Guardiamo?`, primo consumer reale del
+Recommendation Core v2, è presente e verificato manualmente in produzione.
+La paginazione v61 resta inclusa. Il Core è semanticamente frozen; per contratto
+e consumer fare riferimento a [RECOMMENDATION_ENGINE](docs/RECOMMENDATION_ENGINE.md).
+
+Personal Judgment usa preference tri-state TRUE/FALSE/NULL; rating valido
+domina preference, la rimozione del rating non la resuscita e la review resta
+indipendente. Together è separato e Seen è esposizione, non gusto. Il judgment
+dell’altro membro è read-only. Client/PWA precedenti a v62 vanno aggiornati
+prima di modificare preference; i dati live esistenti non vanno azzerati da
+cleanup, restore o reimport. Non assumere che entrambi i dispositivi siano stati
+verificati solo dalla presenza della release in produzione.
 
 La release v60 `0813e721e963191b285f357789a9dddd967c6162`
 (`fix: preserve movie nights and editable memories`) resta inclusa.
@@ -58,10 +62,11 @@ Debito PWA non bloccante: online PASS, shell offline caricata ma
 debito preesistente, non introdotto dalla v60 né dalla v61. Full offline capability non
 ancora raggiunta; nessun fix implicito nel presente aggiornamento.
 
-## Fase 0.5A — bounded pagination rilasciata in produzione v61
+## HISTORICAL — Fase 0.5A bounded pagination introdotta in v61, inclusa in v62
 
 Implementata dalla baseline Git `a089a7e477b4c8147b02a0d6b56c6307db7fa3b0`;
-**IMPLEMENTED + RELEASED + PRODUCTION v61**, cache `scorochiatu-shell-v61`.
+**IMPLEMENTED + RELEASED in v61; included in production v62**. Il checkpoint
+originale usava la cache `scorochiatu-shell-v61`.
 `PAGE_SIZE = 24`: ricerca/filtri/sort precedono
 lo slice; `movies` e logiche non visuali restano sull’intero dataset. Stato
 pagina per tab in memoria, reset di scope sui criteri e reset completo alla
@@ -159,8 +164,10 @@ Ogni nuova feature significativa va valutata su **Content / User / Group /
 Community**. N e V sono progressivamente due istanze di User: usare N/V dove
 necessario oggi, evitare hardcoding superfluo quando una soluzione altrettanto
 semplice è generalizzabile. Nessun refactoring prematuro o migrazione automatica.
-La prossima grande fase è Discovery & Recommendation Engine, prima di
-multiutente e serie; separare recommendation personale e di gruppo.
+Il Core v2 e il primo consumer sono implementati in v62. Le estensioni future e
+il loro stato sono descritti in [PRODUCT_ROADMAP](docs/PRODUCT_ROADMAP.md) e
+[ARCHITECTURE_VISION](docs/ARCHITECTURE_VISION.md); non dedurre una priorità
+dalla cronologia.
 
 L'esperienza deve essere: semplice, mobile-first, condivisa, veloce, ludica,
 cinematografica, personale. Il tono deve essere leggero e giocoso, con riferimenti
@@ -195,7 +202,7 @@ NON introdurre framework/bundler/backend senza autorizzazione.
 Flusso di caricamento dei moduli (ordine in `index.html`):
 
 ```
-theme (head) → config → format → haptics → audio → api(omdb+tmdb → index) → auth → store + store/{movies,viewing,legacy,choices,nights,match} → match → filters → wheel → ui(modals+navigation+actions e domini+sagas+render e domini+calendar+match+ticket+loading) → main
+theme (head) → config → format → haptics → audio → api(omdb+tmdb → index) → auth → store + store/{movies,viewing,legacy,choices,nights,match} → match → filters → wheel → recommendation/{config,core,adapters} → ui/recommendations → ui(modals+navigation+actions e domini+sagas+render e domini+calendar+match+ticket+loading) → main
 ```
 
 - `js/config.js` — chiavi runtime (TMDb/OMDb/Supabase) + `PEOPLE` (label) e `AUTH_EMAILS` (email account configurate). Nessuna password/PIN.
@@ -237,6 +244,9 @@ theme (head) → config → format → haptics → audio → api(omdb+tmdb → i
     `console.error` una volta (dedup 60s) + riallineamento, mai UI muta;
     idempotente se entrambi premono insieme.
 - `js/wheel.js` — ruota canvas: pool, draw, spin animato, confetti.
+- `js/recommendation/{config,core,adapters}.js` — Core v2 puro e adapter dal
+  Store; `js/ui/recommendations.js` rende `Cosa Guardiamo?`. Core e consumer
+  restano separati da Match Live e Ruota.
 - `js/ui/modals.js` — `openModal`/`closeModal`/`showConfirmModal` + helper
   anti-XSS `escapeHtml`/`jsAttrEscape` + costanti visuali (`personBadge`).
 - `js/ui/navigation.js` — tab (state + switch).
@@ -342,6 +352,7 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 │   ├── store.js, match.js, filters.js, wheel.js, main.js
 │   ├── store/{movies,viewing,legacy,choices,nights,match}.js
 │   ├── api/{omdb,tmdb,index}.js
+│   ├── recommendation/{config,adapters,core}.js
 │   └── ui/
 │       ├── {modals,navigation,actions,sagas,render,calendar,match,ticket,loading}.js
 │       ├── actions/{nights,viewing,choices}.js
@@ -420,7 +431,7 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
 - Testi piccoli (`text-[10px]`) usati per info complementari: da tenere sotto
   controllo su mobile; i target tattili principali devono restare usabili.
 
-## Feature implementate al checkpoint corrente
+## Feature implementate al checkpoint v62
 
 Login persona/Account/Password e password recovery, home Match/Ruota/Libreria, watchlist con picker TMDb,
 import bulk, dedup per ID e UNIQUE, Match Live a swipe con presence e Match %,
@@ -430,6 +441,8 @@ proposte «In cartellone» accettabili anche durante il film di oggi, calendario
 voti personali/condivisi 0–10 con decimali e recensioni facoltative,
 «Titoli di coda» con riepiloghi e serate, Storico personale autonomo, saghe TMDb, ticket PNG,
 temi automatici, PWA, audio/haptics opt-in e ciak loader.
+Personal Judgment tri-state e Recommendation Core v2 consumato da Cosa Guardiamo?
+sono inclusi nella release v62; i relativi contratti sono nelle specifiche linkate.
 Il voto condiviso e la sua azione usano N+V in oro; il pulsante personale segue
 quello condiviso nel colore N/V. «Film aggiunti» conta l'intera libreria per autore.
 Le metriche di compatibilità restano esclusiva di Match Live.
@@ -452,26 +465,22 @@ ufficiale in Supabase da `data/movie-watchlist.json` via
 `scripts/import-movies.js` (matching TMDb prudente su title/original_title +
 bonus sottotitolo-prefisso + alias documentati, fallback OMDb, idempotente).
 
-## Feature pianificate (NON implementate)
+## Roadmap e stato
 
-Ordine autorevole: [roadmap Fase 0–10](docs/PRODUCT_ROADMAP.md). Fase 0 baseline
-implementata; prossima Fase 1 Discovery & Recommendation Engine, poi Decision
-Engine, competitive analysis, Architecture V2, serie, account, lobby,
-intelligence 2.0, community e productization. Nessuna fase TO-BE è già presente.
-Le idee precedenti sotto sono EXPLORATORY, non priorità parallele alla Fase 1.
+La Fase 1 di prodotto ha implementato il Core v2 e il primo consumer; le
+direzioni successive e le idee esplorative sono mantenute esclusivamente in
+[PRODUCT_ROADMAP](docs/PRODUCT_ROADMAP.md). Non dedurre una priorità o autorizzare
+una fase dalla cronologia di questo file. Fasi e checkpoint precedenti sotto
+sono **HISTORICAL** salvo indicazione esplicita diversa.
 
-Hot Picks (richiede ulteriori dati e migration autorizzata), export .ics, giorno fisso
-settimanale, streak, gamification senza leaderboard, Poster Flip,
-raccomandazioni avanzate, statistiche personali, eventuale spazio Extra,
-citazione casuale, wildcard TMDb nella Ruota ed easter egg.
-**Nessuna va implementata senza una fase dedicata.** Non riproporre come
-future saghe, ticket, calendario, audio, temi, PWA o voti decimali: sono presenti.
-Per le priorità precise leggere la roadmap ufficiale e il master context aggiornato.
+Il documento locale ignorato `MASTER PROJECT CONTEXT.rtf` è **HISTORICAL / NOT
+OPERATIONAL**. Non è fonte per semantiche, sicurezza, roadmap o stato release;
+seguire i documenti Markdown autorevoli collegati sopra.
 
 ## Vincoli tecnici
 
 - Dipendenze ancora via CDN (Tailwind Play, Font Awesome, supabase-js).
-- PWA presente: manifest e service worker, cache release `scorochiatu-shell-v61`; domini API,
+- PWA presente: manifest e service worker, cache production `scorochiatu-shell-v62`; domini API,
   Supabase, poster e YouTube sempre esclusi dall'intercettazione. Le icone PWA
   sono provvisorie; non confondere l'app-shell offline con dati remoti disponibili.
 - HTML delle card generato come stringhe: usare `escapeHtml`/`jsAttrEscape`

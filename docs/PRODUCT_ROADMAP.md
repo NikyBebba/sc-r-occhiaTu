@@ -1,8 +1,8 @@
 # Roadmap ufficiale di prodotto
 
-Aggiornamento: 12 ottobre 2026. **TO-BE**, salvo la Fase 0 già implementata.
-Baseline AS-IS: [MASTER_CONTEXT](MASTER_CONTEXT.md), produzione v60 al commit
-`0813e721e963191b285f357789a9dddd967c6162`.
+Aggiornamento: 14 ottobre 2026. **Roadmap TO-BE e stati di prodotto.**
+Baseline AS-IS: [MASTER_CONTEXT](MASTER_CONTEXT.md), release v62 in produzione
+al commit `a7d1f827c71e60c00aa72d6cf61f69642c80fc91`.
 Principi di scalabilità: [ARCHITECTURE_VISION](ARCHITECTURE_VISION.md).
 
 ## Identità e value proposition
@@ -34,13 +34,14 @@ DEPRECATED / TARGET REMOVE; restano nel runtime AS-IS fino al cleanup separato.
 
 L’ordine Fase 0–10 è la roadmap ufficiale. I vecchi numeri Phase/Step delle
 specifiche sono riferimenti storici e non corrispondono a questi numeri.
-**La prossima grande fase è la Fase 1**, che precede multiutente e serie.
-Nessuna voce autorizza SQL, migrazioni, refactoring o nuove feature automatiche.
+Gli stati descrivono il lavoro risultante, non autorizzano SQL, migrazioni,
+refactoring o nuove feature automatiche. La roadmap non dichiara una prossima
+priorità oltre gli elementi pianificati sotto.
 
 | Fase | Direzione | Stato |
 | --- | --- | --- |
 | 0 | Core film stabile | IMPLEMENTED; refinement possibili |
-| 1 | Discovery & Recommendation Engine | Core IMPLEMENTED LOCALLY; integrazione PLANNED — priorità operativa |
+| 1 | Discovery & Recommendation Engine | IMPLEMENTED / PARTIAL: Core v2 + primo consumer `Cosa Guardiamo?` rilasciati; discovery esteso e validazione empirica restano DEFERRED |
 | 2 | Decision Engine | PLANNED |
 | 3 | Competitive / Product Analysis | PLANNED, prima della grande espansione multiutente |
 | 4 | Product Architecture V2 / Multiuser ready | PLANNED, progettazione prima della migrazione |
@@ -65,19 +66,42 @@ non è un blocker della release v60 e non viene corretto da questa roadmap.
 
 ## Fase 1 — Discovery & Recommendation Engine
 
-**Priorità operativa corrente.** Audit AS-IS e design/simulazione completati;
-[core Model B + G4 protetto](RECOMMENDATION_ENGINE.md) **IMPLEMENTED LOCALLY /
-NOT YET CONSUMER-INTEGRATED**. Nessuna release del motore; produzione v61
-invariata. Integrazione delle superfici **PLANNED**, progressivamente sui dati
-realmente disponibili; non assumere che tutti i segnali elencati siano persistiti.
+**IMPLEMENTED / PARTIAL — release v62.** Recommendation Core v2
+(`stable-G4-polarity-v2`) e il primo consumer reale `Cosa Guardiamo?` sono
+rilasciati. Il consumer usa Store → Adapter → Core → renderer, con candidate
+pool shared-list-only. Candidate generation e ranking sono separati nel
+contratto; un discovery mode fuori lista è **ARCHITECTURE-READY / DEFERRED**.
+Sorgente del pool futuro, retrieval, filtri, dimensione, UX e fase restano da
+decidere. La specifica frozen, il sanity check live e i limiti dei test sono in
+[RECOMMENDATION_ENGINE](RECOMMENDATION_ENGINE.md).
 
-Segnali candidati **EXPLORATORY**: storico personale, voti personali, visioni
-Together, voti N+V, generi, registi, cast, anno, durata, collection/saghe,
-watchlist, preferenze implicite, contenuti proposti/rifiutati, disponibilità
-streaming e contesto della serata; in futuro mood e tempo disponibile.
-Un voto assente è distinto da zero; una dichiarazione seen non prova una data
-di visione. I metadati/provider disponibili non garantiscono una copertura
-completa o aggiornata della disponibilità streaming.
+La fase più ampia non è conclusa sul piano empirico: i test sintetici e il
+sanity check read-only verificano coerenza strutturale, non predictive accuracy,
+soddisfazione o qualità reale. La validazione/calibrazione con feedback reale è
+futura e richiede un protocollo dedicato; non implica una ricalibrazione ora.
+
+### Segnali CURRENT già implementati
+
+Il Core v2 usa Personal Rating oppure, in sua assenza, Explicit Personal
+Preference Like/Dislike; non li conta mai entrambi. La polarity del rating è
+`<5.5` negativa, `5.5–<7` neutra e `>=7` positiva. Generi, regista, cast,
+durata, epoca/anno e collection alimentano le feature affinity solo a partire
+dalle osservazioni personali stabili. Together Rating contribuisce separatamente
+al profilo shared. Review testuali non producono score; Seen è esposizione,
+shared-list membership è candidacy e Match Live resta session-only. Nessuno di
+questi elementi viene reinterpretato come Like; Dislike non è veto. Il dettaglio
+tecnico è nella [specifica Recommendation](RECOMMENDATION_ENGINE.md).
+
+### FUTURE / EXPLORATORY — non approvato come segnale
+
+Non sono approvati ulteriori segnali stabili oltre al contratto corrente.
+Disponibilità streaming e contesto della serata (incluse eventuali ipotesi su
+mood o tempo disponibile) restano idee esplorative, non input del Core né una
+roadmap implementativa. Il discovery fuori dalla shared list è
+**ARCHITECTURE-READY / DEFERRED**; la sorgente del pool, retrieval, filtri,
+dimensione, UX e fase non sono definite. Un voto assente resta distinto da zero;
+Seen non dimostra una data di visione. I metadati/provider non garantiscono
+copertura completa o aggiornata della disponibilità streaming.
 
 Separare due domande:
 
@@ -86,11 +110,11 @@ Separare due domande:
 | Personal recommendation | «Cosa potrebbe piacere a questo utente?» |
 | Group recommendation | «Cosa potrebbe funzionare per questo gruppo?» |
 
-L’algoritmo futuro non deve basarsi esclusivamente sulle colonne N/V.
-La versione privata può adattare quei dati a identità utente e contesto gruppo
-senza migrare subito il DB. Cosa Guardiamo?, Ruota e Match Live
-potranno progressivamente essere superfici dello stesso Recommendation/Decision
-Engine. Questa convergenza è futura; il contratto Match corrente resta valido.
+Il modello futuro non deve basarsi esclusivamente sulle colonne N/V. La versione
+privata può adattare quei dati a identità utente e contesto gruppo senza migrare
+subito il DB. Cosa Guardiamo? è già consumer del Core; Ruota e Match Live restano
+indipendenti e non hanno un piano approvato di integrazione/sostituzione. Il
+contratto Match corrente resta valido.
 
 ## Fase 2 — Decision Engine
 

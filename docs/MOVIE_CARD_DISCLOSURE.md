@@ -1,10 +1,10 @@
 # Movie card e ricerca Storico — contratto pubblicato
 
-## Stato corrente — IMPLEMENTED, 12 ottobre 2026
+## Stato corrente — IMPLEMENTED + RELEASED, v62
 
 Release `91ecb9b4adeb82cefb7d5fdbd1a2e1a54bd7a248`,
-`feat: redesign movie cards and add history search`, pubblicata e inclusa nella
-baseline production v61 `c8dfa6b9b370d75520d423413d8ca2506b285d39`.
+`feat: redesign movie cards and add history search`, inclusa nella release
+production v62 `a7d1f827c71e60c00aa72d6cf61f69642c80fc91`.
 [Baseline e verifica production](MASTER_CONTEXT.md).
 
 Progressive disclosure; informazioni/stati/voti principali sempre visibili.
@@ -22,9 +22,15 @@ snack/luogo della movie night Together selezionata; completamento pendente solo
 quando l’orario è raggiunto. [Contratto v60](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
 Voto/testo condivisi restano sul film, senza nuove valutazioni per evento.
 
-## Fase 0.5A — IMPLEMENTED + RELEASED, production v61
+Il contratto Personal Judgment v62 supersede gli entry point storici descritti
+nelle sezioni di audit: rating/preference propri sono inline e aprono l’editor
+personale completo; il judgment dell’altro utente è read-only. Together resta
+separato. Per semantica tri-state e transizioni vedere
+[PERSONAL_PREFERENCE_DB](PERSONAL_PREFERENCE_DB.md).
 
-Evoluzione **rilasciata in produzione v61**, Fase 0.5A: la griglia monta solo la pagina
+## HISTORICAL — Fase 0.5A rilasciata in v61, inclusa in v62
+
+Evoluzione **introdotta in v61 e inclusa nella produzione v62**, Fase 0.5A: la griglia monta solo la pagina
 corrente (massimo 24 card); i poster conservano il contenitore da 192 px con
 `loading="lazy"` e `decoding="async"`. Ricerca Storico debounced 250 ms;
 contratti delle card invariati. [Paginazione e stato](BOUNDED_PAGINATION.md).

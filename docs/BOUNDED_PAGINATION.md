@@ -1,11 +1,10 @@
 # Fase 0.5A — Bounded pagination e performance hardening
 
-## Stato: IMPLEMENTED + RELEASED + PRODUCTION v61
+## Stato: IMPLEMENTED in v61; incluso nella release production v62
 
-Release ufficiale: commit `c8dfa6b9b370d75520d423413d8ca2506b285d39`,
-`perf: add bounded movie pagination`, branch main. Push completato;
-HEAD locale/origin/main/remote main allineati alla finalizzazione runtime.
-Vercel production verificata, service worker/cache `scorochiatu-shell-v61`.
+Release originaria: commit `c8dfa6b9b370d75520d423413d8ca2506b285d39`,
+`perf: add bounded movie pagination`. La funzione è inclusa nella release
+production v62 `a7d1f827c71e60c00aa72d6cf61f69642c80fc91`, cache v62.
 Implementata dalla baseline Git `a089a7e477b4c8147b02a0d6b56c6307db7fa3b0`.
 Nessuna operazione Supabase/database o modifica dei dati reali.
 

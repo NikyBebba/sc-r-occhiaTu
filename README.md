@@ -11,19 +11,14 @@ condivisa → programmazione → visione → valutazione → ricordo**. Il track
 personale resta importante; le interazioni tra persone sono un elemento
 centrale della value proposition.
 
-## Stato corrente — IMPLEMENTED + RELEASED + PRODUCTION v61
+## Stato corrente — IMPLEMENTED + RELEASED + PRODUCTION v62
 
-[Produzione](https://sc-r-occhia-tu.vercel.app/): release conclusa e verificata,
-commit `c8dfa6b9b370d75520d423413d8ca2506b285d39`,
-`perf: add bounded movie pagination`, **PWA/cache scorochiatu-shell-v61**.
-Push su main completato, HEAD locale/origin/main/remote main allineati alla finalizzazione runtime;
-Vercel production verificata.
-Verifica registrata: **45/45 file hosted HTTP 200 e identici al commit**,
-smoke produzione **14 controlli PASS**, responsive 320/390/768 PASS; fixture
-production-test 436 film con massimo 24 card. Zero errori JS online, asset
-mancanti o richieste Supabase durante lo smoke; nessuna operazione database.
-Questi esiti appartengono alla release; non sono nuovi test
-live di questo aggiornamento documentale.
+[Produzione](https://sc-r-occhia-tu.vercel.app/) è alla release v62,
+commit `a7d1f827c71e60c00aa72d6cf61f69642c80fc91`, cache/service worker
+`scorochiatu-shell-v62`. `Cosa Guardiamo?`, primo consumer del Recommendation
+Core v2, è presente e verificato manualmente in produzione. La paginazione
+introdotta in v61 resta inclusa. Questo riepilogo registra la release, non una nuova verifica
+hosted di tutti gli asset.
 
 La precedente release `91ecb9b4adeb82cefb7d5fdbd1a2e1a54bd7a248`,
 `feat: redesign movie cards and add history search`, è inclusa: card con
@@ -42,7 +37,7 @@ non va rieseguita né va modificata la migration storica v54.
 
 ## Esperienza disponibile
 
-Fase 0.5A **rilasciata in produzione v61**: [paginazione limitata a 24 card e
+Fase 0.5A, **introdotta in v61 e inclusa in v62**: [paginazione limitata a 24 card e
 hardening delle liste](docs/BOUNDED_PAGINATION.md). NAV-01 resta **OPEN**:
 osservato su device reale, non riprodotto nel harness, root cause non identificata.
 La paginazione non è un fix dimostrato di NAV-01.
@@ -54,7 +49,10 @@ La paginazione non è un fix dimostrato di NAV-01.
   filtri e confetti, sorprese e un veto settimanale per persona.
 - **Serate:** Oggi, proposte/conferme, snack/luogo, calendario, completamento e
   rewatch. Un film può avere più eventi senza perdere lo storico.
-- **Valutazioni e Ricordi:** voti personali e N+V 0–10 con un decimale,
+- **Valutazioni e Ricordi:** Personal Judgment è Rating oppure Explicit
+  Preference Like/Dislike; rating domina, Review resta indipendente e Together
+  è separato. Giudizio proprio modificabile, quello dell’altro read-only.
+  Voti N+V 0–10 con un decimale,
   recensioni facoltative e rimozioni contestuali; serate concluse, timeline e
   quattro riepiloghi in Titoli di coda.
 - **Esperienza cinematografica:** saghe TMDb con aggiunta esplicita, ticket PNG,
@@ -78,8 +76,8 @@ globale, Realtime core unico e canale Match separato.
 programmazione sui film sono congelati, senza fallback/dual-write runtime.
 `votes` resta legacy, senza I/O remoto né uso nel core.
 
-Oggi esiste uno spazio con due profili preconfigurati: nessun signup, multi-lobby,
-serie TV o recommendation engine già disponibile. L’ingresso/restore richiede
+Oggi esiste uno spazio con due profili preconfigurati: nessun signup, multi-lobby
+o serie TV. L’ingresso/restore richiede
 verifica online Auth/membership; il mirror offline è ammesso solo nel runtime
 già autorizzato con JWT valido. Errori Auth/RLS non autorizzano fallback.
 
@@ -95,6 +93,8 @@ la produzione online. Full offline capability non ancora raggiunta.
 | [MASTER_CONTEXT](docs/MASTER_CONTEXT.md) | Stato operativo AS-IS, semantiche, import concluso e checkpoint storici |
 | [PRODUCT_ROADMAP](docs/PRODUCT_ROADMAP.md) | Value proposition, Fasi 0–10, PLANNED ed EXPLORATORY |
 | [ARCHITECTURE_VISION](docs/ARCHITECTURE_VISION.md) | Principio Content/User/Group/Community, direzione TO-BE |
+| [Recommendation Engine](docs/RECOMMENDATION_ENGINE.md) | Core v2 frozen, `Cosa Guardiamo?` consumer e confini stable/session |
+| [Personal Preference](docs/PERSONAL_PREFERENCE_DB.md) | Persistenza tri-state, precedence e contratto Personal Judgment |
 | [AGENTS](AGENTS.md) | Architettura runtime e regole operative/sicurezza |
 | [Auth/Supabase](docs/AUTH_SUPABASE.md) | Login/recovery, RLS, limiti e procedure storiche/d’emergenza |
 | [Modello film e visioni](docs/INDIVIDUAL_WATCH_REWATCH.md), [Transizione dati](docs/DATA_MODEL_TRANSITION.md) | Personali, candidatura, Together, rewatch e legacy |
@@ -102,6 +102,10 @@ la produzione online. Full offline capability non ancora raggiunta.
 | [Movie nights v60](docs/MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md), [Proiezioni](docs/PROIEZIONI.md) | Lifecycle oltre mezzanotte, snack/luogo e RPC |
 | [Navigazione/Ricordi](docs/UX_NAVIGATION_MEMORIES.md), [Timeline](docs/PHASE22_TIMELINE.md), [Riepiloghi](docs/PHASE23_MOVIE_CHEMISTRY.md) | UX e memoria condivisa |
 | [Decimali](docs/PHASE38_DECIMAL_RATINGS.md), [Saghe](docs/PHASE41_SAGHE.md), [Cinema](docs/PHASE8_3_CINEMA_WATCHLIST.md) | Contratti specifici e verifiche storiche |
+
+`MASTER PROJECT CONTEXT.rtf`, se presente localmente, è un archivio storico
+ignorato da Git e non è una fonte operativa. Per lo stato e le decisioni correnti
+valgono questa pagina, AGENTS e MASTER_CONTEXT secondo i rispettivi ruoli.
 
 Import JustWatch concluso: **354/354 titoli risolti, 337 nuovi film, 436 totali
 al termine dell’import**. Shared list, seen_v e Together preservati, nessun
@@ -130,10 +134,9 @@ Suite specifiche e distinzione tra fixture locali e collaudi reali nei documenti
 sopra. Non eseguire manutenzione live come test locale; nessuna password/token
 nel repository e nessuna service-role frontend.
 
-## Prossima direzione — PLANNED
+## Roadmap
 
-**Discovery & Recommendation Engine è la prossima grande fase**, prima di
-multiutente e serie. Raccomandazioni personali e di gruppo restano distinte;
-Cosa Guardiamo?, Ruota, Surprise e Match Live potranno diventare superfici del
-medesimo motore di raccomandazione/decisione. La roadmap ordina le espansioni e
-la visione architetturale guida le nuove feature senza refactoring prematuri.
+Il Core v2 e il primo consumer `Cosa Guardiamo?` sono rilasciati. Le direzioni
+future e i relativi stati sono mantenuti esclusivamente in
+[PRODUCT_ROADMAP](docs/PRODUCT_ROADMAP.md) e [ARCHITECTURE_VISION](docs/ARCHITECTURE_VISION.md);
+questa pagina non stabilisce una nuova priorità.

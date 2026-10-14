@@ -1,13 +1,17 @@
 # Individual Watch Status, Storico e Rewatch
 
-Stato corrente: 13 ottobre 2026, **IMPLEMENTED in produzione v61**,
-commit `c8dfa6b9b370d75520d423413d8ca2506b285d39`; contratti precedenti conservati.
+Stato corrente: **IMPLEMENTED in produzione v62**,
+release `a7d1f827c71e60c00aa72d6cf61f69642c80fc91`; contratti precedenti conservati.
 [Baseline e verifiche](MASTER_CONTEXT.md). Migration v54 applicata una sola
 volta dall’utente; non rieseguirla né modificarla. Ownership personale e assi
 seen/candidatura/Together conservati. La dichiarazione personale è indipendente
 anche quando Together esiste; oro sui due pallini senza cambiare seen_n/seen_v.
 Storico dalla Home con ricerca locale titolo/regista e switch N/V;
 [card pubblicate](MOVIE_CARD_DISCLOSURE.md).
+
+Seen resta indipendente dal gusto. Personal Judgment tri-state e precedence
+Rating > Preference > Unknown sono descritti in
+[PERSONAL_PREFERENCE_DB](PERSONAL_PREFERENCE_DB.md); Together rimane separato.
 
 La RPC è ora aggiornata dalla [migration snack completed](../database/supabase-migration-completed-night-snack.sql),
 applicata manualmente dall’utente: edit consente snack/location sui completed,
@@ -19,7 +23,7 @@ Checkpoint storico v54: commit `7855c16cae940c4f1b9a3d4267cc9c0db95c9107`,
 cache v54; audit pre/post 24/24 e confronto integrale checkpoint tutti true,
 HTTP PASS. Il primo uso reale positivo attestava backend/caricamento e non
 un collaudo completo di ogni flusso; le rifiniture frontend v55 furono poi
-pubblicate. Questi risultati storici restano distinti dalla baseline corrente v61.
+pubblicate. Questi risultati storici restano distinti dalla baseline corrente v62.
 
 ## Contratto
 

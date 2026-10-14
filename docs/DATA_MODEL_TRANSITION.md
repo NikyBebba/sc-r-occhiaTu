@@ -1,7 +1,8 @@
 # Transizione dati: film, proiezioni e legacy
 
-Stato corrente: 13 ottobre 2026, **IMPLEMENTED in produzione v61**,
-con i contratti precedenti conservati.
+Stato corrente: contratti implementati e conservati nella produzione v62.
+La verifica di transizione riportata sotto è del 13 ottobre 2026 e precede
+la release v62.
 [Baseline ufficiale e verifiche](MASTER_CONTEXT.md).
 Programmazione e Together derivano da movie_nights; Together richiede completed.
 Scritture serate solo tramite manage_movie_night, con migration v54 già applicata

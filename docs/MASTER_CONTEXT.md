@@ -1,30 +1,33 @@
-# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.61
+# 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.62
 
-Ultimo aggiornamento: 13 ottobre 2026. Fonte dello stato operativo AS-IS. Roadmap e visione TO-BE hanno documenti dedicati; la cronologia delle fasi è conservata sotto.
+Ultimo aggiornamento: 14 ottobre 2026. Fonte dello stato operativo AS-IS e dei
+checkpoint principali. Roadmap, visione TO-BE e specifica Recommendation hanno
+fonti dedicate; le sezioni marcate **HISTORICAL** sono archivio, non stato attuale.
 
-## Phase 6 — Consumer Cosa Guardiamo? integrato localmente
+## Stato corrente — release v62
 
-**CONSUMER-INTEGRATED LOCALLY / NOT DEPLOYED.** `Cosa Guardiamo?` è il primo
-consumer reale del Recommendation Core v2: Store già caricato → adapter N/V →
-Core → risultati spiegabili. Candidate pool solo shared list, senza fallback;
-completed e serate proposed/confirmed esclusi, Seen/Dislike/cancelled/skipped
-non esclusi per principio. Il Core determina suitability, ordine e diversity;
-nessuno shuffle o boost UI. La vista usa batch deterministici da cinque e
-“Altri suggerimenti” chiede al Core i successivi candidati escludendo quelli già
-mostrati. UNKNOWN resta senza punteggio numerico; ragioni e stati evidence sono
-tradotti in microcopy senza percentuali.
+**IMPLEMENTED + RELEASED + PRODUCTION.** Release SHA
+`a7d1f827c71e60c00aa72d6cf61f69642c80fc91`, service worker/cache
+`scorochiatu-shell-v62`. `Cosa Guardiamo?` è il primo consumer reale del
+Recommendation Core v2 ed è stato verificato manualmente in produzione.
 
-Il ranking non salta durante Realtime: aggiornamenti dello Store marcano la vista
-come obsoleta e l’utente può aggiornare esplicitamente; rientrare ricalcola dai
-dati correnti. Loading attende il completamento del bootstrap Store. La Ruota e
-Match Live mantengono i propri percorsi. Il candidato locale prepara la cache
-v62 con tutti i moduli Core inclusi nel precache; la produzione resta v61 fino a
-un release autorizzato. Il sanity check sui dati reali è bloccato: il percorso
-read-only esistente richiede un JWT membro che non è disponibile in questa
-sessione. **Nessun deploy o raccolta di preferenze reali.** Dettagli e verifiche in
-[Recommendation Engine](RECOMMENDATION_ENGINE.md#phase-6-consumer-cosa-guardiamo).
+Personal Judgment: preference `true` / `false` / `null`; rating valido domina
+preference e la rimozione del rating non ripristina una preference precedente.
+Review è indipendente; il judgment dell’altro utente è read-only; Together resta
+separato; Seen è esposizione, non gusto. Realtime/narrow patch e gestione delle
+race restano nel runtime v62. Le preference live sono dati reali da preservare
+in cleanup, restore e reimport. I client/PWA precedenti a v62 vanno aggiornati
+prima di modificarle; non è qui attestato l’aggiornamento di entrambi i device.
 
-## Produzione v61 — baseline ufficiale, 12 ottobre 2026
+Sanity check Recommendation GET-only completato senza mutation: snapshot allora
+pari a 437 movies, 91 shared-list, 3 movie nights completed, preference N=1/V=0.
+Output strutturalmente coerente; neutral, Unknown e negative protection non
+erano esercitati dai candidati live, ma restano coperti dai test sintetici.
+Nessuna ricalibrazione richiesta; test e sanity check non dimostrano predictive
+quality reale. Per formule, eligibility, consumer e risultati vedere
+[RECOMMENDATION_ENGINE](RECOMMENDATION_ENGINE.md).
+
+## HISTORICAL — produzione v61, 12 ottobre 2026
 
 **IMPLEMENTED + RELEASED + PRODUCTION v61.** Commit runtime ufficiale
 `c8dfa6b9b370d75520d423413d8ca2506b285d39`,
@@ -39,7 +42,7 @@ Sono verifiche della release pubblicata, non nuovi test di questo micro-pass.
 I benchmark pre-release del candidato restano distinti dalla verifica production
 nel [contratto di paginazione](BOUNDED_PAGINATION.md).
 
-## Checkpoint precedente: produzione v60 — 12 ottobre 2026
+## HISTORICAL — checkpoint produzione v60, 12 ottobre 2026
 
 **IMPLEMENTED / AS-IS.** Release conclusa e verificata in produzione, confermata
 dall’utente: commit `0813e721e963191b285f357789a9dddd967c6162`,
@@ -59,7 +62,7 @@ La migration v54 resta applicata una sola volta; la successiva
 è stata applicata manualmente dall’utente al Supabase reale. Non rieseguire
 cutover, backfill o migration; non modificare la migration storica v54.
 
-## Fase 0.5A — bounded pagination rilasciata in produzione v61
+## HISTORICAL — Fase 0.5A / bounded pagination rilasciata in v61
 
 **IMPLEMENTED + RELEASED.** Implementata a partire dalla baseline Git
 `a089a7e477b4c8147b02a0d6b56c6307db7fa3b0`, le liste sono paginate a
@@ -76,9 +79,9 @@ root cause non identificata. La paginazione non è un fix dimostrato; probe
 diagnostico fuori dal prodotto, nessuna guardia touch o modifica del bootstrap.
 Nessuna modifica DB/Auth/migration/dati.
 
-## Fase 1 / STEP 3 — Recommendation core in codebase
+## HISTORICAL — Fase 1 / STEP 3 prima dell’integrazione consumer
 
-**IMPLEMENTED IN CODEBASE / NOT YET CONSUMER-INTEGRATED.** Phase 5 locale:
+**STATO AL CHECKPOINT STEP 3B (storico).** Phase 5 locale:
 Stable Preference v2/G4 least-misery, adapter N/V e test sintetici. Personal Rating
 ed Explicit Preference con precedence, polarità assoluta protetta da inversioni
 relative; Together Rating in canale shared separato. Match è session-only e non
@@ -93,6 +96,45 @@ NAV-01 e debito Tailwind/offline invariati. STEP 3B consolidato nel commit
 `635f17e2b2e03c5386f0b0e446aeb3e4923ee474`, senza integrazione consumer o deploy.
 Le verifiche production sopra e le fasi storiche restano distinte.
 
+### DATA CLEANUP PRE-RECOMMENDATION — concluso / baseline T0
+
+**COMPLETED. T0: 13 ottobre 2026, 08:30:34 UTC.** L'utente ha eseguito
+manualmente la transazione in Supabase SQL Editor e confermato l'audit
+indipendente read-only: `post_cleanup_checks_pass=true`, **14/14 PASS**,
+FK/trigger invariati e zero orphan. Eliminati esclusivamente 12 sessioni Match
+di test, 32 swipe figli e 32 movie nights cancelled di test/collaudo o residue
+del precedente bug oltre mezzanotte. Nessuna modifica a schema/Auth/RLS/grant.
+Questi record eliminati non devono essere ricostruiti o usati come preferenze.
+
+Baseline live verificata a T0 (non conteggi aggiornati continuamente):
+
+| Dato | Conteggio |
+| --- | ---: |
+| movies | 437 |
+| swipe_sessions / swipes | 0 / 0 |
+| movie_nights completed / cancelled | 3 / 0 |
+| seen_n / seen_v | 355 / 12 |
+| shared list | 91 |
+| rating personali N / V | 20 / 7 |
+| rating / review Together | 3 / 3 |
+| review personali N / V | 1 / 0 |
+
+Tutti i film e i loro campi, votes/vetoes e le tre completed con tutti i dettagli
+memoria sono stati preservati: **Scary Movie**, **Detachment - Il distacco** e
+**Digger** costituiscono storico reale pre-T0, non test. Rating/review e storico
+personale esistenti restano reali; T0 non azzera le preferenze. Seen non è liked;
+shared list è candidatura, non gradimento automatico. Da T0 le nuove sessioni
+Match del normale utilizzo e i nuovi Like/Nope sono segnali reali contestuali;
+double Like/Nope e disagreement restano distinti dalle valutazioni post-visione.
+
+Backup ripristinabile, manifest SHA-256, payload, SQL e audit post-cleanup sono
+conservati fuori repository in
+`/Users/nikybebba/Documents/scrocchiatu-cleanup-backup/`; non importarli in Git
+o nell'engine. Al momento T0 il Core disponeva di una baseline pulita per la
+futura integrazione; runtime v61 e consumer non erano ancora aggiornati. La
+successiva release v62 è lo stato corrente registrato all’inizio del documento.
+[Contratto dei segnali e riferimento T0](RECOMMENDATION_ENGINE.md#baseline-dati-t0).
+
 ## Mappa documentale e precedenza
 
 | Ruolo | Documento autorevole | Natura |
@@ -105,10 +147,10 @@ Le verifiche production sopra e le fasi storiche restano distinte.
 | Card e ricerca Storico | [MOVIE_CARD_DISCLOSURE](MOVIE_CARD_DISCLOSURE.md) | Contratto finale AS-IS e pass locali archiviati |
 | Lifecycle, Ricordi e modifica snack | [MOVIE_NIGHTS_MIDNIGHT_MEMORIES](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md), [PROIEZIONI](PROIEZIONI.md), [UX_NAVIGATION_MEMORIES](UX_NAVIGATION_MEMORIES.md) | AS-IS; verifiche datate separate |
 | Timeline, riepiloghi, cinema, decimali e saghe | Specifiche Phase 22/23/8.3/38/41 | Apertura corrente; sezioni originali storiche |
-| Direzione e priorità di prodotto | [PRODUCT_ROADMAP](PRODUCT_ROADMAP.md) | Fase 0 IMPLEMENTED; Fase 1 core locale/integrazione PLANNED; Fasi 2–10 PLANNED, opzioni EXPLORATORY |
+| Direzione e priorità di prodotto | [PRODUCT_ROADMAP](PRODUCT_ROADMAP.md) | Fase 0 IMPLEMENTED; Fase 1 Core/consumer IMPLEMENTED, estensioni oltre il pool attuale DEFERRED; Fasi 2–10 PLANNED, opzioni EXPLORATORY |
 | Scalabilità e modello futuro | [ARCHITECTURE_VISION](ARCHITECTURE_VISION.md) | Principio operativo; modello TO-BE, nessuna migrazione autorizzata |
 
-Il checkpoint v61 e i contratti finali prevalgono sui pass storici. La vecchia
+Il checkpoint v62 e i contratti finali prevalgono sui pass storici. La vecchia
 sequenza Step/Phase è un archivio di implementazione e non ordina il lavoro
 futuro. I tre documenti locali `IMPORT_HISTORY_N*.md`, attualmente non tracciati,
 registrano preparazione, approvazioni e piano dell’import: sono evidenze locali
@@ -144,7 +186,7 @@ saghe con aggiunta esplicita, ticket PNG (origine solo in memoria), temi
 automatici, audio/haptics opt-in e loader. Ownership dei personali, protezioni
 anti-spoiler/anti-XSS e rimozioni contestuali restano nei contratti specifici.
 
-## Semantiche consolidate — AS-IS v61 (contratti v60 conservati)
+## Semantiche consolidate — AS-IS v62 (contratti v60 conservati)
 
 ### Film, Storico e card
 
@@ -244,11 +286,11 @@ con JWT valido. Errori Auth/RLS non autorizzano fallback offline.
 Il ciclo di prodotto è **discovery → proposta → decisione condivisa →
 programmazione → visione → valutazione → ricordo**. Le interazioni condivise
 sono centrali, accanto al tracking personale.
-La prossima grande fase è **Discovery & Recommendation Engine**; precede
-multiutente e serie. Personal recommendation e group recommendation sono
-concetti distinti. Cosa Guardiamo?, Ruota, Surprise e Match Live sono destinati
-a diventare superfici dello stesso Recommendation/Decision Engine, senza
-cambiare ora il contratto Match o spacciare un motore futuro per implementato.
+Il Recommendation Core v2 e `Cosa Guardiamo?` sono implementati in v62. Le
+estensioni future sono classificate in [PRODUCT_ROADMAP](PRODUCT_ROADMAP.md) e
+[ARCHITECTURE_VISION](ARCHITECTURE_VISION.md); questa direzione non autorizza
+una fase né implica che Ruota, Surprise o Match Live usino il Core. Match resta
+session-only e non esiste un piano approvato per sostituirlo.
 
 Ogni nuova feature significativa va valutata ai livelli **Content / User /
 Group / Community**. N e V sono progressivamente due istanze di User;
@@ -871,7 +913,7 @@ Phase 26 — Audio Manager implementata localmente: pulsante opt-in nel pannello
 
 Phase 28 — Ciak Loader e skeleton implementata localmente: al primo ingresso, dopo 160 ms di attesa, un ciak compare sotto la navbar e due sagome di movie card nella libreria. Il render cancella sempre il timer e rimuove lo stato `aria-busy`, così una risposta rapida non produce flash tardivi; il movimento ridotto usa la regola globale già presente. Una lettura iniziale che rigetta usa il mirror locale e termina il caricamento. Nessuna migration. Cache PWA `v19`; smoke locale **310/310 PASS**; resa visiva da verificare su smartphone.
 
-## Quadro rapido — v61
+## HISTORICAL — Quadro rapido v61
 
 La baseline, i contratti finali e i risultati production sono nelle sezioni
 AS-IS in apertura. Le suite locali dei cicli v59/v60/v61 sono documentate nei
@@ -887,11 +929,10 @@ L'utente apprezza aggiunte come «Continua la saga», il ticket più curato e le
 
 ## Prossimo lavoro
 
-Release v61 conclusa: il prossimo incremento significativo è la Fase 1
-Discovery & Recommendation Engine della [roadmap ufficiale](PRODUCT_ROADMAP.md).
-Prima di implementarlo servono una fase dedicata, inventario dei segnali realmente
-disponibili, obiettivi e verifica del principio Content/User/Group/Community.
-Multiutente e serie seguono l’ordine concordato; nessun SQL/refactoring automatico.
+Al checkpoint v61 la Fase 1 Discovery & Recommendation Engine era ancora
+futura. È stata realizzata in modo parziale in v62: Core v2 e primo consumer
+`Cosa Guardiamo?`; le estensioni restano classificate nella roadmap corrente.
+Questa nota conserva il contesto storico e non definisce la prossima priorità.
 
 ### Storico: checklist delle fasi precedenti (checkpoint v44)
 
