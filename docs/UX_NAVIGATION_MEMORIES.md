@@ -7,7 +7,85 @@ Ricerca Storico e card: [contratto pubblicato](MOVIE_CARD_DISCLOSURE.md).
 Ricordi/lifecycle/snack: [contratto v60](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
 Le verifiche v55 in fondo sono un archivio locale, non lo stato di pubblicazione.
 
-## Navigazione
+## TARGET APPROVED — IA Persona/Gruppo
+
+**APPROVED / NOT IMPLEMENTED — 16 ottobre 2026.** Fonte autorevole della IA
+congelata per il perimetro corrente. Le sezioni CURRENT v62 sotto descrivono la
+navigazione ancora in uso; la Lista personale e la nuova IA non sono live.
+[Grammatica/transizioni](INDIVIDUAL_WATCH_REWATCH.md#target-approved--product-grammar-e-relation--transition-contract),
+[card/Add](MOVIE_CARD_DISCLOSURE.md#target-approved--card-detail-e-add),
+[Saga](PHASE41_SAGHE.md#target-approved--saga-context-contract) e
+[roadmap unica](PRODUCT_ROADMAP.md#checkpoint-personagruppo--approved--not-implemented)
+completano questo contratto; nessun nuovo schema o Implementation Plan qui.
+
+### Scope e raccolte
+
+sc(r)occhiaTu resta **GROUP-FIRST**. Persona è secondaria e riusa/evolve l'accesso
+Storico, senza una nuova dashboard. Persona e gruppo specifico sono scope:
+N/V è soltanto l'installazione corrente. La Lista personale segue la persona
+anche fra gruppi; la membership in un gruppo non attribuisce tutte le visioni.
+Account system, group switcher e politiche per gruppi >2 sono DEFERRED.
+
+| Scope / raccolta | Domanda e appartenenza |
+| --- | --- |
+| Persona selezionata → Lista | Che cosa desidera guardare/riguardare? Intenzione corrente, anche su film visti o Together |
+| Persona selezionata → Visti | Quali film ha registrato nel proprio percorso? Memoria personale, non tutta l'exposure |
+| Gruppo specifico → Lista | Quali candidature restano da scegliere? Candidature valide senza evento attivo |
+| Gruppo → Rewatch [WORKING NAME] | Familiarità personale comune senza Together; nel gruppo N/V richiede i due Personal Seen |
+| Gruppo → In programma | Eventi attivi, anche senza candidatura precedente e con proposte in attesa |
+| Gruppo → Visti e recensioni / Together | Film con esperienze reali del gruppo e giudizio corrente sul film |
+| Gruppo → Ricordi | Eventi conclusi distinti, inclusi rewatch, date/dettagli e riepiloghi |
+| Gruppo → Match, Ruota, Recommendation | Strumenti decisionali esistenti, senza assorbire Liste personali o ridisegnare Match/Ruota |
+
+**Tutti viene rimosso come collection primaria TARGET**, non convertito in unione
+Persona+Gruppo o catalogo tecnico. Ricerca/dettaglio possono recuperare contenuti
+fuori dalle raccolte ordinarie. Relationless != DELETE; nessun cleanup implicito.
+
+Lo scope può rendere sufficiente la label Lista; azioni che attraversano gli
+scope devono indicare la destinazione. Consultare Lista/Visti altrui non consente
+di modificarli: «anche nella mia Lista» e «L'ho visto anch'io» agiscono su chi
+esegue il comando. Non mostrare badge permanenti di tutte le appartenenze.
+
+### Coesistenza e processo operativo
+
+Ogni raccolta risponde a una domanda diversa: Lista personale + Visti, Lista
+personale + Lista gruppo, Visti + Together e Lista personale + Together sono
+sovrapposizioni intenzionali. La candidatura non promuove né consuma la Lista
+personale. Rewatch può coesistere con candidatura, senza crearla.
+
+Nello scope gruppo, evento attivo significa spostamento **visivo** dalla Lista
+a In programma. Lo stesso film è nascosto anche dalla raccolta UX Rewatch,
+pur potendone conservare la membership semantica. Annullo dell'ultimo evento:
+ritorno solo con candidatura ancora valida. Completion → Together/Ricordi,
+senza aggiungere Visti personali. Regole di ritiro, consumo e satisfaction nel
+contratto di [dominio](INDIVIDUAL_WATCH_REWATCH.md#target-approved--product-grammar-e-relation--transition-contract).
+Il feedback usa esiti semplici («torna in Lista»), non supporto/provenienza/
+convergenza come terminologia da imparare.
+
+Together esclude da Rewatch anche con nuova intenzione o ricandidatura. Un film
+già Together può essere riproposto da Visti e recensioni, ma rimane escluso dai
+pool Match/Ruota correnti. Nome definitivo di Rewatch UI-level, non blocker.
+La proposta eterogenea «Riscoperte» non è approvata.
+
+### Contextual UX congelata
+
+- Nei Visti altrui, «L'ho visto anch'io» è azione diretta di memoria propria:
+  nessun giudizio, Lista, candidatura, Together o Saga automatica. Primary save
+  concluso prima di eventuali azioni secondarie.
+- Visti personali e Together restano separati; quando Together è noto ma manca
+  il visto personale, l'azione indica l'aggiunta al proprio percorso, non «mai visto».
+- Card: PRIMARY, CONTEXTUAL, DISCLOSURE, DETAIL e SYSTEM FEEDBACK dipendono
+  dalla superficie; nessuna card universale con tutte le relazioni. Identità N/V
+  non sostituisce il verbo che distingue memoria, intenzione e giudizio.
+- Persona/Lista dà priorità all'intenzione; Persona/Visti alla memoria;
+  Gruppo/Lista a scelta/programmazione; In programma all'evento; Together a
+  memoria/giudizio del gruppo. Gestione non nasconde le principali azioni quotidiane.
+- Convergenza, uscita dalla Lista e ritiro ricevono feedback comprensibile dopo
+  il successo, senza badge permanenti di origine o reinserimento automatico.
+- L'esperienza resta mobile-first, con progressive disclosure, target accessibili,
+  focus e contesto preservati. Il dettaglio è neutro, non un pannello di pulsanti.
+
+## Navigazione — CURRENT RUNTIME FACT v62
 
 Fase 0.5A, introdotta in v61 e inclusa in v62: [bounded pagination](BOUNDED_PAGINATION.md)
 nelle liste e nello Storico, 24 card, pager sopra/sotto, pagine indipendenti per
@@ -37,7 +115,7 @@ vista, senza ripetere enterMatch, track o creare subscription. Gli altri
 passaggi delegano a openDashboardHome/openWheelView/setTab; il tab Lista già
 selezionato conserva la sottovista. Ricordi apre il modale senza lasciare Match.
 
-## Storico
+## Storico — CURRENT RUNTIME FACT v62
 
 Il widget Home Storico apre la destinazione interna `history` attraverso
 `activateDestination('history')` e `setTab('history_n'/'history_v')`.
@@ -68,7 +146,7 @@ I due badge N/V originali sono spenti/colorati secondo i seen quando non
 Together. Con Together diventano entrambi oro, dai completed, senza cambiare
 i booleani. Nessun terzo indicatore; N+V resta per dati/azioni condivisi.
 
-## Ricordi
+## Ricordi — CURRENT RUNTIME FACT v62
 
 Ricordi non contiene Storico personale. Rimane dedicato a statistiche,
 Serate concluse e Dopo il film/recensioni condivise.

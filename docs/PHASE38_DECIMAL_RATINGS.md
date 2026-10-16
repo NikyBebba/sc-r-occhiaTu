@@ -1,11 +1,12 @@
 # Phase 38 — Voti decimali da tastierino
 
-Stato corrente: 12 ottobre 2026, **IMPLEMENTED in produzione v60**.
+**CURRENT RUNTIME FACT:** decimali implementati in v60 e inclusi in v62.
 [Baseline ufficiale](MASTER_CONTEXT.md); i checkpoint originali sotto sono storici.
 I voti personali sono leggibili da entrambi e scrivibili solo dal proprietario
-Auth; nessuna copia privata/pubblica. Solo Storico ammette voto assente.
-Nuova candidatura di un film visto dal proponente richiede il suo voto,
-zero valido; secondo seen su candidato non richiede voto. Un voto può essere
+Auth; nessuna copia privata/pubblica. Il visto personale non richiede un voto.
+Nuova candidatura di un film visto dal proponente richiede in v62 rating oppure
+preference esplicita, zero e FALSE validi; secondo seen su candidato non richiede
+voto. Il requisito di solo voto appartiene alla fase storica. Un voto può essere
 rimosso esplicitamente dopo candidatura senza espulsione automatica.
 “Segna come non visto” cambia solo il proprio seen e conserva voto, recensione,
 candidatura, eventi e Together. Il voto condiviso resta identificato da N+V.
@@ -19,6 +20,11 @@ alle memorie condivise. Ricerca locale Storico e valutazioni contestuali nelle
 [card pubblicate](MOVIE_CARD_DISCLOSURE.md); il form N+V include snack/luogo
 dell’evento selezionato, senza spostare i voti dal film. [V60](MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
 [Contratto corrente e suite](INDIVIDUAL_WATCH_REWATCH.md).
+
+**TARGET APPROVED / NOT IMPLEMENTED — 16 ottobre 2026:** la candidatura non
+richiede giudizio; valori decimali e giudizi esistenti restano preservati.
+[Grammatica e transizioni congelate](INDIVIDUAL_WATCH_REWATCH.md#target-approved--product-grammar-e-relation--transition-contract).
+La regola target non è stata applicata alle guardie DB/store/UI correnti.
 
 ## Archivio: implementazione Phase 38 e verifiche originarie
 

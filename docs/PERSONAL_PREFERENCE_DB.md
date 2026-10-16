@@ -94,7 +94,19 @@ non è un ID univoco o un contatore monotono. Scritture non pertinenti lo preser
 Le protezioni DELETE/identity includono anche la preference altrui FALSE.
 Legacy frozen, Together/completed, membership e RPC serate restano protetti.
 
-## Candidatura
+## TARGET APPROVED — giudizio distinto dalla Lista personale e candidatura
+
+**APPROVED / NOT IMPLEMENTED — 16 ottobre 2026.** Preference è gradimento;
+non rappresenta e non deve essere riutilizzata per la nuova Lista personale.
+Il [contratto Persona/Gruppo](INDIVIDUAL_WATCH_REWATCH.md#target-approved--product-grammar-e-relation--transition-contract)
+elimina il requisito di giudizio per candidare un film già visto. **CURRENT v62**
+conserva invece guardie DB/store/UI descritte sotto: non sono state modificate.
+Rating/preference/review reali e precedence correnti vanno preservati; un
+giudizio può esistere senza visto. L'[Alternativa B](ARCHITECTURE_VISION.md#target-architecture-approved--alternativa-b)
+mantiene per ora i campi giudizio v62. Nuove intenzioni e candidature non sono
+nuovi segnali di gusto implicitamente approvati.
+
+## Candidatura — CURRENT RUNTIME FACT v62
 
 Solo all'ingresso nella shared list (INSERT o false→true), un film personalmente
 visto richiede rating valido **oppure** preference non NULL della persona corrente.

@@ -1,7 +1,8 @@
 # Visione architetturale e principio di scalabilità
 
-Aggiornamento: 14 ottobre 2026. **TO-BE** per il modello di dominio futuro;
-principio da applicare alla progettazione dei prossimi incrementi.
+Aggiornamento: 16 ottobre 2026. Distingue **TARGET ARCHITECTURE APPROVED** per
+il perimetro Persona/Gruppo e **FUTURE POSSIBILITY / DEFERRED** per la piattaforma
+completa; nessuno dei due è implementato dalla sola approvazione.
 [Stato AS-IS](MASTER_CONTEXT.md) e [roadmap Fase 0–10](PRODUCT_ROADMAP.md)
 restano separati. Questo documento non autorizza refactoring o migrazioni.
 
@@ -22,6 +23,58 @@ eventi tramite RPC, legacy congelato. La mappa runtime è in
 [AGENTS](../AGENTS.md); inventario del refactoring storico nel MASTER_CONTEXT;
 [Auth/Supabase](AUTH_SUPABASE.md) e [transizione dati](DATA_MODEL_TRANSITION.md)
 conservano i contratti tecnici. Questa visione non sostituisce quei vincoli.
+
+## TARGET ARCHITECTURE APPROVED — Alternativa B
+
+**APPROVED / NOT IMPLEMENTED — 16 ottobre 2026.** Il Product Owner ha scelto
+relazioni con scope esplicito, **modello ibrido e incrementale**. La [grammatica
+e le transizioni congelate](INDIVIDUAL_WATCH_REWATCH.md#target-approved--product-grammar-e-relation--transition-contract)
+guidano la soluzione; [requisiti informativi e preservazione](DATA_MODEL_TRANSITION.md#target-approved--requisiti-informativi-e-preservazione)
+sono vincoli dell'Implementation Plan, non schema già definito.
+
+- Lista personale: relazione autonoma persona-film, distinta dal gradimento,
+  con generation persistente e monotona per distinguere ritiro e nuova intenzione.
+- Candidatura: relazione/stato con scope gruppo-film; supporto esplicito e
+  convergenza distinguibili; ritiro e consumo riferiti al ciclo pertinente.
+- Together: evento del gruppo con partecipanti reali espliciti per gli eventi
+  nuovi; nessuna equivalenza universale evento=tutti i membri.
+- Seen e giudizi v62 mantenuti per ora; `movies` resta catalogo/contenuto e
+  compatibilità corrente. Non normalizzare automaticamente tutto il modello.
+- Identità Persona/Gruppo per le nuove relazioni, senza costruire ora account,
+  group switcher, inviti o piattaforma multi-group completa. N/V resta l'adapter
+  dell'installazione corrente, non la forma permanente delle nuove relazioni.
+
+**APPROVED TECHNICAL CONTRACT — refinement finale:** `auth.users.id` (Auth UUID)
+è l'identità persona delle nuove relazioni; nessuna tabella `people` autonoma.
+`app_members`/`app_person()` restano adapter N/V per seen e giudizi legacy.
+Nessun mutex globale: le transizioni film-centriche acquisiscono lock sul film
+e sugli aggregati pertinenti, con ordine stabile quando i lock sono multipli.
+Le versioni sono scoped, senza global commit ordering. La lettura autorevole è
+uno snapshot coerente composto sul server; Realtime invalida e provoca resync,
+non ricostruisce relazioni. La [satisfaction minimale](DATA_MODEL_TRANSITION.md#satisfaction-minimale--approved-technical-contract)
+usa riferimenti alle generation pertinenti, senza contesti generici di visione.
+
+**NEEDED NOW:** stato sufficiente per intenzione/ciclo, supporti, ritiro/consumo,
+partecipazione e satisfaction conservativa; transizioni server-authoritative,
+intent-based e retry-safe; letture non definitivamente accettate se incoerenti.
+Realtime riallinea e non prende decisioni di dominio.
+
+**ARCHITECTURE-READY:** scope e identità espliciti delle nuove relazioni.
+Una proiezione compatibile della candidatura per Match/Ruota/Recommendation è
+possibile, ma non è schema scelto né seconda fonte autorevole. Match/Ruota
+mantengono i contratti correnti, incluso Together escluso anche se ricandidato.
+
+**FUTURE POSSIBILITY / DEFERRED:** multi-group completo, normalizzazione di
+seen/giudizi, policy di convergenza/familiarità per gruppi >2, cronologia delle
+visioni personali, giudizi per singolo evento e discovery esterna. La scelta B
+non implementa questi elementi e non cambia il Core v2 frozen.
+
+Implementation Plan e refinement finale sono approvati, non implementati.
+I nomi proposti nel piano restano **CANDIDATE IMPLEMENTATION NAME**, non API
+pubbliche definitive; nessuno schema/SQL è stato applicato. Prossimo passo nella
+[roadmap unica](PRODUCT_ROADMAP.md#checkpoint-personagruppo--approved--not-implemented):
+**PHASE 1 — LOCAL FOUNDATION / CANDIDATE MIGRATION**, da autorizzare separatamente.
+Questo checkpoint non avvia implementazione, migration live o deploy.
 
 ## Principio ufficiale — quattro livelli
 
@@ -47,7 +100,7 @@ identità verificata può leggerlo/modificarlo; cosa preservare nello storico.
 Registrare eventuali dipendenze N/V necessarie e il loro confine. Questo esame
 non richiede introdurre ora tabelle/API astratte per ogni futura possibilità.
 
-## Direzione del modello — TO-BE, da progettare in Fase 4
+## FUTURE POSSIBILITY — modello completo, da progettare in Fase 4
 
 ```text
 User → UserContentState → Content
@@ -64,9 +117,11 @@ User → GroupMembership → Group → GroupContentState / GroupViewing
 | GroupContentState | Candidatura/lista e stato del contenuto in quel gruppo |
 | GroupViewing | Evento condiviso con partecipanti e dettagli della visione |
 
-Sono entità concettuali, **non uno schema SQL approvato**. Cardinalità,
-identificativi, vincoli, rating di gruppo rispetto a rating della singola
-visione e visibilità vanno definiti nel target data model. Uno stesso contenuto
+Sono entità concettuali della piattaforma futura, **non uno schema SQL approvato**.
+La scelta incrementale B sopra è approvata, senza anticipare questo intero modello.
+Cardinalità, identificativi, vincoli e visibilità della piattaforma completa
+restano da progettare. Il perimetro approvato mantiene il giudizio del gruppo sul
+film; un eventuale giudizio per singola visione è differito. Uno stesso contenuto
 può avere stati differenti in gruppi differenti. Il progresso personale non
 viene derivato automaticamente da quello condiviso.
 
@@ -80,7 +135,7 @@ viene derivato automaticamente da quello condiviso.
 | in_shared_list | GroupContentState del primo gruppo storico |
 | movie_nights e date/time/snack/location | GroupViewing, un evento per ogni riga storica senza fusione dei rewatch |
 | Together derivato da completed | Evidenza delle visioni condivise, senza alterare stati personali |
-| seen_rating_together/review_text_together | Valutazione condivisa oggi a livello film; destinazione futura da decidere senza inventare un voto per ogni evento |
+| seen_rating_together/review_text_together | CURRENT e TARGET corrente: opinione del gruppo sul film; eventuale destinazione per singolo evento DEFERRED, senza inventare voti storici |
 | veto, sessioni/swipe Match | Dati di decisione nel contesto del gruppo con autore preservato |
 | legacy congelato e backup operatore | Strategia esplicita di conservazione/compatibilità, senza drop automatici |
 

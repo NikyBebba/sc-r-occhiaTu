@@ -1,6 +1,6 @@
 # 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.62
 
-Ultimo aggiornamento: 14 ottobre 2026. Fonte dello stato operativo AS-IS e dei
+Ultimo aggiornamento: 16 ottobre 2026. Fonte dello stato operativo AS-IS e dei
 checkpoint principali. Roadmap, visione TO-BE e specifica Recommendation hanno
 fonti dedicate; le sezioni marcate **HISTORICAL** sono archivio, non stato attuale.
 
@@ -26,6 +26,52 @@ erano esercitati dai candidati live, ma restano coperti dai test sintetici.
 Nessuna ricalibrazione richiesta; test e sanity check non dimostrano predictive
 quality reale. Per formule, eligibility, consumer e risultati vedere
 [RECOMMENDATION_ENGINE](RECOMMENDATION_ENGINE.md).
+
+## TARGET APPROVED — checkpoint Persona/Gruppo, non implementato
+
+**APPROVED / NOT IMPLEMENTED — 16 ottobre 2026.** Audit runtime, Product Grammar,
+Relation & Transition Contract, Contextual UX/IA e Technical Alternatives sono
+conclusi; i contratti del perimetro corrente sono congelati. Il Product Owner
+ha scelto **Alternativa B: relazioni con scope esplicito, modello ibrido e
+incrementale**. Questo checkpoint è documentale: produzione/runtime/cache restano
+v62, senza nuova Lista personale o partecipanti espliciti. Nessuna nuova verifica
+live o scrittura Supabase in questo consolidamento.
+
+- Fonte di grammatica e transizioni: [INDIVIDUAL_WATCH_REWATCH](INDIVIDUAL_WATCH_REWATCH.md#target-approved--product-grammar-e-relation--transition-contract).
+  Memoria, intenzione, candidatura, Together e giudizio sono distinti e possono
+  coesistere; exposure derivata non popola i Visti. N/V non è dominio permanente.
+- IA group-first: [UX_NAVIGATION_MEMORIES](UX_NAVIGATION_MEMORIES.md#target-approved--ia-personagruppo).
+  Persona secondaria → Lista/Visti; Gruppo → Lista/Rewatch/In programma/
+  Together/Ricordi e strumenti esistenti. Tutti rimosso solo dal TARGET, non DELETE.
+  Rewatch resta working name stretto; nessuna raccolta «Riscoperte» approvata.
+- UX: [card/Add](MOVIE_CARD_DISCLOSURE.md#target-approved--card-detail-e-add) e
+  [Saga](PHASE41_SAGHE.md#target-approved--saga-context-contract). «L'ho visto
+  anch'io» diretto; primary save prima di quick action facoltative; nessuna Saga
+  shared automatica dopo memoria retrospettiva. Candidatura senza giudizio è
+  TARGET: v62 richiede ancora rating oppure preference nei casi previsti.
+- Architettura scelta e confini: [ARCHITECTURE_VISION](ARCHITECTURE_VISION.md#target-architecture-approved--alternativa-b).
+  Nuove relazioni persona-film/gruppo-film; seen/giudizi v62 conservati per ora.
+  Supporti, ritiro/consumo per ciclo, partecipanti e satisfaction conservativa;
+  server-authoritative e intent-based. Refinement tecnico approvato: Auth UUID
+  come identità persona, nessuna tabella people; generation personali monotone;
+  lock film-centric in ordine stabile, nessun mutex globale; versioni scoped,
+  snapshot server coerente e Realtime come invalidation/resync. Satisfaction
+  minimale su generation identificate: niente contesti generici o cronologia
+  personale; unscheduled Together e memoria retrospettiva non consumano Liste.
+- Dati: [DATA_MODEL_TRANSITION](DATA_MODEL_TRANSITION.md#target-approved--requisiti-informativi-e-preservazione).
+  Lista personale nuova vuota; candidature esistenti preservate con supporto
+  autonomo/preesistente, senza inventare autore o intenzioni. Seen e giudizi
+  preservati. Il Product Owner attesta N+V partecipanti reali alle tre completed
+  storiche Scary Movie, Detachment - Il distacco e Digger; non è una regola per
+  gli eventi futuri. Le 32 cancelled di test sono già state eliminate a T0.
+
+**Implementation Plan e FINAL TECHNICAL REFINEMENT approvati / non implementati.**
+**NEXT: PHASE 1 — LOCAL FOUNDATION / CANDIDATE MIGRATION**, non ancora autorizzata
+né iniziata. Non riaprire decisioni congelate per comodità tecnica; nomi candidati
+di schema/API non sono interfacce pubbliche definitive. Multi-group completo, normalizzazione
+seen/giudizi, policy >2, cronologia personale, giudizi per evento e discovery
+esterna restano DEFERRED. [PRODUCT_ROADMAP](PRODUCT_ROADMAP.md#checkpoint-personagruppo--approved--not-implemented)
+è l'unico piano; nessuna implementazione, migration o pubblicazione implicita.
 
 ## HISTORICAL — produzione v61, 12 ottobre 2026
 
@@ -105,6 +151,8 @@ FK/trigger invariati e zero orphan. Eliminati esclusivamente 12 sessioni Match
 di test, 32 swipe figli e 32 movie nights cancelled di test/collaudo o residue
 del precedente bug oltre mezzanotte. Nessuna modifica a schema/Auth/RLS/grant.
 Questi record eliminati non devono essere ricostruiti o usati come preferenze.
+Il cleanup delle 32 cancelled è concluso, non un'azione pendente da ripetere;
+eventuali cancelled future sono nuovi dati, non artefatti di test per default.
 
 Baseline live verificata a T0 (non conteggi aggiornati continuamente):
 
@@ -133,7 +181,7 @@ conservati fuori repository in
 o nell'engine. Al momento T0 il Core disponeva di una baseline pulita per la
 futura integrazione; runtime v61 e consumer non erano ancora aggiornati. La
 successiva release v62 è lo stato corrente registrato all’inizio del documento.
-[Contratto dei segnali e riferimento T0](RECOMMENDATION_ENGINE.md#baseline-dati-t0).
+[Contratto dei segnali e riferimento T0](RECOMMENDATION_ENGINE.md#historical--t0-e-separazione-architetturale-al-checkpoint-pre-consumer).
 
 ## Mappa documentale e precedenza
 
@@ -149,9 +197,14 @@ successiva release v62 è lo stato corrente registrato all’inizio del document
 | Timeline, riepiloghi, cinema, decimali e saghe | Specifiche Phase 22/23/8.3/38/41 | Apertura corrente; sezioni originali storiche |
 | Direzione e priorità di prodotto | [PRODUCT_ROADMAP](PRODUCT_ROADMAP.md) | Fase 0 IMPLEMENTED; Fase 1 Core/consumer IMPLEMENTED, estensioni oltre il pool attuale DEFERRED; Fasi 2–10 PLANNED, opzioni EXPLORATORY |
 | Scalabilità e modello futuro | [ARCHITECTURE_VISION](ARCHITECTURE_VISION.md) | Principio operativo; modello TO-BE, nessuna migrazione autorizzata |
+| Grammatica e transizioni TARGET congelate | [INDIVIDUAL_WATCH_REWATCH](INDIVIDUAL_WATCH_REWATCH.md#target-approved--product-grammar-e-relation--transition-contract) | APPROVED / NOT IMPLEMENTED; distinta dal contratto CURRENT v62 nello stesso documento |
+| IA e UX TARGET | [UX_NAVIGATION_MEMORIES](UX_NAVIGATION_MEMORIES.md#target-approved--ia-personagruppo), [MOVIE_CARD_DISCLOSURE](MOVIE_CARD_DISCLOSURE.md#target-approved--card-detail-e-add), [PHASE41_SAGHE](PHASE41_SAGHE.md#target-approved--saga-context-contract) | APPROVED / NOT IMPLEMENTED; raccolte, Add, card e Saga contestuali |
+| Direzione tecnica TARGET e dati | [ARCHITECTURE_VISION](ARCHITECTURE_VISION.md#target-architecture-approved--alternativa-b), [DATA_MODEL_TRANSITION](DATA_MODEL_TRANSITION.md#target-approved--requisiti-informativi-e-preservazione) | Alternativa B approvata; requisiti informativi e preservazione, non Implementation Plan |
 
-Il checkpoint v62 e i contratti finali prevalgono sui pass storici. La vecchia
-sequenza Step/Phase è un archivio di implementazione e non ordina il lavoro
+Per CURRENT prevalgono il checkpoint v62 e i contratti finali sui pass storici.
+Per TARGET prevalgono le sezioni APPROVED / NOT IMPLEMENTED collegate: non
+descrivono feature live. FUTURE POSSIBILITY non riapre i contratti congelati.
+La vecchia sequenza Step/Phase è un archivio di implementazione e non ordina il lavoro
 futuro. I tre documenti locali `IMPORT_HISTORY_N*.md`, attualmente non tracciati,
 registrano preparazione, approvazioni e piano dell’import: sono evidenze locali
 storiche, non istruzioni per ripeterlo né roadmap. Restano fuori da questa
@@ -282,6 +335,11 @@ restore richiedono verifica Auth online; mirror solo nel runtime già autorizzat
 con JWT valido. Errori Auth/RLS non autorizzano fallback offline.
 
 ## Direzione successiva — TO-BE
+
+Implementation Plan e refinement finale del TARGET Persona/Gruppo sono approvati.
+Il prossimo passo è PHASE 1 — LOCAL FOUNDATION / CANDIDATE MIGRATION, ancora da
+autorizzare, come nel checkpoint iniziale e nella roadmap unica. Le direzioni
+generali sotto non lo sostituiscono.
 
 Il ciclo di prodotto è **discovery → proposta → decisione condivisa →
 programmazione → visione → valutazione → ricordo**. Le interazioni condivise

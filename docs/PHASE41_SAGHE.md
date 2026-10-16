@@ -14,12 +14,40 @@ La fase originale fu autorizzata dopo la verifica di ticket e temi e verificata
 localmente. I risultati e i limiti di quel ciclo sono conservati sotto; lo stato
 della release corrente è riportato in apertura.
 
-## Esperienza
+## TARGET APPROVED — Saga Context Contract
+
+**APPROVED / NOT IMPLEMENTED — 16 ottobre 2026.** [IA e Add contestuali](MOVIE_CARD_DISCLOSURE.md#target-approved--card-detail-e-add)
+e [transizioni](INDIVIDUAL_WATCH_REWATCH.md#target-approved--product-grammar-e-relation--transition-contract)
+prevalgono come TARGET. **CURRENT RUNTIME FACT:** v62 può ancora chiamare
+`suggestSagaAfterViewing(id)` dopo un nuovo seen personale, la prima Together
+via form e la completion; il pannello propone principalmente candidatura shared.
+Film/persona non preservano il contesto completo dell'azione precedente.
+
+| Contesto | TARGET contestuale |
+| --- | --- |
+| Memoria personale retrospettiva | Nessuna apertura automatica di Saga come continuazione condivisa; consultazione manuale disponibile |
+| Nuova visione personale reale | Saga può essere pertinente personalmente; nessun follow-up automatico obbligatorio approvato |
+| Nuova Together | Seguito condiviso facoltativo e contestuale, senza candidatura automatica |
+| Apertura manuale | Esplorazione neutra: non presume memoria, desiderio o candidatura |
+
+Consultare/selezionare un capitolo non crea visto, Lista personale, giudizio o
+candidatura senza la relativa azione esplicita o la regola di convergenza
+approvata. Le azioni restano distinte senza mostrarle tutte contemporaneamente;
+un'eventuale selezione multipla deve dichiarare un unico effetto. Capitoli già
+in Lista mostrano stato, non una nuova aggiunta implicita; Together preservati
+possono essere riproposti senza riaprire Rewatch o cambiare eligibility. Uscita
+futura non dimostra disponibilità o visione. Giudizio non obbligatorio per proporre.
+
+La regola voto/feedback obbligatorio e l'auto-trigger personale descritti sotto
+sono CURRENT/storia, non il target. Nessuna implementazione di questo contratto
+è avvenuta nel consolidamento documentale.
+
+## Esperienza — CURRENT v62 e origine storica
 
 - Entrata discreta «Continua la saga» nelle card della libreria e dei film visti, nella scheda del film, nel risultato della Ruota, nella celebrazione inline del Match e nella prossima serata, solo per un film con collection TMDb nota e accessibile.
 - Dopo una nuova visione personale, una nuova recensione insieme o la conclusione di una serata, proporre il pannello «Continuiamo la saga?». La modifica di un voto/recensione non lo riapre. Nessun suggerimento provocato dal Realtime.
 - Un pannello mostra i capitoli in **ordine di uscita**, senza assumere un ordine narrativo. Evidenzia il primo capitolo successivo già uscito e non visto insieme, quando riconoscibile; i capitoli precedenti restano consultabili. Se la data del film di riferimento non è nota, non inventare quale film sia il prossimo.
-- Nessun film preselezionato. L'utente sceglie quali aggiungere e conferma; il proponente è la persona corrente. I film già nel catalogo non vengono duplicati. Capitoli noti fuori Lista e non Together possono essere candidati; se visti dal proponente richiedono il suo voto all’ingresso. Mostrare gli stati N/V/Together tramite i badge comuni.
+- Nessun film preselezionato. L'utente sceglie quali aggiungere e conferma; il proponente è la persona corrente. I film già nel catalogo non vengono duplicati. Capitoli noti fuori Lista e non Together possono essere candidati; CURRENT v62: se visti dal proponente richiedono rating oppure preference esplicita (nella fase originale soltanto voto). Mostrare gli stati N/V/Together tramite i badge comuni. Il TARGET sopra elimina il requisito di giudizio.
 - I film con data di uscita futura sono distinguibili e vengono aggiunti con `cinema_watchlist: true`, mantenendo l'esclusione da Match/Ruota. Data assente = disponibilità sconosciuta, senza dichiarare streaming disponibile.
 - Una sorpresa non rivelata nella libreria resta senza titolo, locandina e dettagli anche qui. Il film sorgente nascosto non apre il pannello.
 

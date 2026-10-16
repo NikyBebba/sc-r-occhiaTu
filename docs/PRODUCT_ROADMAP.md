@@ -1,6 +1,6 @@
 # Roadmap ufficiale di prodotto
 
-Aggiornamento: 14 ottobre 2026. **Roadmap TO-BE e stati di prodotto.**
+Aggiornamento: 16 ottobre 2026. **Roadmap unica, stati CURRENT / TARGET APPROVED / FUTURE.**
 Baseline AS-IS: [MASTER_CONTEXT](MASTER_CONTEXT.md), release v62 in produzione
 al commit `a7d1f827c71e60c00aa72d6cf61f69642c80fc91`.
 Principi di scalabilità: [ARCHITECTURE_VISION](ARCHITECTURE_VISION.md).
@@ -28,6 +28,8 @@ DEPRECATED / TARGET REMOVE; restano nel runtime AS-IS fino al cleanup separato.
 
 - **IMPLEMENTED:** presente nella baseline; le verifiche effettive sono nei
   checkpoint AS-IS, senza estenderle automaticamente a ogni caso futuro.
+- **APPROVED / NOT IMPLEMENTED:** contratto congelato e/o direzione tecnica
+  approvata, senza feature live, schema nuovo o esecuzione già autorizzata.
 - **PLANNED:** direzione concordata, da progettare/implementare in fasi dedicate.
 - **EXPLORATORY:** possibile soluzione o funzionalità da valutare, senza impegno
   di implementazione o data di consegna.
@@ -35,8 +37,8 @@ DEPRECATED / TARGET REMOVE; restano nel runtime AS-IS fino al cleanup separato.
 L’ordine Fase 0–10 è la roadmap ufficiale. I vecchi numeri Phase/Step delle
 specifiche sono riferimenti storici e non corrispondono a questi numeri.
 Gli stati descrivono il lavoro risultante, non autorizzano SQL, migrazioni,
-refactoring o nuove feature automatiche. La roadmap non dichiara una prossima
-priorità oltre gli elementi pianificati sotto.
+refactoring o nuove feature automatiche. Il prossimo passo del perimetro
+Persona/Gruppo è registrato sotto; le altre fasi conservano il proprio stato.
 
 | Fase | Direzione | Stato |
 | --- | --- | --- |
@@ -51,6 +53,34 @@ priorità oltre gli elementi pianificati sotto.
 | 8 | Recommendation / Intelligence 2.0 | PLANNED |
 | 9 | Community | PLANNED, dopo utenti e gruppi stabili |
 | 10 | Productization | PLANNED, prima dell’apertura pubblica |
+
+## Checkpoint Persona/Gruppo — APPROVED / NOT IMPLEMENTED
+
+**16 ottobre 2026.** CURRENT RUNTIME FACT: la produzione resta v62, senza Lista
+personale, supporti distinti della candidatura o partecipanti espliciti negli
+eventi. Approvare il contratto non rende completata una feature.
+
+| Stato | Perimetro | Fonte autorevole |
+| --- | --- | --- |
+| COMPLETED | Audit runtime e review Product Grammar, transizioni, UX/IA e alternative tecniche conclusi; runtime v62 già rilasciato | [MASTER_CONTEXT](MASTER_CONTEXT.md) |
+| APPROVED / NOT IMPLEMENTED | Product Grammar e Relation & Transition Contract congelati | [INDIVIDUAL_WATCH_REWATCH](INDIVIDUAL_WATCH_REWATCH.md#target-approved--product-grammar-e-relation--transition-contract) |
+| APPROVED / NOT IMPLEMENTED | IA group-first: Persona → Lista/Visti; Gruppo → Lista/Rewatch/In programma/Together/Ricordi e strumenti esistenti; Tutti rimosso come collection primaria | [UX_NAVIGATION_MEMORIES](UX_NAVIGATION_MEMORIES.md#target-approved--ia-personagruppo) |
+| APPROVED / NOT IMPLEMENTED | Contextual UX, L'ho visto anch'io diretto, Add primary save + quick action non bloccanti, Saga contestuale | [MOVIE_CARD_DISCLOSURE](MOVIE_CARD_DISCLOSURE.md#target-approved--card-detail-e-add), [PHASE41_SAGHE](PHASE41_SAGHE.md#target-approved--saga-context-contract) |
+| APPROVED / NOT IMPLEMENTED | Alternativa B: relazioni con scope esplicito, modello ibrido e incrementale | [ARCHITECTURE_VISION](ARCHITECTURE_VISION.md#target-architecture-approved--alternativa-b) |
+| APPROVED / NOT IMPLEMENTED | Implementation Plan e refinement finale: Auth UUID, generation monotone, satisfaction minimale, lock film-centric, versioni scoped, snapshot server e Realtime invalidation | [ARCHITECTURE_VISION](ARCHITECTURE_VISION.md#target-architecture-approved--alternativa-b), [DATA_MODEL_TRANSITION](DATA_MODEL_TRANSITION.md#satisfaction-minimale--approved-technical-contract) |
+| APPROVED / NOT IMPLEMENTED | Preservazione legacy, attestazione N+V delle tre Together reali, satisfaction conservativa, autorità server e coerenza delle letture | [DATA_MODEL_TRANSITION](DATA_MODEL_TRANSITION.md#target-approved--requisiti-informativi-e-preservazione) |
+| NEXT | PHASE 1 — LOCAL FOUNDATION / CANDIDATE MIGRATION; non ancora autorizzata o iniziata, nessuna operazione live implicita | Contratti sopra |
+| FUTURE / DEFERRED | Multi-group completo, normalizzazione seen/giudizi, policy gruppi >2, cronologia personale, giudizi per evento, discovery esterna | Fasi/direzioni esistenti sotto |
+
+Questo è un incremento del core e dei confini Persona/Gruppo, non l'esecuzione
+integrale delle Fasi 4/6/7. Non crea una roadmap parallela né riapre Match Live,
+Ruota o il Core v2 frozen. Rewatch resta WORKING NAME con membership stretta,
+non la proposta «Riscoperte». La Lista personale resta distinta dalle candidature.
+
+Sequenza autorizzativa: **scelta tecnica → consolidamento docs → Implementation
+Plan → codice/database → regression → deploy controllato**. Questo checkpoint
+registra anche l'approvazione del piano e del refinement finale, senza duplicarli;
+la loro approvazione non autorizza l'avvio di Phase 1 o operazioni live.
 
 ## Fase 0 — Core film stabile
 

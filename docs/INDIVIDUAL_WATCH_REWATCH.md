@@ -25,7 +25,135 @@ HTTP PASS. Il primo uso reale positivo attestava backend/caricamento e non
 un collaudo completo di ogni flusso; le rifiniture frontend v55 furono poi
 pubblicate. Questi risultati storici restano distinti dalla baseline corrente v62.
 
-## Contratto
+## TARGET APPROVED — Product Grammar e Relation & Transition Contract
+
+**APPROVED / NOT IMPLEMENTED — 16 ottobre 2026.** Fonte autorevole della
+grammatica e delle transizioni Persona/Gruppo congelate per il perimetro corrente.
+Il runtime resta v62: Lista personale, supporti distinti della candidatura,
+suppression per ciclo e partecipanti espliciti non sono ancora implementati.
+La v62 richiede ancora rating **oppure preference** per candidare un film già
+visto dal proponente; il TARGET rimuove tale requisito. Il contratto corrente
+più sotto e i checkpoint storici non attestano l'implementazione del TARGET.
+
+Fonti complementari: [roadmap e stato](PRODUCT_ROADMAP.md),
+[IA e UX contestuale](UX_NAVIGATION_MEMORIES.md#target-approved--ia-personagruppo),
+[Add e card](MOVIE_CARD_DISCLOSURE.md#target-approved--card-detail-e-add),
+[direzione tecnica B](ARCHITECTURE_VISION.md#target-architecture-approved--alternativa-b),
+[informazioni e preservazione](DATA_MODEL_TRANSITION.md#target-approved--requisiti-informativi-e-preservazione).
+Non è un Implementation Plan né un'autorizzazione a modificare runtime o DB.
+
+### Cinque concetti, tre categorie, scope distinti
+
+| Concetto | Owner / categoria | Significato | Non implica |
+| --- | --- | --- | --- |
+| Visto personale | Persona / memoria | Film registrato nel percorso personale | Gradimento, interesse, candidatura o Together |
+| Lista personale | Persona / intenzione | Desiderio corrente di guardare o riguardare | Like, rating, candidatura, visione necessariamente individuale |
+| Lista del gruppo / candidatura | Gruppo specifico / intenzione-proposta | Candidato corrente del gruppo | Consenso unanime, interesse personale di tutti, eligibility |
+| Together | Gruppo, evento e partecipanti reali / esperienza | Visione condivisa realmente avvenuta e ripetibile | Programmazione, visto personale automatico, giudizio o nuova candidatura |
+| Giudizio | Persona oppure gruppo / valutazione | Preference, rating e review hanno forme e regole distinte | Memoria, intenzione o consenso alla visione |
+
+La Lista personale non esiste in v62. Non riutilizzare `personal_liked_*`:
+quelle preference sono gradimento. Il giudizio personale può esistere senza
+Personal Seen; rating e preference restano mutuamente esclusivi secondo il
+contratto corrente, review indipendente. Il giudizio Together resta opinione
+corrente dello specifico gruppo sul film, non voto storico per ogni evento.
+Candidare non richiede giudizio, anche se il proponente ha già visto il film.
+
+**Personal Visti != all known exposure.** Exposure è DERIVED KNOWLEDGE, non una
+sesta relazione: deriva da Personal Seen o da una Together completed con quella
+persona come partecipante reale. Together non popola i Visti personali; assenza
+dai Visti non prova che una persona non abbia mai visto il film. Membership del
+gruppo e proponente dell'evento non dimostrano partecipazione alla visione.
+
+Il modello non è una FSM esclusiva. Sono valide Lista personale + Visti,
+Lista personale + Lista gruppo, Lista personale + Together, Visti + Together,
+Rewatch + Lista gruppo e Together precedente + nuova candidatura. Una candidatura
+in un gruppo non consuma o nasconde la Lista personale, che segue la persona
+anche rispetto ad altri gruppi. **Il contesto riduce il rumore, non elimina
+relazioni vere.**
+
+### Candidatura, convergenza e precedenza del ritiro
+
+La candidatura può avere supporto autonomo da proposta esplicita e/o supporto
+derivato dalla regola di convergenza del gruppo. Nell'installazione N/V corrente,
+il film nelle due Liste personali soddisfa la regola. La politica per gruppi
+con più di due membri è DEFERRED, non una generalizzazione automatica.
+
+| Precondizione / azione | Effetto diretto | Effetto derivato e preservazione |
+| --- | --- | --- |
+| Persona aggiunge alla propria Lista | Intenzione personale corrente | Nessun visto, giudizio o proposta esplicita; eventuale convergenza |
+| Seconda Lista personale soddisfa la regola corrente | Nuova dichiarazione personale | Candidatura da nuova convergenza, salvo ritiro prevalente sul medesimo ciclo |
+| Membro propone esplicitamente | Supporto autonomo nel gruppo | Candidatura senza giudizio o intenzioni personali obbligatorie |
+| Persona ritira la propria Lista | Rimuove solo quell'intenzione | Cessa la sola candidatura derivata; una proposta autonoma può mantenerla |
+| Togli dalla Lista del gruppo | Ritira la candidatura corrente | Liste personali, memoria, eventi e giudizi preservati |
+| Nuova proposta esplicita dopo ritiro | Nuovo supporto autonomo | Ricandidatura immediatamente possibile |
+
+Il ritiro esplicito prevale sulla convergenza corrente **ininterrotta**: render,
+reload, Realtime e ricalcolo non devono reinserire il film. Non è un veto
+permanente. Un cambiamento reale di Lista personale true→false interrompe la
+convergenza; una successiva dichiarazione false→true che la ricostituisce genera
+una nuova convergenza, capace di candidare di nuovo. Ripetere un salvataggio
+equivalente non è una nuova dichiarazione. Se la candidatura ha anche una proposta
+esplicita, il solo ritiro di un interesse non elimina quel supporto; Togli dalla
+Lista ritira invece la candidatura corrente, preservando le intenzioni personali.
+
+### Memoria personale e satisfaction conservativa
+
+- Registrazione retrospettiva «L'ho visto»: crea/conferma solo la propria
+  memoria, conservando Lista personale, candidatura, giudizi e Together.
+- Nuova visione personale reale: può registrare memoria e soddisfare soltanto
+  la precisa intenzione identificata, preesistente e pertinente a quella visione.
+  È contesto di transizione, non requisito di una cronologia personale completa.
+- Correzione/rimozione del visto: cambia soltanto la dichiarazione personale;
+  non ripristina intenzioni consumate, non ricolloca il film e non cancella giudizi
+  o esperienze condivise. La rimozione del giudizio non cancella il visto.
+- Satisfaction: riguarda solo partecipanti effettivi e intenzioni pertinenti.
+  Non consumare intenzioni create dopo la visione, rinnovate per un altro rewatch
+  o appartenenti a non partecipanti. **Se la prova manca o è ambigua, preservare
+  l'intenzione.** Un timestamp di registrazione non dimostra da solo la pertinenza.
+
+### Processo del gruppo e annullo
+
+TARGET UX: **Lista → In programma → Together**. Lista mostra candidature ancora
+da scegliere; un evento attivo sposta visivamente il film in In programma senza
+modificare Liste o Visti personali. Gli eventi proposti conservano il loro stato
+di attesa: non sono esperienze concluse o consenso già acquisito.
+
+Dopo annullo dell'ultimo evento attivo, il film torna in Lista solo se rimane
+una proposta esplicita valida o una convergenza valida non soppressa. Non torna
+se la sola convergenza è cessata o la candidatura è stata ritirata. Programmare
+senza candidatura non autorizza l'annullo a inventarne una.
+
+Completion registra l'esperienza e consuma la candidatura pertinente: la medesima
+convergenza residua non deve ricrearla. Può soddisfare soltanto intenzioni secondo
+la regola conservativa sopra; non crea Personal Seen né giudizi. Retry della stessa
+completion non crea un evento e non consuma relazioni successive. Un nuovo rewatch
+Together è una nuova esperienza, distinta dal retry.
+
+### Rewatch derivato e consumatori
+
+**Rewatch è WORKING NAME**, non «Riscoperte». Nel gruppo corrente:
+Personal Seen N + Personal Seen V + nessuna Together del gruppo. Risponde a
+«Quali film conosciamo personalmente, ma questo gruppo non ha mai visto insieme?».
+Non è relazione persistente, desiderio, candidatura o pool. Un evento attivo può
+lasciare vera la membership semantica, ma il film è nascosto dalla raccolta UX
+Rewatch mentre è In programma. Together lo esclude; nuove intenzioni personali
+non fanno rientrare film già Together. Questi possono essere riproposti da
+Visti e recensioni; il nome finale è UI-level e la familiarità per gruppi >2
+resta da definire in una fase futura.
+
+Match/Ruota restano invariati: candidatura necessaria più vincoli correnti;
+Lista personale e Rewatch non alimentano direttamente i pool. Together resta
+escluso anche con ricandidatura. Sessioni, swipe, double-like, pendingMatch,
+Continua, reconcileSession, Presence e metriche non vengono ridisegnati.
+
+Recommendation è output, non relazione: consultare/ignorare un suggerimento,
+anche esterno e non persistito, non crea visto, intenzione, candidatura,
+Together o giudizio. Un'azione esplicita può farlo; la convergenza è una regola
+su dichiarazioni esplicite, non una predizione. Nuovi usi dei segnali non
+autorizzano cambiamenti al Core frozen o reinterpretazioni del gusto.
+
+## CURRENT RUNTIME FACT — contratto v62
 
 L'identità personale proviene da Supabase Auth → `app_members` → `app_person()`.
 N può modificare solo il proprio stato visto, voto e testo; V solo i propri.

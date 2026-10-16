@@ -28,6 +28,62 @@ personale completo; il judgment dell’altro utente è read-only. Together resta
 separato. Per semantica tri-state e transizioni vedere
 [PERSONAL_PREFERENCE_DB](PERSONAL_PREFERENCE_DB.md).
 
+## TARGET APPROVED — card, detail e Add
+
+**APPROVED / NOT IMPLEMENTED — 16 ottobre 2026.** Fonte del contratto contestuale
+di card/detail/Add; [IA Persona/Gruppo](UX_NAVIGATION_MEMORIES.md#target-approved--ia-personagruppo)
+e [grammatica/transizioni](INDIVIDUAL_WATCH_REWATCH.md#target-approved--product-grammar-e-relation--transition-contract)
+sono congelate. Le destinazioni Gestione e gli slot descritti nell'apertura
+CURRENT e nell'archivio sotto non attestano il nuovo comportamento.
+
+### Gerarchia per scope e superficie
+
+| Superficie | PRIMARY / CONTEXTUAL | DISCLOSURE / DETAIL |
+| --- | --- | --- |
+| Persona → Lista | Intenzione propria e azioni pertinenti, anche per rewatch | Proposta al gruppo e informazioni ulteriori |
+| Persona → Visti propri | Memoria, giudizio salvato quando presente | Correzione memoria, intenzione di rewatch e altre relazioni |
+| Persona → Visti altrui | «L'ho visto anch'io» diretto; azioni solo per la propria identità | Giudizio personale e proposta, mai requisiti per il visto |
+| Persona → Lista altrui | Consultazione; aggiunta alla propria Lista chiaramente distinta | Informazioni del film e azioni di gruppo pertinenti |
+| Gruppo → Lista | Scelta/programmazione, candidatura leggibile | Relazioni personali senza duplicarle tutte sulla card |
+| Gruppo → In programma | Stato e azioni dell'evento | Dettagli e altre relazioni |
+| Gruppo → Rewatch | Familiarità comune e proposta esplicita se pertinente | Non è desiderio o eligibility |
+| Together / Ricordi | Memoria/giudizio del gruppo oppure specifico evento | Dati personali ed editing pertinente |
+
+Non rappresentare tutte le relazioni simultaneamente. PRIMARY, CONTEXTUAL,
+DISCLOSURE, DETAIL e SYSTEM FEEDBACK rispondono al compito della superficie.
+Visto, intenzione, giudizio e candidatura devono essere distinguibili senza
+dedurli dal solo N/V o colore. I principali gesti quotidiani non restano nascosti
+in Gestione; correzioni e azioni distruttive restano separate. Nessun redesign
+globale, nuova dashboard personale o button wall è approvato.
+
+### Add: primary save e quick action
+
+**ENTRY POINT → PRIMARY ACTION → SAVE COMPLETATO → eventuali QUICK ACTION
+non bloccanti → FINE.**
+
+- Propria Persona/Lista/+ identifica il film e salva l'intenzione.
+- Propria Persona/Visti/+ identifica il film e salva memoria retrospettiva.
+- Gruppo/Lista/+ identifica il film e salva proposta esplicita a quel gruppo.
+- Ricerca generica/detail non implicano una relazione: azioni distinte per scope.
+
+Nessuna domanda preventiva obbligatoria «L'hai già visto?», nessun giudizio o
+Lista ulteriore obbligatori. Solo dopo il primary save riuscito si possono offrire
+azioni sullo stesso film, senza nuova ricerca: dopo Visti, aggiunta alla propria
+Lista e valutazione; dopo Lista personale, «L'ho già visto» se non registrato;
+dopo proposta gruppo, memoria personale se pertinente. Non mostrare azioni
+ridondanti né modificarne le relazioni se ignorate.
+
+Nel normale Group Add **non mostrare come quick action standard «Anche nella
+mia Lista»**: resta disponibile da dettaglio/personale. Le quick action non sono
+wizard o checklist permanente, non fanno parte del successo primario e non
+aprono nuove catene automaticamente. Se una quick action fallisce, il primary
+save già riuscito resta valido.
+
+Nel dettaglio possono convivere sintesi personale (memoria, Lista, giudizio) e
+del gruppo corrente (candidatura, evento, Together), con approfondimenti su
+intenzione esplicita. La candidatura di un film visto non richiede giudizio nel
+TARGET; **v62 conserva ancora il requisito rating oppure preference**.
+
 ## HISTORICAL — Fase 0.5A rilasciata in v61, inclusa in v62
 
 Evoluzione **introdotta in v61 e inclusa nella produzione v62**, Fase 0.5A: la griglia monta solo la pagina

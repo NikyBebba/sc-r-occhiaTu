@@ -136,6 +136,13 @@ nel repository e nessuna service-role frontend.
 
 ## Roadmap
 
+**TARGET APPROVED / NOT IMPLEMENTED — 16 ottobre 2026:** grammatica/transizioni
+Persona-Gruppo, IA group-first e Alternativa B ibrida sono approvate. Lista
+personale, nuovi supporti candidatura e partecipanti espliciti non sono feature
+v62. Implementation Plan e refinement finale sono approvati; NEXT PHASE 1 —
+LOCAL FOUNDATION / CANDIDATE MIGRATION, non ancora iniziata né autorizzata; fonti e
+vincoli nel [checkpoint della roadmap](docs/PRODUCT_ROADMAP.md#checkpoint-personagruppo--approved--not-implemented).
+
 Il Core v2 e il primo consumer `Cosa Guardiamo?` sono rilasciati. Le direzioni
 future e i relativi stati sono mantenuti esclusivamente in
 [PRODUCT_ROADMAP](docs/PRODUCT_ROADMAP.md) e [ARCHITECTURE_VISION](docs/ARCHITECTURE_VISION.md);

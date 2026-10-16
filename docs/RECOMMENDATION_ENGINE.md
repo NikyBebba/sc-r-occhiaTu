@@ -12,6 +12,35 @@ Checkpoint storico: STEP 3B `635f17e2b2e03c5386f0b0e446aeb3e4923ee474`, original
 STEP 3 `c0037f8b979c0ef866eba02fc191c3becf53ba28`. Model B/G4 v1 con learning
 Match è una baseline storica superata, disponibile in Git per il confronto.
 
+## TARGET APPROVED — confini Persona/Gruppo, non implementati
+
+**16 ottobre 2026.** Recommendation è output del sistema, non una sesta relazione.
+Un suggerimento può restare tale senza visto, Lista personale, candidatura,
+Together, giudizio o persistenza locale obbligatoria. Un'azione esplicita crea
+eventuali relazioni; la convergenza secondo la regola del gruppo deriva da
+dichiarazioni personali esplicite, non da predizione del Core.
+
+L'[IA approvata](UX_NAVIGATION_MEMORIES.md#target-approved--ia-personagruppo) separa
+Persona e gruppo specifico; [dominio](INDIVIDUAL_WATCH_REWATCH.md#target-approved--product-grammar-e-relation--transition-contract)
+e [direzione B](ARCHITECTURE_VISION.md#target-architecture-approved--alternativa-b)
+sono APPROVED / NOT IMPLEMENTED. Visti, exposure affidabile derivata, Liste
+personali e informazioni del gruppo potranno supportare interpretazione e
+decisione, senza trasformarli in Like o nuovi input di scoring per questo Core.
+Giudizio personale e shared restano distinti; più osservazioni non significano
+più potere decisionale. Match resta session-only e non viene assorbito.
+
+**CURRENT RUNTIME FACT:** Core v2 e consumer restano frozen/shared-list-only,
+senza Liste personali o partecipanti espliciti. Nessun cambiamento a formule,
+eligibility, signals o consumer è implementato da questa approvazione. Eventuale
+proiezione compatibile della candidatura è direzione possibile, non schema deciso.
+
+**FUTURE POSSIBILITY / DEFERRED:** selection/interpretation di contenuti noti e
+discovery anche esterna al catalogo sono capacità complementari; non sono due
+schermate o algoritmi già scelti. Fonti, retrieval e implementazione discovery
+restano differiti nella [roadmap](PRODUCT_ROADMAP.md); non richiedono relazioni
+inventate. Assenza di visione registrata non prova che il film non sia mai stato
+visto. Inferenza e fatti devono restare distinguibili nelle spiegazioni.
+
 ## HISTORICAL — T0 e separazione architetturale al checkpoint pre-consumer
 
 T0: **2026-10-13 08:30:34.517453 UTC**. Cleanup concluso manualmente dall'utente,

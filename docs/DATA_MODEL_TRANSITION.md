@@ -1,6 +1,6 @@
 # Transizione dati: film, proiezioni e legacy
 
-Stato corrente: contratti implementati e conservati nella produzione v62.
+**CURRENT RUNTIME FACT:** contratti implementati e conservati nella produzione v62.
 La verifica di transizione riportata sotto è del 13 ottobre 2026 e precede
 la release v62.
 [Baseline ufficiale e verifiche](MASTER_CONTEXT.md).
@@ -19,6 +19,109 @@ conserva serate/statistiche/recensioni, tutto chiuso a nuova apertura.
 [Contratto film/visioni](INDIVIDUAL_WATCH_REWATCH.md).
 Il modello futuro è separato in [ARCHITECTURE_VISION](ARCHITECTURE_VISION.md):
 nessuna migrazione automatica o modifica delle SQL storiche.
+
+## TARGET APPROVED — requisiti informativi e preservazione
+
+**APPROVED / NOT IMPLEMENTED — 16 ottobre 2026.** Fonte autorevole dei requisiti
+informativi, del trattamento legacy e dei vincoli di transizione tecnica del
+target Persona/Gruppo. [Grammatica/transizioni](INDIVIDUAL_WATCH_REWATCH.md#target-approved--product-grammar-e-relation--transition-contract)
+e [Alternativa B](ARCHITECTURE_VISION.md#target-architecture-approved--alternativa-b)
+e il relativo Implementation Plan/refinement sono approvati, non implementati.
+Questo documento registra i vincoli; non definisce SQL o nomi pubblici definitivi
+di schema/API, né attesta migration o modifiche RLS applicate.
+
+### DERIVED STATE e PERSISTED INFORMATION
+
+| Informazione | Vincolo approvato |
+| --- | --- |
+| Lista personale | MUST HAVE PERSISTED INFORMATION: dichiarazione autonoma persona-film |
+| Identità/ciclo dell'intenzione | MUST HAVE PERSISTED INFORMATION: generation monotona per distinguere ritiro, rinnovo e replay |
+| Proposta esplicita | MUST HAVE PERSISTED INFORMATION: supporto autonomo rispetto alla convergenza |
+| Ritiro/suppression e consumo | MUST HAVE PERSISTED INFORMATION riferita al ciclo pertinente, non veto permanente |
+| Partecipanti reali | MUST HAVE PERSISTED INFORMATION per eventi nuovi, senza deduzione dalla sola membership |
+| Satisfaction/retry | MUST HAVE PERSISTED INFORMATION sufficiente a identificare intenzione e operazione/evento pertinenti |
+| Convergenza corrente | DERIVED quando deterministica da Liste autorevoli e regola del gruppo |
+| Candidatura effettiva | DERIVED se ricostruibile dai supporti autorevoli; eventuale proiezione non è seconda fonte scrivibile |
+| Visibilità Lista / programmazione sospesa | DERIVED da candidatura ed eventi attivi; nessun nuovo stato suspended obbligatorio |
+| Rewatch, exposure ed eligibility | DERIVED secondo i contratti di dominio, non nuove relazioni |
+
+Sono requisiti informativi, non un elenco di future tabelle o colonne. I nomi
+candidati nel piano non sono API pubbliche definitive. Atomicità
+non dimostra da sola il momento reale della visione né la pertinenza di una
+intenzione. `completed_at` è registrazione della conclusione, non prova sufficiente
+che un'intenzione attiva sia precedente alla visione.
+
+### Satisfaction minimale — APPROVED TECHNICAL CONTRACT
+
+- Scheduled Together: una programmazione effettivamente futura può acquisire
+  riferimenti alle precise generation pertinenti. Completion può soddisfare
+  solo quelle ancora valide, attive e appartenenti a partecipanti reali.
+  Programmazioni retrodatate/ambigue non acquisiscono riferimenti automatici;
+  modifiche successive a data/ora li invalidano conservativamente, senza
+  catturare generation nuove.
+- Complete-now / unscheduled Together: nessuna satisfaction automatica;
+  esperienza e partecipanti vengono registrati, Liste personali preservate.
+- Nuova visione personale: satisfaction soltanto della generation esplicitamente
+  riferita dal comando come pertinente, con verifica server; dubbio → preservare.
+- Memoria retrospettiva «L'ho visto»: nessuna satisfaction.
+
+Bastano riferimenti minimi serata-persona-generation e all'operazione idempotente;
+non servono `viewing_contexts` o `viewing_intention_links` generici, intervalli
+reali obbligatori o una cronologia completa delle visioni personali.
+
+### Autorità server e letture coerenti
+
+Le transizioni critiche sono server-authoritative e intent-based: il client
+esprime aggiungi/rimuovi/proponi/ritira/programma/annulla/completa, non decide
+convergenza, suppression, consumption o satisfaction. Toggle ciechi non bastano
+come contratto target: retry, client stale e concorrenza possono invertirne
+l'esito. Queste parole non definiscono nomi o firme di API.
+
+Realtime distribuisce e riallinea stato autorevole; non crea relazioni e non
+riattiva candidature dal render. Il runtime v62 compone letture separate:
+con nuove relazioni, uno snapshot con revisioni incompatibili non può essere
+trattato come definitivamente coerente. **TARGET APPROVED:** snapshot coerente
+composto sul server, versioni scoped e invalidation/resync Realtime. Nessun
+contatore globale è assunto come ordine dei commit. Le transizioni film-centriche
+usano lock sul film/aggregati pertinenti, multipli in ordine stabile; nessun mutex
+globale. Queste scelte non descrivono il runtime v62.
+
+Quel piano deve coprire atomicità delle transizioni correlate, idempotenza,
+client obsoleti, singola fonte autorevole e ownership. Una persona non può
+modificare le relazioni personali altrui; un effetto di completion sulle
+intenzioni è limitato a partecipanti e intenzioni dimostrabilmente pertinenti,
+non un'autorizzazione generale. Una quick action fallita non annulla il primary
+save già riuscito. Nessun successo client autorevole per transizioni critiche.
+
+### Legacy data contract approvato
+
+| Dato | Trattamento futuro approvato, non ancora eseguito |
+| --- | --- |
+| Lista personale | Parte vuota; non inferire da seen, rating, preference, in_shared_list o Together |
+| in_shared_list=true esistente | Preservare come candidatura valida del gruppo corrente con supporto autonomo preesistente |
+| Autore/origine legacy | Non inventare autore dell'ultima proposta, Lista personale o convergenza storica |
+| Seen e giudizi | Preservare flag, rating NULL/zero/decimali, review e preference reali |
+| Together reali | Preservare eventi e dettagli, senza fondere rewatch o inventare date |
+| Tre completed storiche reali | Scary Movie, Detachment - Il distacco e Digger: il Product Owner attesta Nicholas e Valeria come partecipanti reali a tutte e tre |
+| Partecipanti futuri | Espliciti; l'attestazione dei tre eventi non è regola generale evento=tutti i membri |
+| Suppression e satisfaction storiche | Non inventare |
+
+L'attestazione del Product Owner è una decisione di attribuzione per la futura
+transizione, non significa che v62 registri già i partecipanti esplicitamente.
+Conteggi e identità del dataset vanno confrontati nel futuro gate autorizzato;
+questa documentazione non ripete un audit live.
+
+Le **32 movie_nights cancelled storiche di test sono già state eliminate a T0**,
+come registra [MASTER_CONTEXT](MASTER_CONTEXT.md#data-cleanup-pre-recommendation--concluso--baseline-t0).
+Non sono cleanup pendente, non pianificare una seconda cancellazione e non
+ricostruirle. Future cancelled sono nuovi dati da valutare, non test per default.
+
+**Relationless != DELETE.** Rimuovere Tutti dall'IA target non ripulisce il
+catalogo. Un film senza Lista personale, seen, candidatura, Together o giudizio
+può restare conosciuto e recuperabile da ricerca/dettaglio. Le delete guards
+dovranno considerare nuove relazioni e ownership; nessun auto-delete è approvato.
+Backup, rollback dopo uso reale e compatibilità dei client devono preservare
+le informazioni nuove: la sola proiezione legacy non le ricostruisce.
 
 Le sezioni seguenti sono l’archivio dei cicli v48/v47 del 5 ottobre: i mirror,
 i privilegi e i fallback descritti nella prima fase non sono il modello attuale.

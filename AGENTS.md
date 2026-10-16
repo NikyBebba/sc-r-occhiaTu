@@ -9,6 +9,31 @@ storiche del master context descrivono cicli precedenti, non lo stato finale.
 Per modelli e flussi specifici consultare anche le specifiche Phase 22/23/38/41.
 Vincoli, sicurezza e contratto Match di questo file restano applicabili.
 
+## TARGET APPROVED — Persona/Gruppo, non implementato
+
+Checkpoint 16 ottobre 2026: Product Grammar, transizioni, Contextual UX e IA
+congelati; Alternativa B (relazioni con scope esplicito, modello ibrido) scelta.
+**CURRENT resta v62:** nessuna Lista personale, nuovi supporti/cicli candidatura
+o partecipanti espliciti già implementati. Non riaprire i contratti per adattarli
+al runtime: [dominio](docs/INDIVIDUAL_WATCH_REWATCH.md#target-approved--product-grammar-e-relation--transition-contract),
+[IA](docs/UX_NAVIGATION_MEMORIES.md#target-approved--ia-personagruppo),
+[tecnica](docs/ARCHITECTURE_VISION.md#target-architecture-approved--alternativa-b),
+[dati](docs/DATA_MODEL_TRANSITION.md#target-approved--requisiti-informativi-e-preservazione).
+La [roadmap unica](docs/PRODUCT_ROADMAP.md#checkpoint-personagruppo--approved--not-implemented)
+registra Implementation Plan/refinement approvati e NEXT PHASE 1 — LOCAL
+FOUNDATION / CANDIDATE MIGRATION, non ancora autorizzata o iniziata. Auth UUID,
+satisfaction minimale, lock film-centric e versioni scoped sono contratti target;
+nessuna migration, codice o deploy impliciti nell'approvazione.
+
+Preservare candidature legacy con supporto preesistente, senza inventare Liste
+personali o autore; Lista personale nuova vuota. Il Product Owner attesta N+V
+partecipanti alle tre completed reali storiche, non a ogni evento futuro.
+Cleanup delle 32 cancelled di test già concluso a T0: non ripeterlo. Satisfaction
+solo su intenzione identificata, preesistente e pertinente; dubbio → preservare.
+Transizioni critiche server-authoritative e intent-based, Realtime solo resync;
+snapshot server coerente e invalidation con versioni scoped nel target.
+Match/Ruota invariati.
+
 ## Stato corrente v62 production — IMPLEMENTED + RELEASED
 
 Release corrente: commit `a7d1f827c71e60c00aa72d6cf61f69642c80fc91`, cache
@@ -370,7 +395,9 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
   scheduled_date, scheduled_time, snack, review_text, review_by, watched_by,
   genre, proposed_by, night_confirmed, surprise_by, tmdb_id, collection_id,
   collection_name, cinema_watchlist, seen_rating_n, seen_rating_v,
-  seen_rating_together, review_text_n, review_text_v, review_text_together,
+  seen_rating_together, personal_liked_n, personal_liked_v,
+  personal_liked_updated_at_n, personal_liked_updated_at_v,
+  review_text_n, review_text_v, review_text_together,
   genres, release_year, director, overview, cast_names, created_at,
   seen_n, seen_v, in_shared_list)`
   - `seen_n/v`: stato personale del proprietario Auth; `in_shared_list`: candidatura indipendente. Together deriva soltanto dai completed; Rewatch = seen_n && seen_v && !together.
@@ -385,6 +412,10 @@ Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
   - Testi N/V/condiviso distinti e facoltativi; stringa vuota esplicita rimuove
     solo il testo, preservando voto e dati degli altri autori. Testo omesso nel
     livello dati conserva la recensione; non far riapparire il mirror legacy.
+  - `personal_liked_n/v`: CURRENT v62, gradimento TRUE/FALSE/NULL, non intenzione.
+    Timestamp associati autorevoli server; rating personale valido domina e una
+    sua operazione intenzionale cancella preference/timestamp, senza resurrezione
+    alla rimozione. Review indipendente. Nessuna Lista personale già live.
   - `cinema_watchlist` esclude da Ruota e Match; libreria e programmazione restano.
     Due viste separate Streaming/Cinema (Streaming iniziale), switch senza dropdown;
     Azzera filtri conserva la vista, card cinema ambrate e azioni Oggi/Programma uniformi.
