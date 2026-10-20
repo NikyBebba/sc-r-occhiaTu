@@ -1,8 +1,17 @@
 'use strict';
 // Shadow orchestration. All I/O, clocks and scheduling are injected.
-const Core = require('./core');
-const { createProjection } = require('./projection');
-const { createCacheAdapter } = require('./cache');
+const SnapshotController = (() => {
+const commonJS = typeof module !== 'undefined' && !!module.exports;
+// Lexical redeclaration rejects duplicate scripts; reject object namespaces too.
+if (!commonJS && 'SnapshotController' in globalThis) throw new TypeError('SnapshotController namespace already installed');
+const Core = commonJS ? require('./core') : (typeof SnapshotCore !== 'undefined' ? SnapshotCore : null);
+const projectionModule = commonJS ? require('./projection') : (typeof SnapshotProjection !== 'undefined' ? SnapshotProjection : null);
+const cacheModule = commonJS ? require('./cache') : (typeof SnapshotCache !== 'undefined' ? SnapshotCache : null);
+if (!Core || typeof Core.evaluateAcceptance !== 'function') throw new TypeError('SnapshotController requires SnapshotCore');
+if (!projectionModule || typeof projectionModule.createProjection !== 'function') throw new TypeError('SnapshotController requires SnapshotProjection');
+if (!cacheModule || typeof cacheModule.createCacheAdapter !== 'function') throw new TypeError('SnapshotController requires SnapshotCache');
+const { createProjection } = projectionModule;
+const { createCacheAdapter } = cacheModule;
 const freeze = x => {
   if (x && typeof x === 'object' && !Object.isFrozen(x)) {
     for (const v of Object.values(x)) freeze(v);
@@ -20,6 +29,43 @@ function createShadowController({ provider, clock, scheduler, storage = null, ti
   let state = freeze({ context: null, status: 'UNINITIALIZED', view: null, pending: pendingEmpty(),
     freshness: { validatedOnline: false, temporalCurrent: false }, diagnostics: [] });
   let current = null, epoch = -1, disposed = false;
+  const listeners = new Set();
+  let notifying = false, transitionDepth = 0, clearRequested = false;
+  function assertNotPublishing() {
+    if (notifying) throw new TypeError('Controller mutation during publication is forbidden');
+  }
+  function notify(before, cleared) {
+    const after = state;
+    let type = null;
+    if (cleared) type = 'VIEW_CLEARED';
+    else if (after.view !== before.view && after.view !== null) type = 'VIEW_COMMITTED';
+    else if (before.context !== after.context || before.status !== after.status ||
+      before.pending.thresholds !== after.pending.thresholds || before.pending.requestIds.join('|') !== after.pending.requestIds.join('|') ||
+      before.freshness.validatedOnline !== after.freshness.validatedOnline ||
+      before.freshness.temporalCurrent !== after.freshness.temporalCurrent) type = 'STATUS_CHANGED';
+    if (!type || disposed) return;
+    const event = freeze({ type, contextEpoch: after.context?.contextEpoch ?? epoch, state: after });
+    // Independent registrations; additions wait until the next pass, removals
+    // take effect immediately, including while another listener is running.
+    const pass = [...listeners];
+    notifying = true;
+    try {
+      for (const registration of pass) if (listeners.has(registration)) {
+        try { registration.listener(event); }
+        catch (_) { /* An observer cannot roll back or reclassify committed state. */ }
+      }
+    } finally { notifying = false; }
+  }
+  function transition(fn) {
+    assertNotPublishing();
+    const before = state, outer = transitionDepth++ === 0;
+    if (outer) clearRequested = false;
+    try { return fn(); }
+    finally {
+      transitionDepth--;
+      if (outer) notify(before, clearRequested);
+    }
+  }
   // Admission remains occupied until the physical promise settles, including timeout.
   const flights = new Map();
   const identity = c => c.callerId + '|' + c.groupId + '|' + c.contractVersion;
@@ -46,15 +92,16 @@ function createShadowController({ provider, clock, scheduler, storage = null, ti
   }
   function invalidate(status, code) {
     const ctx = current; stopTimers(ctx); ctx.enabled = false; ctx.dirty = false;
+    clearRequested = true;
     publish({ status, view: null, pending: pendingEmpty(), freshness: { validatedOnline: false, temporalCurrent: false } }, { code });
   }
   function retry(ctx) {
     if (!valid(ctx) || ctx.retry !== null || ctx.attempt >= 2) return;
     const delay = [250, 1000][ctx.attempt++];
-    ctx.retry = scheduler.scheduleAt(plus(now(), delay), () => {
+    ctx.retry = scheduler.scheduleAt(plus(now(), delay), () => transition(() => {
       ctx.retry = null;
       if (valid(ctx)) refresh('RETRY', false);
-    });
+    }));
   }
   function failed(ctx, status, code, retryable) {
     if (!valid(ctx)) return;
@@ -64,13 +111,13 @@ function createShadowController({ provider, clock, scheduler, storage = null, ti
   function armTemporal(ctx, view) {
     cancel(ctx, 'temporal');
     const deadline = view.root.snapshot.temporal.next_temporal_invalidation_at;
-    const task = () => {
+    const task = () => transition(() => {
       ctx.temporal = null;
       if (!valid(ctx) || state.view !== view) return;
       if (now() < deadline) { ctx.temporal = scheduler.scheduleAt(deadline, task); return; }
       publish({ status: 'STALE', freshness: { ...state.freshness, temporalCurrent: false } }, { code: 'TEMPORAL_EXPIRED' });
       refresh('TEMPORAL', false);
-    };
+    });
     if (now() < deadline) ctx.temporal = scheduler.scheduleAt(deadline, task);
     // Expired cache stays stale; it does not arm an immediate repeating timer.
   }
@@ -134,19 +181,19 @@ function createShadowController({ provider, clock, scheduler, storage = null, ti
     ctx.flight = ticket;
     flights.set(key, ticket);
     publish({ status: state.view ? state.status : 'LOADING' }, { code: 'READ', reason, requestSequence });
-    ticket.timeout = scheduler.scheduleAt(plus(now(), timeoutMs), () => {
+    ticket.timeout = scheduler.scheduleAt(plus(now(), timeoutMs), () => transition(() => {
       ticket.timeout = null;
       if (!valid(ctx)) return;
       ticket.expired = true;
       failed(ctx, state.view ? 'DEGRADED' : 'UNINITIALIZED', 'TIMEOUT', false);
-    });
+    }));
     // Invoke asynchronously so a synchronous provider throw is a transport failure.
     Promise.resolve().then(() => provider.read({ ...ctx.context, requestSequence, reason })).then(
-      raw => applyResponse(ctx, ticket, raw),
-      () => { if (valid(ctx) && !ticket.expired) failed(ctx, state.view ? 'DEGRADED' : 'UNINITIALIZED', 'TRANSPORT_FAILURE', true); }
-    ).catch(() => {
+      raw => transition(() => applyResponse(ctx, ticket, raw)),
+      () => transition(() => { if (valid(ctx) && !ticket.expired) failed(ctx, state.view ? 'DEGRADED' : 'UNINITIALIZED', 'TRANSPORT_FAILURE', true); })
+    ).catch(() => transition(() => {
       if (valid(ctx) && !ticket.expired) failed(ctx, 'CONTRACT_INVALID', 'ORCHESTRATION_ERROR', false);
-    }).finally(() => {
+    })).finally(() => transition(() => {
       if (ticket.timeout !== null) scheduler.cancel(ticket.timeout);
       if (ctx.flight === ticket) ctx.flight = null;
       if (flights.get(key) === ticket) flights.delete(key);
@@ -155,10 +202,11 @@ function createShadowController({ provider, clock, scheduler, storage = null, ti
       if (active.dirty) {
         active.dirty = false; refresh('DIRTY_FOLLOWUP', false);
       } else if (active === ctx && ticket.expired) retry(ctx);
-    });
+    }));
     return publicTicket;
   }
   function clearContext(reason = 'CLEARED') {
+    clearRequested = state.context !== null || state.view !== null;
     if (current) { stopTimers(current); current.enabled = false; current.dirty = false; }
     current = null;
     publish({ context: null, status: 'UNINITIALIZED', view: null, pending: pendingEmpty(),
@@ -166,41 +214,68 @@ function createShadowController({ provider, clock, scheduler, storage = null, ti
   }
   return Object.freeze({
     getState: () => state,
-    requestRefresh(reason = 'MANUAL') { return refresh(reason, !['RETRY', 'DIRTY_FOLLOWUP', 'TEMPORAL'].includes(reason)); },
+    subscribe(listener) {
+      if (typeof listener !== 'function') throw new TypeError('Publication listener must be a function');
+      if (disposed) throw new TypeError('Disposed controller');
+      const registration = { listener };
+      listeners.add(registration);
+      return () => { listeners.delete(registration); };
+    },
+    requestRefresh(reason = 'MANUAL') {
+      assertNotPublishing();
+      return transition(() => refresh(reason, !['RETRY', 'DIRTY_FOLLOWUP', 'TEMPORAL'].includes(reason)));
+    },
     setContext(input) {
+      assertNotPublishing();
       if (disposed) throw new TypeError('Disposed controller');
       const checked = Core.createContext(input);
       if (!checked.ok) throw new TypeError('Invalid context');
-      clearContext('CONTEXT_SWITCH');
-      epoch = Math.max(epoch + 1, checked.value.contextEpoch);
-      if (!Number.isSafeInteger(epoch)) throw new RangeError('Context epoch exhausted');
-      const context = freeze({ ...checked.value, contextEpoch: epoch });
-      current = { context, enabled: true, dirty: false, sequence: 0, attempt: 0, temporal: null, retry: null, flight: null };
-      publish({ context });
-      if (cache) {
-        const loaded = cache.load(context);
-        if (loaded.kind === 'HIT') {
-          const projection = createProjection(loaded.root);
-          const view = freeze({ root: loaded.root, source: 'CACHE', projection, selectors: projection.selectors });
-          publish({ view, status: 'STALE' }, { code: 'CACHE_HIT' });
-          armTemporal(current, view);
-        } else if (loaded.kind === 'REJECTED') publish({}, { code: 'CACHE_REJECTED' });
-      }
-      return context;
+      // Publish the clear boundary before installing any next-context view.
+      transition(() => clearContext('CONTEXT_SWITCH'));
+      return transition(() => {
+        epoch = Math.max(epoch + 1, checked.value.contextEpoch);
+        if (!Number.isSafeInteger(epoch)) throw new RangeError('Context epoch exhausted');
+        const context = freeze({ ...checked.value, contextEpoch: epoch });
+        current = { context, enabled: true, dirty: false, sequence: 0, attempt: 0, temporal: null, retry: null, flight: null };
+        publish({ context });
+        if (cache) {
+          const loaded = cache.load(context);
+          if (loaded.kind === 'HIT') {
+            const projection = createProjection(loaded.root);
+            const view = freeze({ root: loaded.root, source: 'CACHE', projection, selectors: projection.selectors });
+            publish({ view, status: 'STALE' }, { code: 'CACHE_HIT' });
+            armTemporal(current, view);
+          } else if (loaded.kind === 'REJECTED') publish({}, { code: 'CACHE_REJECTED' });
+        }
+        return context;
+      });
     },
-    clearContext,
+    clearContext(reason) {
+      assertNotPublishing();
+      if (!disposed) transition(() => clearContext(reason));
+    },
     requireVersions({ requestId, affectedVersions }) {
-      if (!current || !valid(current)) throw new TypeError('Active verified context required');
-      if (!Core.validateUUID(requestId).ok) throw new TypeError('Canonical request UUID required');
-      const normalized = Core.normalizeAffectedVersions(state.context, affectedVersions);
-      if (!normalized.ok) throw new TypeError('Invalid affected versions');
-      const merged = state.pending.thresholds === null ? normalized : Core.mergeThresholds(state.pending.thresholds, normalized.value);
-      if (!merged.ok) throw new TypeError('Invalid threshold context');
-      const pending = freeze({ thresholds: merged.value, requestIds: [...new Set([...state.pending.requestIds, requestId])].sort() });
-      publish({ pending, status: state.view ? 'STALE' : state.status });
-      return refresh('COMMAND', true);
+      assertNotPublishing();
+      return transition(() => {
+        if (!current || !valid(current)) throw new TypeError('Active verified context required');
+        if (!Core.validateUUID(requestId).ok) throw new TypeError('Canonical request UUID required');
+        const normalized = Core.normalizeAffectedVersions(state.context, affectedVersions);
+        if (!normalized.ok) throw new TypeError('Invalid affected versions');
+        const merged = state.pending.thresholds === null ? normalized : Core.mergeThresholds(state.pending.thresholds, normalized.value);
+        if (!merged.ok) throw new TypeError('Invalid threshold context');
+        const pending = freeze({ thresholds: merged.value, requestIds: [...new Set([...state.pending.requestIds, requestId])].sort() });
+        publish({ pending, status: state.view ? 'STALE' : state.status });
+        return refresh('COMMAND', true);
+      });
     },
-    dispose() { clearContext('DISPOSED'); disposed = true; }
+    dispose() {
+      assertNotPublishing();
+      if (disposed) return;
+      try { transition(() => clearContext('DISPOSED')); }
+      finally { disposed = true; listeners.clear(); }
+    }
   });
 }
-module.exports = Object.freeze({ createShadowController });
+return Object.freeze({ createShadowController });
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = SnapshotController;

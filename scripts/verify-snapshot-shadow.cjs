@@ -33,7 +33,7 @@ function storage() {
   return { values, writes, set fail(x) { fail = x; }, getItem(k) { return values.get(k) ?? null; },
     setItem(k, v) { if (fail) throw Error('Synthetic quota'); values.set(k, v); writes.push([k, v]); }, removeItem(k) { values.delete(k); } };
 }
-function harness({ cached = null, store = storage(), timeoutMs = 10000 } = {}) {
+function harness({ cached = null, store = storage(), timeoutMs = 10000, onController = null } = {}) {
   let instant = AT, next = 0;
   const tasks = new Map(), reads = [];
   const clock = { nowInstant: () => instant };
@@ -41,6 +41,7 @@ function harness({ cached = null, store = storage(), timeoutMs = 10000 } = {}) {
   const provider = { read(args) { return new Promise((resolve, reject) => reads.push({ args, resolve, reject })); } };
   if (cached) { assert(createCacheAdapter(store).write(root(cached), AT).ok); store.writes.length = 0; }
   const controller = createShadowController({ provider, clock, scheduler, storage: store, timeoutMs });
+  if (onController) onController(controller);
   controller.setContext(F.context());
   const h = { controller, reads, tasks, store, clock, scheduler,
     async start(reason = 'INITIAL') { const t = controller.requestRefresh(reason); await drain(); return t; },
@@ -451,7 +452,118 @@ async function main() {
   await test('I03', 'controller construction performs no injected I/O or implicit clock read',()=>{
     let accesses=0;const trap=()=>{accesses++;throw Error('Unrequested dependency');};
     const c=createShadowController({provider:{read:trap},clock:{nowInstant:trap},scheduler:{scheduleAt:trap,cancel:trap},storage:{getItem:trap,setItem:trap,removeItem:trap}});
-    assert.equal(c.getState().view,null);assert.equal(accesses,0);assert.deepEqual(Object.keys(c).sort(),['getState','requestRefresh','setContext','clearContext','requireVersions','dispose'].sort());
+    assert.equal(c.getState().view,null);assert.equal(accesses,0);assert.deepEqual(Object.keys(c).sort(),['getState','subscribe','requestRefresh','setContext','clearContext','requireVersions','dispose'].sort());
+  });
+  await test('U01', 'subscription validation, no implicit event, independent duplicate registrations',async()=>{
+    const h=harness(),events=[],listener=e=>events.push(e);
+    for(const value of [null,{},1,'listener'])assert.throws(()=>h.controller.subscribe(value),TypeError);
+    const off1=h.controller.subscribe(listener),off2=h.controller.subscribe(listener);assert.equal(events.length,0);
+    await h.online();assert.equal(events.filter(e=>e.type==='VIEW_COMMITTED').length,2);
+    off1();off1();events.length=0;await h.start('MANUAL');await h.resolve();assert.equal(events.filter(e=>e.type==='VIEW_COMMITTED').length,1);
+    off2();events.length=0;await h.start('MANUAL');await h.resolve();assert.equal(events.length,0);
+  });
+  await test('U02', 'online commit has frozen envelope and atomic root/projection/selectors/pending',async()=>{
+    const h=harness(),commits=[];h.controller.subscribe(e=>{if(e.type==='VIEW_COMMITTED')commits.push(e);});
+    h.controller.requireVersions({requestId:uid(850),affectedVersions:[affected()]});await drain();await h.resolve(versioned());
+    assert.equal(commits.length,1);const e=commits[0];frozenTree(e);assert.strictEqual(e.state,h.state());
+    assert.equal(e.contextEpoch,h.state().context.contextEpoch);assert.equal(e.state.view.source,'ONLINE');
+    assert.strictEqual(e.state.view.root.context,e.state.view.projection.context);assert.strictEqual(e.state.view.selectors,e.state.view.projection.selectors);
+    assert.equal(e.state.pending.thresholds,null);assert.deepEqual(e.state.pending.requestIds,[]);
+    assert.throws(()=>{e.type='STATUS_CHANGED';},TypeError);assert.throws(()=>{e.state.view.root.snapshot.catalog.length=0;},TypeError);
+  });
+  await test('U03', 'cache bootstrap commits CACHE stale and online acceptance commits ONLINE',async()=>{
+    const events=[],h=harness({cached:versioned(),onController:c=>c.subscribe(e=>events.push(e))});
+    const cacheEvents=events.filter(e=>e.type==='VIEW_COMMITTED');assert.equal(cacheEvents.length,1);
+    assert.equal(cacheEvents[0].state.view.source,'CACHE');assert.equal(cacheEvents[0].state.status,'STALE');assert.equal(cacheEvents[0].state.freshness.validatedOnline,false);
+    assert(!Object.hasOwn(cacheEvents[0].state.view.root,'acceptance'));
+    h.controller.requireVersions({requestId:uid(851),affectedVersions:[affected()]});await drain();assert.equal(h.state().pending.requestIds.length,1);
+    await h.resolve(versioned());assert.deepEqual(events.filter(e=>e.type==='VIEW_COMMITTED').map(e=>e.state.view.source),['CACHE','ONLINE']);
+  });
+  await test('U04', 'status changes remain distinct from domain commits',async()=>{
+    const h=harness(),events=[];h.controller.subscribe(e=>events.push(e));await h.start();
+    assert.deepEqual(events.map(e=>e.type),['STATUS_CHANGED']);assert.equal(events[0].state.status,'LOADING');await h.resolve();
+    assert.deepEqual(events.map(e=>e.type),['STATUS_CHANGED','VIEW_COMMITTED']);
+    await h.advance(Date.parse(NEXT)-Date.parse(AT));assert.equal(events.filter(e=>e.type==='VIEW_COMMITTED').length,1);assert(events.some(e=>e.type==='STATUS_CHANGED'&&e.state.status==='STALE'));
+  });
+  await test('U05', 'malformed/regressed/behind-threshold candidates publish no commit',async()=>{
+    for(const mode of ['malformed','regressed','threshold']) {
+      const h=harness(),events=[];await h.online(versioned());h.controller.subscribe(e=>events.push(e));
+      if(mode==='threshold')h.controller.requireVersions({requestId:uid(852),affectedVersions:[affected('6')]});else await h.start('MANUAL');
+      await drain();await h.resolve(mode==='malformed'?{}:versioned('4'));assert.equal(events.filter(e=>e.type==='VIEW_COMMITTED').length,0);
+    }
+  });
+  await test('U06', 'cache persistence success/failure never duplicates commit',async()=>{
+    for(const fail of [false,true]) {
+      const h=harness(),events=[];h.store.fail=fail;h.controller.subscribe(e=>events.push(e));await h.online();
+      assert.equal(events.filter(e=>e.type==='VIEW_COMMITTED').length,1);assert.equal(events.length,2);
+      if(fail)assert(events[1].state.diagnostics.some(d=>d.code==='CACHE_WRITE_FAILED'));
+    }
+  });
+  await test('U07', 'clear boundary exposes no prior private view and retains cleared epoch',async()=>{
+    const h=harness();await h.online();const epoch=h.state().context.contextEpoch,events=[];h.controller.subscribe(e=>events.push(e));
+    h.controller.clearContext();assert.equal(events.length,1);assert.equal(events[0].type,'VIEW_CLEARED');assert.equal(events[0].contextEpoch,epoch);
+    assert.equal(events[0].state.context,null);assert.equal(events[0].state.view,null);assert.deepEqual(events[0].state.pending.requestIds,[]);
+  });
+  await test('U08', 'auth invalidation publishes cleared view, never old sensitive bundle',async()=>{
+    const h=harness();await h.online();const events=[];h.controller.subscribe(e=>events.push(e));await h.start();await h.resolve(F.serverError('UNAUTHENTICATED'));
+    const clear=events.filter(e=>e.type==='VIEW_CLEARED');assert.equal(clear.length,1);assert.equal(clear[0].state.view,null);assert.equal(clear[0].state.status,'AUTH_INVALID');
+    assert.equal(events.filter(e=>e.type==='VIEW_COMMITTED').length,0);
+  });
+  await test('U09', 'listener exceptions neither propagate nor reclassify accepted state',async()=>{
+    const h=harness(),events=[];h.controller.subscribe(()=>{throw Error('Synthetic observer failure');});h.controller.subscribe(e=>events.push(e));await h.online();
+    assert.equal(h.state().status,'READY');assert.equal(events.filter(e=>e.type==='VIEW_COMMITTED').length,1);assert(!h.state().diagnostics.some(d=>d.code==='ORCHESTRATION_ERROR'));
+  });
+  await test('U10', 'all mutating APIs explicitly reject synchronous reentrancy',async()=>{
+    const h=harness(),errors=[];h.controller.subscribe(e=>{
+      if(e.type!=='VIEW_COMMITTED')return;
+      const before=h.state();for(const call of [()=>h.controller.requestRefresh(),()=>h.controller.setContext(F.context()),()=>h.controller.clearContext(),
+        ()=>h.controller.requireVersions({requestId:uid(853),affectedVersions:[]}),()=>h.controller.dispose()]) {
+        assert.throws(call,/mutation during publication/);errors.push(true);assert.strictEqual(h.state(),before);
+      }
+    });await h.online();assert.equal(errors.length,5);assert.equal(h.reads.length,1);
+  });
+  await test('U11', 'unsubscribe during notification skips removed listener; additions wait next pass',async()=>{
+    const h=harness(),calls=[];let offSecond,offFirst;
+    offFirst=h.controller.subscribe(e=>{if(e.type==='VIEW_COMMITTED'){calls.push('first');offSecond();h.controller.subscribe(x=>{if(x.type==='VIEW_COMMITTED')calls.push('added');});offFirst();}});
+    offSecond=h.controller.subscribe(e=>{if(e.type==='VIEW_COMMITTED')calls.push('second');});
+    await h.online();assert.deepEqual(calls,['first']);await h.start();await h.resolve();assert.deepEqual(calls,['first','added']);
+  });
+  await test('U12', 'late old-context results and finally publish nothing into new context',async()=>{
+    const h=harness(),events=[];await h.start();h.controller.subscribe(e=>events.push(e));const nextG=uid(3200);
+    h.controller.setContext(F.context({groupId:nextG}));await h.start();const s=F.relationless();s.selected_group.group_id=nextG;s.coverage.group_id=nextG;
+    await h.resolve(s,1);const n=events.length,state=h.state();await h.resolve(F.relationless(),0);assert.equal(events.length,n);assert.strictEqual(h.state(),state);
+    assert.equal(events.filter(e=>e.type==='VIEW_COMMITTED').length,1);assert.equal(events.find(e=>e.type==='VIEW_COMMITTED').state.context.groupId,nextG);
+  });
+  await test('U13', 'context switch publishes clear before next-context cache commit',async()=>{
+    const h=harness({cached:versioned()}),events=[];h.controller.subscribe(e=>events.push(e));h.controller.setContext(F.context());
+    assert.deepEqual(events.map(e=>e.type),['VIEW_CLEARED','VIEW_COMMITTED']);assert.equal(events[0].state.view,null);
+    assert.equal(events[1].state.view.source,'CACHE');assert(events[1].contextEpoch>events[0].contextEpoch);
+  });
+  await test('U14', 'dispose clears once and suppresses every late publication',async()=>{
+    const h=harness(),events=[];await h.online();await h.start();const off=h.controller.subscribe(e=>events.push(e));h.controller.dispose();
+    assert.deepEqual(events.map(e=>e.type),['VIEW_CLEARED']);assert.equal(events[0].state.view,null);const state=h.state();
+    off();off();h.controller.dispose();h.controller.clearContext();h.controller.requestRefresh();await h.resolve();await h.advance(100000);
+    assert.equal(events.length,1);assert.strictEqual(h.state(),state);assert.throws(()=>h.controller.subscribe(()=>{}),/Disposed/);
+  });
+  await test('U15', 'dirty coalescing still commits exactly once per accepted read',async()=>{
+    const h=harness(),commits=[];h.controller.subscribe(e=>{if(e.type==='VIEW_COMMITTED')commits.push(e);});
+    await h.start();h.controller.requestRefresh();h.controller.requestRefresh();await h.resolve();assert.equal(h.reads.length,2);assert.equal(commits.length,1);
+    await h.resolve();assert.equal(commits.length,2);assert.deepEqual(commits.map(e=>e.state.view.root.acceptance.requestSequence),[1,2]);
+  });
+  await test('U16', 'threshold arriving during read appears atomically cleared only on qualifying commit',async()=>{
+    const h=harness(),events=[];await h.online();h.controller.subscribe(e=>events.push(e));await h.start();h.controller.requireVersions({requestId:uid(854),affectedVersions:[affected()]});
+    await h.resolve(versioned('4'));assert.equal(events.filter(e=>e.type==='VIEW_COMMITTED').length,0);assert.equal(h.state().pending.requestIds.length,1);
+    await h.resolve(versioned());const commits=events.filter(e=>e.type==='VIEW_COMMITTED');assert.equal(commits.length,1);assert.equal(commits[0].state.pending.thresholds,null);
+  });
+  await test('U17', 'published selectors and projection contain the new generation, old view remains intact',async()=>{
+    const h=harness();await h.online();const old=h.state().view,events=[];
+    assert.equal(old.selectors.getPersonalListMovies(N).movies.length,0);
+    h.controller.subscribe(e=>{if(e.type==='VIEW_COMMITTED')events.push(e);});
+    h.controller.requireVersions({requestId:uid(855),affectedVersions:[affected()]});await drain();await h.resolve(versioned());
+    assert.equal(events.length,1);const view=events[0].state.view;
+    assert.notStrictEqual(view.root,old.root);assert.notStrictEqual(view.projection,old.projection);assert.notStrictEqual(view.selectors,old.selectors);
+    assert.equal(view.root.indexes.getPersonalState(N,M).list.active,true);assert.equal(view.selectors.getPersonalListMovies(N).movies[0].movie_id,M);
+    assert.equal(old.selectors.getPersonalListMovies(N).movies.length,0);assert.equal(events[0].state.pending.thresholds,null);
   });
   await test('B01', 'scale benchmark separates decode/projection/acceptance/bundle/cache costs',()=>{
     const rows=[];
@@ -472,6 +584,6 @@ async function main() {
     }
     assert(rows[1].median_ms.decode/rows[0].median_ms.decode<6);assert(rows[1].median_ms.projection/Math.max(rows[0].median_ms.projection,0.01)<6);
   });
-  assert.equal(count,77);console.log('Snapshot shadow: '+count+'/77 PASS; synthetic-only; no runtime activation.');
+  assert.equal(count,94);console.log('Snapshot shadow: '+count+'/94 PASS; synthetic-only; no runtime activation.');
 }
 main().catch(e=>{console.error('FAIL after '+count+' groups:',e.stack);process.exitCode=1;});

@@ -1,6 +1,11 @@
 'use strict';
 // Synchronous injected storage only. A cache record never proves authorization.
-const Core = require('./core');
+const SnapshotCache = (() => {
+const commonJS = typeof module !== 'undefined' && !!module.exports;
+// Lexical redeclaration rejects duplicate scripts; reject object namespaces too.
+if (!commonJS && 'SnapshotCache' in globalThis) throw new TypeError('SnapshotCache namespace already installed');
+const Core = commonJS ? require('./core') : (typeof SnapshotCore !== 'undefined' ? SnapshotCore : null);
+if (!Core || typeof Core.createContext !== 'function') throw new TypeError('SnapshotCache requires SnapshotCore');
 const own = (x, keys) => x && typeof x === 'object' && !Array.isArray(x) &&
   Reflect.ownKeys(x).length === keys.length && keys.every(k => {
     const d = Object.getOwnPropertyDescriptor(x, k);
@@ -47,4 +52,6 @@ function createCacheAdapter(storage) {
     }
   });
 }
-module.exports = Object.freeze({ createCacheAdapter });
+return Object.freeze({ createCacheAdapter });
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = SnapshotCache;

@@ -1,7 +1,13 @@
 'use strict';
 // Shadow-only derived views. No runtime registration and no persistence APIs.
-const Core = require('./core');
-const Recommendation = require('../recommendation/adapters');
+const SnapshotProjection = (() => {
+const commonJS = typeof module !== 'undefined' && !!module.exports;
+// Lexical redeclaration rejects duplicate scripts; reject object namespaces too.
+if (!commonJS && 'SnapshotProjection' in globalThis) throw new TypeError('SnapshotProjection namespace already installed');
+const Core = commonJS ? require('./core') : (typeof SnapshotCore !== 'undefined' ? SnapshotCore : null);
+const Recommendation = commonJS ? require('../recommendation/adapters') : (typeof RecommendationAdapters !== 'undefined' ? RecommendationAdapters : null);
+if (!Core || typeof Core.getPerson !== 'function') throw new TypeError('SnapshotProjection requires SnapshotCore');
+if (!Recommendation || typeof Recommendation.fromMovies !== 'function') throw new TypeError('SnapshotProjection requires RecommendationAdapters');
 const freeze = x => {
   if (x && typeof x === 'object' && !Object.isFrozen(x)) {
     for (const v of Object.values(x)) freeze(v);
@@ -111,4 +117,6 @@ function createProjection(root) {
       matchBaseIds: s.group.states.filter(g => g.eligibility.match_base).map(g => g.movie_id), vetoes: s.vetoes })
   });
 }
-module.exports = Object.freeze({ createProjection });
+return Object.freeze({ createProjection });
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = SnapshotProjection;
