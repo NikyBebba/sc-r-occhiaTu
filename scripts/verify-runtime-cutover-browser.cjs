@@ -9,8 +9,8 @@ const vm = require('node:vm');
 const F = require('./fixtures/snapshot-v1.cjs');
 const root = path.resolve(__dirname, '..');
 const files = ['js/recommendation/config.js', 'js/recommendation/core.js', 'js/recommendation/adapters.js',
-  'js/snapshot/core.js', 'js/snapshot/projection.js', 'js/snapshot/cache.js', 'js/snapshot/controller.js'];
-const names = ['SnapshotProjection', 'SnapshotCache', 'SnapshotController'];
+  'js/snapshot/core.js', 'js/snapshot/projection.js', 'js/snapshot/cache.js', 'js/snapshot/controller.js', 'js/snapshot/transport.js'];
+const names = ['SnapshotProjection', 'SnapshotCache', 'SnapshotController', 'SnapshotTransport'];
 const source = f => fs.readFileSync(path.join(root, f), 'utf8');
 const fixtures = { context: F.context(), raw: F.relationless(), cached: F.selfList(), at: F.AT, nextGroup: F.uid(3900) };
 const forbidden = ['fetch', 'XMLHttpRequest', 'WebSocket', 'localStorage', 'sessionStorage', 'setTimeout', 'setInterval',
@@ -29,7 +29,7 @@ function probeSucceeded(errors, spec) {
 }
 
 // One shared test implementation executes in VM and in the optional real browser.
-// It has no Node dependencies, no transport, no real timers/storage and no runtime imports.
+// It has no Node dependencies, network, real timers/storage or runtime imports.
 async function classicChecks(data) {
   'use strict';
   let count = 0;
@@ -39,6 +39,33 @@ async function classicChecks(data) {
   check(Object.isFrozen(SnapshotCore) && Object.isFrozen(SnapshotProjection) && Object.isFrozen(SnapshotCache) && Object.isFrozen(SnapshotController), 'Frozen namespaces');
   check(Object.keys(SnapshotProjection).join() === 'createProjection' && Object.keys(SnapshotCache).join() === 'createCacheAdapter' &&
     Object.keys(SnapshotController).join() === 'createShadowController', 'Exact namespace APIs');
+  check(Object.isFrozen(SnapshotTransport) && typeof SnapshotTransport.createTransport === 'function', 'Frozen transport namespace');
+  const rpcCalls = [];
+  const transport = SnapshotTransport.createTransport({rpc: async (name,args) => {
+    rpcCalls.push({name,args});
+    if(name === 'get_app_runtime_context') return {data:{bootstrap_contract_version:1,outcome:'OK',
+      caller:{person_id:data.context.callerId,legacy_person:'N'},selected_group:{group_id:data.context.groupId},
+      protocol:{client_protocol:1,supported_protocol:1,minimum_client_protocol:1,snapshot_contract_version:1},
+      runtime:{mode:'target',activation_allowed:true}},error:null};
+    if(name === 'get_person_group_snapshot') return {data:data.raw,error:null};
+    if(name === 'execute_app_command') return {data:{protocol_version:1,request_id:args.p_request.request_id,
+      outcome:'SUCCESS',replayed:false,result:{movie_id:args.p_request.target.movie_id,night_id:null},
+      affected_versions:[{...args.p_request.expected_versions[0],version:'9007199254740994'}]},error:null};
+    throw Error('Unexpected synthetic RPC');
+  }});
+  check(rpcCalls.length===0, 'Transport construction has no I/O');
+  const bootstrap=await transport.bootstrap({callerId:data.context.callerId});
+  check(bootstrap.category==='BOOTSTRAP_RESULT' && Object.isFrozen(bootstrap.bootstrap), 'Classic bootstrap decoder');
+  check(rpcCalls[0].name==='get_app_runtime_context' && Object.keys(rpcCalls[0].args).join()==='p_client_protocol', 'Bootstrap sends no identity/group');
+  const raw=await transport.createSnapshotProvider(bootstrap).read({...data.context,requestSequence:1,reason:'INITIAL'});
+  check(raw===data.raw && rpcCalls[1].args.p_group_id===data.context.groupId, 'Classic raw Snapshot provider');
+  const command=SnapshotTransport.prepareCommand({protocol_version:1,request_id:data.context.callerId,intent:'PERSONAL_RATING',
+    target:{movie_id:data.raw.catalog[0].movie_id,group_id:null,night_id:null},
+    expected_versions:[{scope_kind:'person_film',scope_id:data.context.callerId,entity_id:data.raw.catalog[0].movie_id,version:'9007199254740993'}],parameters:{value:0}},data.context);
+  check(command.request.expected_versions[0].version==='9007199254740993' && Object.isFrozen(command.request), 'Classic exact prepared request');
+  const commandResult=await transport.execute(command);
+  check(commandResult.category==='SEMANTIC_RESULT' && commandResult.response.affected_versions[0].version==='9007199254740994', 'Classic exact command response');
+  check(!SnapshotTransport.validateExactDecimal(1) && !SnapshotTransport.validateExactDecimal('9223372036854775808'), 'Classic unsafe revisions reject');
   function harness(withCache = false) {
     const records = new Map(), reads = [], events = [], tasks = new Map(); let next = 0;
     const storage = { getItem: k => records.get(k) ?? null, setItem: (k,v) => records.set(k,v), removeItem: k => records.delete(k) };
@@ -94,7 +121,7 @@ async function automated() {
     for (const key of ['Core','Recommendation','freeze','own','REASONS','createProjection','createCacheAdapter','createShadowController','commonJS'])
       assert.equal(vm.runInContext('typeof '+key,s.context),'undefined',key);
   });
-  for (const [file,dependency] of [['projection','SnapshotCore'],['cache','SnapshotCore'],['controller','SnapshotCore']])
+  for (const [file,dependency] of [['projection','SnapshotCore'],['cache','SnapshotCore'],['controller','SnapshotCore'],['transport','SnapshotCore']])
     await test(file+' missing Core fails clearly', () => { const s=sandbox();assert.throws(()=>load(s.context,'js/snapshot/'+file+'.js'),new RegExp('requires '+dependency));assert.equal(s.accesses(),0); });
   await test('projection requires Recommendation adapter', () => {
     const s=sandbox();load(s.context,files[3]);assert.throws(()=>load(s.context,files[4]),/requires RecommendationAdapters/);
@@ -117,18 +144,19 @@ async function automated() {
     });
   }
   await test('CommonJS exports match intended APIs and are frozen',()=>{
-    for(const [name,api] of [['projection','createProjection'],['cache','createCacheAdapter'],['controller','createShadowController']]) {
-      const module=require('../js/snapshot/'+name);assert(Object.isFrozen(module));assert.deepEqual(Object.keys(module),[api]);assert.equal(typeof module[api],'function');
+    for(const [name,apis] of [['projection',['createProjection']],['cache',['createCacheAdapter']],['controller',['createShadowController']],
+      ['transport',['createTransport','decodeBootstrapEnvelope','validateExactDecimal','prepareCommand','decodeCommandResponse']]]) {
+      const module=require('../js/snapshot/'+name);assert(Object.isFrozen(module));assert.deepEqual(Object.keys(module),apis);for(const api of apis)assert.equal(typeof module[api],'function');
     }
   });
   await test('shared classic integration with provider/cache/context/publication',async()=>{
     const s=full();s.context.fixtureJSON=JSON.stringify(fixtures);
     const passed=await vm.runInContext('('+classicChecks.toString()+')(JSON.parse(fixtureJSON))',s.context);
-    assert.equal(passed,16);assert.equal(s.accesses(),0);console.log('CLASSIC INTEGRATION assertions:',passed);
+    assert.equal(passed,24);assert.equal(s.accesses(),0);console.log('CLASSIC INTEGRATION assertions:',passed);
   });
   await test('runtime entries remain isolated and core bytes match HEAD',()=>{
     for(const entry of ['index.html','js/main.js','js/store.js','js/auth.js','service-worker.js']) {
-      const text=source(entry);assert(!/snapshot\/(?:core|projection|cache|controller)\.js|Snapshot(?:Core|Projection|Cache|Controller)/.test(text));
+      const text=source(entry);assert(!/snapshot\/(?:core|projection|cache|controller|transport)\.js|Snapshot(?:Core|Projection|Cache|Controller|Transport)/.test(text));
     }
     const {execFileSync}=require('node:child_process');assert.deepEqual(fs.readFileSync(path.join(root,'js/snapshot/core.js')),execFileSync('git',['show','HEAD:js/snapshot/core.js'],{cwd:root}));
   });
@@ -139,7 +167,7 @@ async function automated() {
     assert(!probeSucceeded([{name:'TypeError',message:'unrelated'}],spec));
     assert(!probeSucceeded([] ,spec));
   });
-  assert.equal(count,17);console.log('Browser/classic automated: '+count+'/17 groups PASS; real-browser gate NOT RUN.');
+  assert.equal(count,20);console.log('Browser/classic automated: '+count+'/20 groups PASS; real-browser gate NOT RUN.');
 }
 
 // The optional server is test infrastructure only: fixed files, 127.0.0.1,
@@ -148,7 +176,7 @@ function serve() {
   const http=require('node:http');let report=null;
   const scriptTags=list=>list.map(f=>'<script src="/'+f+'"></script>').join('\n');
   const probes=[];
-  for(const name of ['projection','cache','controller'])probes.push({name:'missing-core-'+name,list:['js/snapshot/'+name+'.js'],error:'requires SnapshotCore'});
+  for(const name of ['projection','cache','controller','transport'])probes.push({name:'missing-core-'+name,list:['js/snapshot/'+name+'.js'],error:'requires SnapshotCore'});
   probes.push({name:'missing-recommendation',list:[files[3],files[4]],error:'requires RecommendationAdapters'});
   probes.push({name:'missing-controller-projection',list:[...files.slice(0,4),files[6]],error:'requires SnapshotProjection'});
   probes.push({name:'missing-controller-cache',list:files.slice(0,5).concat(files[6]),error:'requires SnapshotCache'});
