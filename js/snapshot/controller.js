@@ -69,6 +69,7 @@ function createShadowController({ provider, clock, scheduler, storage = null, ti
   // Admission remains occupied until the physical promise settles, including timeout.
   const flights = new Map();
   const identity = c => c.callerId + '|' + c.groupId + '|' + c.contractVersion;
+  const tuple = t => t.scope_kind + '|' + t.scope_id + '|' + t.entity_id;
   const now = () => {
     const value = clock.nowInstant();
     if (typeof value !== 'string' || value.startsWith('0000-') || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(value) ||
@@ -142,12 +143,29 @@ function createShadowController({ provider, clock, scheduler, storage = null, ti
         freshness: { validatedOnline: true, temporalCurrent: true },
         diagnostics: [...state.diagnostics.slice(-31), freeze({ code: 'ACCEPT', requestSequence: ticket.requestSequence })] });
       state = next; // Domain root, projection, selectors and thresholds commit together.
+      ctx.expansion.clear(); ctx.strict.clear(); ctx.expansionFollowupUsed = false;
       cancel(ctx, 'retry'); ctx.attempt = 0;
       armTemporal(ctx, view);
       if (cache) {
         const written = cache.write(view.root, now());
         if (!written.ok) publish({}, { code: written.code });
       }
+      return;
+    }
+    const unmetExpansion = decision.outcome === 'DISCARD_CONTEXT' && decision.reason === 'THRESHOLD_OUT_OF_COVERAGE'
+      ? decision.thresholds : decision.outcome === 'RETRY_THRESHOLD'
+        ? [...decision.thresholds.insufficient, ...decision.thresholds.unavailable, ...decision.thresholds.outOfCoverage] : null;
+    // Core still refuses the candidate. Generic requirements remain fail-closed
+    // even when mixed with expansion evidence for the very same tuple.
+    if (unmetExpansion?.length > 0 && unmetExpansion.every(t => ctx.expansion.has(tuple(t)) && !ctx.strict.has(tuple(t)))) {
+      const readable = new Set(decoded.candidate.snapshot.coverage.personal_person_ids);
+      if (prior && prior.root.snapshot.coverage.personal_person_ids.some(id => !readable.has(id))) {
+        invalidate('CONTEXT_INVALID', 'EXPANSION_AUTHORIZATION_LOSS');
+        return;
+      }
+      failed(ctx, state.view ? 'STALE' : 'UNINITIALIZED', 'COVERAGE_EXPANSION_PENDING', false);
+      cancel(ctx, 'retry');
+      if (!ctx.expansionFollowupUsed) { ctx.expansionFollowupUsed = true; ctx.dirty = true; }
       return;
     }
     if (decision.outcome === 'SERVER_ERROR') {
@@ -170,7 +188,7 @@ function createShadowController({ provider, clock, scheduler, storage = null, ti
       if (!temporal.ok || !temporal.value.current) publish({ status: 'STALE',
         freshness: { ...state.freshness, temporalCurrent: false } }, { code: 'FOREGROUND_STALE' });
     }
-    if (external) { ctx.attempt = 0; cancel(ctx, 'retry'); }
+    if (external) { ctx.attempt = 0; ctx.expansionFollowupUsed = false; cancel(ctx, 'retry'); }
     const key = identity(ctx.context), running = flights.get(key);
     if (running) { ctx.dirty = true; return running.publicTicket; }
     cancel(ctx, 'retry');
@@ -212,6 +230,32 @@ function createShadowController({ provider, clock, scheduler, storage = null, ti
     publish({ context: null, status: 'UNINITIALIZED', view: null, pending: pendingEmpty(),
       freshness: { validatedOnline: false, temporalCurrent: false } }, { code: reason });
   }
+  // Trusted caller opt-in only. No inference from missing entities, no domain
+  // patches, and no Realtime knowledge. Same normalization/acceptance core.
+  function requireExpansionVersions({ requestId, affectedVersions }) {
+    assertNotPublishing();
+    return transition(() => {
+      if (!current || !valid(current)) throw new TypeError('Active verified context required');
+      if (!Core.validateUUID(requestId).ok) throw new TypeError('Canonical request UUID required');
+      const normalized = Core.normalizeAffectedVersions(state.context, affectedVersions);
+      if (!normalized.ok || normalized.value.entries.length === 0) throw new TypeError('Nonempty valid expansion requirements required');
+      const before = state.pending.thresholds;
+      const merged = before === null ? normalized : Core.mergeThresholds(before, normalized.value);
+      if (!merged.ok) throw new TypeError('Invalid threshold context');
+      const previous = new Map((before?.entries || []).map(t => [tuple(t), t.minimum_version]));
+      const stronger = normalized.value.entries.some(t => !previous.has(tuple(t)) ||
+        Core.compareDecimals(t.minimum_version, previous.get(tuple(t))) > 0);
+      for (const t of normalized.value.entries) if (!current.strict.has(tuple(t))) current.expansion.add(tuple(t));
+      const pending = freeze({ thresholds: merged.value, requestIds: [...new Set([...state.pending.requestIds, requestId])].sort() });
+      publish({ pending, status: state.view ? 'STALE' : state.status,
+        freshness: { ...state.freshness, temporalCurrent: false } });
+      // Duplicate/weaker evidence cannot replenish recovery or dirty a read.
+      if (!stronger) return current.flight?.publicTicket || null;
+      current.expansionFollowupUsed = false; current.attempt = 0; cancel(current, 'retry');
+      return refresh('INVALIDATION', false);
+    });
+  }
+
   return Object.freeze({
     getState: () => state,
     subscribe(listener) {
@@ -236,7 +280,8 @@ function createShadowController({ provider, clock, scheduler, storage = null, ti
         epoch = Math.max(epoch + 1, checked.value.contextEpoch);
         if (!Number.isSafeInteger(epoch)) throw new RangeError('Context epoch exhausted');
         const context = freeze({ ...checked.value, contextEpoch: epoch });
-        current = { context, enabled: true, dirty: false, sequence: 0, attempt: 0, temporal: null, retry: null, flight: null };
+        current = { context, enabled: true, dirty: false, sequence: 0, attempt: 0, temporal: null, retry: null, flight: null,
+          expansion: new Set(), strict: new Set(), expansionFollowupUsed: false };
         publish({ context });
         if (cache) {
           const loaded = cache.load(context);
@@ -254,8 +299,16 @@ function createShadowController({ provider, clock, scheduler, storage = null, ti
       assertNotPublishing();
       if (!disposed) transition(() => clearContext(reason));
     },
-    requireVersions({ requestId, affectedVersions }) {
+    requireVersions(requirements, options) {
       assertNotPublishing();
+      if (options !== undefined) {
+        const descriptor = options !== null && typeof options === 'object'
+          ? Object.getOwnPropertyDescriptor(options, 'coverageExpansion') : null;
+        if (!descriptor || !Object.hasOwn(descriptor, 'value') || descriptor.value !== true ||
+          Reflect.ownKeys(options).length !== 1) throw new TypeError('Exact coverageExpansion opt-in required');
+        return requireExpansionVersions(requirements);
+      }
+      const { requestId, affectedVersions } = requirements;
       return transition(() => {
         if (!current || !valid(current)) throw new TypeError('Active verified context required');
         if (!Core.validateUUID(requestId).ok) throw new TypeError('Canonical request UUID required');
@@ -263,6 +316,9 @@ function createShadowController({ provider, clock, scheduler, storage = null, ti
         if (!normalized.ok) throw new TypeError('Invalid affected versions');
         const merged = state.pending.thresholds === null ? normalized : Core.mergeThresholds(state.pending.thresholds, normalized.value);
         if (!merged.ok) throw new TypeError('Invalid threshold context');
+        for (const entry of normalized.value.entries) {
+          current.strict.add(tuple(entry)); current.expansion.delete(tuple(entry));
+        }
         const pending = freeze({ thresholds: merged.value, requestIds: [...new Set([...state.pending.requestIds, requestId])].sort() });
         publish({ pending, status: state.view ? 'STALE' : state.status });
         return refresh('COMMAND', true);
