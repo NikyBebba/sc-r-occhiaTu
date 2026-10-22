@@ -426,12 +426,9 @@ async function main() {
     for(const v of next.versions.entries)if(v.entity_id===m && v.scope_kind!=='night')v.tombstone=false;F.finish(next);
     await h.start();await h.resolve(next);assert.equal(h.state().status,'CONTRACT_INVALID');assert.equal(h.state().view.source,'CACHE');assert.equal(h.store.writes.length,0);
   });
-  await test('I01', 'no runtime reachability or direct I/O APIs in shadow modules',()=>{
+  await test('I01', 'inactive target entry and no direct I/O APIs in target modules',()=>{
     const names=['projection','controller','cache'];
-    for(const entry of ['index.html','js/main.js','service-worker.js','js/store.js']) {
-      const source=fs.readFileSync(path.join(__dirname,'..',entry),'utf8');
-      for(const name of names)assert(!source.includes('snapshot/'+name+'.js'));
-    }
+    assert(fs.readFileSync(path.join(__dirname,'../js/production-session.js'),'utf8').includes("mode: 'LEGACY'"));
     for(const name of names) {
       const source=fs.readFileSync(path.join(__dirname,'../js/snapshot',name+'.js'),'utf8').split('\n').filter(l=>!l.trim().startsWith('//')).join('\n');
       assert(!/\b(?:window|document|localStorage|sessionStorage|fetch|supabase|Realtime|setTimeout|setInterval|addEventListener)\b|Date\.now\s*\(/.test(source));

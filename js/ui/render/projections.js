@@ -18,6 +18,7 @@ function nextMovieTimeLabel(pick, now = Date.now()) {
 }
 
 function renderNextMovieBox(now = new Date()) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return;
   const box = document.getElementById('nextMovieBox');
   if (!box) return;
   const hero = document.getElementById('nextMovieHero');
@@ -110,6 +111,7 @@ function projectionInfoHtml(movie) {
 }
 
 function renderScheduled(now = new Date()) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return;
   const container = document.getElementById('scheduledList');
   const panel = document.getElementById('scheduledPanel');
   if (!container) return;

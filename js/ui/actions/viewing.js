@@ -24,6 +24,7 @@ function selectReviewNight() {
 }
 
 function openReviewFor(id, by, trigger) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.edit(by==='both'?'setGroupEvaluation':'setMyEvaluation',id);
   const movie = movies.find(m => m.id === id);
   if (!movie || (by !== 'both' && by !== currentUser)) return;
   if (movie.surprise_by && movie.surprise_by !== currentUser) return;
@@ -83,6 +84,7 @@ function reviewTogetherFromSeen() {
 }
 
 async function finishTogetherNightUI(id, nightId) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.edit(nightId?'completeScheduled':'completeNow',nightId||id);
   const movie = movies.find(m => m.id === id);
   const night = nightId ? activeNights().find(n => n.id === nightId && n.movie_id === id) : activeNightForMovie(id);
   if (!movie || !night || !nightIsDue(night)) return;
@@ -100,6 +102,7 @@ function addPersonalReview(id, trigger) {
 }
 
 async function confirmReview() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve({outcome:'INVALID_INPUT'});
   const id = document.getElementById('reviewMovieId').value;
   const text = document.getElementById('reviewText').value.trim();
   const by = document.getElementById('reviewBy').value;
@@ -182,6 +185,7 @@ async function confirmReview() {
 }
 
 async function markSeenUI(id) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve(Object.freeze({outcome:'INVALID_INPUT',code:'OBSERVED_SHELL_ACTION_REQUIRED'}));
   const movie = movies.find(m => m.id === id);
   if (!movie || (currentUser !== 'N' && currentUser !== 'V')) return;
   if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
@@ -204,6 +208,7 @@ async function markSeenUI(id) {
 }
 
 async function confirmSeen() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve({outcome:'INVALID_INPUT'});
   const saveButton = document.getElementById('seenSaveButton');
   if (saveButton.disabled) return;
   const id = document.getElementById('seenMovieId').value;
@@ -249,6 +254,7 @@ async function confirmSeen() {
 }
 
 async function undoSeenUI(id) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve(Object.freeze({outcome:'INVALID_INPUT',code:'OBSERVED_SHELL_ACTION_REQUIRED'}));
   requireAppIdentity();
   const epoch = authEpoch;
   if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
@@ -259,6 +265,7 @@ async function undoSeenUI(id) {
 }
 
 async function removePersonalRating(id) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve(Object.freeze({outcome:'INVALID_INPUT',code:'OBSERVED_SHELL_ACTION_REQUIRED'}));
   requireAppIdentity();
   const epoch = authEpoch;
   if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
@@ -268,6 +275,7 @@ async function removePersonalRating(id) {
   else showActionError('Non siamo riusciti a rimuovere il voto.');
 }
 async function removePersonalText(id) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve(Object.freeze({outcome:'INVALID_INPUT',code:'OBSERVED_SHELL_ACTION_REQUIRED'}));
   requireAppIdentity();
   const epoch = authEpoch;
   if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
@@ -280,6 +288,7 @@ async function removePersonalText(id) {
 
 // Unico percorso di rimozione: patch limitate a voto/testo del contesto scelto.
 async function removeEvaluationData(id, by, part) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve(Object.freeze({outcome:'INVALID_INPUT',code:'OBSERVED_SHELL_ACTION_REQUIRED'}));
   requireAppIdentity();
   const movie = movies.find(m => m.id === id);
   if (!movie || !['rating', 'text', 'both'].includes(part)
@@ -295,6 +304,7 @@ async function removeEvaluationData(id, by, part) {
 }
 
 async function removeEvaluationUI(id, by) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.edit(by==='both'?'setGroupEvaluation':'setMyEvaluation',id);
   requireAppIdentity();
   const epoch = authEpoch;
   const movie = movies.find(m => m.id === id);

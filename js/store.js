@@ -42,9 +42,11 @@ const SUPABASE_RETRY_MS = 15000;
 // scritture).
 let realtimeChannel = null;
 let resyncTimer = null;
+let legacyRealtimeGeneration = 0;
 
 
 function saveLocal() {
+  assertLegacyDomainAccess();
   requireAppIdentity();
   localStorage.setItem('scorochiatu_mirror_owner', authIdentity?.uid || '');
   localStorage.setItem('scorochiatu_movies', JSON.stringify(movies));
@@ -53,6 +55,7 @@ function saveLocal() {
 }
 
 function loadLocal() {
+  assertLegacyDomainAccess();
   requireAppIdentity();
   movies = JSON.parse(localStorage.getItem('scorochiatu_movies') || '[]');
   movies = Array.isArray(movies) ? movies.map(normalizeMoviePersonalFeedback) : [];
@@ -65,6 +68,7 @@ function loadLocal() {
 // Legge tutto da Supabase. Se fallisce (o se siamo in modalità locale e nel
 // periodo di "respiro") ritorna null: chi chiama usa loadLocal().
 async function fetchAll() {
+  assertLegacyDomainAccess();
   requireAppIdentity();
   const epoch = authEpoch;
   if (!sb) return null;
@@ -72,6 +76,7 @@ async function fetchAll() {
   let results;
   try {
     await validateCurrentAuth();
+    assertLegacyDomainAccess();
     results = await Promise.all([
       sb.from('movies').select(MOVIE_SELECT_FIELDS).order('created_at', { ascending: false }),
       sb.from('vetoes').select('*'),
@@ -80,12 +85,14 @@ async function fetchAll() {
     assertAuthEpoch(epoch);
   } catch (error) {
     assertAuthEpoch(epoch);
+    assertLegacyDomainAccess();
     handleDataAuthError(error);
     dbMode = 'local';
     lastSupabaseFailAt = Date.now();
     console.error('[sc(r)occhiaTu] Lettura Supabase non riuscita — conservo il mirror locale di film e serate.');
     return null;
   }
+  assertLegacyDomainAccess();
   const [moviesRes, vetoesRes, nightsRes] = results;
   for (const result of results) handleDataAuthError(result.error);
   const coreFailed = moviesRes.error || vetoesRes.error || nightsRes.error;
@@ -110,10 +117,12 @@ function dataSignature() {
 }
 
 async function loadMovies() {
+  assertLegacyDomainAccess();
   requireAppIdentity();
   const epoch = authEpoch;
   const remote = await fetchAll();
   assertAuthEpoch(epoch);
+  assertLegacyDomainAccess();
   if (remote) {
     movies = remote.movies;
     vetoes = remote.vetoes;
@@ -131,11 +140,13 @@ async function loadMovies() {
 // loadMovies) non produce un secondo render per l'eco della propria scrittura,
 // e i burst di eventi riescono a un solo render complessivo.
 async function resyncQuiet() {
+  assertLegacyDomainAccess();
   requireAppIdentity();
   const epoch = authEpoch;
   const prev = dataSignature();
   const remote = await fetchAll();
   assertAuthEpoch(epoch);
+  assertLegacyDomainAccess();
   if (remote) {
     movies = remote.movies;
     vetoes = remote.vetoes;
@@ -149,22 +160,29 @@ async function resyncQuiet() {
 }
 
 function onDbChange() {
+  assertLegacyDomainAccess();
   if (resyncTimer) return;
+  const ticket = legacyRealtimeGeneration, entryEpoch = authEpoch;
   resyncTimer = setTimeout(async () => {
     resyncTimer = null;
+    if (ticket !== legacyRealtimeGeneration || entryEpoch !== authEpoch || targetSessionActive()) return;
     try { await resyncQuiet(); } catch (_) { /* Auth chiude la UI; niente fallback anonimo */ }
   }, 120);
 }
 
 // ---- Realtime: un solo canale per sessione ----
 function subscribeRealtime() {
+  assertLegacyDomainAccess();
   if (realtimeChannel || !sb || !isAppAuthorized()) return;
+  const ticket = ++legacyRealtimeGeneration, entryEpoch = authEpoch;
+  const changed = () => { if (ticket === legacyRealtimeGeneration && entryEpoch === authEpoch && !targetSessionActive()) onDbChange(); };
   const channel = sb
     .channel('scorochiatu-db-changes', { config: { private: true } })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'movies' }, onDbChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'vetoes' }, onDbChange);
-  channel.on('postgres_changes', { event: '*', schema: 'public', table: 'movie_nights' }, onDbChange);
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'movies' }, changed)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'vetoes' }, changed);
+  channel.on('postgres_changes', { event: '*', schema: 'public', table: 'movie_nights' }, changed);
   realtimeChannel = channel.subscribe((status, err) => {
+    if (ticket !== legacyRealtimeGeneration || entryEpoch !== authEpoch || targetSessionActive()) return;
     if (status === 'SUBSCRIBED') {
       // Anche dopo reconnect: recupera gli eventi persi, resync idempotente.
       if (isAppAuthorized()) onDbChange();
@@ -176,8 +194,13 @@ function subscribeRealtime() {
 }
 
 function unsubscribeRealtime() {
+  legacyRealtimeGeneration++;
+  if (resyncTimer) { clearTimeout(resyncTimer); resyncTimer = null; }
   if (realtimeChannel && sb) {
     sb.removeChannel(realtimeChannel);
     realtimeChannel = null;
   }
 }
+
+function targetSessionActive() { return typeof ProductionSession !== 'undefined' && ProductionSession.isTarget(); }
+function assertLegacyDomainAccess() { if (targetSessionActive()) throw new TypeError('LEGACY_AUTHORITY_FORBIDDEN'); }

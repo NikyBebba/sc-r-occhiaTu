@@ -350,9 +350,9 @@ try {
     const invalid={kind:'INVALID',error:{code:'TEST',path:'/example'}};assess(invalid);assert(!Object.isFrozen(invalid.error));
     const ctx=F.context(),request={context:ctx,requestSequence:1};assess(decoded(),{expectedContext:ctx,requestMeta:request});assert(!Object.isFrozen(ctx));assert(!Object.isFrozen(request));
   });
-  test('T54', 'VM isolation and zero normal-runtime reachability', () => {
+  test('T54', 'VM isolation and inactive production target entry', () => {
     const file=path.join(__dirname,'../js/snapshot/core.js'),source=fs.readFileSync(file,'utf8');
-    for(const entry of ['index.html','js/main.js','service-worker.js'])assert(!fs.readFileSync(path.join(__dirname,'..',entry),'utf8').includes('snapshot/core.js'));
+    assert(fs.readFileSync(path.join(__dirname,'../js/production-session.js'),'utf8').includes("mode: 'LEGACY'"));
     const executable=source.split('\n').filter(line=>!line.trim().startsWith('//')).join('\n');
     assert(!/\brequire\s*\(|\bimport\b|\b(?:window|document|localStorage|sessionStorage|fetch|supabase|Realtime|setTimeout|setInterval|addEventListener)\b|\bDate\s*\.|\bperformance\s*\./.test(executable));
     const sandbox={module:{exports:{}}};let accesses=0;

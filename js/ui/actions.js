@@ -3,6 +3,7 @@
 
 // Apre il modale "Aggiungi film" precompilando "Proposto da" con l'utente loggato
 function openAddModal() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.edit('createContent',null);
   if (currentUser) document.getElementById('addBy').value = currentUser;
   document.getElementById('addCinemaWatchlist').checked = false;
   openModal('addModal');
@@ -31,6 +32,7 @@ function showDuplicateNotice(movie) {
 }
 
 async function initiateAddMovie() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.edit('createContent',null);
   const title = document.getElementById('addTitle').value.trim();
   const added_by = document.getElementById('addBy').value;
   if (!title) return;
@@ -88,6 +90,7 @@ async function selectPickerCandidate(tmdbId) {
 // Applica i dettagli risolti: inserisce un nuovo film (modalità 'add')
 // o aggiorna un film esistente (modalità 'retry', da "correggi titolo").
 async function applyResolvedDetails(details, personalSeen = null) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve({outcome:'INVALID_INPUT'});
   requireAppIdentity();
   if (pickerMode === 'add' && pendingAddEpoch !== null && pendingAddEpoch !== authEpoch) return false;
   if (pickerMode === 'add' && personalSeen === null) {
@@ -181,6 +184,7 @@ async function applyResolvedDetails(details, personalSeen = null) {
 
 // ---- Import massivo con contatore di progresso ----
 async function bulkImportMovies() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('bulk');
   const text = document.getElementById('importText').value.trim();
   const added_by = document.getElementById('importAddedBy').value;
   if (!text) return;
@@ -248,17 +252,20 @@ async function bulkImportMovies() {
 
 // API di compatibilità senza chiamanti UI: le proiezioni usano store/nights.
 async function updateStatus(id, newStatus) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve({outcome:'INVALID_INPUT'});
   await updateMovie(id, { status: newStatus });
   loadMovies();
 }
 
 async function toggleCinemaWatchlist(id) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve(Object.freeze({outcome:'INVALID_INPUT',code:'OBSERVED_SHELL_ACTION_REQUIRED'}));
   const movie = movies.find(m => m.id === id);
   if (!movie) return;
   if (await updateMovie(id, { cinema_watchlist: !movie.cinema_watchlist })) await loadMovies();
 }
 
 async function deleteMovieConfirm(id, title) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve(Object.freeze({outcome:'INVALID_INPUT',code:'OBSERVED_SHELL_ACTION_REQUIRED'}));
   if (!canDeleteOrChangeIdentity(movies.find(m => m.id === id))) { showActionError('Questo film non può essere eliminato: contiene dati dell’altra persona o serate, anche annullate.'); return; }
   const ok = await showConfirmModal('Rimuovere il film?', `"${title}" verrà eliminato definitivamente.`);
   if (!ok) return;
@@ -268,6 +275,7 @@ async function deleteMovieConfirm(id, title) {
 
 // ---- Correggi titolo non trovato e ricerca di nuovo (TMDb/OMDb) ----
 function retryMatch(id, currentTitle) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.edit('updateMetadata',id);
   if (!canDeleteOrChangeIdentity(movies.find(m => m.id === id))) { showActionError('Il titolo non può essere cambiato: contiene dati dell’altra persona o serate.'); return; }
   document.getElementById('retryMovieId').value = id;
   document.getElementById('retryTitle').value = currentTitle;
@@ -275,6 +283,7 @@ function retryMatch(id, currentTitle) {
 }
 
 async function confirmRetryMatch() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve({outcome:'INVALID_INPUT'});
   const id = document.getElementById('retryMovieId').value;
   const newTitle = document.getElementById('retryTitle').value.trim();
   if (!newTitle) return;
@@ -301,6 +310,7 @@ function chooseAddSeenYes() {
   document.getElementById('addSeenRating').focus();
 }
 async function confirmAddSeen(seen) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve({outcome:'INVALID_INPUT'});
   const pending = pendingAddSeen;
   if (!pending || addSeenSaving) return;
   requireAppIdentity();
@@ -340,6 +350,7 @@ function updateAddDestinationHint() {
     : list ? 'Per la Lista serve un tuo giudizio: rapido oppure con un voto.' : 'Fuori dalla Lista. Il giudizio è facoltativo.';
 }
 async function saveResolvedExisting(movie, personal) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve({outcome:'INVALID_INPUT'});
   const patch = {};
   if (personal?.seen) patch['seen_' + currentUser.toLowerCase()] = true;
   if (personal?.ratingOperation || personal?.rating != null) patch['seen_rating_' + currentUser.toLowerCase()] = personal.rating;
@@ -352,6 +363,7 @@ async function saveResolvedExisting(movie, personal) {
 }
 let pendingListCandidate = null;
 async function toggleSharedList(id) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve(Object.freeze({outcome:'INVALID_INPUT',code:'OBSERVED_SHELL_ACTION_REQUIRED'}));
   requireAppIdentity();
   const movie = movies.find(m => m.id === id);
   if (!movie) return false;
@@ -372,6 +384,7 @@ async function toggleSharedList(id) {
 }
 let listCandidateSaving = false;
 async function confirmListCandidate() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve({outcome:'INVALID_INPUT'});
   const pending = pendingListCandidate;
   if (!pending || listCandidateSaving) return;
   requireAppIdentity();

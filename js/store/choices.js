@@ -21,13 +21,14 @@ function vetoedMovieIdsThisWeek() {
 }
 
 async function addVeto(person, movieId) {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   requireAppIdentity();
   const operationEpoch = authEpoch;
   const wk = currentWeekKey();
   if (vetoUsedThisWeek(person)) return false;
   if (sb) {
     const { error } = await sb.from('vetoes').insert([{ person, movie_id: movieId, week_key: wk }]);
-    assertAuthEpoch(operationEpoch);
+    assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
     handleDataAuthError(error);
     if (error) {
       console.error('[sc(r)occhiaTu] addVeto fallito su Supabase:', error.message);
@@ -35,7 +36,7 @@ async function addVeto(person, movieId) {
       lastSupabaseFailAt = Date.now();
     }
     const { data, error: readError } = await sb.from('vetoes').select('*');
-    assertAuthEpoch(operationEpoch);
+    assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
     handleDataAuthError(readError);
     if (data) { vetoes = data; saveLocal(); }
   } else {
@@ -55,13 +56,14 @@ function vetoForMovieThisWeek(movieId) {
 // Toglie il veto posto da `person` sul film `movieId` (settimana corrente).
 // Solo chi ha messo il veto può toglierlo (guardia anche qui, oltre alla UI).
 async function removeVeto(person, movieId) {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   requireAppIdentity();
   const operationEpoch = authEpoch;
   const v = vetoForMovieThisWeek(movieId);
   if (!v || v.person !== person) return false;
   if (sb) {
     const { data: deleted, error } = await sb.from('vetoes').delete().eq('id', v.id).select();
-    assertAuthEpoch(operationEpoch);
+    assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
     handleDataAuthError(error);
     if (error) {
       console.error('[sc(r)occhiaTu] removeVeto fallito su Supabase:', error.message);
@@ -71,7 +73,7 @@ async function removeVeto(person, movieId) {
     // no-op senza errori né modifiche allo stato locale.
     if (!deleted || deleted.length === 0) return true;
     const { data, error: readError } = await sb.from('vetoes').select('*');
-    assertAuthEpoch(operationEpoch);
+    assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
     handleDataAuthError(readError);
     if (data) { vetoes = data; saveLocal(); }
   } else {

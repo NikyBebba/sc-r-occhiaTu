@@ -34,6 +34,7 @@ function sagaChapterStates(collection, source, library, person, today = sagaToda
 }
 
 async function openMovieSaga(movieId) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.detail(movieId);
   const movie = movies.find(row => row.id === movieId);
   if (!currentUser || !canShowSaga(movie)) return;
   const panel = { movieId, user: currentUser, collection: null, selected: new Set(), loading: true, busy: false, message: '' };
@@ -104,6 +105,7 @@ function toggleSagaChapter(id, checked) {
 }
 
 async function addSagaChapters() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve({outcome:'INVALID_INPUT'});
   const panel = sagaPanel;
   if (!panel || panel.busy || !panel.collection || !panel.selected.size || currentUser !== panel.user) return;
   panel.busy = true;

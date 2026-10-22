@@ -9,6 +9,7 @@ let scheduleEditingNightId = null;
 let scheduleSaving = false;
 
 function openProjectionForm(id, mode, origin = 'manual') {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.edit(mode==='quick'?'quickNight':'scheduleNight',id);
   if (scheduleSaving) return;
   if (!document.getElementById('detailModal').classList.contains('hidden')) closeModalNow('detailModal');
   scheduleMode = mode;
@@ -39,6 +40,7 @@ function scheduleMovie(id) {
 }
 
 function editNightDetailsUI(id, nightId) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.edit('editNight',nightId);
   if (scheduleSaving) return;
   const night = nightId ? activeNights().find(n => n.id === nightId && n.movie_id === id) : activeNightForMovie(id);
   if (!night) return;
@@ -90,6 +92,7 @@ function randomizeSnack() {
 
 // Salva la proiezione o i suoi dettagli, con errori visibili e conferma dal Match solo dopo insert riuscito.
 async function confirmSchedule() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve({outcome:'INVALID_INPUT'});
   if (scheduleSaving) return;
   const id = document.getElementById('scheduleMovieId').value;
   const date = document.getElementById('scheduleDate').value;
@@ -155,11 +158,13 @@ async function confirmSchedule() {
 // dal popup di quickTonightUI per "Oggi" e dal confirm di
 // scheduleMovie per "Programma".)
 async function confirmNightUI(id, nightId) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve(Object.freeze({outcome:'INVALID_INPUT',code:'OBSERVED_SHELL_ACTION_REQUIRED'}));
   if (!(await confirmNight(id, nightId))) { showActionError('La proposta non è stata confermata. Riprova.'); return; }
   await loadMovies();
 }
 
 async function cancelNightUI(id, title, nightId) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve(Object.freeze({outcome:'INVALID_INPUT',code:'OBSERVED_SHELL_ACTION_REQUIRED'}));
   const ok = await showConfirmModal('Annullare la proiezione?', `"${title}" verrà rimosso da questo appuntamento.`);
   if (!ok) return;
   if (!(await cancelNight(id, nightId))) { showActionError('La proiezione non è stata annullata. Riprova.'); return; }
@@ -168,5 +173,6 @@ async function cancelNightUI(id, title, nightId) {
 
 // Scelta di oggi: nessuna scrittura finché non si conferma il popup.
 function quickTonightUI(id, origin) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.edit('quickNight',id);
   openProjectionForm(id, 'quick', origin || 'manual');
 }

@@ -232,7 +232,7 @@ function handleDataAuthError(error) {
 }
 
 function clearSensitiveData() {
-  for (const key of ['movies', 'movie_nights', 'votes', 'vetoes', 'swipes', 'swipe_sessions', 'mirror_owner', 'user']) {
+  for (const key of (typeof ProductionSession !== 'undefined' && ProductionSession.isTarget() ? [] : ['movies', 'movie_nights', 'votes', 'vetoes', 'swipes', 'swipe_sessions', 'mirror_owner', 'user'])) {
     localStorage.removeItem('scorochiatu_' + key);
     sessionStorage.removeItem('scorochiatu_' + key);
   }
@@ -246,8 +246,8 @@ function lockApp(message = '') {
   authEpoch++;
   authIdentity = null;
   currentUser = null;
-  unsubscribeRealtime();
-  leaveMatch(true);
+  if (typeof ProductionSession !== 'undefined') ProductionSession.invalidateAuth();
+  else { unsubscribeRealtime(); leaveMatch(true); }
   clearSensitiveData();
   document.querySelectorAll('[id$="Modal"]').forEach(modal => modal.classList.add('hidden'));
   showLanding();
@@ -296,7 +296,7 @@ async function establishAuth(session, expectedPerson = null) {
   if (epoch !== authEpoch) throw new Error('AUTH_CHANGED');
   if (authIdentity && authIdentity.uid !== identity.uid) lockApp();
   if (!authIdentity) {
-    if (localStorage.getItem('scorochiatu_mirror_owner') !== identity.uid) clearSensitiveData();
+    if ((typeof ProductionSession === 'undefined' || !ProductionSession.isTarget()) && localStorage.getItem('scorochiatu_mirror_owner') !== identity.uid) clearSensitiveData();
     authEpoch++;
   }
   authIdentity = identity;
@@ -391,11 +391,7 @@ async function refreshAuthConnection(session = null) {
       }
       await establishAuth(session);
       if (!hadIdentity) showApp();
-      else {
-        subscribeRealtime();
-        await resyncQuiet();
-        if (currentTab === 'match' && !matchChannel) await enterMatch();
-      }
+      else await ProductionSession.refreshAuthenticated(authIdentity.uid);
     } catch (error) {
       if (refreshEpoch !== authEpoch) return;
       if (isAuthFailure(error) || String(error.message).startsWith('AUTH_') || !isAppAuthorized()) lockApp('Accedi online per verificare la sessione.');

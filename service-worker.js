@@ -5,7 +5,7 @@
 // Aggiornamento: niente skipWaiting (prompt "nuova versione" lato client).
 // ============================================
 
-const CACHE_REV = 'scorochiatu-shell-v62';
+const CACHE_REV = 'scorochiatu-shell-v63';
 const CACHE_PREFIX = 'scorochiatu-shell-';
 
 const PRECACHE = [
@@ -51,6 +51,21 @@ const PRECACHE = [
   '/js/ui/match.js',
   '/js/ui/ticket.js',
   '/js/ui/loading.js',
+  '/js/snapshot/core.js',
+  '/js/snapshot/projection.js',
+  '/js/snapshot/cache.js',
+  '/js/snapshot/controller.js',
+  '/js/snapshot/transport.js',
+  '/js/snapshot/invalidation.js',
+  '/js/runtime/target-runtime.js',
+  '/js/runtime/consumer-facade.js',
+  '/js/runtime/action-adapter.js',
+  '/js/runtime/match-adapter.js',
+  '/js/runtime/target-integration-host.js',
+  '/js/runtime/consumer-view-adapter.js',
+  '/js/runtime/production-host.js',
+  '/js/production-session.js',
+  '/js/ui/target-shell.js',
   '/js/main.js',
   '/manifest.json',
   '/icons/icon-192.png',
@@ -72,7 +87,7 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_REV)
       .then(cache => cache.addAll(PRECACHE))
-      .catch(() => {/* precache best-effort: l'app funziona anche senza */})
+      .catch(error => caches.delete(CACHE_REV).then(() => { throw error; }))
   );
 });
 
@@ -88,8 +103,8 @@ self.addEventListener('activate', event => {
 
 function cacheFirst(event, cachedPath) {
   event.respondWith(
-    caches.match(event.request)
-      .then(hit => hit || caches.match(cachedPath))
+    caches.open(CACHE_REV).then(cache => cache.match(event.request)
+      .then(hit => hit || cache.match(cachedPath)))
       .then(hit => hit || fetch(event.request).then(res => {
         if (res && res.ok && cachedPath) {
           const copy = res.clone();

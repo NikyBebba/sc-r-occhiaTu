@@ -141,6 +141,7 @@ function renderNightHistory() {
 
 // ---- Il Nostro Cinema — statistiche + recensioni senza data ----
 function renderStats() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('memories');
   // toggle è asincrono: acquisire anche lo stato DOM prima di sostituire i nodi.
   if (!memoriesState.fresh) document.querySelectorAll('#statsModal [data-memory-key]').forEach(element => {
     memoriesState.sections.set(element.dataset.memoryKey, element.open);

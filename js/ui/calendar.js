@@ -154,6 +154,7 @@ function dayCellHtml(cell, nights, selected) {
 // ---- Render ----
 
 function renderCalendar() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('calendar');
   if (calendarYear === null || calendarMonth === null) {
     const now = new Date();
     calendarYear = now.getFullYear();

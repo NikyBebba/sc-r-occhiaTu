@@ -117,8 +117,8 @@ function fire(url, mode) {
   let installation;
   listeners.install({ waitUntil(promise) { installation = promise; } });
   await installation;
-  ok('candidato recommendation consumer identificato dalla cache v62', vm.runInContext('CACHE_REV', swCtx) === 'scorochiatu-shell-v62');
-  ok('installazione usa la nuova cache v62', cacheApi.names.has('scorochiatu-shell-v62'));
+  ok('candidato recommendation consumer identificato dalla cache v63', vm.runInContext('CACHE_REV', swCtx) === 'scorochiatu-shell-v63');
+  ok('installazione usa la nuova cache v63', cacheApi.names.has('scorochiatu-shell-v63'));
   cacheApi.names.add('scorochiatu-shell-v55');
   cacheApi.names.add('scorochiatu-shell-v56');
   cacheApi.names.add('scorochiatu-shell-v57');
@@ -130,7 +130,7 @@ function fire(url, mode) {
   let activation;
   listeners.activate({ waitUntil(promise) { activation = promise; } });
   await activation;
-  ok('attivazione rimuove v55/v56/v57/v58/v59/v60/v61 e conserva v62 e cache estranee',
+  ok('attivazione rimuove v55/v56/v57/v58/v59/v60/v61 e conserva v63 e cache estranee',
     !cacheApi.names.has('scorochiatu-shell-v55')
     && !cacheApi.names.has('scorochiatu-shell-v56')
     && !cacheApi.names.has('scorochiatu-shell-v57')
@@ -138,7 +138,7 @@ function fire(url, mode) {
     && !cacheApi.names.has('scorochiatu-shell-v59')
     && !cacheApi.names.has('scorochiatu-shell-v60')
     && !cacheApi.names.has('scorochiatu-shell-v61')
-    && cacheApi.names.has('scorochiatu-shell-v62')
+    && cacheApi.names.has('scorochiatu-shell-v63')
     && cacheApi.names.has('other-app-cache'));
   offline = true;
   const cachedScripts = await Promise.all(scripts.map(src => fire(selfStub.location.origin + '/' + src)));

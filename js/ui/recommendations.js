@@ -5,6 +5,7 @@ const RecommendationConsumer = (() => {
   let snapshot = null;
 
   function sourceSignature() {
+    if (typeof targetSessionActive === 'function' && targetSessionActive()) return null;
     const relevant = movies.map(m => [m.id, m.title, m.in_shared_list, m.cinema_watchlist,
       m.genres, m.director, m.cast_names, m.duration, m.release_year, m.collection_id,
       m.seen_rating_n, m.seen_rating_v, m.personal_liked_n, m.personal_liked_v,
@@ -15,6 +16,7 @@ const RecommendationConsumer = (() => {
   }
 
   function run(excludeMovieIds = []) {
+    if (typeof targetSessionActive === 'function' && targetSessionActive()) throw new TypeError('TARGET_RECOMMENDATION_INPUT_REQUIRED');
     const start = performance.now();
     const context = RecommendationAdapters.fromMovies({
       movies,
@@ -33,6 +35,7 @@ const RecommendationConsumer = (() => {
   }
 
   function calculate() {
+    if (typeof targetSessionActive === 'function' && targetSessionActive()) return;
     try {
       if (typeof storeReady !== 'undefined' && !storeReady) {
         snapshot = { status: 'loading', pages: [], signature: null };
@@ -49,6 +52,7 @@ const RecommendationConsumer = (() => {
   }
 
   function showMore() {
+    if (typeof targetSessionActive === 'function' && targetSessionActive()) return;
     if (!snapshot || snapshot.status !== 'ready' || !snapshot.hasMore) return;
     try {
       const result = run(snapshot.shownIds);
@@ -102,6 +106,7 @@ const RecommendationConsumer = (() => {
   }
 
   function render(active) {
+    if (typeof targetSessionActive === 'function' && targetSessionActive()) return;
     if (!active) return;
     const renderStarted = performance.now();
     const section = document.getElementById('recommendationSection');
@@ -145,12 +150,15 @@ const RecommendationConsumer = (() => {
     getSnapshot: () => snapshot });
 })();
 
-function calculateRecommendations() { RecommendationConsumer.calculate(); }
+function calculateRecommendations() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('recommendations'); RecommendationConsumer.calculate(); }
 function refreshRecommendations() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('recommendations');
   calculateRecommendations();
   renderRecommendationView(true);
 }
 function showMoreRecommendations() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('recommendations');
   RecommendationConsumer.showMore();
   renderRecommendationView(true);
 }

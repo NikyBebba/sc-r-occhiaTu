@@ -32,7 +32,7 @@ function automated(){
  assert.throws(()=>vm.runInContext(source('js/runtime/match-adapter.js'),context),e=>e.name==='SyntaxError');
  return vm.runInContext(checks,context).then(r=>{
   assert(r.cases>=74);assert.equal(r.moduleIO,0);
-  for(const f of ['index.html','js/main.js','js/store.js','js/auth.js','service-worker.js'])assert(!/MatchAdapter|runtime\/match-adapter/.test(source(f)));
+  assert(source('js/production-session.js').includes("mode: 'LEGACY'"), 'Production entry remains LEGACY');
   console.log('MATCH ADAPTER CLASSIC VM: '+r.cases+' Match groups; '+r.assertions+' assertions; module I/O 0. Not Safari.');
  });
 }

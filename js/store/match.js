@@ -38,12 +38,14 @@ let matchEnterErrorMsg = null;       // ultimo errore reale dell'ingresso → vi
 let matchEnterErrorLogged = false;   // deduplica il console.error (UNA volta per entrata)
 
 function saveMatchLocal() {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   requireAppIdentity();
   localStorage.setItem('scorochiatu_swipe_sessions', JSON.stringify(swipeSessions));
   localStorage.setItem('scorochiatu_swipes', JSON.stringify(swipes));
 }
 
 function loadMatchLocal() {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   requireAppIdentity();
   swipeSessions = JSON.parse(localStorage.getItem('scorochiatu_swipe_sessions') || '[]');
   swipes = JSON.parse(localStorage.getItem('scorochiatu_swipes') || '[]');
@@ -52,6 +54,7 @@ function loadMatchLocal() {
 }
 
 function applyMatchState(state) {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   requireAppIdentity();
   swipeSessions = state && state.session ? [state.session] : [];
   swipes = filterSwipes(state ? state.swipes : []);
@@ -85,6 +88,7 @@ function reportMatchEnterError(e) {
 // Fallita → matchAvailable = false e nessun canale. Il canale del core non
 // viene MAI toccato (la sonda riguarda solo il canale Match).
 function probeMatchTables() {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   if (!sb || !isAppAuthorized()) return Promise.resolve(false);
   const probeEpoch = authEpoch;
   const attempt = (async () => {
@@ -93,7 +97,7 @@ function probeMatchTables() {
         sb.from('swipe_sessions').select('id').limit(1),
         sb.from('swipes').select('id').limit(1)
       ]);
-      assertAuthEpoch(probeEpoch);
+      assertAuthEpoch(probeEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
       handleDataAuthError(a?.error);
       handleDataAuthError(b?.error);
       return !(a && a.error) && !(b && b.error);
@@ -111,19 +115,20 @@ function probeMatchTables() {
 // Il resync segue sempre l'ultima sessione, non un id fisso: se il partner ha
 // chiuso e iniziato un giro nuovo, il nostro stato si aggancia al nuovo.
 async function fetchLatestMatchState() {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   if (!sb || dbMode === 'local' || !isAppAuthorized()) return null;
   const fetchEpoch = authEpoch;
   try {
     const sessionRes = await sb.from('swipe_sessions')
       .select('*').order('created_at', { ascending: false }).limit(1);
-    assertAuthEpoch(fetchEpoch);
+    assertAuthEpoch(fetchEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
     handleDataAuthError(sessionRes.error);
     if (sessionRes.error) { warnMatch('fetch session: ' + sessionRes.error.message); return null; }
     const session = (sessionRes.data && sessionRes.data[0]) || null;
     let sessionSwipes = [];
     if (session) {
       const swipesRes = await sb.from('swipes').select('*').eq('session_id', session.id);
-      assertAuthEpoch(fetchEpoch);
+      assertAuthEpoch(fetchEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
       handleDataAuthError(swipesRes.error);
       if (swipesRes.error) { warnMatch('fetch swipes: ' + swipesRes.error.message); return null; }
       sessionSwipes = swipesRes.data || [];
@@ -138,6 +143,7 @@ async function fetchLatestMatchState() {
 // All'ingresso nel Match: riprende l'attiva non scaduta, chiude+ricrea se
 // scaduta, altrimenti (incluso ultima sessione done/closed) ne crea una nuova.
 async function ensureActiveSession() {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   const state = await fetchLatestMatchState();
   if (!state) return null;
   applyMatchState(state);
@@ -156,6 +162,7 @@ async function ensureActiveSession() {
 // Su corsa 23505 (indice unico parziale: un'altra attiva è appena nata) si
 // aggancia alla sessione attiva esistente, senza errori in UI.
 async function startNewSession() {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   if (!sb || dbMode === 'local' || !matchAvailable || !isAppAuthorized()) return null;
   const operationEpoch = authEpoch;
   const deckInfo = buildDeck(movies, {
@@ -165,7 +172,7 @@ async function startNewSession() {
   const { data, error } = await sb.from('swipe_sessions')
     .insert([{ status: 'open', created_by: currentUser, seed: deckInfo.seed, deck: deckInfo.deck }])
     .select();
-  assertAuthEpoch(operationEpoch);
+  assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   handleDataAuthError(error);
   if (error) {
     if (error.code === '23505') {
@@ -187,6 +194,7 @@ async function startNewSession() {
 // Chiude SOLO quella sessione e SOLO se attiva (open|matched): un update in
 // ritardo non deve mai toccare sessioni già done/closed.
 async function closeSession(id) {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   if (!sb || dbMode === 'local' || !isAppAuthorized()) return null;
   const operationEpoch = authEpoch;
   const { data, error } = await sb.from('swipe_sessions')
@@ -194,7 +202,7 @@ async function closeSession(id) {
     .eq('id', id)
     .in('status', ['open', 'matched'])
     .select();
-  assertAuthEpoch(operationEpoch);
+  assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   handleDataAuthError(error);
   if (error) { warnMatch('closeSession: ' + error.message); return null; }
   const row = data && data[0];
@@ -210,11 +218,12 @@ async function closeSession(id) {
 // non è in allowedStatuses (un reconcile tardivo non riapre/modifica sessioni
 // già chiuse o celebrate altrove).
 async function updateSessionConditional(id, patch, allowedStatuses) {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   if (!sb || dbMode === 'local' || !isAppAuthorized()) return null;
   const operationEpoch = authEpoch;
   const { data, error } = await sb.from('swipe_sessions')
     .update(patch).eq('id', id).in('status', allowedStatuses).select();
-  assertAuthEpoch(operationEpoch);
+  assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   handleDataAuthError(error);
   if (error) { warnMatch('update session: ' + error.message); return null; }
   const row = data && data[0];
@@ -229,13 +238,14 @@ async function updateSessionConditional(id, patch, allowedStatuses) {
 // Upsert idempotente (ignoreDuplicates → ON CONFLICT DO NOTHING), poi refresh
 // locale e reconcile sull'ULTIMA sessione. Lo swipe non tocca votes/vetoes.
 async function recordSwipe(session, movieId, person, liked) {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   if (!session || !sb || dbMode === 'local' || !isAppAuthorized()) return;
   const operationEpoch = authEpoch;
   const { error } = await sb.from('swipes').upsert(
     [{ session_id: session.id, movie_id: movieId, person, liked: !!liked }],
     { onConflict: 'session_id,movie_id,person', ignoreDuplicates: true }
   );
-  assertAuthEpoch(operationEpoch);
+  assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   handleDataAuthError(error);
   if (error) { warnMatch('recordSwipe: ' + error.message); return; }
   const state = await fetchLatestMatchState();
@@ -258,6 +268,7 @@ async function recordSwipe(session, movieId, person, liked) {
 // condizionato a id + status 'open'. Chiamata da recordSwipe E dal resync
 // (sullo stato fetchato, non sugli swipe locali).
 async function reconcileSession(session, sessionSwipes) {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   if (!session || !matchAvailable || !sb || dbMode === 'local') return;
   const deck = Array.isArray(session.deck) ? session.deck : [];
   const pending = pendingMatch(session, sessionSwipes, deck, movies);
@@ -288,6 +299,7 @@ function reportContinueMatchError(msg) {
 // update a vuoto o in errore): mai UI muta/stallata — se l'update tocca 0
 // righe o fallisce, console.error (una volta) e riallineamento.
 async function continueMatch(session) {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   if (!session || !matchAvailable || !sb || dbMode === 'local') return;
   const deck = Array.isArray(session.deck) ? session.deck : [];
   const pending = pendingMatch(session, swipes, deck, movies);
@@ -325,6 +337,7 @@ function renderMatchArea() {
 }
 
 async function resyncMatchQuiet() {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   const prev = matchSignature(swipeSessions[0], swipes);
   const state = await fetchLatestMatchState();
   if (!state) return;
@@ -337,6 +350,7 @@ async function resyncMatchQuiet() {
 // globale — il canale Match è isolato dal core. Fuori dal tab non si leggono
 // dati (il rientro fa un refetch fresco in openMatchChannel).
 function onMatchChange() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return;
   if (matchResyncTimer) return;
   matchResyncTimer = setTimeout(async () => {
     matchResyncTimer = null;
@@ -412,6 +426,7 @@ function removeMatchChannel(channel) {
 // rientro = track() + refetch dello stato. La ricreazione avviene SOLO dopo
 // rimozione VERIFICATA (getChannels() senza il topic) — mai istanze parallele.
 function openMatchChannel() {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   if (!sb || !matchAvailable || !isAppAuthorized()) return null;
   if (matchChannel) {
     // Già creato: L'OBIETTIVO del rientro è riallacciare presence e stato,
@@ -440,17 +455,21 @@ function openMatchChannel() {
     const leftovers = sb.getChannels().filter(c => c && c.name === MATCH_TOPIC);
     leftovers.forEach(c => { try { sb.removeChannel(c); } catch (e) {} });
   }
+  const epoch = authEpoch;
+  const changed = () => { if (matchChannel === channel && epoch === authEpoch && !(typeof targetSessionActive === 'function' && targetSessionActive())) onMatchChange(); };
+  const presenceChanged = () => { if (matchChannel === channel && epoch === authEpoch && !(typeof targetSessionActive === 'function' && targetSessionActive())) onPresenceChange(); };
   const channel = sb
     .channel(MATCH_TOPIC, { config: { private: true, presence: { key: currentUser } } })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'swipe_sessions' }, onMatchChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'swipes' }, onMatchChange)
-    .on('presence', { event: 'sync' }, onPresenceChange)
-    .on('presence', { event: 'join' }, onPresenceChange)
-    .on('presence', { event: 'leave' }, onPresenceChange);
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'swipe_sessions' }, changed)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'swipes' }, changed)
+    .on('presence', { event: 'sync' }, presenceChanged)
+    .on('presence', { event: 'join' }, presenceChanged)
+    .on('presence', { event: 'leave' }, presenceChanged);
   matchLeaving = false;
   let failureHandled = false;
   matchChannelStatus = 'connecting';
   matchChannel = channel.subscribe((status, err) => {
+    if (epoch !== authEpoch || (typeof targetSessionActive === 'function' && targetSessionActive()) || matchChannel !== channel) return;
     if (status === 'SUBSCRIBED') {
       matchLeaving = false;
       matchChannelStatus = 'subscribed';
@@ -505,6 +524,7 @@ function leaveMatch(full) {
 // non gestito, sempre console.error (una volta per entrata) + vista
 // "Match non disponibile" col messaggio tecnico.
 async function enterMatch() {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   matchEnterErrorMsg = null;
   matchEnterErrorLogged = false;
   try {

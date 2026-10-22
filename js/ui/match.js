@@ -261,6 +261,7 @@ function matchViewHtml() {
 }
 
 function renderMatch() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.render();
   if (currentTab !== 'match') return;
   if (matchDragging) { matchPendingRender = true; return; }
   const grid = document.getElementById('movieGrid');
@@ -307,7 +308,7 @@ function matchCurrentMovieId() {
 
 // ---- Gesto touch: touchstart/move/end, soglia ~80px, niente libreria.
 // Bottoni e gesto convergono entrambi su swipeCard(). ----
-function matchBindSwipe(node, movieId) {
+function matchBindSwipe(node, movieId, observedSwipe = null) {
   node.addEventListener('touchstart', e => {
     matchDragging = true;
     matchDragStartX = (e.touches && e.touches[0] && e.touches[0].clientX) || 0;
@@ -320,7 +321,7 @@ function matchBindSwipe(node, movieId) {
   node.addEventListener('touchend', () => {
     const dx = matchDragX - matchDragStartX;
     matchDragging = false;
-    if (Math.abs(dx) >= matchSwipeThreshold) swipeCard(movieId, dx > 0);
+    if (Math.abs(dx) >= matchSwipeThreshold) { if (observedSwipe) observedSwipe(dx > 0); else swipeCard(movieId, dx > 0); }
     if (matchPendingRender) { matchPendingRender = false; renderMatch(); }
   });
 }
@@ -328,6 +329,7 @@ function matchBindSwipe(node, movieId) {
 // Azione condivisa (bottoni + gesto). Bloccata se ho già risposto: il mio
 // swipe non deve mai avanzare un card che attende la risposta dell'altro.
 async function swipeCard(movieId, liked) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve({category:'INVALID_INPUT',code:'OBSERVED_CARD_REQUIRED'});
   if (matchDragging || matchPendingRender) { matchPendingRender = true; return; }
   const session = matchViewSession();
   if (!session) return;
@@ -344,6 +346,7 @@ async function swipeCard(movieId, liked) {
 }
 
 async function continueFromMatch() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve({category:'INVALID_INPUT',code:'OBSERVED_MATCH_REQUIRED'});
   const session = matchViewSession();
   if (!session) return;
   await continueMatch(session);
@@ -353,6 +356,7 @@ async function continueFromMatch() {
 // "Nuova sessione": chiude l'attuale (se attiva) e ne crea un'altra.
 // DUMP solo in lobby/MATCH/DONE, MAI in SWIPE (il bottone non esiste lì).
 async function newMatchSession() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve({category:'INVALID_INPUT',code:'OBSERVED_SESSION_REQUIRED'});
   const session = matchViewSession();
   if (session && (session.status === 'open' || session.status === 'matched')) {
     await closeSession(session.id);
@@ -367,6 +371,7 @@ async function newMatchSession() {
 // stata effettivamente creata (hook in confirmSchedule), mai all'apertura né
 // se l'utente annulla.
 async function createMatchNight(movieId, mode) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('match');
   const session = matchViewSession();
   if (!session || !movieId) return;
   if (!resolveDeckMovie(movies, movieId)) return;

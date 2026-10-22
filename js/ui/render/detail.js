@@ -15,6 +15,7 @@ function canTransitionMovieDetail(source) {
 }
 
 function openMovieDetail(id, sourceCard) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.detail(id);
   if (detailTransitionActive) return;
   const m = movies.find(x => x.id === id);
   if (!m || (m.surprise_by && m.surprise_by !== currentUser)) return;

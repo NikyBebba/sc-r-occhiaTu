@@ -115,7 +115,7 @@ function ticketCoverImage(ctx, img, x, y, width, height) {
 
 // Poster protagonista, titolo in sovrimpressione e talloncino chiaro staccabile.
 // Le coordinate separano titolo, origine e serata; nessun dato viene inventato.
-function drawTicketCanvas(movie, origin, pct, img) {
+function drawTicketCanvas(movie, origin, pct, img, targetEvent = null) {
   const canvas = document.createElement('canvas');
   canvas.width = TICKET_W;
   canvas.height = TICKET_H;
@@ -239,7 +239,7 @@ function drawTicketCanvas(movie, origin, pct, img) {
   ctx.font = 'bold 22px ' + TICKET_FONT;
   ctx.fillText('QUANDO', 120, 1375);
   // Un film scelto ma non programmato non è automaticamente una serata oggi.
-  const date = movie.scheduled_date
+  const date = targetEvent ? formatNightDate(targetEvent.date,targetEvent.time) : movie.scheduled_date
     ? formatNightDate(movie.scheduled_date, movie.scheduled_time)
     : (movie.nightId ? formatNightDate(null, movie.scheduled_time) : 'Da programmare');
   ctx.fillStyle = '#25233c';
@@ -248,13 +248,13 @@ function drawTicketCanvas(movie, origin, pct, img) {
   ctx.font = 'bold 22px ' + TICKET_FONT;
   ctx.fillText('SNACK', 120, 1475);
   ctx.fillStyle = '#25233c';
-  ticketTextBlock(ctx, movie.snack || 'Da scegliere', 120, 1525, 840, 1, 36, 28);
+  ticketTextBlock(ctx, (targetEvent ? targetEvent.snack : movie.snack) || 'Da scegliere', 120, 1525, 840, 1, 36, 28);
 
   ctx.fillStyle = '#6b5e46';
   ctx.font = 'bold 22px ' + TICKET_FONT;
   ctx.fillText('DOVE', 120, 1575);
   ctx.fillStyle = '#25233c';
-  ticketTextBlock(ctx, movie.location || 'Posto da decidere', 120, 1625, 840, 1, 36, 28);
+  ticketTextBlock(ctx, (targetEvent ? targetEvent.location : movie.location) || 'Posto da decidere', 120, 1625, 840, 1, 36, 28);
 
   ctx.strokeStyle = '#d1c7b0';
   ctx.beginPath(); ctx.moveTo(120, 1650); ctx.lineTo(960, 1650); ctx.stroke();
@@ -333,6 +333,7 @@ function downloadTicketCanvas(canvas, fileName) {
 // (match/wheel/manual) è passata ESPLICITAMENTE dal chiamante: il dato non la
 // traccia, questo è l'unico punto vero di decisione sul timbro/percentuale.
 async function downloadTicket(movieId, origin) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return downloadTargetTicket(movieId,origin,ProductionSession);
   const movie = movies.find(m => m && m.id === movieId);
   if (!movie) return;
   let pct = null;
@@ -352,4 +353,16 @@ async function downloadTicket(movieId, origin) {
   const visibleMovie = hidden ? { ...ticketMovie, title: 'Film a sorpresa', poster: null, release_year: null, duration: null, platform: null } : ticketMovie;
   const canvas = drawTicketCanvas(visibleMovie, origin, pct, img);
   downloadTicketCanvas(canvas, ticketFileName(visibleMovie));
+}
+
+async function downloadTargetTicket(movieId, origin, session) {
+  const token=session.capture(), state=session.getState(), found=state.view.catalog.getContent(movieId);
+  if(found.kind!=='AVAILABLE')return;
+  const content=found.content, event=state.view.group.getEventsForMovie(movieId).events.find(x=>['proposed','confirmed'].includes(x.event.status))?.event ?? null;
+  const hidden=content.surprise_by_person_id && content.surprise_by_person_id!==state.view.context.caller.personId;
+  const poster=await loadTicketPoster(hidden?null:content.poster);if(!session.current(token))return;
+  const display=hidden?Object.freeze({...content,title:'Film a sorpresa',poster:null}):content;
+  const pct=origin==='match'?state.match.derived?.agreement.pct ?? null:null;
+  const canvas=drawTicketCanvas(display,origin,pct,poster,event);
+  downloadTicketCanvas(canvas,ticketFileName(display));
 }

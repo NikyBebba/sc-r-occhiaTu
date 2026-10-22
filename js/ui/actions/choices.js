@@ -3,6 +3,7 @@
 
 // ---- Modalità sorpresa ----
 function openSurprisePicker() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('groupList');
   const list = movies.filter(m => m.status === 'watchlist' && !m.surprise_by);
   const container = document.getElementById('surpriseList');
   if (list.length === 0) {
@@ -18,18 +19,21 @@ function openSurprisePicker() {
 }
 
 async function pickSurprise(id) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve(Object.freeze({outcome:'INVALID_INPUT',code:'OBSERVED_SHELL_ACTION_REQUIRED'}));
   await setSurprise(id, currentUser);
   closeModal('surpriseModal');
   loadMovies();
 }
 
 async function revealSurpriseUI(id) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve(Object.freeze({outcome:'INVALID_INPUT',code:'OBSERVED_SHELL_ACTION_REQUIRED'}));
   await revealSurprise(id);
   loadMovies();
 }
 
 // ---- Veto settimanale ----
 async function vetoMovie(id, title) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve(Object.freeze({outcome:'INVALID_INPUT',code:'OBSERVED_SHELL_ACTION_REQUIRED'}));
   const ok = await addVeto(currentUser, id);
   if (!ok) {
     await showConfirmModal('Veto già usato', 'Hai già usato il tuo veto per questa settimana.');
@@ -41,6 +45,7 @@ async function vetoMovie(id, title) {
 
 // Toglie il veto: nessuna conferma (azione reversibile, come il voto).
 async function unvetoMovie(id) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return Promise.resolve(Object.freeze({outcome:'INVALID_INPUT',code:'OBSERVED_SHELL_ACTION_REQUIRED'}));
   const v = vetoForMovieThisWeek(id);
   if (!v || v.person !== currentUser) return;
   await removeVeto(currentUser, id); // 0 righe o errore => nothing to do (già rimosso)

@@ -28,6 +28,7 @@ function syncLibraryNavigation() {
 }
 
 function setTab(tab) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate(({watchlist:'groupList',rewatch:'rewatch',tonight:'scheduled',watched:'together',calendar:'calendar',match:'match',history_n:'personalSeen',history_v:'personalSeen'})[tab] || 'groupList');
   if (!TAB_KEYS.includes(tab)) return;
   if (tab === 'match' && dbMode !== 'supabase') return;
   cancelListingSearch();
@@ -62,6 +63,7 @@ function setTab(tab) {
 }
 
 function openWheelView() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('wheel');
   cancelListingSearch();
   if (currentTab === 'match') { clearMatchState(); leaveMatch(); currentTab = matchPrevTab; }
   dashboardView = 'wheel';
@@ -71,6 +73,7 @@ function openWheelView() {
 }
 
 function openDashboardHome() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('home');
   cancelListingSearch();
   if (currentTab === 'match') { clearMatchState(); leaveMatch(); currentTab = matchPrevTab; }
   dashboardView = 'home';
@@ -80,6 +83,7 @@ function openDashboardHome() {
 }
 
 function openRecommendationView() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('recommendations');
   cancelListingSearch();
   if (currentTab === 'match') { clearMatchState(); leaveMatch(); currentTab = matchPrevTab; }
   dashboardView = 'recommendations';
@@ -149,6 +153,7 @@ function syncDestinationNavigation() {
 }
 
 function activateDestination(destination) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate(({library:'groupList',history:'personalSeen'})[destination] || destination);
   if (destination === 'match' && dbMode !== 'supabase') return;
   if (destination === activeDestination()) {
     const scroll = destination === 'memories' ? document.getElementById('memoriesScroll') : window;

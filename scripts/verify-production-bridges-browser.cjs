@@ -34,7 +34,7 @@ function automated(){
  assert.throws(()=>vm.runInContext(source('js/runtime/production-host.js'),context),e=>e.name==='SyntaxError');
  return vm.runInContext(checks,context).then(r=>{
   assert(r.cases>=121);assert.equal(r.moduleIO,0);
-  for(const f of ['index.html','js/main.js','js/store.js','js/auth.js','service-worker.js'])assert(!/ProductionHost|ConsumerViewAdapter|runtime\/(production-host|consumer-view-adapter)/.test(source(f)));
+  assert(source('js/production-session.js').includes("mode: 'LEGACY'"), 'Production entry remains LEGACY');
   console.log('PRODUCTION BRIDGES CLASSIC VM: '+r.cases+' integration groups; '+r.assertions+' assertions; module I/O 0. Not Safari.');
  });
 }

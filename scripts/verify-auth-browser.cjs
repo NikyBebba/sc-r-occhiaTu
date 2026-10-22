@@ -18,6 +18,8 @@ let checks=0;
  try{
  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ // Optional public vendor fixture removes CDN timing from Auth assertions.
+ if(process.env.SC_TAILWIND)await page.route('https://**/*',r=>r.request().url().startsWith('https://cdn.tailwindcss.com')?r.fulfill({contentType:'text/javascript',body:fs.readFileSync(process.env.SC_TAILWIND,'utf8')}):r.abort());
  await page.route('http://auth.test/**',r=>r.fulfill({contentType:'text/html',body:html}));
  const load=async(mode='valid')=>{
   await page.goto('http://auth.test/',{waitUntil:'networkidle'});

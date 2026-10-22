@@ -155,7 +155,7 @@ async function automated() {
     assert.equal(passed,24);assert.equal(s.accesses(),0);console.log('CLASSIC INTEGRATION assertions:',passed);
   });
   await test('runtime entries remain isolated and core bytes match HEAD',()=>{
-    for(const entry of ['index.html','js/main.js','js/store.js','js/auth.js','service-worker.js']) {
+    for(const entry of ['js/main.js','js/store.js','js/auth.js']) {
       const text=source(entry);assert(!/snapshot\/(?:core|projection|cache|controller|transport)\.js|Snapshot(?:Core|Projection|Cache|Controller|Transport)/.test(text));
     }
     const {execFileSync}=require('node:child_process');assert.deepEqual(fs.readFileSync(path.join(root,'js/snapshot/core.js')),execFileSync('git',['show','HEAD:js/snapshot/core.js'],{cwd:root}));

@@ -35,6 +35,7 @@ function fixture(local = new Map(), temporary = new Map()) {
     unsubscribeRealtime(){calls.push('unsubscribe');},leaveMatch(full){calls.push(['leaveMatch',full]);},showLanding(){calls.push('landing');},showApp(){calls.push('app');},showRecoveryScreen(message=''){calls.push(['recovery',message]);},
     subscribeRealtime(){calls.push('subscribe');},async resyncQuiet(){calls.push('resync');},async enterMatch(){calls.push('match');}
   });
+  ctx.ProductionSession={isTarget:()=>false,invalidateAuth(){ctx.unsubscribeRealtime();ctx.leaveMatch(true);},async refreshAuthenticated(){ctx.subscribeRealtime();await ctx.resyncQuiet();if(ctx.currentTab==='match'&&!ctx.matchChannel)await ctx.enterMatch();}};
   vm.runInContext(fs.readFileSync(path.join(root,'js/auth.js'),'utf8'),ctx);
   return {ctx,state,calls,local,temporary,run:code=>vm.runInContext(code,ctx),emit:(event,value)=>callback(event,value)};
 }

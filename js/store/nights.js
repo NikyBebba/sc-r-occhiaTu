@@ -34,6 +34,7 @@ function movieProjection(movie, night = activeNightForMovie(movie.id)) {
 // RPC unica: nessun DML diretto su movie_nights e nessun successo locale
 // dopo un errore remoto. Il ramo senza SDK serve al mirror runtime/test locale.
 async function manageMovieNight(action, id, nightId = null, details = {}) {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   requireAppIdentity();
   const epoch = authEpoch;
   const movie = movies.find(m => m.id === id);
@@ -48,11 +49,11 @@ async function manageMovieNight(action, id, nightId = null, details = {}) {
         p_location: details.location ?? null, p_set_location: Object.hasOwn(details, 'location'),
         p_shared_rating: details.sharedRating ?? null, p_shared_text: details.sharedText ?? null });
     } catch (_) {
-      assertAuthEpoch(epoch);
+      assertAuthEpoch(epoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
       console.error('[sc(r)occhiaTu] Serata non salvata: rete non disponibile.');
       dbMode = 'local'; lastSupabaseFailAt = Date.now(); return null;
     }
-    assertAuthEpoch(epoch);
+    assertAuthEpoch(epoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
     handleDataAuthError(result.error);
     if (result.error) {
       console.error('[sc(r)occhiaTu] Serata non salvata:', result.error.message);
@@ -64,7 +65,7 @@ async function manageMovieNight(action, id, nightId = null, details = {}) {
     if (index < 0) movieNights.unshift(row); else movieNights[index] = row;
     if (action === 'complete' || action === 'complete_now') {
       await loadMovies();
-      assertAuthEpoch(epoch);
+      assertAuthEpoch(epoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
       return row;
     }
     if (action === 'edit') { saveLocal(); return row; }

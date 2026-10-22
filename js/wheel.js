@@ -22,6 +22,7 @@ function durationBucket(mins) {
 // Film disponibili per la ruota: in watchlist, non vietati questa
 // settimana, ed eventualmente filtrati per durata e genere reali.
 function wheelPool() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return ProductionSession.getState().view.ruota.eligibleContents.filter(c => (durationFilter==='all'||durationBucket(parseDurationMinutes(c.duration))===durationFilter) && (genreFilter==='all'||c.genres?.includes(genreFilter)));
   const vetoed = vetoedMovieIdsThisWeek();
   return movies.filter(m => {
     if (!choiceEligible(m, movieNights, vetoed)) return false;
@@ -53,7 +54,7 @@ function syncGenreFilterOptions() {
   const sel = document.getElementById('genreFilterSelect');
   if (!sel) return;
   const counts = {};
-  movies.forEach(m => (m.genres || []).forEach(g => {
+  (targetSessionActive() ? ProductionSession.getState().view.catalog.contents : movies).forEach(m => (m.genres || []).forEach(g => {
     if (g) counts[g] = (counts[g] || 0) + 1;
   }));
   const genres = Object.entries(counts)
@@ -128,6 +129,7 @@ function drawWheel() {
 }
 
 function spinWheel() {
+  const capturedSession = typeof ProductionSession !== 'undefined' ? ProductionSession.capture() : null;
   const available = wheelPool();
   if (available.length === 0 || wheelSpinning) return;
 
@@ -153,6 +155,7 @@ function spinWheel() {
   function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
 
   function frame(now) {
+    if (capturedSession && !ProductionSession.current(capturedSession)) { wheelSpinning = false; return; }
     const elapsed = now - start;
     const t = Math.min(elapsed / duration, 1);
     const eased = easeOutCubic(t);
@@ -164,6 +167,14 @@ function spinWheel() {
     } else {
       wheelSpinning = false;
       resultDiv.classList.remove('hidden');
+      if (typeof targetSessionActive === 'function' && targetSessionActive()) {
+        resultDiv.textContent = winner.title;
+        for (const [label,action] of [['Oggi','quickNight'],['Programma','scheduleNight']]) {
+          const button = document.createElement('button'); button.textContent = label; button.className='m-2 py-2 px-3 rounded-lg bg-indigo-600';
+          button.onclick=()=>{if (ProductionSession.current(capturedSession)) TargetShell.edit(action,winner.movie_id);}; resultDiv.appendChild(button);
+        }
+        fireConfetti(); hapticFeedback('wheelWin'); playSound('wheelWin'); return;
+      }
       const surpriseHidden = !!(winner.surprise_by && winner.surprise_by !== currentUser);
       // Step4 phase15 — ruota programmabile: propone, l'utente crea la serata.
       // Stesso flusso della card (quickTonightUI/scheduleMovie), nessun

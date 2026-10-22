@@ -4,6 +4,7 @@
 // Il titolo non identifica un film: omonimi e capitoli di una saga possono
 // condividere il nome. Il controllo avviene sull'ID TMDb scelto nel picker.
 function findDuplicateByTmdbId(tmdbId, excludeId = null) {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   if (tmdbId == null) return null;
   const id = String(tmdbId);
   return movies.find(m => m.id !== excludeId && m.tmdb_id != null && String(m.tmdb_id) === id) || null;
@@ -65,6 +66,7 @@ function movieMutationFailed(error) {
 }
 // ---- Persistenza ----
 async function insertMovie(newMovie) {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   requireAppIdentity();
   const operationEpoch = authEpoch;
   lastMovieMutationError = null;
@@ -82,9 +84,9 @@ async function insertMovie(newMovie) {
   if (sb) {
     let result;
     try { result = await sb.from('movies').insert([finalMovie]).select(typeof MOVIE_SELECT_FIELDS === 'undefined' ? '*' : MOVIE_SELECT_FIELDS); }
-    catch (error) { assertAuthEpoch(operationEpoch); return movieMutationFailed(error); }
+    catch (error) { assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess(); return movieMutationFailed(error); }
     const { data, error } = result;
-    assertAuthEpoch(operationEpoch);
+    assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
     if (error && isMovieBusinessError(error)) {
       if (error.code === '23505' && newMovie.tmdb_id != null) return null;
       lastMovieMutationError = error; return false;
@@ -102,6 +104,7 @@ async function insertMovie(newMovie) {
 }
 
 async function updateMovie(id, patch) {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   requireAppIdentity();
   const operationEpoch = authEpoch;
   lastMovieMutationError = null;
@@ -128,8 +131,8 @@ async function updateMovie(id, patch) {
     let result;
     try { result = await sb.from('movies').update(write).eq('id', id)
       .select(typeof MOVIE_SELECT_FIELDS === 'undefined' ? '*' : MOVIE_SELECT_FIELDS); }
-    catch (error) { assertAuthEpoch(operationEpoch); return movieMutationFailed(error); }
-    assertAuthEpoch(operationEpoch);
+    catch (error) { assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess(); return movieMutationFailed(error); }
+    assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
     if (result.error) return movieMutationFailed(result.error);
     const row = result.data?.[0];
     if (!row || row.id !== id) return false;
@@ -154,12 +157,13 @@ async function updateMovie(id, patch) {
 }
 
 async function deleteMovie(id) {
+  if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   requireAppIdentity();
   const operationEpoch = authEpoch;
   if (!canDeleteOrChangeIdentity(movies.find(m => m.id === id))) return false;
   if (sb) {
     const { data, error } = await sb.from('movies').delete().eq('id', id).select('id');
-    assertAuthEpoch(operationEpoch);
+    assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
     if (error) return movieMutationFailed(error);
     if (!data?.length) return false;
   } else {
