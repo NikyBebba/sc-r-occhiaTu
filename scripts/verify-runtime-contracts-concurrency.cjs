@@ -75,6 +75,29 @@ const completion=(m,n,evaluation)=>{const b=request('COMPLETE_NIGHT_WITH_CONTEXT
  assert.equal(sql("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname IN ('public','auth') AND c.relkind IN ('r','p','v','m');"),'0','Database must be EMPTY');
  fixtureDB=await fixture();const boot=fixtureDB.bootstrapSQL.replace('CREATE ROLE anon; CREATE ROLE authenticated;',()=>"DO $$ BEGIN IF NOT EXISTS(SELECT FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon; END IF; IF NOT EXISTS(SELECT FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated; END IF; END $$;");
  sql(boot);sql(read('database/supabase-migration-runtime-contracts.sql'));sql("UPDATE app_protocol_state SET mode='target',minimum_client_protocol=1;");
+ await test('marker is backend-local and restored on reused connection/rollback',async()=>{
+  const m=create(),a=session(),b=session();
+  try{
+   a.write("BEGIN; SELECT set_config('scorochiatu.content_write','on',true); SELECT 'MARKER_HELD';");await a.wait(/MARKER_HELD\n/);
+   b.write("BEGIN; SELECT 'ISOLATED:'||coalesce(current_setting('scorochiatu.content_write',true),'absent'); SELECT 'OTHER_READY';");
+   assert.match(await b.wait(/OTHER_READY\n/),/ISOLATED:absent/);
+   a.write("ROLLBACK; BEGIN; SET LOCAL request.jwt.claim.sub="+lit(N)+"; SELECT app_content_write("+lit(m)+",'{\"duration\":\"pooled\"}',false,'N'); SELECT 'RESTORED:'||coalesce(current_setting('scorochiatu.content_write',true),''); SELECT 'WRITE_DONE';");
+   const out=await a.wait(/WRITE_DONE\n/);assert.match(out,/RESTORED:\n/);
+   a.write("ROLLBACK; BEGIN; SELECT 'ROLLED_BACK:'||(SELECT duration IS DISTINCT FROM 'pooled' FROM movies WHERE id="+lit(m)+"); SET LOCAL request.jwt.claim.sub="+lit(N)+"; SELECT app_content_write("+lit(m)+",'{\"duration\":\"committed\"}',false,'N'); COMMIT; BEGIN; SELECT 'REUSED:'||coalesce(current_setting('scorochiatu.content_write',true),''); SELECT 'REUSE_DONE';");const reused=await a.wait(/REUSE_DONE\n/);assert.match(reused,/REUSED:\n/);assert.match(reused,/ROLLED_BACK:true/);
+   a.end('COMMIT;');b.end('COMMIT;');for(const r of await Promise.all([a.done,b.done]))assert(!r.err.includes('ERROR:'),r.err);
+   assert.equal(movie(m).duration,'committed');
+  }finally{a.end('ROLLBACK;');b.end('ROLLBACK;');await Promise.allSettled([a.done,b.done]);}
+ });
+ await test('statement cancellation unwinds writer marker before reuse',async()=>{
+  const m=create(),before=movie(m);
+  sql(`BEGIN; SET LOCAL request.jwt.claim.sub=${lit(N)}; SELECT set_config('scorochiatu.content_write','neutral',true);
+   CREATE FUNCTION pg_temp.slow_content_write() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_sleep(1); RETURN NEW; END $$;
+   CREATE TRIGGER cancel_content_test AFTER UPDATE ON movies FOR EACH ROW EXECUTE FUNCTION pg_temp.slow_content_write();
+   SET LOCAL statement_timeout='50ms';
+   DO $$ BEGIN BEGIN PERFORM app_content_write(${lit(m)},'{"duration":"cancel"}',false,'N'); RAISE EXCEPTION 'CANCEL_EXPECTED'; EXCEPTION WHEN query_canceled THEN NULL; END;
+    IF current_setting('scorochiatu.content_write',true)<>'neutral' THEN RAISE EXCEPTION 'CANCEL_MARKER_LEAK';END IF; END $$;
+   ROLLBACK;`);assert.deepEqual(movie(m),before);
+ });
  await test('A01 existing duplicate admission/replay has one effect and receipt',async()=>{
   const m=create(),b=request('ADD_PERSONAL_LIST',m),before=Number(receipts()),r=await pair(app(b),app(b));success(r[0]);assert.equal(r[1].replayed,true);assert.equal(Number(receipts()),before+1);assert.equal(versions(m).find(x=>x.kind==='person_film').version,'1');
  });

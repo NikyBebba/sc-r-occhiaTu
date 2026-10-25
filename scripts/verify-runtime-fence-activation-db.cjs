@@ -46,6 +46,9 @@ const command=(kind,m,n,expected,person=N,p={})=>`SET LOCAL request.jwt.claim.su
  await test('F01 installation dormant: data/mode/legacy grants preserved',()=>{assert.equal(allData(),before);assert.equal(sql('SELECT mode FROM app_protocol_state'),'legacy');assert.equal(sql("SELECT has_table_privilege('authenticated','movies','UPDATE')"),'t');assert.equal(sql("SELECT has_function_privilege('authenticated','execute_app_command(jsonb)','EXECUTE')"),'f');});
  await test('F02 preflight maps actual effective/column/function legacy surfaces',()=>{const a=audit();assert(a.manifest_ok);assert(!a.legacy_clear);for(const name of ['movies','vetoes','swipe_sessions','swipes','manage_movie_night'])assert(JSON.stringify(a.surfaces).includes(name));});
  await test('F03 real authorized legacy writer works before fence',()=>sql(client("UPDATE movies SET platform='Before fence' WHERE id="+lit(uid(95))+';')));
+ await test('legacy owner RPC with forged marker retains v62 status projection',()=>{
+  sql(`BEGIN; SET LOCAL request.jwt.claim.sub=${lit(N)}; UPDATE movies SET status='watchlist' WHERE id=${lit(uid(95))}; SELECT set_config('scorochiatu.content_write','on',true); SELECT manage_movie_night('quick',${lit(uid(95))}); DO $$ BEGIN IF (SELECT status FROM movies WHERE id=${lit(uid(95))})<>'tonight' THEN RAISE EXCEPTION 'LEGACY_PROJECTION_LOST'; END IF; END $$; ROLLBACK;`);
+ });
  await tx('F04 unknown relation manifest fails closed',"CREATE TABLE public.unknown_writer(id int); SELECT runtime_4a4_apply_fence();",/FENCE_MANIFEST_DRIFT/);
  await tx('F05 unknown PUBLIC function fails closed',"CREATE FUNCTION public.unknown_writer() RETURNS void LANGUAGE sql AS $$ SELECT $$; SELECT runtime_4a4_apply_fence();",/FENCE_MANIFEST_DRIFT/);
  await test('F06 fence applies/reruns with no target grant',()=>{sql('SELECT runtime_4a4_apply_fence();');sql('SELECT runtime_4a4_apply_fence();');assert(audit().legacy_clear);assert.equal(sql('SELECT mode FROM app_protocol_state'),'read_only');assert.equal(sql("SELECT has_function_privilege('authenticated','execute_match_action(integer,text,jsonb)','EXECUTE')"),'f');});
@@ -149,6 +152,13 @@ const command=(kind,m,n,expected,person=N,p={})=>`SET LOCAL request.jwt.claim.su
  await test('A10 authenticated grants exact; PUBLIC/anon/internal remain blocked',()=>{for(const f of ['get_app_runtime_context(integer)','get_person_group_snapshot(uuid,integer)','execute_app_command(jsonb)','execute_match_action(integer,text,jsonb)']){assert.equal(sql(`SELECT has_function_privilege('authenticated',${lit(f)},'EXECUTE')`),'t');assert.equal(sql(`SELECT has_function_privilege('anon',${lit(f)},'EXECUTE')`),'f');}assert(audit().legacy_clear);denied(client('SELECT domain_bump(\'content\','+lit(uid(95))+','+lit(uid(95))+');'));});
  await test('A11 target bootstrap/Snapshot and unauthorized caller blocked',()=>{const r=json(client('SELECT get_app_runtime_context(1);'));assert.equal(r.runtime.mode,'target');assert.equal(r.runtime.activation_allowed,true);assert.equal(r.caller.person_id,N);assert.equal(json(client(`SELECT get_person_group_snapshot(${lit(G)},1);`)).outcome,'OK');assert.equal(json(client('SELECT get_app_runtime_context(1);',X)).outcome,'ERROR');denied(client("UPDATE movies SET title='Denied';"));denied(client('SELECT * FROM domain_versions;'));});
  await test('A12 target-used evidence conservative even before first command',()=>assert.equal(sql('SELECT runtime_4a4_target_used()'),'t'));
+ await test('activated public RPC rejects inherited marker and helper stays private',()=>{
+  const before=allData();
+  const r=json(client("SELECT set_config('scorochiatu.content_write','on',true) IS NOT NULL \\g /dev/null\n SELECT execute_app_command('{}');"));
+  assert.equal(r.error.code,'FORBIDDEN');assert.equal(allData(),before);
+  denied(client("SELECT app_content_write("+lit(uid(95))+",'{}',false,'N');"));
+  assert.equal(sql("SELECT has_function_privilege('authenticated','app_content_write(uuid,jsonb,boolean,text)','EXECUTE');"),'f');
+ });
  await test('MATCH fence retains start/swipe/ack H1/close/reconcile via authorized facade',()=>{
   const match=(action,p,person=N)=>json(client(`SELECT execute_match_action(1,${lit(action)},${lit(JSON.stringify(p))});`,person));
   const content=uid(95);sql(`SET request.jwt.claim.sub=${lit(N)}; SELECT domain_command(${lit(uid(989000))},'PROPOSE_TO_GROUP',${lit(content)},${lit(G)},0,'{}'); UPDATE swipe_sessions SET status='closed' WHERE status IN ('open','matched');`);

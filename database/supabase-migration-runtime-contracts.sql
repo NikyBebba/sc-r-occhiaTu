@@ -196,12 +196,14 @@ BEGIN
 END $$;
 
 CREATE FUNCTION public.app_content_write(m uuid,p jsonb,creating boolean,legacy text) RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET scorochiatu.content_write='on' AS $$
-DECLARE r public.movies;
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE r public.movies; previous_content_write text;
 BEGIN
  -- Fixed content columns only. All relation/workflow keys are rejected upstream.
  SELECT * INTO r FROM public.movies WHERE id=m;
  r:=jsonb_populate_record(r,p);
+ previous_content_write:=pg_catalog.current_setting('scorochiatu.content_write',true);
+ PERFORM pg_catalog.set_config('scorochiatu.content_write','on',true);
  IF creating THEN
   INSERT INTO public.movies(id,title,added_by,duration,platform,poster,trailer_url,matched,imdb_rating,rt_rating,metacritic_rating,
     genre,tmdb_id,collection_id,collection_name,genres,release_year,director,overview,cast_names,cinema_watchlist)
@@ -213,12 +215,18 @@ BEGIN
    collection_id=r.collection_id,collection_name=r.collection_name,genres=r.genres,release_year=r.release_year,director=r.director,
    overview=r.overview,cast_names=r.cast_names,cinema_watchlist=r.cinema_watchlist,surprise_by=r.surprise_by WHERE id=m;
  END IF;
+ PERFORM pg_catalog.set_config('scorochiatu.content_write',coalesce(previous_content_write,''),true);
  RETURN m;
+EXCEPTION WHEN OTHERS THEN
+ -- This block's subtransaction has already restored its local GUC changes.
+ -- Propagate the original error; cancellation also unwinds transaction state.
+ RAISE;
 END $$;
 
 -- Preserve the legacy guard's ownership/validation behavior. Content-only writes
 -- retain OLD.status rather than maintaining a deprecated operational projection.
--- The function-local flag restores automatically; it never grants authorization.
+-- The runtime marker is transaction-local and explicitly restored by the writer.
+-- It never grants authorization. Legacy/maintenance always retain the projection.
 DO $content_guard$
 DECLARE src text; a integer; b integer; fragment text;
 BEGIN
@@ -226,9 +234,12 @@ BEGIN
  a:=position(' NEW.status := CASE' IN src); b:=position(' entering_list :=' IN src);
  IF a=0 OR b<a THEN RAISE EXCEPTION 'LEGACY_GUARD_SOURCE_DRIFT'; END IF;
  fragment:=substr(src,a,b-a);
- src:=substr(src,1,a-1)||E' IF NOT (TG_OP=''UPDATE'' AND coalesce(current_setting(''scorochiatu.content_write'',true),''off'')=''on''\n'
-  ||E'   AND current_user=pg_get_userbyid((SELECT proowner FROM pg_proc WHERE oid=''public.app_content_write(uuid,jsonb,boolean,text)''::regprocedure))) THEN\n'
-  ||fragment||E' END IF;\n'||substr(src,b);
+ src:=substr(src,1,a-1)||E' DECLARE content_status_exception boolean:=false;\n BEGIN\n'
+  ||E' IF TG_OP=''UPDATE'' AND coalesce(pg_catalog.current_setting(''scorochiatu.content_write'',true),''off'')=''on''\n'
+  ||E'   AND current_user=pg_catalog.pg_get_userbyid((SELECT proowner FROM pg_catalog.pg_proc WHERE oid=''public.app_content_write(uuid,jsonb,boolean,text)''::regprocedure)) THEN\n'
+  ||E'   SELECT EXISTS(SELECT FROM public.app_protocol_state WHERE mode=''target'') INTO content_status_exception;\n'
+  ||E' END IF;\n IF NOT content_status_exception THEN\n'
+  ||fragment||E' END IF;\n END;\n'||substr(src,b);
  EXECUTE format('CREATE OR REPLACE FUNCTION public.guard_movie_watch() RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path='''' AS %L',src);
 END $content_guard$;
 
@@ -291,6 +302,15 @@ DECLARE
  row_movie public.movies; night_row public.movie_nights; veto_row public.vetoes; week text; other_id uuid; id_value bigint; old_id bigint; lock_key integer;
  evaluation jsonb; eval_changed boolean:=false; params_snapshot jsonb; target jsonb; mode_error text; base_kind text;
 BEGIN
+ -- An ambient marker is untrusted even inside this SECURITY DEFINER boundary.
+ IF pg_catalog.current_setting('scorochiatu.content_write',true)='on' THEN
+  -- Preserve wire identity for valid requests without admitting any command.
+  BEGIN
+   rid:=public.app_uuid(p_request->'request_id');
+  EXCEPTION WHEN SQLSTATE '22023' THEN rid:=NULL;
+  END;
+  RAISE EXCEPTION 'FORBIDDEN' USING ERRCODE='22023';
+ END IF;
  -- Invalid envelopes never become an unrestricted mutation language.
  PERFORM public.app_shape(p_request,ARRAY['protocol_version','request_id','intent','target','expected_versions','parameters']);
  rid:=public.app_uuid(p_request->'request_id');

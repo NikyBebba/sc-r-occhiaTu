@@ -5,6 +5,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const {fixture,read,uid,N,V,X,G}=require('./person-group-command-test-support.cjs');
 const Core=require('../js/snapshot/core'),T=require('../js/snapshot/transport');
 const crypto=require('node:crypto');
+const {inspectSettings,checkSettings}=require('./verify-runtime-contracts-installability.cjs');
 const migration=read('database/supabase-migration-runtime-contracts.sql');
 const ctx=()=>({callerId:N,groupId:G,contractVersion:1,contextEpoch:1});
 const clone=x=>JSON.parse(JSON.stringify(x));
@@ -27,7 +28,10 @@ async function databaseTests(){
  const preserved=async()=>{const out={};for(const table of tables)out[table]=await e.q(`SELECT to_jsonb(t) r FROM ${table} t ORDER BY to_jsonb(t)::text`);return out;};
  const definitions=()=>e.q("SELECT p.oid,pg_get_functiondef(p.oid) definition,p.proacl FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname<>'get_app_runtime_context' ORDER BY p.oid");
  try{
-  const before=await preserved(),functions=await definitions();await e.exec(migration);
+  const before=await preserved(),functions=await definitions();
+  const settings=await e.q('SELECT name,context FROM pg_settings'),installer={superuser:false,parameterSet:[]};
+  assert.deepEqual(checkSettings(inspectSettings(migration),settings,installer),{pass:true,issues:[]});
+  await e.exec(migration);
   await testDB('D01 no Auth',async()=>error(await call(null),'UNAUTHENTICATED'));
   await testDB('D02 missing app member',async()=>error(await call(X),'MEMBERSHIP_REQUIRED'));
   await testDB('D03 uninitialized protocol/foundation',()=>tx(async()=>{await e.exec('DELETE FROM app_protocol_state');error(await call(),'FOUNDATION_NOT_READY');}));
@@ -72,7 +76,11 @@ async function databaseTests(){
    for(const person of [N,null,X]){await e.exec('BEGIN READ ONLY');try{const r=await call(person);assert.equal(r.outcome,person===N?'OK':'ERROR');}finally{await e.exec('ROLLBACK');}}
    assert.deepEqual(await preserved(),before);
   });
-  await testDB('D22 historical functions unchanged except scoped content trigger bridge',async()=>{const after=await definitions();for(const f of functions){const a=after.find(x=>x.oid===f.oid);if(f.definition.includes('FUNCTION public.guard_movie_watch()'))assert.deepEqual(a.proacl,f.proacl);else assert.deepEqual(a,f);}});
+  await testDB('D22 historical functions unchanged except scoped content trigger bridge',async()=>{const after=await definitions();for(const f of functions){const a=after.find(x=>x.oid===f.oid);if(f.definition.includes('FUNCTION public.guard_movie_watch()')){
+   assert.deepEqual(a.proacl,f.proacl);
+   const restored=a.definition.replace(/ DECLARE content_status_exception boolean:=false;\n BEGIN\n[\s\S]*? IF NOT content_status_exception THEN\n([\s\S]*?) END IF;\n END;\n/,'$1');
+   assert.notEqual(restored,a.definition,'Expected exactly the approved status wrapper');assert.equal(restored,f.definition,'All legacy source and metadata outside the wrapper must be exact');
+  }else assert.deepEqual(a,f);}});
   await testDB('D23 caller search_path cannot forge membership',()=>tx(async()=>{
    await e.exec("CREATE TEMP TABLE app_members(user_id uuid,person text); SET LOCAL search_path=pg_temp,public;");await e.q("INSERT INTO pg_temp.app_members VALUES($1,'N')",[X]);
    error(await call(X),'MEMBERSHIP_REQUIRED');
@@ -403,6 +411,78 @@ async function writerTests(){
   await test('content metadata strict allowlist and exact IDs',async()=>{
    for(const p of [{title:null},{title:'x',seen_n:true},{title:'x',in_shared_list:true},{title:'x',status:'watched'},{title:'x',participants:[N]},{title:'x',tmdb_id:1},{title:'x',duration:123},{title:'x',matched:'yes'}])assert.equal((await app(body('CONTENT_CREATE',null,null,null,p))).outcome,'ERROR');
    const m=await create();for(const p of [{seen_n:true},{personal_liked_n:true},{surprise_by:'V'},{scheduled_date:'2099-01-01'},{tmdb_id:'01'}])assert.equal((await cmd('CONTENT_UPDATE_METADATA',m,null,null,p)).outcome,'ERROR');
+  });
+  await test('content marker restores absent/neutral values before a second write',async()=>{
+   const m=await create();await schedule(m);
+   assert.notEqual((await e.q("SELECT current_setting('scorochiatu.content_write',true) v"))[0].v,'on');
+   for(const value of ['', 'off', 'neutral']){
+    await e.q("SELECT set_config('scorochiatu.content_write',$1,true)",[value]);
+    successful(await cmd('CONTENT_UPDATE_METADATA',m,null,null,{duration:value+' min'}));
+    assert.equal((await e.q("SELECT current_setting('scorochiatu.content_write',true) v"))[0].v,value);
+    await e.q("UPDATE movies SET status='watchlist' WHERE id=$1",[m]);assert.equal((await movie(m)).status,'tonight');
+   }
+  });
+  await test('ambient on is rejected before any command effect or receipt',async()=>{
+   const m=await create(),before=await effectState(m),count=await receipts();
+   await e.q("SELECT set_config('scorochiatu.content_write','on',true)");
+   const r=await app(body('CONTENT_SET_CINEMA',m,null,null,{value:true},[await token('content',m,m)]));
+   assert.equal(r.error.code,'FORBIDDEN');assert.deepEqual(await effectState(m),before);assert.equal(await receipts(),count);
+   assert.equal((await e.q("SELECT current_setting('scorochiatu.content_write',true) v"))[0].v,'on');
+  });
+  await test('writer error/savepoint rollback restores marker and all writes',async()=>{
+   const m=await create(),before=await movie(m);
+   await e.q("SELECT set_config('scorochiatu.content_write','neutral',true)");
+   await e.exec('SAVEPOINT marker_error');
+   await assert.rejects(e.q("SELECT app_content_write($1,'{\"title\":null}',false,'N')",[m]),/null value/);
+   await e.exec('ROLLBACK TO SAVEPOINT marker_error');
+   assert.equal((await e.q("SELECT current_setting('scorochiatu.content_write',true) v"))[0].v,'neutral');assert.deepEqual(await movie(m),before);
+   await e.exec('SAVEPOINT marker_success');
+   await e.q("SELECT app_content_write($1,'{\"title\":\"temporary\"}',false,'N')",[m]);
+   await e.exec('ROLLBACK TO SAVEPOINT marker_success');assert.deepEqual(await movie(m),before);
+   assert.equal((await e.q("SELECT current_setting('scorochiatu.content_write',true) v"))[0].v,'neutral');
+  });
+  await test('nested writer restores outer marker and rejects nested public command',async()=>{
+   const outer=await create(),inner=await create();await schedule(outer);await schedule(inner);
+   await e.exec(`CREATE FUNCTION pg_temp.nested_content_writer() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+     IF NEW.id='${outer}'::uuid THEN
+      IF current_setting('scorochiatu.content_write',true)<>'on' THEN RAISE EXCEPTION 'OUTER_MARKER_MISSING';END IF;
+      IF public.execute_app_command('{}')->'error'->>'code'<>'FORBIDDEN' THEN RAISE EXCEPTION 'NESTED_COMMAND_ADMITTED';END IF;
+      PERFORM public.app_content_write('${inner}','{"duration":"nested"}',false,'N');
+      BEGIN
+       PERFORM public.app_content_write('${inner}','{"title":null}',false,'N');
+       RAISE EXCEPTION 'INNER_FAILURE_EXPECTED';
+      EXCEPTION WHEN not_null_violation THEN NULL; END;
+      IF current_setting('scorochiatu.content_write',true)<>'on' THEN RAISE EXCEPTION 'OUTER_MARKER_LOST';END IF;
+     END IF; RETURN NEW;
+    END $$; CREATE TRIGGER nested_content_test AFTER UPDATE ON movies FOR EACH ROW EXECUTE FUNCTION pg_temp.nested_content_writer();`);
+   successful(await cmd('CONTENT_UPDATE_METADATA',outer,null,null,{duration:'outer'}));
+   assert.equal((await movie(inner)).duration,'nested');assert.equal((await movie(inner)).status,'watchlist');
+   assert.notEqual((await e.q("SELECT current_setting('scorochiatu.content_write',true) v"))[0].v,'on');
+  });
+  await test('public content failure restores marker before subsequent legacy write',async()=>{
+   const m=await create();await schedule(m);const before=await effectState(m),count=await receipts();
+   const r=await cmd('CONTENT_UPDATE_METADATA',m,null,null,{tmdb_id:'777777'});
+   assert.equal(r.error.code,'FORBIDDEN');assert.deepEqual(await effectState(m),before);assert.equal(await receipts(),count);
+   assert.notEqual((await e.q("SELECT current_setting('scorochiatu.content_write',true) v"))[0].v,'on');
+   await e.q("UPDATE movies SET duration='after failure' WHERE id=$1",[m]);assert.equal((await movie(m)).status,'tonight');
+  });
+  await test('legacy and maintenance owner writes ignore forged marker',async()=>{
+   const m=await create();await schedule(m);
+   for(const mode of ['legacy','read_only']){
+    await e.q('UPDATE app_protocol_state SET mode=$1',[mode]);
+    await e.q("SELECT set_config('scorochiatu.content_write','on',true)");
+    await e.q("UPDATE movies SET platform=$2,status='watchlist' WHERE id=$1",[m,mode]);assert.equal((await movie(m)).status,'tonight');
+   }
+   await e.exec('DELETE FROM app_protocol_state');
+   await e.q("UPDATE movies SET status='watchlist' WHERE id=$1",[m]);assert.equal((await movie(m)).status,'tonight');
+  });
+  await test('authenticated forged marker neither reads protocol state nor skips guard',async()=>{
+   const m=await create();await schedule(m);
+   await e.exec('GRANT SELECT,UPDATE ON movies TO authenticated; SET LOCAL ROLE authenticated');
+   await e.q("SELECT set_config('scorochiatu.content_write','on',true)");
+   await e.q("UPDATE movies SET status='watchlist' WHERE id=$1",[m]);assert.equal((await movie(m)).status,'tonight');
+   await e.exec('RESET ROLE');
   });
   await test('content CAS/update/noop, status bridge and legacy guard preserved',async()=>{
    const m=await create();await schedule(m);assert.equal((await movie(m)).status,'watchlist');
