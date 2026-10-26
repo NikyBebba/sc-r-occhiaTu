@@ -287,6 +287,14 @@ async function runChecks(modules, data, onCase = () => {}) {
   await test('late scheduling result has stable obsolete envelope', async h => { await h.boot(); const token = await h.pending(); h.controls.holdCommand = true; const pending = h.host.scheduleMatchedMovie(token, { date: '2027-01-05' }); await tick(); await h.replace(data.V); h.commands[0].resolve(); const r = await pending; eq(r.actionResult.outcome, 'OBSOLETE', 'old action'); eq(r.closeTicket, null, 'no transferable close ticket'); });
   await test('Snapshot failure exposes delegated controller status', async h => { h.controls.snapshotError = { message: 'Synthetic failure' }; await h.boot(); eq(h.state.phase, 'STARTING', 'runtime not READY'); eq(h.state.runtime.controllerStatus, 'UNINITIALIZED', 'actual failure status'); eq(h.state.view.kind, 'UNAVAILABLE', 'no false empty'); eq(h.legacyEvents.length, 0, 'no fallback'); });
   await test('startup dependency exception remains BLOCKED after state reads', async h => { h.targetDependencies.runtime.clock.nowInstant = () => { throw Error('Synthetic clock unavailable'); }; await h.boot(); eq(h.state.phase, 'BLOCKED', 'failure retained'); eq(h.state.reason.code, 'SESSION_START_FAILED', 'reason retained'); eq(h.state.actions, null, 'no writes'); eq(h.state.view.kind, 'UNAVAILABLE', 'cleared'); eq(h.legacyEvents.length, 0, 'no fallback'); });
+  await test('retiring target startup does not wait for unresolved bootstrap transport', async h => {
+    h.targetDependencies.runtime.rpc = () => new Promise(() => {});
+    const starting = h.host.startTarget();
+    for (let i=0;i<80;i++) await Promise.resolve();
+    await h.host.stop(); await starting;
+    eq(h.host.getState().phase,'STOPPED','cancelled startup retired');
+    eq(h.legacyEvents.length,0,'no fallback');
+  });
   return { cases, assertions, worstSnapshotReadsPerScenario: worstSnapshotReads, worstMatchReadsPerScenario: worstMatchReads, worstPublicationsPerScenario: worstHostPublications };
 }
 module.exports = { fixtureData, runChecks };

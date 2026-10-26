@@ -70,7 +70,7 @@ function loadLocal() {
 async function fetchAll() {
   assertLegacyDomainAccess();
   requireAppIdentity();
-  const epoch = authEpoch;
+  const epoch = captureLegacyAuthority();
   if (!sb) return null;
   if (dbMode === 'local' && Date.now() - lastSupabaseFailAt < SUPABASE_RETRY_MS) return null;
   let results;
@@ -82,9 +82,9 @@ async function fetchAll() {
       sb.from('vetoes').select('*'),
       sb.from('movie_nights').select('*').order('created_at', { ascending: false })
     ]);
-    assertAuthEpoch(epoch);
+    assertLegacyAuthority(epoch);
   } catch (error) {
-    assertAuthEpoch(epoch);
+    assertLegacyAuthority(epoch);
     assertLegacyDomainAccess();
     handleDataAuthError(error);
     dbMode = 'local';
@@ -119,9 +119,9 @@ function dataSignature() {
 async function loadMovies() {
   assertLegacyDomainAccess();
   requireAppIdentity();
-  const epoch = authEpoch;
+  const epoch = captureLegacyAuthority();
   const remote = await fetchAll();
-  assertAuthEpoch(epoch);
+  assertLegacyAuthority(epoch);
   assertLegacyDomainAccess();
   if (remote) {
     movies = remote.movies;
@@ -142,10 +142,10 @@ async function loadMovies() {
 async function resyncQuiet() {
   assertLegacyDomainAccess();
   requireAppIdentity();
-  const epoch = authEpoch;
+  const epoch = captureLegacyAuthority();
   const prev = dataSignature();
   const remote = await fetchAll();
-  assertAuthEpoch(epoch);
+  assertLegacyAuthority(epoch);
   assertLegacyDomainAccess();
   if (remote) {
     movies = remote.movies;
@@ -165,7 +165,7 @@ function onDbChange() {
   const ticket = legacyRealtimeGeneration, entryEpoch = authEpoch;
   resyncTimer = setTimeout(async () => {
     resyncTimer = null;
-    if (ticket !== legacyRealtimeGeneration || entryEpoch !== authEpoch || targetSessionActive()) return;
+    if (ticket !== legacyRealtimeGeneration || entryEpoch !== authEpoch || !legacyDomainAvailable()) return;
     try { await resyncQuiet(); } catch (_) { /* Auth chiude la UI; niente fallback anonimo */ }
   }, 120);
 }
@@ -175,14 +175,14 @@ function subscribeRealtime() {
   assertLegacyDomainAccess();
   if (realtimeChannel || !sb || !isAppAuthorized()) return;
   const ticket = ++legacyRealtimeGeneration, entryEpoch = authEpoch;
-  const changed = () => { if (ticket === legacyRealtimeGeneration && entryEpoch === authEpoch && !targetSessionActive()) onDbChange(); };
+  const changed = () => { if (ticket === legacyRealtimeGeneration && entryEpoch === authEpoch && legacyDomainAvailable()) onDbChange(); };
   const channel = sb
     .channel('scorochiatu-db-changes', { config: { private: true } })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'movies' }, changed)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'vetoes' }, changed);
   channel.on('postgres_changes', { event: '*', schema: 'public', table: 'movie_nights' }, changed);
   realtimeChannel = channel.subscribe((status, err) => {
-    if (ticket !== legacyRealtimeGeneration || entryEpoch !== authEpoch || targetSessionActive()) return;
+    if (ticket !== legacyRealtimeGeneration || entryEpoch !== authEpoch || !legacyDomainAvailable()) return;
     if (status === 'SUBSCRIBED') {
       // Anche dopo reconnect: recupera gli eventi persi, resync idempotente.
       if (isAppAuthorized()) onDbChange();
@@ -203,4 +203,23 @@ function unsubscribeRealtime() {
 }
 
 function targetSessionActive() { return typeof ProductionSession !== 'undefined' && ProductionSession.isTarget(); }
-function assertLegacyDomainAccess() { if (targetSessionActive()) throw new TypeError('LEGACY_AUTHORITY_FORBIDDEN'); }
+function legacyDomainAvailable() {
+  try { if (typeof ProductionSession !== 'undefined') ProductionSession.assertLegacy(); return true; } catch (_) { return false; }
+}
+function assertLegacyDomainAccess() {
+  if (typeof ProductionSession !== 'undefined') ProductionSession.assertLegacy();
+}
+function captureLegacyAuthority() {
+  assertLegacyDomainAccess();
+  return { auth: authEpoch, protocol: typeof ProductionSession !== 'undefined' ? ProductionSession.capture() : null };
+}
+function assertLegacyAuthority(token) {
+  assertAuthEpoch(token.auth); assertLegacyDomainAccess();
+  if (token.protocol && !ProductionSession.current(token.protocol)) throw new TypeError('LEGACY_CONTEXT_REPLACED');
+}
+async function verifyLegacyAuthority(token) {
+  try {
+    if (typeof ProductionSession !== 'undefined' && ProductionSession.verifyLegacy) await ProductionSession.verifyLegacy();
+    assertLegacyAuthority(token); return true;
+  } catch (_) { return false; }
+}

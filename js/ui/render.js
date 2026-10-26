@@ -67,6 +67,7 @@ function renderDashboardHome() {
 }
 
 function render() {
+  if (typeof ProductionSession !== 'undefined' && ProductionSession.renderProtocolGate?.()) return;
   if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.render();
   if (typeof syncReviewEditor === 'function') syncReviewEditor();
   if (!isAppAuthorized()) { showLanding(); return; }

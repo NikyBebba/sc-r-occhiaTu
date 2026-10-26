@@ -185,6 +185,9 @@ async function okA(name, fn) {
   run(() => {
     currentUser = 'N'; requireAppIdentity = () => {}; isAppAuthorized = () => true;
     assertAuthEpoch = () => {}; validateCurrentAuth = async () => {};
+    // Legacy-domain component fixture; real production negotiation has its own suite.
+    const componentSession = ProductionSession.createCoordinator({mode:"LEGACY",legacy:{start(){},stop(){},refresh(){}}});
+    ProductionSession = Object.freeze({...componentSession, invalidateAuth(){ unsubscribeRealtime(); leaveMatch(true); return componentSession.invalidateAuth(); }});
   });
 
 
@@ -3846,7 +3849,7 @@ async function okA(name, fn) {
     const savedM = movies, savedN = movieNights;
     movies = [{ id: 'ma', title: 'M A', status: 'tonight', scheduled_date: '2026-10-24', scheduled_time: '21:30', added_by: 'N', platform: 'P', poster: '' }];
     movieNights = [{ id: 'n1', movie_id: 'ma', date: '2026-10-24', time: '21:30', status: 'confirmed', proposed_by: 'N' }];
-    renderScheduled();
+    renderScheduled(new Date('2026-10-24T12:00:00'));
     const html = document.getElementById('scheduledList').innerHTML;
     const okR = html.indexOf('M A') === -1 && document.getElementById('scheduledPanel').classList.contains('hidden');
     movies = savedM; movieNights = savedN;
@@ -3862,7 +3865,7 @@ async function okA(name, fn) {
       { id: 'n1', movie_id: 'ma', date: '2026-10-24', time: '21:30', status: 'confirmed', proposed_by: 'N' },
       { id: 'n2', movie_id: 'mb', date: '2026-10-30', time: '20:00', status: 'proposed', proposed_by: 'V' }
     ];
-    renderScheduled();
+    renderScheduled(new Date('2026-10-24T12:00:00'));
     const html = document.getElementById('scheduledList').innerHTML;
     const okR = html.indexOf('M B') !== -1 && html.indexOf('M A') === -1
       && !document.getElementById('scheduledPanel').classList.contains('hidden');
@@ -3879,11 +3882,11 @@ async function okA(name, fn) {
       { id: 'n1', movie_id: 'ma', date: '2026-10-24', time: '21:30', status: 'confirmed', proposed_by: 'N' },
       { id: 'n2', movie_id: 'mb', date: '2026-10-30', time: '20:00', status: 'proposed', proposed_by: 'V' }
     ];
-    renderScheduled();                         // primo render: 1 riga (M B)
+    renderScheduled(new Date('2026-10-24T12:00:00'));                         // primo render: 1 riga (M B)
     const before = document.getElementById('scheduledList').innerHTML;
     movies = [{ id: 'ma', title: 'M A', status: 'tonight', scheduled_date: '2026-10-24', scheduled_time: '21:30', added_by: 'N', platform: 'P', poster: '' }];
     movieNights = [{ id: 'n1', movie_id: 'ma', date: '2026-10-24', time: '21:30', status: 'confirmed', proposed_by: 'N' }];
-    renderScheduled();                         // secondo render: solo pick → vuoto
+    renderScheduled(new Date('2026-10-24T12:00:00'));                         // secondo render: solo pick → vuoto
     const after = document.getElementById('scheduledList').innerHTML;
     const okR = before.indexOf('M B') !== -1 && after === ''
       && document.getElementById('scheduledPanel').classList.contains('hidden');
@@ -6053,7 +6056,7 @@ async function okA(name, fn) {
     ctx.globalThis = ctx;
     vm.createContext(ctx);
     for (const f of scripts) vm.runInContext(read(f) + '\n;', ctx, { filename: f });
-    vm.runInContext('requireAppIdentity=()=>{}; isAppAuthorized=()=>true; assertAuthEpoch=()=>{}; validateCurrentAuth=async()=>{};', ctx);
+    vm.runInContext('requireAppIdentity=()=>{}; isAppAuthorized=()=>true; assertAuthEpoch=()=>{}; validateCurrentAuth=async()=>{}; ProductionSession=ProductionSession.createCoordinator({mode:"LEGACY",legacy:{start(){},stop(){},refresh(){}}});', ctx);
     const fn = n => vm.runInContext(`typeof ${n} === 'function'`, ctx) === true;
     const decl = n => vm.runInContext(`typeof ${n} !== 'undefined'`, ctx) === true;
     const funcs = [
@@ -6101,7 +6104,7 @@ async function okA(name, fn) {
     ctx.globalThis = ctx;
     vm.createContext(ctx);
     for (const f of scripts) vm.runInContext(read(f) + '\n;', ctx, { filename: f });
-    vm.runInContext('requireAppIdentity=()=>{}; isAppAuthorized=()=>true; assertAuthEpoch=()=>{}; validateCurrentAuth=async()=>{};', ctx);
+    vm.runInContext('requireAppIdentity=()=>{}; isAppAuthorized=()=>true; assertAuthEpoch=()=>{}; validateCurrentAuth=async()=>{}; ProductionSession=ProductionSession.createCoordinator({mode:"LEGACY",legacy:{start(){},stop(){},refresh(){}}});', ctx);
     const r = await vm.runInContext(`
       (async () => {
         sb = mockSb; dbMode = 'supabase'; matchAvailable = true; matchProbeDone = true; matchProbeTimeoutMs = 3000;

@@ -35,8 +35,11 @@ function fixture(local = new Map(), temporary = new Map()) {
     unsubscribeRealtime(){calls.push('unsubscribe');},leaveMatch(full){calls.push(['leaveMatch',full]);},showLanding(){calls.push('landing');},showApp(){calls.push('app');},showRecoveryScreen(message=''){calls.push(['recovery',message]);},
     subscribeRealtime(){calls.push('subscribe');},async resyncQuiet(){calls.push('resync');},async enterMatch(){calls.push('match');}
   });
-  ctx.ProductionSession={isTarget:()=>false,invalidateAuth(){ctx.unsubscribeRealtime();ctx.leaveMatch(true);},async refreshAuthenticated(){ctx.subscribeRealtime();await ctx.resyncQuiet();if(ctx.currentTab==='match'&&!ctx.matchChannel)await ctx.enterMatch();}};
+  ctx.ProductionSession={assertLegacy(){},capture:()=>null,current:()=>true,isTarget:()=>false,invalidateAuth(){ctx.unsubscribeRealtime();ctx.leaveMatch(true);},async refreshAuthenticated(){ctx.subscribeRealtime();await ctx.resyncQuiet();if(ctx.currentTab==='match'&&!ctx.matchChannel)await ctx.enterMatch();}};
   vm.runInContext(fs.readFileSync(path.join(root,'js/auth.js'),'utf8'),ctx);
+  // Real Store authority helpers; this component fixture injects explicit LEGACY.
+  const store=fs.readFileSync(path.join(root,'js/store.js'),'utf8');
+  vm.runInContext(store.slice(store.indexOf('function targetSessionActive()')),ctx);
   return {ctx,state,calls,local,temporary,run:code=>vm.runInContext(code,ctx),emit:(event,value)=>callback(event,value)};
 }
 let count=0;
@@ -168,11 +171,11 @@ async function test(name,fn){await fn();count++;console.log('PASS '+name);}
  await test('callback SIGNED_OUT invalida identità',async()=>{const f=fixture();await f.run('initializeAuth()');f.emit('SIGNED_OUT',null);assert.equal(f.run('isAppAuthorized()'),false);});
  await test('membership revocata al refresh: app chiusa',async()=>{const f=fixture();await f.run('initializeAuth()');f.state.member=null;await f.run('refreshAuthConnection()');assert.equal(f.run('isAppAuthorized()'),false);});
  await test('JWT scaduto offline: mirror vietato',async()=>{const f=fixture();await f.run('initializeAuth()');f.run('authIdentity.expiresAt=1');assert.throws(()=>f.run('requireAppIdentity()'),/AUTH_REQUIRED/);assert.equal(f.ctx.currentUser,null);});
- await test('insertMovie completato dopo logout: nessun dato ripopolato',async()=>{const f=fixture();await f.run('initializeAuth()');vm.runInContext(fs.readFileSync(path.join(root,'js/store/movies.js'),'utf8'),f.ctx);let finish;f.ctx.sb.from=()=>({insert(){return this;},select(){return new Promise(resolve=>{finish=resolve;});}});const pending=f.run("insertMovie({title:'Fixture'})");await f.run('signOutApp()');finish({data:[{id:'fixture'}],error:null});await assert.rejects(pending,/AUTH_REQUIRED|AUTH_CHANGED/);assert.equal(f.ctx.movies.length,0);});
+ await test('insertMovie completato dopo logout: nessun dato ripopolato',async()=>{const f=fixture();await f.run('initializeAuth()');vm.runInContext(fs.readFileSync(path.join(root,'js/store/movies.js'),'utf8'),f.ctx);let finish;f.ctx.sb.from=()=>({insert(){return this;},select(){return new Promise(resolve=>{finish=resolve;});}});const pending=f.run("insertMovie({title:'Fixture'})");await new Promise(r=>setTimeout(r,0));await f.run('signOutApp()');finish({data:[{id:'fixture'}],error:null});await assert.rejects(pending,/AUTH_REQUIRED|AUTH_CHANGED/);assert.equal(f.ctx.movies.length,0);});
  await test('RPC serata completata dopo logout non ripopola il mirror',async()=>{
   const f=fixture();await f.run('initializeAuth()');vm.runInContext(fs.readFileSync(path.join(root,'js/store/nights.js'),'utf8'),f.ctx);
   f.ctx.movies=[{id:'fixture',seen_n:false,seen_v:false}];let finish;f.ctx.sb.rpc=()=>new Promise(resolve=>{finish=resolve;});
-  const pending=f.run("setQuickTonight('fixture')");await f.run('signOutApp()');finish({data:{id:'night',movie_id:'fixture',status:'confirmed'},error:null});
+  const pending=f.run("setQuickTonight('fixture')");await new Promise(r=>setTimeout(r,0));await f.run('signOutApp()');finish({data:{id:'night',movie_id:'fixture',status:'confirmed'},error:null});
   await assert.rejects(pending,/AUTH_REQUIRED|AUTH_CHANGED/);assert.equal(f.ctx.movies.length,0);assert.equal(f.ctx.movieNights.length,0);
  });
  await test('RPC RLS 42501 chiude Auth senza successo offline',async()=>{

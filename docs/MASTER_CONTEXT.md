@@ -4,6 +4,14 @@ Ultimo aggiornamento: 16 ottobre 2026. Fonte dello stato operativo AS-IS e dei
 checkpoint principali. Roadmap, visione TO-BE e specifica Recommendation hanno
 fonti dedicate; le sezioni marcate **HISTORICAL** sono archivio, non stato attuale.
 
+## Lavoro locale 26 ottobre 2026 — Phase 4A9-C, non rilasciato
+
+[Negoziazione protocollo e handoff](PRODUCTION_PROTOCOL_HANDOFF.md): implementazione
+locale verificata C/C1, reader DB aggiuntivo solo REVIEW_ONLY. Nessun deploy o accesso
+Supabase in questa fase. Non usare i pacchetti B2/B3 congelati dopo una futura
+revisione del contratto senza nuovi manifest. Safari nativo: ENVIRONMENT_GATE_BLOCKED
+prima della navigazione, isolato con pagina minima; nessun PASS Safari nativo dichiarato.
+
 ## Stato corrente — release v62
 
 **IMPLEMENTED + RELEASED + PRODUCTION.** Release SHA

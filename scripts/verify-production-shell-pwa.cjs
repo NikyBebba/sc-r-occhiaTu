@@ -19,7 +19,8 @@ const server=http.createServer((req,res)=>{
 const check=(value,name)=>{assert(value,name);checks++;console.log('PASS '+name);};
 (async()=>{
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
- const browser=await chromium.launch({headless:true});
+ const executable=process.argv.find(x=>x.startsWith('--executable='))?.slice(13);
+ const browser=await chromium.launch({headless:true,...(executable?{executablePath:executable}:{})});
  try{
   const context=await browser.newContext({serviceWorkers:'allow'}),page=await context.newPage();
   await page.goto(origin);await page.evaluate(()=>navigator.serviceWorker.ready);await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
@@ -40,20 +41,21 @@ const check=(value,name)=>{assert(value,name);checks++;console.log('PASS '+name)
   await worker.evaluate(async()=>{for(let i=0;i<200;i++){if(!(await caches.keys()).includes('scorochiatu-shell-v62'))return;await new Promise(r=>setTimeout(r,25));}throw Error('Waiting worker did not activate');});
   const fresh=await context.newPage();const errors=[];fresh.on('pageerror',e=>errors.push(e.message));await fresh.goto(origin);await fresh.waitForFunction(()=>typeof ProductionHost!=='undefined');
   check(await fresh.evaluate(()=>!ProductionSession.isTarget()),'new production entry remains LEGACY only');
-  check(await fresh.evaluate(async()=>(await caches.keys()).includes('scorochiatu-shell-v63')&&!(await caches.keys()).includes('scorochiatu-shell-v62')),'controlled update retires old cache');
+  check(await fresh.evaluate(async()=>(await caches.keys()).includes('scorochiatu-shell-v64')&&!(await caches.keys()).includes('scorochiatu-shell-v62')),'controlled update retires old cache');
+  check(await fresh.evaluate(()=>document.body.dataset.clientBuild==='protocol-v1-v64'&&typeof ProtocolSession==='object'),'protocol entry build marker and module are current');
   check(await fresh.evaluate(()=>['SnapshotCore','SnapshotProjection','ProductionHost','TargetShell'].every(name=>{try{return !!(0,eval)(name);}catch(_){return false;}})),'complete new module graph loads');
   await context.setOffline(true);await fresh.reload();
   check(await fresh.evaluate(()=>Object.isFrozen(ProductionHost)&&Object.isFrozen(TargetIntegrationHost)&&!ProductionSession.isTarget()),'all target dependencies available in new offline shell');
   check(errors.length===0,'new online/offline shell has zero JavaScript errors');
   await context.close();
   version='new';const clean=await browser.newContext({serviceWorkers:'allow'});const install=await clean.newPage();await install.goto(origin);await install.evaluate(()=>navigator.serviceWorker.ready);await install.waitForFunction(()=>!!navigator.serviceWorker.controller);
-  check(await install.evaluate(async()=>{const cache=await caches.open('scorochiatu-shell-v63');return !!(await cache.match('/js/runtime/production-host.js'))&&!!(await cache.match('/js/ui/target-shell.js'));}),'clean install precaches complete target shell');
+  check(await install.evaluate(async()=>{const cache=await caches.open('scorochiatu-shell-v64');return !!(await cache.match('/js/runtime/production-host.js'))&&!!(await cache.match('/js/runtime/protocol-session.js'))&&!!(await cache.match('/js/ui/target-shell.js'));}),'clean install precaches complete target shell');
   await clean.close();
   version='old';const failure=await browser.newContext({serviceWorkers:'allow'}),old=await failure.newPage();await old.goto(origin);await old.evaluate(()=>navigator.serviceWorker.ready);await old.waitForFunction(()=>!!navigator.serviceWorker.controller);
   version='new';failAsset=true;await old.evaluate(async()=>{const r=await navigator.serviceWorker.getRegistration();await r.update();});
   for(let i=0;i<100&&!failedRequests;i++)await new Promise(r=>setTimeout(r,50));check(failedRequests>0,'failed target asset exercised');
-  await old.waitForFunction(async()=>{const r=await navigator.serviceWorker.getRegistration();return !r.installing&&!r.waiting&&!(await caches.keys()).includes('scorochiatu-shell-v63');});
-  check(await old.evaluate(async()=>!(await caches.keys()).includes('scorochiatu-shell-v63')),'failed precache removes partial new cache');
+  await old.waitForFunction(async()=>{const r=await navigator.serviceWorker.getRegistration();return !r.installing&&!r.waiting&&!(await caches.keys()).includes('scorochiatu-shell-v64');});
+  check(await old.evaluate(async()=>!(await caches.keys()).includes('scorochiatu-shell-v64')),'failed precache removes partial new cache');
   await old.reload();check(await old.evaluate(()=>typeof ProductionHost==='undefined'&&typeof render==='function'),'failed update preserves complete old shell');
   await failure.close();console.log('PWA production-shell: '+checks+'/'+checks+' PASS; real worker/multiple-tabs/offline/update; no live Supabase.');
  }finally{await browser.close();await new Promise(r=>server.close(r));}

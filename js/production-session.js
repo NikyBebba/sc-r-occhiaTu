@@ -1,6 +1,6 @@
 'use strict';
-// The shipped entry is permanently LEGACY for this release. The factory is an
-// injection boundary for isolated shell tests; no browser setting selects mode.
+// Production authority is negotiated online. Explicit factories remain isolated
+// composition boundaries; no browser setting selects production authority.
 let ProductionSession = (() => {
   const Host = typeof module !== 'undefined' && module.exports ? require('./runtime/production-host') : ProductionHost;
   function productionDependencies() {
@@ -129,35 +129,93 @@ let ProductionSession = (() => {
     if (matchResyncTimer) { clearTimeout(matchResyncTimer); matchResyncTimer = null; }
     if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
   }
-  let coordinator = null;
+  let coordinator = null, lastLegacyPublication = null;
+  function clearSessionViews() {
+    if (typeof TargetShell !== 'undefined') TargetShell.dispose();
+    movies = []; movieNights = []; vetoes = []; votes = []; swipeSessions = []; swipes = [];
+    storeReady = false;
+    if (typeof document !== 'undefined') {
+      document.querySelectorAll('[id$="Modal"]').forEach(modal => modal.classList.add('hidden'));
+      const grid = document.getElementById('movieGrid'); if (grid) grid.innerHTML = '';
+    }
+  }
+  function renderProtocolGate() {
+    if (typeof document === 'undefined') return false;
+    const gate = document.getElementById('protocolGate');
+    if (!gate || typeof isAppAuthorized !== 'function' || !isAppAuthorized()) { gate?.classList.add('hidden'); return false; }
+    const state = coordinator?.getState();
+    const blocked = !state || !['LEGACY','TARGET'].includes(state.mode) || state.phase !== 'READY';
+    gate.classList.toggle('hidden', !blocked);
+    document.getElementById('appRoot')?.classList.toggle('hidden', blocked);
+    if (blocked) {
+      const message = document.getElementById('protocolGateMessage');
+      if (message) message.textContent = state?.mode === 'READ_ONLY' ? 'Piccola pausa per un aggiornamento. Le modifiche sono sospese.' : 'Verifica online in corso o non disponibile. Le modifiche sono sospese.';
+    }
+    return blocked;
+  }
   function normal() {
-    if (!coordinator) coordinator = createCoordinator({ mode: 'LEGACY', legacy: {
-      start() {
-        requireAppIdentity(); const epoch = authEpoch; subscribeRealtime();
-        // v62 starts its load asynchronously; storeReady owns its loading UI.
-        // Session teardown must not wait on a stalled network request.
-        loadMovies().catch(() => {
-          if (targetSessionActive() || !isAppAuthorized() || epoch !== authEpoch) return;
-          dbMode = 'local'; lastSupabaseFailAt = Date.now();
-          try { loadLocal(); } catch (_) { movies = []; votes = []; vetoes = []; movieNights = []; }
-          render();
-        });
+    if (coordinator) return coordinator;
+    const Protocol = typeof module !== 'undefined' && module.exports ? require('./runtime/protocol-session') : ProtocolSession;
+    coordinator = Protocol.create({
+      async readProtocol(identity) {
+        requireAppIdentity(); const epoch = authEpoch;
+        const client = sb;
+        if (!client || authIdentity.uid !== identity) throw new Error('AUTH_CHANGED');
+        const result = await client.rpc('read_app_protocol', { p_client_protocol: 1 });
+        assertAuthEpoch(epoch);
+        if (result.error) throw new Error('PROTOCOL_UNAVAILABLE');
+        return result.data;
       },
-      async refresh() { subscribeRealtime(); await resyncQuiet(); if (currentTab === 'match' && !matchChannel) await enterMatch(); },
-      stop: stopLegacy
-    } });
+      createSession(mode) {
+        let target;
+        if (mode === 'TARGET') {
+          target = productionDependencies();
+          // Background Match reconciliation uses the same authority boundary.
+          const rpc = target.runtime.rpc, match = target.match.executeMatchAction;
+          target.runtime.rpc = async (name, args) => {
+            const token = coordinator.capture();
+            if (name === 'execute_app_command') { await coordinator.verifyTarget(); if (!coordinator.current(token)) throw new Error('PROTOCOL_CONTEXT_CHANGED'); }
+            return rpc(name, args);
+          };
+          target.match.executeMatchAction = async request => {
+            const token = coordinator.capture(); await coordinator.verifyTarget();
+            if (!coordinator.current(token)) throw new Error('PROTOCOL_CONTEXT_CHANGED');
+            return match(request);
+          };
+        }
+        return createCoordinator({ mode, target, onPublication() {}, legacy: {
+          start() {
+            requireAppIdentity(); const token = coordinator.capture(); subscribeRealtime();
+            loadMovies().catch(() => { if (coordinator.current(token)) render(); });
+          },
+          async refresh() { subscribeRealtime(); await resyncQuiet(); if (currentTab === 'match' && !matchChannel) await enterMatch(); },
+          stop: stopLegacy
+        } });
+      },
+      clearViews: clearSessionViews,
+      onState(state) {
+        if (renderProtocolGate()) return;
+        if (state.mode === 'TARGET' && typeof TargetShell !== 'undefined') TargetShell.publication(state);
+        if (state.mode === 'LEGACY' && state.phase === 'READY' && lastLegacyPublication !== state.generation) { lastLegacyPublication = state.generation; render(); }
+      },
+      now: () => performance.now(), schedule: (ms, fn) => setTimeout(fn, ms), cancel: id => clearTimeout(id)
+    });
     return coordinator;
   }
-  return Object.freeze({ createCoordinator, productionDependencies, ownsCoordinator: other => coordinator === other,
-    isTarget: () => coordinator?.mode === 'TARGET',
-    assertLegacy() { if (coordinator?.mode === 'TARGET') throw new TypeError('LEGACY_AUTHORITY_FORBIDDEN'); },
+  return Object.freeze({ createCoordinator, productionDependencies,
+    ownsCoordinator: owner => coordinator?.ownsCoordinator(owner) ?? false,
+    isTarget: () => coordinator?.isTarget() ?? false,
+    assertLegacy() { if (!coordinator) throw new TypeError('LEGACY_AUTHORITY_FORBIDDEN'); coordinator.assertLegacy(); },
+    verifyLegacy: () => normal().verifyLegacy(), renderProtocolGate,
     startAuthenticated: () => normal().startAuthenticated(authIdentity?.uid),
     refreshAuthenticated: () => normal().refreshAuthenticated(authIdentity?.uid),
-    invalidateAuth() { if (!coordinator || coordinator.mode === 'LEGACY') stopLegacy(); return coordinator?.invalidateAuth(); }, action: (...args) => coordinator?.action(...args) ?? Promise.resolve(Object.freeze({outcome:'NOT_READY'})),
+    invalidateAuth() { stopLegacy(); return coordinator?.invalidateAuth(); },
+    action: (...args) => coordinator?.action(...args) ?? Promise.resolve(Object.freeze({outcome:'NOT_READY'})),
     match: (...args) => coordinator?.match(...args) ?? Promise.resolve(Object.freeze({category:'INVALID_INPUT'})),
     subscribe: listener => normal().subscribe(listener), setObservedPerson: id => coordinator?.setObservedPerson(id),
     scheduleMatchedMovie: (...args) => coordinator?.scheduleMatchedMovie(...args), closeScheduledMatch: ticket => coordinator?.closeScheduledMatch(ticket),
-    capture: () => coordinator?.capture() ?? null, current: token => coordinator?.current(token) ?? false, retryStartup: () => coordinator?.retryStartup(), requestRefresh: () => coordinator?.requestRefresh(), getState: () => coordinator?.getState() ?? null
+    capture: () => coordinator?.capture() ?? null, current: token => coordinator?.current(token) ?? false,
+    retryStartup: () => normal().retryStartup(), requestRefresh: () => normal().requestRefresh(), getState: () => coordinator?.getState() ?? null
   });
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = ProductionSession;

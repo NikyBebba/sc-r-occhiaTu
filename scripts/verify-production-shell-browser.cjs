@@ -17,7 +17,7 @@ const checks=`'use strict'; (async()=>{
 function automated(){
  const cp=require('node:child_process');const r=cp.spawnSync(process.execPath,[path.join(__dirname,'verify-production-shell.cjs')],{encoding:'utf8'});assert.equal(r.status,0,r.stderr+r.stdout);console.log(r.stdout.trim().split('\n').at(-1));
  for(const f of files)assert(fs.existsSync(path.join(root,f)),f);assert.equal(new Set(files).size,files.length);
- const entry=source('js/production-session.js');assert(entry.includes("mode: 'LEGACY'"));assert(!/location\.search|URLSearchParams|localStorage\.getItem\([^)]*mode/.test(entry));
+ const entry=source('js/production-session.js');assert(entry.includes('Protocol.create(') && entry.includes("rpc('read_app_protocol'"));assert(!/location\.search|URLSearchParams|localStorage\.getItem\([^)]*mode/.test(entry));
  assert(files.indexOf('js/recommendation/adapters.js')<files.indexOf('js/snapshot/projection.js'));
  return Promise.resolve();
 }

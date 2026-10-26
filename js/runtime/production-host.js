@@ -75,6 +75,7 @@ const ProductionHost = (() => {
       mutable();
       if (!['LEGACY', 'TARGET'].includes(selected)) throw new TypeError('Explicit application session mode required');
       const old = current, id = ++generation;
+      if (old?.mode === 'TARGET') old.cancelStart?.();
       current = null; mode = selected; phase = 'STARTING'; reason = null; publish();
       // Await a previous start before teardown. Async legacy startup cannot
       // finish after its cleanup and coexist with a replacement target session.
@@ -83,13 +84,14 @@ const ProductionHost = (() => {
         catch (_) { teardownFailed = true; if (id === generation && !disposed) { phase = 'BLOCKED'; reason = frozen({ code: 'SESSION_TEARDOWN_FAILED' }); publish(); } return; }
         if (disposed || id !== generation) return;
         const s = { mode: selected, generation: id, host: null, unsubscribe: null, targetState: null, view: unavailable() };
+        const cancelled = new Promise(resolve => { s.cancelStart = resolve; });
         current = s;
         try {
           if (selected === 'LEGACY') { await legacyLifecycle.start(frozen({ generation: id })); if (active(s)) phase = 'READY'; }
           else {
             s.host = Integration.createTargetIntegrationHost(dependencies); surfaces(s);
             s.unsubscribe = s.host.subscribe(() => { if (active(s)) { sync(s); publish(); } });
-            await s.host.start(); sync(s);
+            await Promise.race([s.host.start(), cancelled]); sync(s);
           }
         } catch (_) {
           if (active(s)) {
@@ -121,7 +123,7 @@ const ProductionHost = (() => {
       mutable(); const old = current; ++generation; current = null;
       phase = auth ? 'AUTH_INVALIDATING' : 'STOPPED'; reason = null; publish();
       // Target invalidation is synchronous, even if legacy teardown is queued.
-      if (old?.mode === 'TARGET' && old.host) old.host.invalidateAuth();
+      if (old?.mode === 'TARGET' && old.host) { old.cancelStart?.(); old.host.invalidateAuth(); }
       const work = queue.then(() => retire(old)); queue = work.catch(() => {});
       return work.then(getState, () => { teardownFailed = true; if (!disposed) { phase = 'BLOCKED'; reason = frozen({ code: 'SESSION_TEARDOWN_FAILED' }); publish(); } return getState(); });
     }

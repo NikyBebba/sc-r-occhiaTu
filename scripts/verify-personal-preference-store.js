@@ -221,7 +221,7 @@ async function test(name,fn) { await fn(); checks++; console.log('PASS '+name); 
    assert(await f.ctx.savePersonalReviewText('synthetic-film','Own review'));assert.equal(f.movie().personal_liked_v,true);assert.equal(f.movie().personal_liked_updated_at_v,'2026-10-13T15:00:00Z');
  });
  await test('late response after identity change never updates mirror',async()=>{
-   const f=fixture();f.state.deferred=true;const pending=f.ctx.setPersonalPreference('synthetic-film','N',true);await Promise.resolve();f.ctx.authEpoch++;f.state.finish();await assert.rejects(pending,/AUTH_CHANGED/);assert.equal(f.movie().personal_liked_n,null);assert.equal(f.storage.size,0);
+   const f=fixture();f.state.deferred=true;const pending=f.ctx.setPersonalPreference('synthetic-film','N',true);await new Promise(r=>setImmediate(r));assert.equal(typeof f.state.finish,'function');f.ctx.authEpoch++;f.state.finish();await assert.rejects(pending,/AUTH_CHANGED/);assert.equal(f.movie().personal_liked_n,null);assert.equal(f.storage.size,0);
  });
  console.log(`Personal Preference Store: ${checks}/${checks} PASS; synthetic server, no live I/O.`);
 })().catch(e=>{console.error(e);process.exitCode=1;});

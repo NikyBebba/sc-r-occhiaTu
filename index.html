@@ -76,7 +76,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
 </head>
-<body class="min-h-screen pb-12">
+<body data-client-build="protocol-v1-v64" class="min-h-screen pb-12">
 
   <!-- Livello per l'effetto confetti al reveal della ruota -->
   <div id="confettiLayer"></div>
@@ -150,6 +150,11 @@
     </main>
   </div>
 
+  <section id="protocolGate" class="hidden max-w-md mx-auto p-6 text-center" aria-live="polite">
+    <p id="protocolGateMessage" class="my-4"></p>
+    <button class="px-4 py-2 rounded-lg bg-indigo-600 text-white" onclick="ProductionSession.retryStartup()">Riprova la verifica</button>
+    <button class="px-4 py-2" onclick="logout()">Esci</button>
+  </section>
   <div id="appRoot" class="hidden">
     <!-- NAVBAR -->
     <nav class="site-nav glass-panel sticky top-0 z-40 mb-6" aria-label="Navigazione principale">
@@ -766,6 +771,7 @@
   <script src="js/runtime/target-integration-host.js"></script>
   <script src="js/runtime/consumer-view-adapter.js"></script>
   <script src="js/runtime/production-host.js"></script>
+  <script src="js/runtime/protocol-session.js"></script>
   <script src="js/production-session.js"></script>
   <script src="js/ui/target-shell.js"></script>
   <script src="js/main.js"></script>

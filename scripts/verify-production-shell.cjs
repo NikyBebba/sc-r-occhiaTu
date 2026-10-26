@@ -10,6 +10,12 @@ function fixtureData() {
   return { raw, absent, unavailable, rewatch: F.rewatch(), multiple: F.multipleEvents(), N: F.N, V: F.V, G: F.G, M: F.M, Q: F.Q, R: F.uid(3), NIGHT: F.NIGHT, observer: F.uid(998000), other: F.uid(998001), at: F.AT };
 }
 async function runChecks(modules, data, onCase = () => {}) {
+  // Component regressions inject explicit legacy authority; normal negotiation
+  // is exercised separately by verify-protocol-session.cjs.
+  const productionEntry = modules.originalSession;
+  const legacyFixture = modules.createCoordinator({ mode: 'LEGACY', legacy: { start() { requireAppIdentity(); subscribeRealtime(); loadMovies().catch(() => {}); }, stop() { unsubscribeRealtime(); leaveMatch(true); }, async refresh() { subscribeRealtime(); await resyncQuiet(); } } });
+  modules = { ...modules, originalSession: Object.freeze({ ...legacyFixture, invalidateAuth: () => productionEntry.invalidateAuth() }) };
+
   const { Core, Cache, Engine, Shell } = modules;
   const Production = { createProductionHost(options) {
     const coordinator = modules.createCoordinator({ ...options, mode: 'TARGET' });
@@ -261,7 +267,7 @@ async function runChecks(modules, data, onCase = () => {}) {
       v.version='9007199254740993';h.controls.wire.catalog[0].title='Exact Snapshot recovery';channel.callbacks[0].fn({eventType:'UPDATE',new:{...v,version:Number(v.version)}});await h.pump();eq(app.getState().view.catalog.getContent(data.M).content.title,'Exact Snapshot recovery','unrepresentable signal causes coherent recovery');await app.action(app.capture(),'updateMetadata',data.M,{title:'Exact CAS'});await h.pump();eq(h.commands.at(-1).body.expected_versions[0].version,'9007199254740993','CAS retains exact Snapshot version');
       let touched=0;const malformed={...v,version:3};Object.defineProperty(malformed,'scope_id',{enumerable:true,get(){touched++;return data.M;}});channel.callbacks[0].fn({eventType:'UPDATE',new:malformed});await h.pump();eq(touched,0,'SDK normalization never evaluates payload getters');}finally{await app.dispose();}
   });
-  await test('normal production startup stays LEGACY through real Auth refresh',async h=>{
+  await test('explicit legacy fixture stays LEGACY through real Auth refresh',async h=>{
     modules.install(modules.originalSession);const f=authClient(data.N);
     try{showApp();await h.pump();eq(ProductionSession.getState().mode,'LEGACY','normal mode');check(!html().includes('Lista personale'),'legacy render not overwritten');check(!f.client.calls.some(c=>c[0]==='rpc'),'no target probe');await refreshAuthConnection();await h.pump();eq(ProductionSession.getState().mode,'LEGACY','same authority');eq(f.client.channels.length,1,'one legacy shared channel');openRecommendationView();check(!ProductionSession.isTarget(),'Recommendation remains legacy');openWheelView();check(!ProductionSession.isTarget(),'Ruota remains legacy');}finally{await modules.originalSession.invalidateAuth();modules.install(h.host);}
   });
@@ -269,7 +275,7 @@ async function runChecks(modules, data, onCase = () => {}) {
     modules.install(modules.originalSession);const f=authClient(data.N);showApp();await h.pump();const old=f.client.channels[0];old.callbacks[0].fn();check(resyncTimer!==null,'pending debounce');await modules.originalSession.invalidateAuth();eq(resyncTimer,null,'debounce cancelled');modules.install(h.host);await h.boot();const reads=f.client.calls.length;old.status('SUBSCRIBED');for(const binding of old.callbacks)binding.fn();await h.pump();eq(f.client.calls.length,reads,'no retired legacy read');eq(h.state.phase,'READY','target unaffected');
   });
   await test('late legacy writer result cannot patch retired domain objects',async h=>{
-    modules.install(modules.originalSession);authClient(data.N);const old={id:data.M,title:'Old legacy title',seen_n:false,seen_v:false};movies=[old];let reply;sb.from=()=>({update:()=>({eq:()=>({select:()=>new Promise(resolve=>{reply=resolve;})})})});const pending=updateMovie(data.M,{title:'Late legacy title'}).then(()=>null,e=>e);modules.install(h.host);await h.boot();const before=h.state.view;reply({data:[{...old,title:'Late legacy title'}],error:null});const error=await pending;check(error instanceof TypeError,'late legacy result rejected');eq(old.title,'Old legacy title','retired object not patched');eq(h.state.view,before,'target view unchanged');
+    modules.install(modules.originalSession);authClient(data.N);const old={id:data.M,title:'Old legacy title',seen_n:false,seen_v:false};movies=[old];let reply;sb.from=()=>({update:()=>({eq:()=>({select:()=>new Promise(resolve=>{reply=resolve;})})})});const pending=updateMovie(data.M,{title:'Late legacy title'}).then(()=>null,e=>e);await tick();modules.install(h.host);await h.boot();const before=h.state.view;reply({data:[{...old,title:'Late legacy title'}],error:null});const error=await pending;check(error instanceof TypeError,'late legacy result rejected');eq(old.title,'Old legacy title','retired object not patched');eq(h.state.view,before,'target view unchanged');
   });
   await test('retired legacy Match callbacks cannot reopen channel or resync',async h=>{
     modules.install(modules.originalSession);const fixture=authClient(data.N);dbMode='supabase';matchAvailable=true;matchProbeDone=true;openMatchChannel();const old=fixture.client.channels[0];await modules.originalSession.invalidateAuth();modules.install(h.host);await h.boot();const calls=fixture.client.calls.length;old.status('SUBSCRIBED');for(const binding of old.callbacks)binding.fn();await h.pump();eq(matchChannel,null,'retired channel stays detached');eq(fixture.client.calls.length,calls,'no retired Match read');eq(matchResyncTimer,null,'no pending legacy Match resync');

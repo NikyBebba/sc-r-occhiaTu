@@ -90,14 +90,14 @@ function reportMatchEnterError(e) {
 function probeMatchTables() {
   if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   if (!sb || !isAppAuthorized()) return Promise.resolve(false);
-  const probeEpoch = authEpoch;
+  const probeEpoch = captureLegacyAuthority();
   const attempt = (async () => {
     try {
       const [a, b] = await Promise.all([
         sb.from('swipe_sessions').select('id').limit(1),
         sb.from('swipes').select('id').limit(1)
       ]);
-      assertAuthEpoch(probeEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
+      assertLegacyAuthority(probeEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
       handleDataAuthError(a?.error);
       handleDataAuthError(b?.error);
       return !(a && a.error) && !(b && b.error);
@@ -117,18 +117,18 @@ function probeMatchTables() {
 async function fetchLatestMatchState() {
   if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   if (!sb || dbMode === 'local' || !isAppAuthorized()) return null;
-  const fetchEpoch = authEpoch;
+  const fetchEpoch = captureLegacyAuthority();
   try {
     const sessionRes = await sb.from('swipe_sessions')
       .select('*').order('created_at', { ascending: false }).limit(1);
-    assertAuthEpoch(fetchEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
+    assertLegacyAuthority(fetchEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
     handleDataAuthError(sessionRes.error);
     if (sessionRes.error) { warnMatch('fetch session: ' + sessionRes.error.message); return null; }
     const session = (sessionRes.data && sessionRes.data[0]) || null;
     let sessionSwipes = [];
     if (session) {
       const swipesRes = await sb.from('swipes').select('*').eq('session_id', session.id);
-      assertAuthEpoch(fetchEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
+      assertLegacyAuthority(fetchEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
       handleDataAuthError(swipesRes.error);
       if (swipesRes.error) { warnMatch('fetch swipes: ' + swipesRes.error.message); return null; }
       sessionSwipes = swipesRes.data || [];
@@ -164,7 +164,8 @@ async function ensureActiveSession() {
 async function startNewSession() {
   if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   if (!sb || dbMode === 'local' || !matchAvailable || !isAppAuthorized()) return null;
-  const operationEpoch = authEpoch;
+  const operationEpoch = captureLegacyAuthority();
+  if (!await verifyLegacyAuthority(operationEpoch)) return false;
   const deckInfo = buildDeck(movies, {
     vetoedIds: vetoedMovieIdsThisWeek(),
     excludeIds: activeNights().map(n => n.movie_id)
@@ -172,7 +173,7 @@ async function startNewSession() {
   const { data, error } = await sb.from('swipe_sessions')
     .insert([{ status: 'open', created_by: currentUser, seed: deckInfo.seed, deck: deckInfo.deck }])
     .select();
-  assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
+  assertLegacyAuthority(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   handleDataAuthError(error);
   if (error) {
     if (error.code === '23505') {
@@ -196,13 +197,14 @@ async function startNewSession() {
 async function closeSession(id) {
   if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   if (!sb || dbMode === 'local' || !isAppAuthorized()) return null;
-  const operationEpoch = authEpoch;
+  const operationEpoch = captureLegacyAuthority();
+  if (!await verifyLegacyAuthority(operationEpoch)) return false;
   const { data, error } = await sb.from('swipe_sessions')
     .update({ status: 'closed' })
     .eq('id', id)
     .in('status', ['open', 'matched'])
     .select();
-  assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
+  assertLegacyAuthority(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   handleDataAuthError(error);
   if (error) { warnMatch('closeSession: ' + error.message); return null; }
   const row = data && data[0];
@@ -220,10 +222,11 @@ async function closeSession(id) {
 async function updateSessionConditional(id, patch, allowedStatuses) {
   if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   if (!sb || dbMode === 'local' || !isAppAuthorized()) return null;
-  const operationEpoch = authEpoch;
+  const operationEpoch = captureLegacyAuthority();
+  if (!await verifyLegacyAuthority(operationEpoch)) return false;
   const { data, error } = await sb.from('swipe_sessions')
     .update(patch).eq('id', id).in('status', allowedStatuses).select();
-  assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
+  assertLegacyAuthority(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   handleDataAuthError(error);
   if (error) { warnMatch('update session: ' + error.message); return null; }
   const row = data && data[0];
@@ -240,12 +243,13 @@ async function updateSessionConditional(id, patch, allowedStatuses) {
 async function recordSwipe(session, movieId, person, liked) {
   if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   if (!session || !sb || dbMode === 'local' || !isAppAuthorized()) return;
-  const operationEpoch = authEpoch;
+  const operationEpoch = captureLegacyAuthority();
+  if (!await verifyLegacyAuthority(operationEpoch)) return false;
   const { error } = await sb.from('swipes').upsert(
     [{ session_id: session.id, movie_id: movieId, person, liked: !!liked }],
     { onConflict: 'session_id,movie_id,person', ignoreDuplicates: true }
   );
-  assertAuthEpoch(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
+  assertLegacyAuthority(operationEpoch); if (typeof assertLegacyDomainAccess === 'function') assertLegacyDomainAccess();
   handleDataAuthError(error);
   if (error) { warnMatch('recordSwipe: ' + error.message); return; }
   const state = await fetchLatestMatchState();
@@ -456,8 +460,8 @@ function openMatchChannel() {
     leftovers.forEach(c => { try { sb.removeChannel(c); } catch (e) {} });
   }
   const epoch = authEpoch;
-  const changed = () => { if (matchChannel === channel && epoch === authEpoch && !(typeof targetSessionActive === 'function' && targetSessionActive())) onMatchChange(); };
-  const presenceChanged = () => { if (matchChannel === channel && epoch === authEpoch && !(typeof targetSessionActive === 'function' && targetSessionActive())) onPresenceChange(); };
+  const changed = () => { if (matchChannel === channel && epoch === authEpoch && (typeof legacyDomainAvailable !== 'function' || legacyDomainAvailable())) onMatchChange(); };
+  const presenceChanged = () => { if (matchChannel === channel && epoch === authEpoch && (typeof legacyDomainAvailable !== 'function' || legacyDomainAvailable())) onPresenceChange(); };
   const channel = sb
     .channel(MATCH_TOPIC, { config: { private: true, presence: { key: currentUser } } })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'swipe_sessions' }, changed)
@@ -469,7 +473,7 @@ function openMatchChannel() {
   let failureHandled = false;
   matchChannelStatus = 'connecting';
   matchChannel = channel.subscribe((status, err) => {
-    if (epoch !== authEpoch || (typeof targetSessionActive === 'function' && targetSessionActive()) || matchChannel !== channel) return;
+    if (epoch !== authEpoch || (typeof legacyDomainAvailable === 'function' && !legacyDomainAvailable()) || matchChannel !== channel) return;
     if (status === 'SUBSCRIBED') {
       matchLeaving = false;
       matchChannelStatus = 'subscribed';
