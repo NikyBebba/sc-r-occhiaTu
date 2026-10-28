@@ -2,12 +2,69 @@
 // Semantic TARGET renderer. No legacy rows, store arrays or legacy selectors.
 const TargetShell = (() => {
   function createShell({ session, root = document, lookup = fetchMovieDetails, detailsById = fetchTmdbDetailsById }) {
-    let destination = 'home', query = '', genre = '', duration = '', sort = 'title', page = 0, detailId = null, feedback = '', operation = null, matchOperation = null, revealedKey = null, saga = null, recommendation = [], winner = null, editor = null;
+    let destination = 'home', query = '', genre = '', duration = '', sort = 'added', sortDir = 'desc', platform = '', proposer = '', availability = 'streaming', page = 0, detailId = null, feedback = '', operation = null, matchOperation = null, revealedKey = null, saga = null, recommendation = [], winner = null, editor = null;
     let shared = null, match = null, generation = null;
     const el = id => root.getElementById(id);
+    const bindings = new Map();
+    function bind(id, property, handler) {
+      const node = el(id); if (!node) return;
+      if (!bindings.has(node)) bindings.set(node, new Map());
+      if (!bindings.get(node).has(property)) bindings.get(node).set(property, node[property]);
+      node[property] = handler;
+    }
+    const show = (id, visible) => { const node = el(id); if (node) { node.classList.toggle('!hidden', !visible); if (visible) node.classList.remove('hidden'); } };
+    const text = (id, value) => { const node = el(id); if (node) node.textContent = value; };
+    const personalDestination = () => ['personalList','personalSeen'].includes(destination);
+    function syncLayout(value) {
+      if (typeof syncTargetNavigation === 'function') syncTargetNavigation(destination);
+      const home = destination === 'home' && !editor && !saga, wheel = destination === 'wheel' && !editor, proposals = destination === 'recommendations' && !editor;
+      const personal = personalDestination() && !editor && !saga, group = ['groupList','rewatch','scheduled'].includes(destination) && !editor && !saga;
+      const titles = {groupList:'Libreria',rewatch:'Rewatch',scheduled:'In programma',personalList:'Lista personale',personalSeen:'Visti personali',together:'Visti e recensioni',memories:'Ricordi',calendar:'Calendario',search:'Cerca nel catalogo',bulk:'Aggiungi film'};
+      show('appRoot',true); show('sceltaCta',home); show('dashboardSidebar',wheel); show('recommendationSection',proposals);
+      show('librarySection',!home && !wheel && !proposals); show('nextMovieHero',false); show('scheduledPanel',false);
+      show('libraryHeader',destination!=='match'); show('matchViewHeader',destination==='match'); show('libraryBack',destination!=='match');
+      for (const id of ['segControl','libraryViewSelect']) el(id)?.classList.toggle('!hidden',!group);
+      el('tabAll')?.classList.add('!hidden');
+      const all = el('libraryViewSelect')?.querySelector?.('option[value="all"]'); if (all) { all.hidden = true; all.disabled = true; }
+      show('historySwitch',personal); show('targetPersonalCollections',personal); show('historySearch',personal);
+      show('libraryTools',!editor && !saga && (group || ['together','search'].includes(destination)));
+      show('listFiltersBlock',!personal); show('syncNotice',false);
+      text('libraryPageTitle',editor?'Aggiungi e modifica':titles[destination] || '');
+      text('libraryPageEyebrow',personal?'IL PERCORSO PERSONALE':destination==='memories'?'TITOLI DI CODA':destination==='calendar'?'IL CARTELLONE':'LO SCAFFALE DEI FILM');
+      for (const [id,key] of [['targetPersonalList','personalList'],['targetPersonalSeen','personalSeen']]) el(id)?.setAttribute('aria-pressed',String(destination===key));
+      for (const member of members()) {
+        const code = member.legacyLabel;
+        const node = el('historySwitch'+code); if (!node) continue;
+        node.textContent = member.label || code; node.setAttribute('aria-pressed',String(value.context.observedPerson.personId===member.personId));
+        bind('historySwitch'+code,'onclick',()=>session.setObservedPerson(member.personId));
+      }
+      const input = el('movieSearchInput'); if (input) input.value = query;
+      bind('movieSearchInput','oninput',()=>{query=input.value;page=0;render();});
+      const historyInput=el('historySearchInput');if(historyInput)historyInput.value=query;
+      bind('historySearchInput','oninput',()=>{query=historyInput.value;page=0;render();});
+      const select = (id,values,chosen,label,onchange) => {
+        const node=el(id);if(!node)return;
+        const options='<option value="all">'+escape(label)+'</option>'+values.map(v=>'<option value="'+escape(v)+'">'+escape(v)+'</option>').join('');
+        if(node.innerHTML!==options)node.innerHTML=options;node.value=chosen||'all';bind(id,'onchange',()=>{onchange(node.value==='all'?'':node.value);page=0;render();});
+      };
+      const contents=value.catalog.contents;
+      select('genreListFilterSelect',[...new Set(contents.flatMap(c=>c.genres||[]))].sort(),genre,'Tutti i generi',v=>genre=v);
+      select('platformFilterSelect',[...new Set(contents.map(c=>c.platform).filter(Boolean))].sort(),platform,'Tutte le piattaforme',v=>platform=v);
+      // No proposer inferred from legacy added_by: use only explicit content identity.
+      select('proposerFilterSelect',members().filter(m=>contents.some(c=>c.added_by_person_id===m.personId)).map(m=>m.label),proposer,'Tutti i propositori',v=>proposer=v);
+      if(el('sortKeySelect'))el('sortKeySelect').value=sort;
+      bind('sortKeySelect','onchange',()=>{sort=el('sortKeySelect').value;page=0;render();});
+      bind('sortDirBtn','onclick',()=>{sortDir=sortDir==='asc'?'desc':'asc';render();});
+      for(const [id,key] of [['availabilityStreaming','streaming'],['availabilityCinema','cinema']]) {el(id)?.setAttribute('aria-pressed',String(availability===key));bind(id,'onclick',()=>{availability=key;page=0;render();});}
+      text('homeWatchlistCount',value.counts.groupListFilms+' film in attesa del ciak.');
+      text('homeWatchedCount',value.counts.togetherFilms+' film visti.');
+      const greeting=el('sceltaTitle');if(greeting)greeting.textContent=value.context.caller.label?'Ciao, '+value.context.caller.label+'.':'Benvenuti in sala.';
+      show('tabMatch',true);
+      if(typeof renderResultsPager==='function')renderResultsPager(null);
+    }
     const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
     const view = () => session.getState().view;
-    const button = (label, handler, parent) => { const b = root.createElement('button'); b.className = 'px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm m-1'; b.textContent = label; const token = session.capture(); b.onclick = () => { if (session.current(token)) return handler(); }; parent.appendChild(b); return b; };
+    const button = (label, handler, parent) => { const b = root.createElement('button'); b.className = 'min-h-11 px-3 py-2 rounded-lg border border-slate-700 bg-slate-800 text-slate-100 text-sm m-1'; b.textContent = label; const token = session.capture(); b.onclick = () => { if (session.current(token)) return handler(); }; parent.appendChild(b); return b; };
     function notice() { const box = el('targetFeedback'); if (box) box.textContent = feedback; }
     async function perform(name, ...args) {
       const token = session.capture(); feedback = 'Salvataggio…'; notice();
@@ -67,7 +124,8 @@ const TargetShell = (() => {
       return Object.freeze({ movieId: id, content: created, relation: result });
     }
     async function finishCreation(details, token) {
-      const result=await saveContent(details);if(!session.current(token))return;
+      const relation=destination==='personalList'?'addToMyList':destination==='personalSeen'?'recordSeen':destination==='groupList'?'proposeToGroup':null;
+      const result=await saveContent(details,relation);if(!session.current(token))return;
       if(result.movieId){detailId=result.movieId;editor=null;render();}
     }
     async function bulk(titles, relation = null) {
@@ -83,7 +141,7 @@ const TargetShell = (() => {
       const input = view().getRecommendationInput();
       return input.kind === 'AVAILABLE' ? input.input.users.map(p => view().getIdentity(p.id)) : [];
     }
-    function navigate(next) { const previous = destination; destination = next; page = 0; detailId = null; editor = null; if (next === 'match') session.match(session.capture(), 'enter'); else if (previous === 'match') session.match(session.capture(), 'leave'); render(); }
+    function navigate(next) { if (!['home','personalList','personalSeen','groupList','rewatch','scheduled','together','memories','calendar','match','wheel','recommendations','search','bulk'].includes(next)) return; const previous = destination; if(personalDestination()!==['personalList','personalSeen'].includes(next)){query='';genre='';duration='';platform='';proposer='';} destination = next; page = 0; detailId = null; editor = null; saga = null; if (next === 'match') session.match(session.capture(), 'enter'); else if (previous === 'match') session.match(session.capture(), 'leave'); render(); }
     function field(form, name, label, type = 'text', value = '') {
       const wrap = root.createElement('label'); wrap.className = 'block text-sm my-3'; wrap.textContent = label;
       const input = root.createElement(type === 'textarea' ? 'textarea' : 'input'); if (type !== 'textarea') input.type = type;
@@ -126,27 +184,36 @@ const TargetShell = (() => {
     }
     function card(id, parent) {
       const item = view().getCard(id); if (item.kind !== 'AVAILABLE') return;
-      const panel = root.createElement('article'); panel.className = 'glass-card rounded-xl p-4'; panel.dataset.movieId = id;
+      const ticket = root.createElement('article'); ticket.className = 'movie-ticket flex flex-col justify-between'; ticket.dataset.movieId = id;
+      const cover=root.createElement('div');cover.className='relative h-48 bg-slate-900 overflow-hidden';ticket.appendChild(cover);
+      const panel=root.createElement('div');panel.className='p-4 flex-1 flex flex-col space-y-3 ticket-seam';ticket.appendChild(panel);
       const content = item.content;
-      if (content.surprise_by_person_id && content.surprise_by_person_id !== view().context.caller.personId) { panel.innerHTML='<h3>Film a sorpresa</h3>'; button('Rivela',()=>perform('setSurprise',id,false),panel); parent.appendChild(panel); return; }
-      panel.innerHTML = `<h3 class="font-bold">${escape(content.title)}</h3><p class="text-xs text-slate-400">${escape(content.release_year)} · ${escape(content.duration)}</p><p class="text-sm">${escape(content.overview)}</p>`;
+      if (content.surprise_by_person_id && content.surprise_by_person_id !== view().context.caller.personId) { panel.innerHTML='<h3>Film a sorpresa</h3>'; button('Rivela',()=>perform('setSurprise',id,false),panel); parent.appendChild(ticket); return; }
+      panel.innerHTML = `<h3 class="font-bold">${escape(content.title)}</h3><p class="text-xs text-slate-400">${escape([content.cinema_watchlist?'Al cinema / prossimamente':content.platform,content.release_year,content.duration].filter(Boolean).join(' · '))}</p>${detailId===id?'<p class="text-sm">'+escape(content.overview)+'</p>':''}`;
       if (content.collection_id) button('Continua la saga',()=>openSaga(id),panel);
-      button('Ticket',()=>downloadTargetTicket(id,'manual',session),panel);
+      if(detailId===id)button('Ticket',()=>downloadTargetTicket(id,'manual',session),panel);
       const judgment = (entry, nullLabel = 'non disponibile') => entry == null ? nullLabel : ['rating','preference','review'].filter(k=>Object.hasOwn(entry,k)&&entry[k]!==null).map(k=>String(entry[k])).join(' · ') || 'Nessun giudizio';
-      panel.insertAdjacentHTML('beforeend','<p>Il mio giudizio: '+escape(judgment(item.personal.caller.judgment))+'</p><p>Giudizio condiviso: '+escape(judgment(item.group.judgment.judgment,'Nessun giudizio'))+'</p>');
-      if(content.poster){const poster=root.createElement('img');try{const url=new URL(content.poster);if(['https:','http:'].includes(url.protocol)){poster.src=url.href;poster.alt=content.title;poster.loading='lazy';poster.decoding='async';poster.className='rounded-lg w-full';panel.appendChild(poster);}}catch(_){}}
-      panel.insertAdjacentHTML('beforeend','<p>'+escape(item.group.candidacy.kind==='AVAILABLE'?(item.group.candidacy.effectiveCandidacy?'Candidato al gruppo':'Nessuna candidatura'):'Candidatura non disponibile')+' · '+escape(item.group.candidacy.kind==='AVAILABLE'?(item.group.candidacy.listVisible?'Nella Lista del gruppo':'Fuori dalla Lista visibile'):'Lista non disponibile')+'</p>');
+      panel.insertAdjacentHTML('beforeend',personalDestination()?'<p class="text-sm">'+escape(judgment(item.personal.observed.kind==='AVAILABLE'?item.personal.observed.judgment:null))+'</p>':'<p class="text-sm">'+escape(judgment(item.group.judgment.judgment,'Nessun giudizio condiviso'))+'</p>');
+      if(content.poster){const poster=root.createElement('img');try{const url=new URL(content.poster);if(['https:','http:'].includes(url.protocol)){poster.src=url.href;poster.alt=content.title;poster.loading='lazy';poster.decoding='async';poster.className='w-full h-full object-cover';cover.appendChild(poster);}}catch(_){}}
       button('Dettagli', () => { detailId = id; render(); },panel);
-      button('Nella mia Lista', () => perform('addToMyList',id),panel);
+      if(personalDestination()) {
+        const own=view().context.observedPerson.personId===view().context.caller.personId;
+        if(destination==='personalList'&&!own)button('Anche nella mia Lista',()=>perform('addToMyList',id),panel);
+        if(destination==='personalSeen'&&!own)button('L’ho visto anch’io',()=>perform('recordSeen',id),panel);
+        if(own&&destination==='personalSeen')button('Il mio giudizio',()=>edit('setMyEvaluation',id,item.personal.caller.judgment??{}),panel);
+      } else if(['groupList','rewatch'].includes(destination)) {
+        button('Programma',()=>edit('scheduleNight',id),panel);
+        button('Oggi',()=>edit('quickNight',id),panel);
+      }
+      if (detailId === id) {
+        button('Nella mia Lista', () => perform('addToMyList',id),panel);
       button('L’ho visto anch’io', () => perform('recordSeen',id),panel);
       button('Proponi al gruppo', () => perform('proposeToGroup',id),panel);
       if (item.group.candidacy.effectiveCandidacy) button('Ritira candidatura', () => perform('withdrawGroupCandidacy',id),panel);
       const veto=view().getVetoForMovie(id).veto;
       if(veto?.person_id===view().context.caller.personId)button('Ritira veto',()=>perform('removeVeto',id,veto.veto_id),panel);else if(!veto)button('Veto',()=>perform('addVeto',id),panel);
       button('Sorpresa',()=>perform('setSurprise',id,true),panel);
-      button('Programma', () => edit('scheduleNight',id),panel);
-      button('Oggi', () => edit('quickNight',id),panel);
-      if (detailId === id) {
+      if(!['groupList','rewatch'].includes(destination)){button('Programma', () => edit('scheduleNight',id),panel);button('Oggi', () => edit('quickNight',id),panel);}
         panel.insertAdjacentHTML('beforeend', `<p>Visto personalmente: ${item.personal.caller.seen === true ? 'sì' : item.personal.caller.seen === false ? 'no' : 'non disponibile'} · Visioni condivise: ${item.group.events.filter(e => e.event.status === 'completed').length}</p><p>La persona osservata: ${escape(view().context.observedPerson.label || 'non disponibile')}</p>`);
         panel.insertAdjacentHTML('beforeend','<p>'+escape((content.genres||[]).join(', '))+' · '+escape(content.director)+' · IMDb '+escape(content.imdb_rating)+'</p>');
         if(content.trailer_url){try{const url=new URL(content.trailer_url);if(['https:','http:'].includes(url.protocol)){const link=root.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Trailer';panel.appendChild(link);}}catch(_){}}
@@ -162,14 +229,14 @@ const TargetShell = (() => {
         button('Elimina', () => perform('deleteContent',id),panel);
         for (const event of item.group.events) drawEvent(event,panel);
       }
-      parent.appendChild(panel);
+      parent.appendChild(ticket);
     }
     function drawEvent(item,parent) {
-      const event = item.event, row = root.createElement('section'); row.className = 'my-3 p-3 border border-slate-700 rounded-lg'; row.dataset.nightId = event.night_id;
+      const event = item.event, row = root.createElement('section'); row.className = 'col-span-full glass-panel my-3 p-4 border border-slate-700 rounded-xl'; row.dataset.nightId = event.night_id;
       const found = view().catalog.getContent(event.movie_id);
-      row.innerHTML = `<h3>${escape(found.kind === 'AVAILABLE' ? found.content.title : 'Film non disponibile')}</h3><p>${escape(event.status)} · ${escape(event.date)} ${escape(event.time)} · ${escape(event.snack)} · ${escape(event.location)}</p><p>${item.participants.map(p => escape(view().getIdentity(p.person_id).label || 'Partecipante')).join(', ')}</p>`;
+      row.innerHTML = `<h3>${escape(found.kind === 'AVAILABLE' ? found.content.title : 'Film non disponibile')}</h3><p>${escape(({completed:'Serata conclusa',cancelled:'Annullata',proposed:'Proposta',confirmed:'Confermata'})[event.status]||'Serata')} · ${escape(formatNightDate(event.date,event.time))} · ${escape(event.snack)} · ${escape(event.location)}</p><p>${item.participants.map(p => escape(view().getIdentity(p.person_id).label || 'Partecipante')).join(', ')}</p>`;
       button('Dettagli film',()=>{detailId=event.movie_id;destination='groupList';render();},row);
-      button('Modifica evento',()=>edit('editNight',event.night_id,event),row);
+      if(event.status!=='cancelled'&&event.status!=='skipped')button('Snack e luogo',()=>edit('editNight',event.night_id,event),row);
       if (['proposed','confirmed'].includes(event.status)) { button('Conferma',()=>perform('confirmNight',event.night_id),row); button('Annulla',()=>perform('cancelNight',event.night_id),row); button('Concludi',()=>edit('completeScheduled',event.night_id),row); }
       parent.appendChild(row);
     }
@@ -190,23 +257,21 @@ const TargetShell = (() => {
       const state = session.getState(), value = state.view;
       const grid = el('movieGrid'); if (!grid) return;
       if(destination==='match'&&typeof matchDragging!=='undefined'&&matchDragging){matchPendingRender=true;return;}
-      for (const id of ['librarySection','appRoot']) el(id)?.classList.remove('hidden','!hidden');
-      for (const id of ['sceltaCta','dashboardSidebar','recommendationSection','segControl','libraryTools','historySwitch','listFiltersBlock']) el(id)?.classList.add('!hidden');
+      if (value.kind === 'AVAILABLE' && typeof finishInitialLoading === 'function') finishInitialLoading();
       grid.innerHTML = '';
-      const nav = root.createElement('nav'); nav.className = 'col-span-full';
-      const destinations = { home:'Home', personalList:'Lista personale', personalSeen:'Visti personali', groupList:'Lista', rewatch:'Rewatch', scheduled:'In programma', together:'Visti e recensioni', memories:'Ricordi', calendar:'Calendario', match:'Match', wheel:'Ruota', recommendations:'Cosa Guardiamo?', search:'Cerca nel catalogo' };
-      for (const [key,label] of Object.entries(destinations)) button(label,()=>navigate(key),nav);
-      grid.appendChild(nav);
-      if (value.kind==='AVAILABLE') nav.setAttribute('aria-label','Persona e gruppo');
+      // Reuse the existing app chrome; there is no second navigation in the grid.
+      if (value.kind === 'AVAILABLE') syncLayout(value);
       const status = root.createElement('p'); status.id = 'targetFeedback'; status.className = 'col-span-full text-sm'; status.setAttribute('role','status'); grid.appendChild(status); notice();
-      if (value.kind !== 'AVAILABLE') { status.textContent = state.phase === 'BLOCKED' ? state.reason?.code==='PROTOCOL_UNSUPPORTED'?'Aggiorna l’app per continuare.':'Servizio momentaneamente non disponibile.' : state.phase === 'AUTH_INVALIDATING' ? 'Accedi di nuovo.' : state.runtime?.controllerStatus==='UNINITIALIZED'&&state.runtime?.phase==='STARTING'?'Dati non disponibili. Riprova la connessione.':'Caricamento…'; button('Riprova',()=>state.phase==='BLOCKED'?session.retryStartup():session.requestRefresh(),nav);return; }
-      const freshness=root.createElement('p');freshness.className='col-span-full text-xs text-slate-400';freshness.textContent=value.freshness.source==='CACHE'?'Dati salvati: attendi la verifica online.':state.runtime?.pending.thresholds!==null?'Aggiornamento in corso…':value.freshness.freshness.temporalCurrent?'Verificato online':'Dati da verificare';grid.appendChild(freshness);
-      el('syncNotice')?.classList.add('!hidden');
-      for (const person of members()) button('Osserva '+(person.label || 'persona'),()=>{ session.setObservedPerson(person.personId); },nav);
-      button('Aggiungi',()=>edit('createContent',null),nav);
-      if (operation?.retryHandle) { const handle=operation.retryHandle; button('Riprova la stessa operazione',()=>perform('retry',handle),nav); }
-      if (editor) { drawEditor(grid); return; }
-      if (destination === 'match') { drawMatch(grid); return; }
+      if (value.kind !== 'AVAILABLE') { status.textContent = state.phase === 'BLOCKED' ? 'Servizio momentaneamente non disponibile.' : 'Caricamento…'; button('Riprova',()=>state.phase==='BLOCKED'?session.retryStartup():session.requestRefresh(),status);return; }
+      if(value.freshness.source==='CACHE') {status.textContent='Dati salvati: attendi la verifica online.';text('syncNotice','Stai vedendo i dati salvati. Attendi la verifica online per modificare.');show('syncNotice',true);}
+      if (operation?.retryHandle) { const handle=operation.retryHandle; button('Riprova la stessa operazione',()=>perform('retry',handle),status); }
+      if (editor) { show('librarySection',true); drawEditor(grid); return; }
+      if (destination === 'match') { const panel=root.createElement('section');panel.className='col-span-full match-panel glass-panel p-4 rounded-xl';grid.appendChild(panel);drawMatch(panel);return; }
+      if (destination === 'home') {
+        const events=value.events.scheduled;
+        if(events.length){show('nextMovieHero',true);const box=el('nextMovieBox');if(box){box.innerHTML='';drawEvent(events[0],box);}}
+        return;
+      }
       if (destination === 'bulk') { const form=root.createElement('form'); const input=field(form,'titles','Un titolo per riga','textarea'); const submit=root.createElement('button');submit.textContent='Aggiungi al catalogo';form.appendChild(submit);const token=session.capture();form.onsubmit=async e=>{e.preventDefault();if(!session.current(token))return;const results=await bulk(input.value.split('\n').map(x=>x.trim()).filter(Boolean));if(session.current(token)){feedback=results.length+' risultati indipendenti';notice();}};grid.appendChild(form);return; }
       if (saga) { drawSaga(grid); return; }
       let contents;
@@ -214,33 +279,35 @@ const TargetShell = (() => {
         const personal = value.personal.observed;
         if (personal.kind !== 'AVAILABLE') { status.textContent = 'Dati personali non disponibili.'; return; }
         contents = destination === 'personalList' ? personal.list : personal.seen;
-      } else if (destination === 'groupList' || destination === 'home') contents = value.group.visibleList;
+      } else if (destination === 'groupList') contents = value.group.visibleList;
       else if (destination === 'rewatch') contents = value.group.rewatch;
       else if (destination === 'together') contents = value.group.togetherFilms;
       else if (['scheduled','calendar','memories'].includes(destination)) {
         const events = destination === 'memories' ? value.events.completed : value.events.scheduled;
-        status.textContent = `${events.length} eventi · ${value.counts.togetherFilms} film condivisi`;
+        text('libraryCount',events.length+' eventi');
         if(destination==='memories'){const ratings=value.statistics.groupJudgments.map(j=>j.rating).filter(x=>x!==null);const average=ratings.length?ratings.reduce((sum,x)=>sum+x,0)/ratings.length:null;grid.insertAdjacentHTML('beforeend','<section>Voto medio '+escape(average===null?'—':average.toFixed(1))+' · Film '+value.counts.togetherFilms+' · Eventi '+value.counts.completedEvents+'</section>');}
         for (const item of events) drawEvent(item,grid); return;
       } else if (destination === 'search') contents=query?value.search.contents:[];
       else if (destination === 'recommendations') {
-        button('Trova proposte',()=>{ const input = value.getRecommendationInput(); recommendation = input.kind === 'AVAILABLE' ? RecommendationEngine.rerank(RecommendationEngine.recommend(input.input),6) : []; render(); },nav);
+        if(!recommendation.length){const input=value.getRecommendationInput();recommendation=input.kind==='AVAILABLE'?RecommendationEngine.rerank(RecommendationEngine.recommend(input.input),6):[];}
         contents = recommendation.map(r=>value.catalog.getContent(r.movieId)).filter(x=>x.kind === 'AVAILABLE').map(x=>x.content);
       } else if (destination === 'wheel') {
         el('dashboardSidebar')?.classList.remove('hidden','!hidden'); syncGenreFilterOptions(); drawWheel();
         contents = value.ruota.eligibleContents;
-        button('Gira',()=>{ const pool = filtered(value.ruota.eligibleContents); winner = pool.length ? pool[Math.floor(Math.random()*pool.length)].movie_id : null; render(); },nav);
+
         if (winner) contents = contents.filter(c=>c.movie_id === winner);
       } else contents = [];
-      if (destination === 'home') status.textContent = `Mia Lista ${value.home.personal.caller.kind==='AVAILABLE'?value.home.personal.caller.counts.listFilms:'non disponibile'} · Visti personali ${value.home.personal.caller.kind==='AVAILABLE'?value.home.personal.caller.counts.seenFilms:'non disponibili'} · Lista ${value.counts.groupListFilms} · Rewatch ${value.counts.rewatchFilms} · Serate ${value.counts.scheduledEvents} · Ricordi ${value.counts.completedEvents}`;
-      const search = root.createElement('input'); search.id = 'targetCatalogSearch'; search.placeholder = 'Cerca titolo, genere o regista'; search.value = query; search.className = 'col-span-full bg-slate-800 p-3 rounded-lg'; search.oninput = () => { query = search.value; const caret = search.selectionStart; page = 0; render(); const replacement = el('targetCatalogSearch'); replacement?.focus(); if (caret !== null) replacement?.setSelectionRange?.(caret,caret); }; grid.appendChild(search);
-      const sortControl=root.createElement('select');sortControl.setAttribute('aria-label','Ordina');sortControl.innerHTML='<option value="title">Titolo</option><option value="release_year">Anno</option><option value="duration">Durata</option>';sortControl.value=sort;sortControl.onchange=()=>{sort=sortControl.value;page=0;render();};nav.appendChild(sortControl);
-      const genreControl=root.createElement('select');genreControl.setAttribute('aria-label','Genere');genreControl.innerHTML='<option value="">Tutti i generi</option>'+[...new Set(contents.flatMap(c=>c.genres||[]))].filter(Boolean).sort().map(g=>'<option>'+escape(g)+'</option>').join('');genreControl.value=genre;genreControl.onchange=()=>{genre=genreControl.value;page=0;render();};nav.appendChild(genreControl);
       const rows = detailId ? [value.catalog.getContent(detailId)].filter(x=>x.kind==='AVAILABLE').map(x=>x.content) : filtered(contents);
-      for (const c of rows.slice(page*24,(page+1)*24)) card(c.movie_id,grid);
-      if (!rows.length) grid.insertAdjacentHTML('beforeend','<p>Nessun film in questa vista.</p>');
-      if (page) button('Precedenti',()=>{ page--;render(); },nav);
-      if ((page+1)*24<rows.length) button('Altri film',()=>{ page++;render(); },nav);
+      const container = destination==='recommendations'?el('recommendationResults'):grid;
+      if(container!==grid)container.innerHTML='';
+      text('libraryCount',rows.length+' film');
+      const model=typeof paginateResults==='function'?paginateResults(rows,page):null;
+      if(model)page=model.pageIndex;
+      for (const c of (model?.items || rows.slice(page*24,(page+1)*24))) card(c.movie_id,container);
+      if (!rows.length) container.insertAdjacentHTML('beforeend','<p>Nessun film in questa vista.</p>');
+      if(model&&destination!=='recommendations'&&typeof renderResultsPager==='function')renderResultsPager(model);
+      if(destination==='wheel')show('librarySection',!!editor);
+
     }
     async function openSaga(movieId) {
       const token=session.capture(), found=view().catalog.getContent(movieId); if(found.kind!=='AVAILABLE')return;
@@ -257,19 +324,21 @@ const TargetShell = (() => {
       },parent);button('Indietro',()=>{saga=null;render();},parent);
     }
     function filtered(contents) {
-      const metric=c=>sort==='duration'?parseDurationMinutes(c.duration):sort==='release_year'?c.release_year:c.title;
-      return contents.filter(c=>(!query||[c.title,c.director,...(c.genres||[])].join(' ').toLocaleLowerCase('it').includes(query.toLocaleLowerCase('it')))&&(!genre||c.genres?.includes(genre))&&(!duration||(parseDurationMinutes(c.duration)!==null&&parseDurationMinutes(c.duration)<=Number(duration))))
-        .slice().sort((a,b)=>{const x=metric(a),y=metric(b);return typeof x==='number'&&typeof y==='number'?x-y||a.movie_id.localeCompare(b.movie_id):String(x??'').localeCompare(String(y??''),'it')||a.movie_id.localeCompare(b.movie_id);});
+      const context=view();
+      const sortKey=personalDestination()?'title':sort;
+      const metric=c=>sortKey==='duration'?parseDurationMinutes(c.duration):sortKey==='release_year'||sortKey==='year'?c.release_year:sortKey==='added'?c.created_at:sortKey==='imdb'?c.imdb_rating:sortKey==='proposer'?(c.added_by_person_id?context.getIdentity(c.added_by_person_id).label:null):sortKey==='rating'?context.getCard(c.movie_id).personal.caller.judgment?.rating:c.title;
+      const sign=personalDestination()?1:sortDir==='desc'?-1:1;
+      return contents.filter(c=>(!query||[c.title,c.director,...(c.genres||[])].join(' ').toLocaleLowerCase('it').includes(query.toLocaleLowerCase('it')))&&(!genre||c.genres?.includes(genre))&&(!platform||c.platform===platform)&&(!proposer||(c.added_by_person_id?context.getIdentity(c.added_by_person_id).label:null)===proposer)&&(personalDestination()||(availability==='cinema'?c.cinema_watchlist:!c.cinema_watchlist))&&(!duration||(parseDurationMinutes(c.duration)!==null&&parseDurationMinutes(c.duration)<=Number(duration))))
+        .slice().sort((a,b)=>{const x=metric(a),y=metric(b);if(x==null||y==null)return x==null?(y==null?0:1):-1;return sign*(typeof x==='number'&&typeof y==='number'?x-y:String(x).localeCompare(String(y),'it'))||a.movie_id.localeCompare(b.movie_id);});
     }
-
-    return Object.freeze({ render, navigate, perform, performMatch, waitFor, saveContent, bulk,
+    return Object.freeze({ render, navigate, getDestination:()=>destination, changePage(delta){page=Math.max(0,page+delta);render();}, perform, performMatch, waitFor, saveContent, bulk,
       setFilters(input) { query = input.query ?? query; genre = input.genre ?? genre; duration = input.duration ?? duration; sort = input.sort ?? sort; page = 0; render(); },
-      detail(id) { detailId = id; render(); }, edit,
+      detail(id) { if(['home','wheel','recommendations'].includes(destination))destination='groupList';detailId = id; render(); }, edit,
       publication(state) { if(generation!==null&&generation!==state.generation)this.dispose();generation=state.generation; if (['AUTH_INVALIDATING','STOPPED','DISPOSED'].includes(state.phase)) { el('movieGrid').innerHTML = ''; this.dispose(); return; } if (state.view !== shared) { shared = state.view; if(state.runtime?.pending.thresholds===null&&operation?.outcome==='SUCCESS')feedback='Salvato.'; render(); } else if (state.match !== match && destination === 'match') render(); match = state.match; },
-      dispose() { el('matchReveal')?.classList.add('hidden'); for (const id of ['sceltaCta','dashboardSidebar','recommendationSection','segControl','libraryTools','historySwitch','listFiltersBlock','syncNotice']) el(id)?.classList.remove('!hidden'); generation = null; detailId = null; query = ''; page = 0; destination = 'home'; editor = null; saga = null; revealedKey = null; operation = null; matchOperation = null; winner = null; recommendation = []; shared = null; match = null; }
+      dispose() { for(const id of ['nextMovieBox','recommendationResults'])if(el(id))el(id).innerHTML='';for(const [node,properties] of bindings)for(const [key,handler] of properties)node[key]=handler;bindings.clear();el('tabAll')?.classList.remove('!hidden');const all=el('libraryViewSelect')?.querySelector?.('option[value="all"]');if(all){all.hidden=false;all.disabled=false;}show('targetPersonalCollections',false); el('matchReveal')?.classList.add('hidden'); for (const id of ['sceltaCta','dashboardSidebar','recommendationSection','segControl','libraryTools','historySwitch','listFiltersBlock','syncNotice']) el(id)?.classList.remove('!hidden'); generation = null; detailId = null; query = ''; genre=''; duration=''; sort='added'; sortDir='desc'; platform=''; proposer=''; availability='streaming'; page = 0; destination = 'home'; editor = null; saga = null; revealedKey = null; operation = null; matchOperation = null; winner = null; recommendation = []; shared = null; match = null; }
     });
   }
   let instance = null;
   const current = () => instance || (instance = createShell({ session: ProductionSession }));
-  return Object.freeze({ createShell, render: () => current().render(), publication: state => current().publication(state), saveContent: (...args) => current().saveContent(...args), bulk: (...args) => current().bulk(...args), setFilters: input => current().setFilters(input), navigate: destination => current().navigate(destination), detail: id => current().detail(id), edit: (...args) => current().edit(...args), perform: (...args) => current().perform(...args), performMatch: (...args) => current().performMatch(...args), dispose() { instance?.dispose(); instance = null; } });
+  return Object.freeze({ createShell, render: () => current().render(), getDestination:()=>current().getDestination(), changePage:delta=>current().changePage(delta), publication: state => current().publication(state), saveContent: (...args) => current().saveContent(...args), bulk: (...args) => current().bulk(...args), setFilters: input => current().setFilters(input), navigate: destination => current().navigate(destination), detail: id => current().detail(id), edit: (...args) => current().edit(...args), perform: (...args) => current().perform(...args), performMatch: (...args) => current().performMatch(...args), dispose() { instance?.dispose(); instance = null; } });
 })();

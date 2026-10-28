@@ -28,7 +28,16 @@ function syncLibraryNavigation() {
 }
 
 function setTab(tab) {
-  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate(({watchlist:'groupList',rewatch:'rewatch',tonight:'scheduled',watched:'together',calendar:'calendar',match:'match',history_n:'personalSeen',history_v:'personalSeen'})[tab] || 'groupList');
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) {
+    if (tab === 'history_n' || tab === 'history_v') {
+      const view = ProductionSession.getState().view;
+      const input = view.kind === 'AVAILABLE' ? view.getRecommendationInput() : null;
+      const member = input?.kind === 'AVAILABLE' ? input.input.users.map(p => view.getIdentity(p.id)).find(p => p.legacyLabel === tab.slice(-1).toUpperCase()) : null;
+      if (member) ProductionSession.setObservedPerson(member.personId);
+      return TargetShell.navigate(TargetShell.getDestination() === 'personalList' ? 'personalList' : 'personalSeen');
+    }
+    return TargetShell.navigate(({watchlist:'groupList',rewatch:'rewatch',tonight:'scheduled',watched:'together',calendar:'calendar',match:'match'})[tab] || 'groupList');
+  }
   if (!TAB_KEYS.includes(tab)) return;
   if (tab === 'match' && dbMode !== 'supabase') return;
   cancelListingSearch();
@@ -127,6 +136,7 @@ window.addEventListener('resize', () => {
 
 // Una sola barra responsive; i flussi Match restano negli handler esistenti.
 function activeDestination() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return targetNavigationDestination(TargetShell.getDestination());
   if (!document.getElementById('statsModal').classList.contains('hidden')) return 'memories';
   if (currentTab === 'match') return 'match';
   if (dashboardView === 'home') return 'home';
@@ -134,6 +144,22 @@ function activeDestination() {
   if (dashboardView === 'history') return 'history';
   if (dashboardView === 'recommendations') return null;
   return currentTab === 'calendar' ? null : 'library';
+}
+
+function targetNavigationDestination(destination) {
+  if (['home','match','wheel','memories'].includes(destination)) return destination;
+  return ['personalList','personalSeen'].includes(destination) ? 'history' : destination === 'recommendations' ? null : 'library';
+}
+
+// TARGET supplies data and commands; these are the existing app route variables.
+function syncTargetNavigation(destination) {
+  dashboardView = destination === 'home' ? 'home' : destination === 'wheel' ? 'wheel'
+    : destination === 'recommendations' ? 'recommendations' : ['personalList','personalSeen'].includes(destination) ? 'history' : 'library';
+  const observed = ProductionSession.getState().view.context?.observedPerson.legacyLabel;
+  currentTab = ['personalList','personalSeen'].includes(destination) ? observed === 'V' ? 'history_v' : 'history_n'
+    : ({groupList:'watchlist',rewatch:'rewatch',scheduled:'tonight',together:'watched',calendar:'calendar',match:'match'})[destination] || 'watchlist';
+  syncLibraryNavigation();
+  syncDestinationNavigation();
 }
 
 function syncDestinationNavigation() {
@@ -148,7 +174,7 @@ function syncDestinationNavigation() {
     button.classList.toggle('is-active', selected);
     if (selected) button.setAttribute('aria-current', 'page');
     else button.removeAttribute('aria-current');
-    button.disabled = button.dataset.destination === 'match' && dbMode !== 'supabase';
+    button.disabled = button.dataset.destination === 'match' && !(typeof targetSessionActive === 'function' && targetSessionActive()) && dbMode !== 'supabase';
   });
 }
 

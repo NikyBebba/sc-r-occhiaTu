@@ -76,7 +76,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
 </head>
-<body data-client-build="protocol-v1-v66" class="min-h-screen pb-12">
+<body data-client-build="protocol-v1-v67" class="min-h-screen pb-12">
 
   <!-- Livello per l'effetto confetti al reveal della ruota -->
   <div id="confettiLayer"></div>
@@ -355,6 +355,10 @@
         <div id="historySwitch" class="personal-history-tabs !hidden" role="group" aria-label="Scegli lo storico personale">
           <button id="historySwitchN" type="button" aria-pressed="true" onclick="setTab('history_n')">Storico N</button>
           <button id="historySwitchV" type="button" aria-pressed="false" onclick="setTab('history_v')">Storico V</button>
+        </div>
+        <div id="targetPersonalCollections" class="personal-history-tabs !hidden" role="group" aria-label="Raccolta personale">
+          <button id="targetPersonalList" type="button" aria-pressed="false" onclick="TargetShell.navigate('personalList')">Lista personale</button>
+          <button id="targetPersonalSeen" type="button" aria-pressed="false" onclick="TargetShell.navigate('personalSeen')">Visti personali</button>
         </div>
         <div id="historySearch" class="history-search hidden">
           <label for="historySearchInput" class="sr-only">Cerca nello storico per titolo o regista</label>

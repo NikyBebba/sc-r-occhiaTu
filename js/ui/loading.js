@@ -13,6 +13,11 @@ function initialLoadingHtml() {
 
 function showInitialLoading() {
   if (!initialLoadingPending || currentTab === 'match' || currentTab === 'calendar') return;
+  // A queued timer must never overwrite a bundle published by TARGET.
+  if (typeof targetSessionActive === 'function' && targetSessionActive() && ProductionSession.getState().view.kind === 'AVAILABLE') {
+    finishInitialLoading();
+    return;
+  }
   const grid = document.getElementById('movieGrid');
   if (!grid) return;
   grid.innerHTML = initialLoadingHtml();

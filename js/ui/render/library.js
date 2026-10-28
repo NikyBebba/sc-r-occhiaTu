@@ -55,6 +55,7 @@ function renderResultsPager(model) {
   if (status && status.textContent !== message) status.textContent = message;
 }
 function changeResultsPage(direction, event) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.changePage(direction);
   if (!activeResultsPage || ![-1, 1].includes(direction)) return;
   // A pending query already changed the criteria: resolve it before paging.
   if (searchDebounceTimer || historySearchDebounceTimer) {
