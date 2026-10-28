@@ -254,7 +254,16 @@ function showApp() {
   ProductionSession.startAuthenticated(authIdentity.uid);
 }
 
+function renderAppVersion() {
+  const version = document.body?.dataset?.clientBuild?.match(/-v(\d+)$/)?.[1];
+  document.querySelectorAll('[data-app-version]').forEach(label => {
+    label.textContent = version ? `v${version}` : '';
+    label.hidden = !version;
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
+  renderAppVersion();
   checkLoginState();
   registerServiceWorker();
 });

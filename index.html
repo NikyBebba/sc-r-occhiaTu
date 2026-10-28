@@ -76,7 +76,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
 </head>
-<body data-client-build="protocol-v1-v64" class="min-h-screen pb-12">
+<body data-client-build="protocol-v1-v65" class="min-h-screen pb-12">
 
   <!-- Livello per l'effetto confetti al reveal della ruota -->
   <div id="confettiLayer"></div>
@@ -103,6 +103,7 @@
         </div>
         <p id="authNotice" class="hidden auth-login-error" role="alert"></p>
         <p class="auth-footnote">Vietato spoilerare all’ingresso.</p>
+        <p class="app-version" data-app-version hidden></p>
       </div>
     </main>
   </div>
@@ -127,6 +128,7 @@
           <button id="loginSubmit" type="submit" class="auth-enter-btn">Entra <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
         </form>
         <button onclick="backToLanding()" class="auth-back-btn"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Cambia persona</button>
+        <p class="app-version" data-app-version hidden></p>
       </div>
     </main>
   </div>
@@ -374,6 +376,7 @@
         </nav>
       </section>
     </main>
+    <footer class="app-version" data-app-version hidden></footer>
   </div>
 
   <!-- Temi automatici per periodo e scelta temporanea locale -->
