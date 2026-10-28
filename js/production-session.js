@@ -3,11 +3,37 @@
 // composition boundaries; no browser setting selects production authority.
 let ProductionSession = (() => {
   const Host = typeof module !== 'undefined' && module.exports ? require('./runtime/production-host') : ProductionHost;
+  function normalizeSdkRpcReply(reply) {
+    if (!reply || typeof reply !== 'object' || Array.isArray(reply) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(reply))) return null;
+    const field = (value, key) => Object.getOwnPropertyDescriptor(value, key);
+    const ownValue = descriptor => descriptor?.enumerable && Object.hasOwn(descriptor, 'value');
+    const validStatus = value => Number.isInteger(value) && value >= 0 && value <= 599;
+    const data = field(reply, 'data'), error = field(reply, 'error');
+    const status = field(reply, 'status'), success = field(reply, 'success');
+    if (!ownValue(data) || data.value === undefined || !ownValue(error) ||
+      (status && (!ownValue(status) || !validStatus(status.value))) ||
+      (success && (!ownValue(success) || typeof success.value !== 'boolean'))) return null;
+    if (error.value === null) {
+      if ((status && (status.value < 200 || status.value >= 300)) || success?.value === false) return null;
+      return { data: data.value, error: null };
+    }
+    if (data.value !== null || !error.value || typeof error.value !== 'object' || Array.isArray(error.value)) return null;
+    const code = field(error.value, 'code'), errorStatus = field(error.value, 'status');
+    if ((code && (!ownValue(code) || typeof code.value !== 'string')) ||
+      (errorStatus && (!ownValue(errorStatus) || !validStatus(errorStatus.value)))) return null;
+    const normalizedError = {};
+    if (code) normalizedError.code = code.value;
+    if (errorStatus || status) normalizedError.status = errorStatus ? errorStatus.value : status.value;
+    return { data: null, error: normalizedError };
+  }
   function productionDependencies() {
     const client = sb;
     const enqueue = fn => Promise.resolve().then(fn);
     const instant = () => new Date().toISOString().replace('Z', '000Z');
     const rpc = (name, args) => client.rpc(name, args);
+    // SDK transport metadata is not part of the strict TARGET payload contract.
+    const runtimeRpc = async (name, args) => normalizeSdkRpcReply(await rpc(name, args));
     function changes(table, topic, callbacks) {
       let active = true, ready = false;
       const channel = client.channel(topic, { config: { private: true } })
@@ -71,7 +97,7 @@ let ProductionSession = (() => {
       client.removeChannel(entry.channel);
     }
     return {
-      runtime: { auth: { async getVerifiedIdentity() { await validateCurrentAuth(); return { callerId: authIdentity.uid }; } }, rpc,
+      runtime: { auth: { async getVerifiedIdentity() { await validateCurrentAuth(); return { callerId: authIdentity.uid }; } }, rpc: runtimeRpc,
         clock: { nowInstant: instant }, scheduler: { scheduleAt(at, fn) { return setTimeout(fn, Math.max(0, Date.parse(at) - Date.now())); }, cancel: id => clearTimeout(id) },
         storage: { getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value), removeItem: key => localStorage.removeItem(key) },
         subscribeInvalidation: h => changes('domain_versions', 'scorochiatu-db-changes', h), enqueue, observerRequestId: crypto.randomUUID() },

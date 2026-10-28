@@ -1,10 +1,13 @@
 'use strict';
 // The real normal() entry and script graph; synthetic online backend only.
 async function runChecks(data) {
- let cases=0,serial=1,mode='LEGACY',floor=0,protocolError=null,bootstrapError=null,uid=data.N,heldRead=null,heldMutation=null;
+ let cases=0,serial=1,mode='LEGACY',floor=0,protocolError=null,bootstrapError=null,uid=data.N,heldRead=null,heldMutation=null,replyTransform=null;
  const calls=[],channels=[];const tick=async()=>{for(let i=0;i<160;i++)await Promise.resolve();};
  const check=(ok,name)=>{if(!ok)throw Error(name);cases++;console.log('PASS '+name);};
  const copy=x=>JSON.parse(JSON.stringify(x));
+ // Exact six-key SDK envelope observed in authenticated production N.
+ const sdkReply=(data,error=null,status=200)=>({count:null,data,error,status,statusText:status===200?'OK':'Error',success:error===null&&status>=200&&status<300});
+ const respond=(name,reply)=>replyTransform?replyTransform(name,reply):reply;
  const authSession=()=>({access_token:'synthetic',user:{id:uid},expires_at:Math.floor(Date.now()/1000)+3600});
  const client={
   auth:{getSession:async()=>({data:{session:authSession()},error:null}),getUser:async()=>({data:{user:{id:uid}},error:null})},
@@ -13,11 +16,11 @@ async function runChecks(data) {
    calls.push(name);
    if(name==='read_app_protocol'){
     if(heldRead)return new Promise(resolve=>heldRead.push(resolve));
-    if(protocolError)return {data:null,error:protocolError};
-    return {data:{protocol_read_contract_version:1,outcome:'OK',mode,minimum_client_protocol:floor,authority_epoch:serial.toString(16).padStart(64,'0')},error:null};
+    if(protocolError)return respond(name,sdkReply(null,protocolError,403));
+    return respond(name,sdkReply({protocol_read_contract_version:1,outcome:'OK',mode,minimum_client_protocol:floor,authority_epoch:serial.toString(16).padStart(64,'0')}));
    }
-   if(name==='get_app_runtime_context')return bootstrapError?{data:{outcome:'ERROR',bootstrap_contract_version:1,error:{code:bootstrapError}},error:null}:{data:{bootstrap_contract_version:1,outcome:'OK',caller:{person_id:uid,legacy_person:uid===data.N?'N':'V'},selected_group:{group_id:data.G},protocol:{client_protocol:1,supported_protocol:1,minimum_client_protocol:1,snapshot_contract_version:1},runtime:{mode:'target',activation_allowed:true}},error:null};
-   if(name==='get_person_group_snapshot')return {data:copy(data.raw),error:null};
+   if(name==='get_app_runtime_context')return respond(name,sdkReply(bootstrapError?{outcome:'ERROR',bootstrap_contract_version:1,error:{code:bootstrapError}}:{bootstrap_contract_version:1,outcome:'OK',caller:{person_id:uid,legacy_person:uid===data.N?'N':'V'},selected_group:{group_id:data.G},protocol:{client_protocol:1,supported_protocol:1,minimum_client_protocol:1,snapshot_contract_version:1},runtime:{mode:'target',activation_allowed:true}}));
+   if(name==='get_person_group_snapshot')return respond(name,sdkReply(copy(data.raw)));
    throw Error('Unexpected writer RPC '+name);
   },
   from(table){const request={write:false,select(){return this;},order(){return this;},limit(){return this;},eq(){return this;},maybeSingle(){return Promise.resolve({data:{user_id:uid,person:uid===data.N?'N':'V'},error:null});},update(){this.write=true;return this;},
@@ -25,6 +28,52 @@ async function runChecks(data) {
   channel(topic){const c={topic,removed:false,on(){return this;},subscribe(){return this;},presenceState:()=>({}),track:async()=>{},untrack:async()=>{}};channels.push(c);return c;},removeChannel(c){c.removed=true;}
  };
  sb=client;authIdentity={uid,person:'N',expiresAt:Date.now()+3600000};currentUser='N';authEpoch++;dbMode='supabase';
+ const adapter=ProductionSession.productionDependencies().runtime.rpc;
+ const bootstrap=()=>SnapshotTransport.createTransport({rpc:adapter}).bootstrap({callerId:uid});
+ const normalized=await adapter('get_app_runtime_context',{p_client_protocol:1});
+ check(Object.keys(normalized).sort().join()==='data,error'&&normalized.data.runtime.activation_allowed,'production six-key SDK envelope normalized without changing payload');
+ check((await bootstrap()).category==='BOOTSTRAP_RESULT','real production adapter accepts six-key bootstrap reply');
+ for(const [name,transform] of [
+  ['missing data',r=>{delete r.data;return r;}],
+  ['missing error',r=>{delete r.error;return r;}],
+  ['undefined data',r=>({...r,data:undefined})],
+  ['null envelope',()=>null],
+  ['array envelope',()=>[]],
+  ['inherited envelope',r=>Object.create(r)],
+  ['invalid error value',r=>({...r,data:null,error:false})],
+  ['data and SDK error coexist',r=>({...r,error:{code:'42501'}})],
+  ['HTTP error without SDK error',r=>({...r,status:503})],
+  ['network status without SDK error',r=>({...r,status:0})],
+  ['invalid status type',r=>({...r,status:'200'})],
+  ['invalid status range',r=>({...r,status:600})],
+  ['SDK success false',r=>({...r,success:false})],
+  ['invalid success type',r=>({...r,success:'true'})],
+  ['unexpected bootstrap body field',r=>({...r,data:{...r.data,unexpected:true}})],
+  ['wrong authenticated caller',r=>({...r,data:{...r.data,caller:{...r.data.caller,person_id:data.V}}})],
+  ['unsupported snapshot contract',r=>({...r,data:{...r.data,protocol:{...r.data.protocol,snapshot_contract_version:2}}})]
+ ]){
+  replyTransform=(_n,r)=>transform(r);
+  check((await bootstrap()).category==='SERVER_CONTRACT_ERROR','fail closed: '+name);
+ }
+ let getterReads=0;
+ replyTransform=(_n,r)=>Object.defineProperty(r,'data',{enumerable:true,get(){getterReads++;return {};}});
+ check((await bootstrap()).category==='SERVER_CONTRACT_ERROR'&&getterReads===0,'envelope data accessor rejected without executing it');
+ replyTransform=(_n,r)=>({...r,data:null,error:Object.defineProperty({},'code',{enumerable:true,get(){getterReads++;return '42501';}})});
+ check((await bootstrap()).category==='SERVER_CONTRACT_ERROR'&&getterReads===0,'SDK error accessor rejected without executing it');
+ for(const [name,error,status,category] of [
+  ['HTTP401',{message:'synthetic'},401,'AUTH_INVALIDATING'],
+  ['HTTP403',{message:'synthetic'},403,'AUTH_INVALIDATING'],
+  ['permission code',{code:'42501'},200,'AUTH_INVALIDATING'],
+  ['network error',{code:''},0,'TRANSPORT_UNCERTAIN'],
+  ['server error',{code:'XX000'},500,'TRANSPORT_UNCERTAIN']
+ ]){
+  replyTransform=()=>({...sdkReply(null,error,status),success:true});
+  check((await bootstrap()).category===category,'SDK error never becomes success: '+name);
+ }
+ replyTransform=(_n,r)=>Object.defineProperty(r,'count',{enumerable:true,get(){getterReads++;return 0;}});
+ check((await bootstrap()).category==='BOOTSTRAP_RESULT'&&getterReads===0,'unused SDK metadata is ignored without executing accessors');
+ replyTransform=null;
+ calls.length=0; // Separate adapter-only checks from normal startup I/O assertions.
  const refresh=async()=>{await ProductionSession.refreshAuthenticated(uid);await tick();};
  const state=()=>ProductionSession.getState();
  await ProductionSession.startAuthenticated(uid);await tick();
@@ -43,6 +92,22 @@ async function runChecks(data) {
  check(state().mode==='TARGET'&&state().phase==='READY','normal target bootstrap and snapshot ready');
  check(state().view.kind==='AVAILABLE','target view from actual server adapter');
  check(calls.includes('get_person_group_snapshot'),'target snapshot RPC read');
+ check(state().runtime.source==='ONLINE'&&state().context.caller.personId===uid&&state().context.groupId===data.G,'real startup publishes authenticated online TARGET bundle');
+ check(!document.getElementById('appRoot').classList.contains('hidden')&&state().actions!==null,'TARGET ready publication releases protocol gate');
+ for(const [name,transform] of [
+  ['invalid bootstrap payload',(n,r)=>n==='get_app_runtime_context'?{...r,data:{...r.data,unexpected:true}}:r],
+  ['invalid snapshot payload',(n,r)=>n==='get_person_group_snapshot'?{...r,data:{...r.data,unexpected:true}}:r],
+  ['snapshot HTTP failure',(n,r)=>n==='get_person_group_snapshot'?sdkReply(null,{code:'XX000'},500):r]
+ ]){
+  // Isolate cold-start failures from the separately tested read-only CACHE path.
+  localStorage.removeItem('scorochiatu_snapshot_v1:'+uid+':'+data.G);
+  replyTransform=transform;await ProductionSession.retryStartup();await tick();
+  check(state().mode!=='LEGACY'&&state().phase!=='READY'&&state().view.kind!=='AVAILABLE','startup remains closed: '+name);
+  check(document.getElementById('appRoot').classList.contains('hidden'),'mutation UI unavailable: '+name);
+  replyTransform=null;await ProductionSession.retryStartup();await tick();
+  check(state().phase==='READY'&&state().view.kind==='AVAILABLE','fresh valid startup recovers after '+name);
+ }
+ check(!calls.some(n=>['execute_app_command','execute_match_action','manage_movie_night'].includes(n)),'startup and diagnostics invoke no writer RPC');
  let denied=false;try{assertLegacyDomainAccess();}catch(_){denied=true;}
  check(denied,'real legacy store guard denied');
  const targetToken=ProductionSession.capture();mode='READ_ONLY';serial++;await refresh();

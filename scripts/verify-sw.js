@@ -129,11 +129,12 @@ function fire(url, mode) {
   cacheApi.names.add('scorochiatu-shell-v60');
   cacheApi.names.add('scorochiatu-shell-v61');
   cacheApi.names.add('scorochiatu-shell-v64');
+  cacheApi.names.add('scorochiatu-shell-v65');
   cacheApi.names.add('other-app-cache');
   let activation;
   listeners.activate({ waitUntil(promise) { activation = promise; } });
   await activation;
-  ok('attivazione rimuove le cache precedenti, inclusa v64, e conserva build corrente e cache estranee',
+  ok('attivazione rimuove le cache precedenti, inclusa v65, e conserva build corrente e cache estranee',
     !cacheApi.names.has('scorochiatu-shell-v55')
     && !cacheApi.names.has('scorochiatu-shell-v56')
     && !cacheApi.names.has('scorochiatu-shell-v57')
@@ -142,6 +143,7 @@ function fire(url, mode) {
     && !cacheApi.names.has('scorochiatu-shell-v60')
     && !cacheApi.names.has('scorochiatu-shell-v61')
     && !cacheApi.names.has('scorochiatu-shell-v64')
+    && !cacheApi.names.has('scorochiatu-shell-v65')
     && cacheApi.names.has(expectedCache)
     && cacheApi.names.has('other-app-cache'));
   offline = true;
