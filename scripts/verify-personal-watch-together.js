@@ -18,6 +18,8 @@ context.sb={from(table){
  }};
 }};
 vm.createContext(context);
+// Load the real authority guards added after the historical component fixture.
+vm.runInContext(fs.readFileSync('js/store.js','utf8').split('function assertLegacyDomainAccess()')[1].replace(/^/, 'function assertLegacyDomainAccess()'),context);
 for(const file of ['js/format.js','js/store/viewing.js','js/store/movies.js','js/ui/render/cards.js','js/ui/actions/viewing.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
 const fixtures=[{tmdb_id:74308,title:'Detachment'},{tmdb_id:1248832,title:'Digger'},{tmdb_id:4247,title:'Scary Movie',seen_rating_n:7.3,review_text_n:'CULT'}];
 let checks=0;function test(name,fn){fn();checks++;console.log('PASS '+name);}

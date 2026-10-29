@@ -22,7 +22,7 @@ function durationBucket(mins) {
 // Film disponibili per la ruota: in watchlist, non vietati questa
 // settimana, ed eventualmente filtrati per durata e genere reali.
 function wheelPool() {
-  if (typeof targetSessionActive === 'function' && targetSessionActive()) return ProductionSession.getState().view.ruota.eligibleContents.filter(c => (durationFilter==='all'||durationBucket(parseDurationMinutes(c.duration))===durationFilter) && (genreFilter==='all'||c.genres?.includes(genreFilter)));
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) { const value=ProductionSession.getState().view;return value.kind==='AVAILABLE'?value.ruota.eligibleContents.filter(c => (durationFilter==='all'||durationBucket(parseDurationMinutes(c.duration))===durationFilter) && (genreFilter==='all'||c.genres?.includes(genreFilter))):[]; }
   const vetoed = vetoedMovieIdsThisWeek();
   return movies.filter(m => {
     if (!choiceEligible(m, movieNights, vetoed)) return false;
@@ -130,6 +130,7 @@ function drawWheel() {
 
 function spinWheel() {
   const capturedSession = typeof ProductionSession !== 'undefined' ? ProductionSession.capture() : null;
+  const capturedPresentation = typeof targetSessionActive==='function'&&targetSessionActive()?TargetShell.presentation():null;
   const available = wheelPool();
   if (available.length === 0 || wheelSpinning) return;
 
@@ -155,7 +156,7 @@ function spinWheel() {
   function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
 
   function frame(now) {
-    if (capturedSession && !ProductionSession.current(capturedSession)) { wheelSpinning = false; return; }
+    if ((capturedSession && !ProductionSession.current(capturedSession)) || (capturedPresentation && !capturedPresentation.current())) { wheelSpinning = false; return; }
     const elapsed = now - start;
     const t = Math.min(elapsed / duration, 1);
     const eased = easeOutCubic(t);
@@ -166,36 +167,9 @@ function spinWheel() {
       requestAnimationFrame(frame);
     } else {
       wheelSpinning = false;
+      if(capturedPresentation&&!wheelPool().some(m=>m.movie_id===winner.movie_id)){drawWheel();return;}
       resultDiv.classList.remove('hidden');
-      if (typeof targetSessionActive === 'function' && targetSessionActive()) {
-        resultDiv.textContent = winner.title;
-        for (const [label,action] of [['Oggi','quickNight'],['Programma','scheduleNight']]) {
-          const button = document.createElement('button'); button.textContent = label; button.className='m-2 py-2 px-3 rounded-lg bg-indigo-600';
-          button.onclick=()=>{if (ProductionSession.current(capturedSession)) TargetShell.edit(action,winner.movie_id);}; resultDiv.appendChild(button);
-        }
-        fireConfetti(); hapticFeedback('wheelWin'); playSound('wheelWin'); return;
-      }
-      const surpriseHidden = !!(winner.surprise_by && winner.surprise_by !== currentUser);
-      // Step4 phase15 — ruota programmabile: propone, l'utente crea la serata.
-      // Stesso flusso della card (quickTonightUI/scheduleMovie), nessun
-      // aggancio automatico. "Stasera" chiude subito il box; "Programma" apre
-      // la modale e il box si chiude al confirm (hook in confirmSchedule).
-      resultDiv.innerHTML = `
-        <div class="flex items-center justify-between gap-2">
-          <span>🎉 Il film è servito: <span class="text-white font-bold">${surpriseHidden ? 'Film a sorpresa' : escapeHtml(winner.title)}</span></span>
-          <button onclick="closeWheelWinner()" class="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-slate-400 hover:text-white transition shrink-0" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark text-[10px]"></i></button>
-        </div>
-        ${surpriseHidden
-          ? '<p class="mt-2 text-xs text-slate-300">Rivela la sorpresa dalla sua scheda nella lista per vedere i dettagli.</p>'
-          : `<button onclick="openMovieDetail('${jsAttrEscape(winner.id)}')" class="w-full mt-2 min-h-10 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-lg text-sm font-medium transition"><i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i> Scheda film · trama e trailer</button>`}
-        <div class="flex items-center gap-2 mt-2">
-          <button onclick="quickTonightUI('${jsAttrEscape(winner.id)}', 'wheel')" class="flex-1 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded-lg text-sm font-medium transition">Oggi</button>
-          <button onclick="wheelScheduleFor='${jsAttrEscape(winner.id)}'; scheduleMovie('${jsAttrEscape(winner.id)}')" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition">Programma</button>
-        </div>
-        ${sagaButtonHtml(winner)}
-        <div class="flex items-center gap-2 mt-1">
-          <button onclick="downloadTicket('${jsAttrEscape(winner.id)}', 'wheel')" class="flex-1 py-2 bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-indigo-300 rounded-lg text-sm font-medium transition">🎟️ Ticket</button>
-        </div>`;
+      renderWheelWinner(resultDiv,winner,typeof targetSessionActive==='function'&&targetSessionActive()?TargetShell.presentation():null);
       fireConfetti();
       hapticFeedback('wheelWin');
       playSound('wheelWin');
@@ -228,5 +202,41 @@ function fireConfetti() {
     el.style.animationDelay = (Math.random() * 0.2) + 's';
     container.appendChild(el);
     setTimeout(() => el.remove(), 3000);
+  }
+}
+
+// Same result presenter for both sources; TARGET supplies explicit dependencies.
+function renderWheelWinner(resultDiv, source, context = null) {
+  const winner=context?context.getMovie(source.movie_id||source.id):source;
+  if(!winner)return;
+  const surpriseHidden=context?context.hidden(winner):!!(winner.surprise_by&&winner.surprise_by!==currentUser);
+  resultDiv.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          <span>🎉 Il film è servito: <span class="text-white font-bold">${surpriseHidden ? 'Film a sorpresa' : escapeHtml(winner.title)}</span></span>
+          <button onclick="closeWheelWinner()" class="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-slate-400 hover:text-white transition shrink-0" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark text-[10px]"></i></button>
+        </div>
+        ${surpriseHidden
+          ? '<p class="mt-2 text-xs text-slate-300">Rivela la sorpresa dalla sua scheda nella lista per vedere i dettagli.</p>'
+          : `<button onclick="openMovieDetail('${jsAttrEscape(winner.id)}')" class="w-full mt-2 min-h-10 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-lg text-sm font-medium transition"><i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i> Scheda film · trama e trailer</button>`}
+        <div class="flex items-center gap-2 mt-2">
+          <button onclick="quickTonightUI('${jsAttrEscape(winner.id)}', 'wheel')" class="flex-1 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded-lg text-sm font-medium transition">Oggi</button>
+          <button onclick="wheelScheduleFor='${jsAttrEscape(winner.id)}'; scheduleMovie('${jsAttrEscape(winner.id)}')" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition">Programma</button>
+        </div>
+        ${(context ? context.sagaButtonHtml : sagaButtonHtml)(winner)}
+        <div class="flex items-center gap-2 mt-1">
+          <button onclick="downloadTicket('${jsAttrEscape(winner.id)}', 'wheel')" class="flex-1 py-2 bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-indigo-300 rounded-lg text-sm font-medium transition">🎟️ Ticket</button>
+        </div>`;
+  if(context){
+    context.bind(resultDiv);
+    resultDiv.querySelectorAll('[onclick]').forEach(node=>{
+      const code=node.getAttribute('onclick');node.removeAttribute('onclick');let callback;
+      if(code.startsWith('closeWheelWinner('))callback=closeWheelWinner;
+      else if(code.startsWith('openMovieDetail('))callback=()=>context.detail(winner.id,node);
+      else if(code.startsWith('quickTonightUI('))callback=()=>TargetShell.edit('quickNight',winner.id,context.scheduleInitial(winner));
+      else if(code.startsWith('wheelScheduleFor='))callback=()=>TargetShell.edit('scheduleNight',winner.id,context.scheduleInitial(winner));
+      else if(code.startsWith('downloadTicket('))callback=()=>context.ticket(winner.id);
+      else throw Error('Unbound product wheel action');
+      node.onclick=()=>{if(context.current())callback();};
+    });
   }
 }

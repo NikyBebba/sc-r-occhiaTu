@@ -38,6 +38,7 @@ let checks=0;
    }};
   },{mode,emails:runtimeEmails});
   for(const f of scripts)await page.addScriptTag({content:read(f)});
+  await require('./install-legacy-ui-fixture.cjs')(page);
   await page.evaluate(()=>checkLoginState());
  };
  const check=async(name,fn)=>{await fn();checks++;console.log('PASS '+name);};
@@ -109,7 +110,7 @@ let checks=0;
    await reset(person);await open(person);await page.locator('#reviewRatingDislike').click();await page.evaluate(p=>serverFilm['seen_rating_'+p.toLowerCase()]=9,person);await page.locator('#reviewSaveButton').click();assert(await page.locator('#reviewModal').isVisible());await page.waitForFunction(()=>document.getElementById('reviewRatingLike').disabled);assert.equal(await page.evaluate(p=>serverFilm['seen_rating_'+p.toLowerCase()],person),9);assert.equal(await page.evaluate(p=>serverFilm['personal_liked_'+p.toLowerCase()],person),null);await page.keyboard.press('Escape');
   });
   await check('Realtime FALSE/NULL/rating/review and active-form rating update '+label,async()=>{
-   await reset(person);for(const v of [true,false,null]){await page.evaluate(async({p,v})=>{serverFilm['personal_liked_'+p.toLowerCase()]=v;await resyncQuiet();},{p:person,v});assert.equal(await ownSlot(person).getAttribute('data-judgment'),v===true?'like':v===false?'dislike':'unknown');}
+   await reset(person);for(const v of [true,false,null]){await page.evaluate(async({p,v})=>{serverFilm['personal_liked_'+p.toLowerCase()]=v;await resyncQuiet();},{p:person,v});await page.waitForFunction(({p,v})=>document.querySelector('#movieGrid [data-judgment-context="'+p+'"]')?.dataset.judgment===(v===true?'like':v===false?'dislike':'unknown'),{p:person,v});assert.equal(await ownSlot(person).getAttribute('data-judgment'),v===true?'like':v===false?'dislike':'unknown');}
    await open(person);await page.evaluate(async p=>{serverFilm['seen_rating_'+p.toLowerCase()]=8;serverFilm['review_text_'+p.toLowerCase()]='Remote text';await resyncQuiet();},person);assert.equal(await page.locator('#reviewRating').inputValue(),'8');assert(await page.locator('#reviewRatingLike').isDisabled());assert.equal(await page.locator('#reviewText').inputValue(),'Remote text');await page.keyboard.press('Escape');assert.equal(await ownSlot(person).getAttribute('data-judgment'),'rating');
   });
   await check('Together inline + review-only and exclusive removal survive '+label,async()=>{

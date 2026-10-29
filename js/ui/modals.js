@@ -6,10 +6,21 @@
 // openModal sullo stesso id NON duplica mai lo stack: un solo Esc lo chiude.
 let modalStack = [];
 let memoriesReturnFocus = null;
+const modalReturnFocus = new Map();
+let modalBodyOverflow = null;
+
+// Authentication teardown resets presentation only, including non-route dialogs.
+function resetModalPresentation() {
+  modalStack = []; modalReturnFocus.clear(); memoriesReturnFocus = null;
+  if (document.body?.style && modalBodyOverflow !== null) document.body.style.overflow = modalBodyOverflow;
+  modalBodyOverflow = null;
+}
 
 function openModal(id) {
   const el = document.getElementById(id);
   if (!el) return;
+  if (el.classList.contains('hidden')) modalReturnFocus.set(id, document.activeElement);
+  if (!modalStack.length && document.body?.style) { modalBodyOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden'; }
   if (id === 'statsModal' && el.classList.contains('hidden')) {
     memoriesReturnFocus = document.activeElement;
     if (typeof prepareMemoriesOpening === 'function') prepareMemoriesOpening();
@@ -28,6 +39,7 @@ function openModal(id) {
   if (typeof syncDestinationNavigation === 'function') syncDestinationNavigation();
   const app = document.getElementById('appRoot');
   if (app) app.inert = true;
+  if (id === 'detailModal' || id === 'sagaModal') el.querySelector('button')?.focus();
   if (id === 'statsModal') el.querySelector('.memories-header button')?.focus();
 }
 
@@ -43,7 +55,11 @@ function closeModalNow(id) {
   modalStack = modalStack.filter(x => x !== id);
   const app = document.getElementById('appRoot');
   if (app) app.inert = modalStack.length > 0;
+  if (!modalStack.length && document.body?.style && modalBodyOverflow !== null) { document.body.style.overflow = modalBodyOverflow; modalBodyOverflow = null; }
+  const returnTo = modalReturnFocus.get(id); modalReturnFocus.delete(id);
+  if (returnTo?.isConnected && !returnTo.closest?.('[inert]')) returnTo.focus?.({preventScroll:true});
   if (typeof syncDestinationNavigation === 'function') syncDestinationNavigation();
+  if (id === 'detailModal' && typeof restoreMovieDetailFocus === 'function') restoreMovieDetailFocus();
   if (id === 'reviewModal' && typeof reviewEditorClosed === 'function') reviewEditorClosed();
   if (id === 'statsModal' && !modalStack.length && isAppAuthorized()) memoriesReturnFocus?.focus?.({ preventScroll: true });
   if (id === 'addSeenModal' && typeof pendingAddSeen !== 'undefined') pendingAddSeen = null;
@@ -152,8 +168,8 @@ function showConfirmModal(title, message, choices = null) {
 
 // Focus tastiera confinato a Ricordi e conferma; Esc usa lo stack esistente.
 document.addEventListener('keydown', event => {
-  if (event.key !== 'Tab' || !['statsModal', 'confirmModal', 'seenModal', 'reviewModal', 'addSeenModal', 'listCandidateModal'].includes(modalStackTop())) return;
-  const items = [...document.getElementById(modalStackTop()).querySelectorAll('button, summary, [tabindex="0"]')]
+  if (event.key !== 'Tab' || !['statsModal', 'confirmModal', 'seenModal', 'reviewModal', 'addSeenModal', 'listCandidateModal', 'detailModal', 'scheduleModal', 'sagaModal', 'addModal', 'pickerModal'].includes(modalStackTop())) return;
+  const items = [...document.getElementById(modalStackTop()).querySelectorAll('button, summary, a[href], input, select, textarea, [tabindex="0"]')]
     .filter(element => !element.disabled && element.getClientRects().length);
   const first = items[0], last = items[items.length - 1];
   if (!first) return;

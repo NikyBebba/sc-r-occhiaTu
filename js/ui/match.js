@@ -88,11 +88,11 @@ function matchConnectingHtml() {
 }
 
 // Dopo la creazione: messaggio di conferma, poi esce da sola al tab precedente.
-function matchNightCreatedHtml() {
-  if (!matchExitTimer) {
+function matchNightCreatedHtml(context = null) {
+  if (!context && !matchExitTimer) {
     matchExitTimer = setTimeout(() => { matchExitTimer = null; exitMatchView(); }, 1400);
   }
-  const title = matchNightCreated && matchNightCreated.title ? matchNightCreated.title : '';
+  const title = context ? context.createdTitle : matchNightCreated && matchNightCreated.title ? matchNightCreated.title : '';
   return `<div class="match-panel col-span-full text-center text-emerald-400 text-sm space-y-3">
       <div class="text-3xl">🎉</div>
       <p class="font-semibold text-base">Serata creata ✓</p>
@@ -105,12 +105,12 @@ function matchNewSessionBtn() {
 }
 
 // LOBBY_SOLO: attesa con chip di chi è online. "Nuova sessione" è ammessa qui.
-function matchLobbyHtml(state) {
-  const present = matchPresentUsers();
+function matchLobbyHtml(state, context = null) {
+  const present = (context ? context.matchPresentUsers : matchPresentUsers)();
   const chips = present.length
     ? present.map(p => personBadge(p)).join(' ')
     : '<span class="text-slate-400 text-xs">Nessuno online</span>';
-  const missing = VALID_PERSONS.filter(p => !present.includes(p));
+  const missing = (context ? context.personLabels : VALID_PERSONS).filter(p => !present.includes(p));
   const waiting = missing.length > 0
     ? `In attesa di ${missing.map(m => (CONFIG.PEOPLE[m] ? CONFIG.PEOPLE[m].label : escapeHtml(m))).join(' e ')}`
     : 'Siete entrambi online!';
@@ -134,6 +134,7 @@ function matchMovieMeta(movie) {
 }
 
 function matchPoster(movie) {
+  if (movie._surpriseHidden) return '<div class="h-full flex items-center justify-center text-4xl" aria-label="Film a sorpresa">🎁</div>';
   return `<img src="${movie.poster || 'https://via.placeholder.com/300x450/1e293b/64748b?text=No+Cover'}" alt="${escapeHtml(movie.title)}" class="w-full h-full object-cover">`;
 }
 
@@ -141,25 +142,25 @@ function matchPoster(movie) {
 // STESSA swipeCard(). Se ho già risposto e l'altro no: "In attesa di X" senza
 // rivelare la direzione (niente bottoni). Il card non avanza finché l'altro
 // non risponde (currentIndex derivato).
-function matchSwipeHtml(state) {
-  const movie = resolveDeckMovie(movies, state.movieId);
+function matchSwipeHtml(state, context = null) {
+  const movie = resolveDeckMovie((context ? context.movies : movies), state.movieId);
   if (!movie) {
     return `<div class="col-span-full py-12 text-center text-slate-400 text-sm">Film rimosso dalla lista.</div>`;
   }
-  const answers = swipesForCard(swipes, state.movieId);
-  const iAnswered = answers[currentUser] !== undefined;
-  const missing = VALID_PERSONS.find(p => answers[p] === undefined);
+  const answers = (context ? context.swipesForCard : swipesForCard)((context ? context.swipes : swipes), state.movieId);
+  const iAnswered = answers[(context ? context.callerLabel : currentUser)] !== undefined;
+  const missing = (context ? context.personLabels : VALID_PERSONS).find(p => answers[p] === undefined);
   const meta = matchMovieMeta(movie);
   const genres = (Array.isArray(movie.genres) && movie.genres.length)
     ? movie.genres.join(', ')
     : '';
-  const deckLength = Array.isArray(swipeSessions[0] && swipeSessions[0].deck) ? swipeSessions[0].deck.length : 0;
+  const deckLength = Array.isArray((context ? context.swipeSessions : swipeSessions)[0] && (context ? context.swipeSessions : swipeSessions)[0].deck) ? (context ? context.swipeSessions : swipeSessions)[0].deck.length : 0;
   const progress = deckLength ? Math.min(100, Math.round(((state.index + 1) / deckLength) * 100)) : 0;
-  const agreement = sessionAgreement(swipes, movies);
+  const agreement = (context ? context.sessionAgreement : sessionAgreement)((context ? context.swipes : swipes), (context ? context.movies : movies));
   let agreementLine;
   if (agreement.total === 0) {
-    const waiting = answers[currentUser] === undefined
-      ? (CONFIG.PEOPLE[currentUser === 'N' ? 'V' : 'N'] || {}).label || (currentUser === 'N' ? 'V' : 'N')
+    const waiting = answers[(context ? context.callerLabel : currentUser)] === undefined
+      ? (CONFIG.PEOPLE[(context ? context.callerLabel : currentUser) === 'N' ? 'V' : 'N'] || {}).label || ((context ? context.callerLabel : currentUser) === 'N' ? 'V' : 'N')
       : (missing && CONFIG.PEOPLE[missing] ? CONFIG.PEOPLE[missing].label : missing);
     agreementLine = `<div class="text-center text-[10px] text-slate-500">…% d'accordo · in attesa di ${escapeHtml(waiting)}</div>`;
   } else {
@@ -198,10 +199,10 @@ function matchSwipeHtml(state) {
 // (status DB non è prerequisito). Il riconoscimento ("Continua") aggiorna
 // matched_movie_id (solo in quel momento), evitando ricelebrazioni anche
 // con reconcile in ritardo.
-function matchMatchHtml(state) {
-  const movie = resolveDeckMovie(movies, state.movieId) || null;
+function matchMatchHtml(state, context = null) {
+  const movie = resolveDeckMovie((context ? context.movies : movies), state.movieId) || null;
   const title = movie ? movie.title : 'Film rimosso';
-  const agreement = sessionAgreement(swipes, movies);
+  const agreement = (context ? context.sessionAgreement : sessionAgreement)((context ? context.swipes : swipes), (context ? context.movies : movies));
   const pctLine = agreement.total === 0
     ? '<p class="text-xs text-slate-500">…% d\'accordo · in attesa di N/V</p>'
     : `<p class="text-xs text-slate-400">${agreement.pct}% d'accordo finora${agreement.total < 3 ? ' · poche risposte per un dato attendibile' : ''}</p>`;
@@ -219,7 +220,7 @@ function matchMatchHtml(state) {
         <button onclick="downloadTicket('${movie ? jsAttrEscape(movie.id) : ''}', 'match')" class="flex-1 py-2.5 bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-indigo-300 rounded-xl text-sm font-medium transition">🎟️ Ticket</button>
         <button onclick="continueFromMatch()" class="flex-1 py-2.5 bg-sky-600/20 hover:bg-sky-600/40 text-sky-300 rounded-xl text-sm font-medium transition">Continua a swipare</button>
       </div>
-      ${sagaButtonHtml(movie)}
+      ${(context ? context.sagaButtonHtml : sagaButtonHtml)(movie)}
       <div class="flex gap-2">
         ${matchNewSessionBtn()}
         <button onclick="exitMatchView()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-medium transition">Esci</button>
@@ -228,8 +229,8 @@ function matchMatchHtml(state) {
 }
 
 // DONE: riepilogo "X match" + Match % definitiva + Nuova sessione / Esci.
-function matchDoneHtml(state) {
-  const agreement = sessionAgreement(swipes, movies);
+function matchDoneHtml(state, context = null) {
+  const agreement = (context ? context.sessionAgreement : sessionAgreement)((context ? context.swipes : swipes), (context ? context.movies : movies));
   const pctLine = agreement.total === 0
     ? ''
     : `<p class="text-sm text-slate-400">${agreement.pct}% di gusti in comune${agreement.total < 3 ? ' <span class="text-slate-500">· poche risposte per un dato attendibile</span>' : ''}</p>`;
@@ -408,11 +409,11 @@ function matchNightDone(movieId) {
 // fireConfetti() riusato (già vanilla DOM/CSS, #confettiLayer z-200). Tutti i
 // dati sono in scope dalle globali (movies/swipes) — nessun fetch, nessuna
 // libreria esterna.
-function matchRevealHtml(state) {
-  const movie = resolveDeckMovie(movies, state.movieId);
+function matchRevealHtml(state, context = null) {
+  const movie = resolveDeckMovie((context ? context.movies : movies), state.movieId);
   const title = movie ? movie.title : 'Film rimosso';
   const poster = movie && movie.poster ? movie.poster : '';
-  const agreement = sessionAgreement(swipes, movies);
+  const agreement = (context ? context.sessionAgreement : sessionAgreement)((context ? context.swipes : swipes), (context ? context.movies : movies));
   const pctLine = agreement.total === 0
     ? '<p class="text-xs text-slate-500">…% d\'accordo · in attesa di N/V</p>'
     : `<p class="text-xs text-slate-400">${agreement.pct}% d'accordo finora${agreement.total < 3 ? ' · poche risposte per un dato attendibile' : ''}</p>`;

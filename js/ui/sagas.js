@@ -16,15 +16,15 @@ function sagaTodayKey(date = new Date()) {
 }
 
 // Non confonde l'ordine d'uscita con l'ordine narrativo o la disponibilità streaming.
-function sagaChapterStates(collection, source, library, person, today = sagaTodayKey()) {
-  const reference = collection.parts.find(part => part.id === Number(source.tmdb_id));
+function sagaChapterStates(collection, source, library, person, today = sagaTodayKey(), context = null) {
+  const reference = collection.parts.find(part => context ? String(part.id) === source.tmdb_id : part.id === Number(source.tmdb_id));
   const after = reference?.release_date || null;
   let nextFound = false;
   return collection.parts.map(part => {
-    const existing = library.find(movie => Number(movie.tmdb_id) === part.id) || null;
-    const hidden = !!(existing && existing.surprise_by && existing.surprise_by !== person);
-    const state = existing ? viewingState(existing) : null;
-    const sourceChapter = part.id === Number(source.tmdb_id);
+    const existing = library.find(movie => context ? movie.tmdb_id === String(part.id) : Number(movie.tmdb_id) === part.id) || null;
+    const hidden = !!existing && (context ? context.hidden(existing) : !!existing.surprise_by && existing.surprise_by !== person);
+    const state = existing ? (context ? context.viewingState(existing) : viewingState(existing)) : null;
+    const sourceChapter = context ? String(part.id) === source.tmdb_id : part.id === Number(source.tmdb_id);
     const upcoming = !!(part.release_date && part.release_date > today);
     const next = !nextFound && !hidden && !sourceChapter && !upcoming && part.release_date && after
       && part.release_date > after && !(state && state.together);
@@ -52,12 +52,12 @@ function retryMovieSaga() {
   if (sagaPanel && !sagaPanel.busy) return openMovieSaga(sagaPanel.movieId);
 }
 
-function renderSagaPanel() {
+function renderSagaPanel(context = null, targetPanel = null) {
   const box = document.getElementById('sagaBody');
-  if (!box || !sagaPanel) return;
-  const panel = sagaPanel;
-  const movie = movies.find(row => row.id === panel.movieId);
-  if (currentUser !== panel.user || !canShowSaga(movie)) { closeModal('sagaModal'); return; }
+  if (!box || !(targetPanel || sagaPanel)) return;
+  const panel = targetPanel || sagaPanel;
+  const movie = (context ? context.movies : movies).find(row => row.id === panel.movieId);
+  if ((context ? context.callerLabel : currentUser) !== panel.user || (context ? !movie || context.hidden(movie) : !canShowSaga(movie))) { closeModal('sagaModal'); return; }
   document.getElementById('sagaIntro').textContent = `La storia di “${movie.title}” può continuare.`;
   if (panel.loading) {
     box.innerHTML = '<p class="saga-notice" role="status">Cerchiamo gli altri capitoli…</p>';
@@ -67,15 +67,15 @@ function renderSagaPanel() {
     box.innerHTML = '<p class="saga-notice" role="status">Non riusciamo a recuperare la saga. Controlla la connessione e riprova.</p><button type="button" class="saga-entry" onclick="retryMovieSaga()">Riprova</button>';
     return;
   }
-  const chapters = sagaChapterStates(panel.collection, movie, movies, currentUser);
-  chapters.filter(chapter => (chapter.existing && (chapter.existing.in_shared_list || togetherSeen(chapter.existing))) || chapter.sourceChapter).forEach(chapter => panel.selected.delete(chapter.part.id));
-  const available = chapters.filter(chapter => (!chapter.existing || (!chapter.existing.in_shared_list && !togetherSeen(chapter.existing))) && !chapter.sourceChapter);
+  const chapters = sagaChapterStates(panel.collection, movie, context ? context.movies : movies, context ? context.callerLabel : currentUser, context ? context.view.context.temporal.local_date : sagaTodayKey(), context);
+  chapters.filter(chapter => (chapter.existing && ((context ? context.view.getCard(chapter.existing.id).group.candidacy.effectiveCandidacy : chapter.existing.in_shared_list) || (!context && togetherSeen(chapter.existing)))) || chapter.sourceChapter).forEach(chapter => panel.selected.delete(chapter.part.id));
+  const available = chapters.filter(chapter => (!chapter.existing || (!(context ? context.view.getCard(chapter.existing.id).group.candidacy.effectiveCandidacy : chapter.existing.in_shared_list) && !(!context && togetherSeen(chapter.existing)))) && !chapter.sourceChapter);
   const cards = chapters.map(({ part, existing, hidden, state, sourceChapter, upcoming, next }) => {
     const title = hidden ? 'Film a sorpresa' : part.title;
-    const selectable = (!existing || (!existing.in_shared_list && !state?.together)) && !sourceChapter;
+    const selectable = (!existing || (!(context ? context.view.getCard(existing.id).group.candidacy.effectiveCandidacy : existing.in_shared_list) && (context || !state?.together))) && !sourceChapter;
     const status = hidden ? 'Già in lista · sorpresa' : sourceChapter ? 'Il film da cui partite'
-      : existing ? (existing.in_shared_list ? 'Già in lista' : 'Fuori Lista') : upcoming ? 'Al cinema / prossimamente' : 'Da aggiungere';
-    const personal = !hidden && existing ? viewingStatusHtml(existing, { showRatings: false }) : '';
+      : existing ? ((context ? context.view.getCard(existing.id).group.candidacy.effectiveCandidacy : existing.in_shared_list) ? 'Già in lista' : 'Fuori Lista') : upcoming ? 'Al cinema / prossimamente' : 'Da aggiungere';
+    const personal = !hidden && existing ? (context ? context.viewingStatusHtml : viewingStatusHtml)(existing, { showRatings: false }) : '';
     const year = !hidden && part.release_date ? part.release_date.slice(0, 4) : '';
     const check = selectable ? `<input type="checkbox" value="${part.id}" aria-label="Aggiungi ${escapeHtml(title)}" onchange="toggleSagaChapter(${part.id}, this.checked)"${panel.selected.has(part.id) ? ' checked' : ''}${panel.busy ? ' disabled' : ''}>` : '';
     return `<label class="saga-chapter${next ? ' is-next' : ''}${selectable ? ' is-selectable' : ''}">
@@ -83,10 +83,12 @@ function renderSagaPanel() {
       <span class="saga-chapter-copy">${next ? '<span class="saga-next">IL PROSSIMO CAPITOLO</span>' : ''}<strong>${escapeHtml(title)}</strong><small>${escapeHtml([year, status].filter(Boolean).join(' · '))}</small>${personal}${!hidden && !part.release_date ? '<small>Data di uscita non disponibile</small>' : ''}</span>${check}
     </label>`;
   }).join('');
-  box.innerHTML = `<p class="saga-name">${escapeHtml(panel.collection.name)}</p><p class="saga-notice">Capitoli in ordine di uscita. Scegli quali aggiungere alla vostra lista.</p>
+  box.innerHTML = `<p class="saga-name">${escapeHtml(panel.collection.name)}</p><p class="saga-notice">Capitoli in ordine di uscita. Scegli quali proporre alla Lista del gruppo.</p>
     <div class="saga-chapters">${cards || '<p class="saga-notice">Non ci sono capitoli disponibili per questa saga.</p>'}</div>
     <p id="sagaMessage" class="saga-notice" role="status">${escapeHtml(panel.message || (!available.length && chapters.length ? 'Avete già tutti i capitoli disponibili in lista.' : ''))}</p>
     ${available.length ? `<button id="sagaAddButton" type="button" class="saga-add" onclick="addSagaChapters()"${panel.busy || !panel.selected.size ? ' disabled' : ''}>${panel.busy ? 'Aggiungiamo i film…' : 'Aggiungi alla lista (' + panel.selected.size + ')'}</button>` : ''}`;
+
+  if (context) context.bindSaga(box, panel);
 }
 
 function toggleSagaChapter(id, checked) {

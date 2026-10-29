@@ -47,9 +47,9 @@ function nightTimelineDate(night) {
   return null;
 }
 
-function completedNightEntries() {
-  return movieNights.filter(n => n.status === 'completed')
-    .map(night => ({ night, movie: movies.find(m => m.id === night.movie_id) || null,
+function completedNightEntries(context = null) {
+  return (context ? context.nights : movieNights).filter(n => n.status === 'completed')
+    .map(night => ({ night, movie: (context ? context.movies : movies).find(m => m.id === night.movie_id) || null,
       timelineDate: nightTimelineDate(night) }))
     .sort((a, b) => {
       const byDay = (b.timelineDate?.key || '').localeCompare(a.timelineDate?.key || '');
@@ -83,10 +83,10 @@ function completedNightLabel(entry) {
     .toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function renderNightHistory() {
+function renderNightHistory(context = null) {
   const container = document.getElementById('nightHistory');
   if (!container) return;
-  const entries = completedNightEntries();
+  const entries = completedNightEntries(context);
   const count = document.getElementById('nightHistoryCount');
   if (count) count.textContent = `${entries.length} ${entries.length === 1 ? 'serata' : 'serate'}`;
   if (!entries.length) {
@@ -106,12 +106,12 @@ function renderNightHistory() {
         .toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
       : 'Data non registrata';
     const cards = group.map(({ night, movie, timelineDate }) => {
-      const hidden = !!(movie && movie.surprise_by && movie.surprise_by !== currentUser);
+      const hidden = !!movie && (context ? context.hidden(movie) : !!movie.surprise_by && movie.surprise_by !== currentUser);
       const title = hidden ? 'Film a sorpresa' : movie?.title || 'Film non disponibile';
       const poster = movie?.poster && !hidden
         ? `<img src="${escapeHtml(movie.poster)}" alt="Locandina di ${escapeHtml(title)}" loading="lazy">`
         : '<i class="fa-solid fa-film" aria-hidden="true"></i>';
-      return `<article class="history-ticket">
+      return `<article class="history-ticket" data-history-movie="${escapeHtml(movie?.id || '')}">
       <div class="history-ticket-poster">${poster}</div>
       <div class="history-ticket-info">
         <span class="history-ticket-kicker">SERATA CONCLUSA</span>
@@ -119,7 +119,7 @@ function renderNightHistory() {
         <p>${escapeHtml(completedNightLabel({ night, timelineDate }))}</p>
         ${night.snack ? `<p>🍿 ${escapeHtml(night.snack)}</p>` : ''}
         ${night.location && !hidden ? `<p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${escapeHtml(night.location)}</p>` : ''}
-        ${movie && !hidden && togetherRating(movie) !== null ? `<p class="history-shared-score">${escapeHtml(sharedPeopleLabel())} <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(togetherRating(movie))}/10</p>` : ''}
+        ${movie && !hidden && (context ? context.togetherRating : togetherRating)(movie) !== null ? `<p class="history-shared-score">${escapeHtml(sharedPeopleLabel())} <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating((context ? context.togetherRating : togetherRating)(movie))}/10</p>` : ''}
       </div>
     </article>`;
     }).join('');
@@ -137,11 +137,12 @@ function renderNightHistory() {
   container.innerHTML = [...years].map(([year, group]) => memoryDetails('year:' + year,
     year, group.count, `<div class="memory-body space-y-3">${group.months.join('')}</div>`)).join('')
     + months.join('');
+  if (context) context.bindHistory(container);
 }
 
 // ---- Il Nostro Cinema — statistiche + recensioni senza data ----
-function renderStats() {
-  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('memories');
+function renderStats(context = null) {
+  if (!context && typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.refreshMemories();
   // toggle è asincrono: acquisire anche lo stato DOM prima di sostituire i nodi.
   if (!memoriesState.fresh) document.querySelectorAll('#statsModal [data-memory-key]').forEach(element => {
     memoriesState.sections.set(element.dataset.memoryKey, element.open);
@@ -163,9 +164,9 @@ function renderStats() {
     reviewsSection.open = memoryIsOpen('reviews');
     reviewsSection.querySelector?.('summary')?.setAttribute('aria-expanded', String(reviewsSection.open));
   }
-  renderNightHistory();
-  const watched = movies.filter(m => viewingState(m).together);
-  const allRatings = watched.map(togetherRating).filter(value => value !== null);
+  renderNightHistory(context);
+  const watched = (context ? context.movies : movies).filter(m => (context ? context.viewingState : viewingState)(m).together);
+  const allRatings = watched.map(context ? context.togetherRating : togetherRating).filter(value => value !== null);
   // Somma in decimi: evita che 9,1 e 0 producano 4,5 invece di 4,6.
   const avgRating = allRatings.length
     ? (Math.round(allRatings.reduce((sum, value) => sum + Math.round(value * 10), 0) / allRatings.length) / 10).toFixed(1).replace('.', ',')
@@ -186,14 +187,14 @@ function renderStats() {
   // Film aggiunti: intera libreria, attribuzione persistita sul film.
   // Non è un conteggio delle serate: i rewatch non moltiplicano i film.
   const proposersValue = ['N', 'V'].map(person => {
-    const count = movies.filter(movie => movie.added_by === person).length;
+    const count = (context ? context.movies : movies).filter(movie => movie.added_by === person).length;
     return `${CONFIG.PEOPLE[person]?.label || person} ${count}`;
   }).join(' · ');
 
-  const visibleRated = watched.filter(movie => (!movie.surprise_by || movie.surprise_by === currentUser)
-    && togetherRating(movie) !== null);
-  const highestRating = visibleRated.length ? Math.max(...visibleRated.map(togetherRating)) : null;
-  const topRated = visibleRated.filter(movie => togetherRating(movie) === highestRating);
+  const visibleRated = watched.filter(movie => (context ? !context.hidden(movie) : !movie.surprise_by || movie.surprise_by === currentUser)
+    && (context ? context.togetherRating : togetherRating)(movie) !== null);
+  const highestRating = visibleRated.length ? Math.max(...visibleRated.map(context ? context.togetherRating : togetherRating)) : null;
+  const topRated = visibleRated.filter(movie => (context ? context.togetherRating : togetherRating)(movie) === highestRating);
   const highestTitle = topRated.length === 1 ? topRated[0].title || 'Film senza titolo'
     : topRated.length > 1 ? `${topRated.length} film a pari voto` : '';
   const cards = [
@@ -213,8 +214,8 @@ function renderStats() {
     </div>
   `).join('');
 
-  const reviewed = watched.filter(m => !m.surprise_by || m.surprise_by === currentUser)
-    .map(m => ({ movie: m, text: reviewTextFor(m, 'both'), score: togetherRating(m) }))
+  const reviewed = watched.filter(m => context ? !context.hidden(m) : !m.surprise_by || m.surprise_by === currentUser)
+    .map(m => ({ movie: m, text: (context ? context.reviewTextFor : reviewTextFor)(m, 'both'), score: (context ? context.togetherRating : togetherRating)(m) }))
     .filter(entry => entry.text || entry.score !== null)
     .sort((a, b) => String(a.movie.title || '').localeCompare(String(b.movie.title || ''), 'it'));
   const count = document.getElementById('reviewCount');

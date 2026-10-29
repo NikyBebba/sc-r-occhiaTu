@@ -365,15 +365,16 @@ function syncReviewEditor() {
 
 // Shared draft grammar for Seen/Add/candidacy/personal review. No persistence here.
 const personalJudgmentDrafts = new Map();
-function bindPersonalJudgment(inputId, draft, movie = null) {
+function bindPersonalJudgment(inputId, draft, movie = null, context = null) {
+  draft.presentation = context;
   const input = document.getElementById(inputId), host = document.getElementById(inputId + 'Judgment');
   draft.movieId = movie?.id || draft.id;
-  draft.preference = personalRating(movie || {}, currentUser) === null ? personalPreference(movie, currentUser) : null;
+  draft.preference = (context ? context.personalRating(movie, context.callerLabel) : personalRating(movie || {}, currentUser)) === null ? (context ? context.personalPreference(movie, context.callerLabel) : personalPreference(movie, currentUser)) : null;
   draft.preferenceTouched = false;
   personalJudgmentDrafts.set(inputId, draft);
   host.classList.remove('hidden');
   host.classList.add('personal-judgment-form');
-  host.classList.toggle('auth-person-v', currentUser === 'V');
+  host.classList.toggle('auth-person-v', (context ? context.callerLabel : currentUser) === 'V');
   host.innerHTML = `<p id="${inputId}JudgmentLabel">Il tuo giudizio (facoltativo)</p><div class="personal-preference-options">
     <button type="button" id="${inputId}Like" aria-pressed="false" onclick="chooseDraftPersonalPreference('${inputId}', true)"><i class="fa-solid fa-thumbs-up" aria-hidden="true"></i> Mi è piaciuto</button>
     <button type="button" id="${inputId}Dislike" aria-pressed="false" onclick="chooseDraftPersonalPreference('${inputId}', false)"><i class="fa-solid fa-thumbs-down" aria-hidden="true"></i> Non mi è piaciuto</button></div><p id="${inputId}JudgmentHelp">Oppure, un voto da 0 a 10.</p>`;
@@ -383,9 +384,10 @@ function bindPersonalJudgment(inputId, draft, movie = null) {
 function syncDraftPersonalJudgment(inputId, pending = false) {
   const draft = personalJudgmentDrafts.get(inputId);
   if (!draft) return;
-  pending = pending || personalPreferencePending.has(currentUser+':'+draft.movieId);
-  const latest=movies.find(m=>m.id===draft.movieId);
-  const input = document.getElementById(inputId), persisted = (draft.initialRating !== null && draft.initialRating !== undefined) || (latest && personalRating(latest,currentUser)!==null);
+  const context = draft.presentation;
+  pending = pending || (!context && personalPreferencePending.has(currentUser+':'+draft.movieId));
+  const latest=context ? context.getMovie(draft.movieId) : movies.find(m=>m.id===draft.movieId);
+  const input = document.getElementById(inputId), persisted = (draft.initialRating !== null && draft.initialRating !== undefined) || (latest && (context ? context.personalRating(latest,context.callerLabel) : personalRating(latest,currentUser))!==null);
   const hasDraftRating = parseMovieRating(input.value) !== null;
   for (const [suffix,value] of [['Like',true],['Dislike',false]]) {
     const button = document.getElementById(inputId+suffix);
@@ -401,7 +403,7 @@ function syncDraftPersonalJudgment(inputId, pending = false) {
 function chooseDraftPersonalPreference(inputId, value) {
   const draft = personalJudgmentDrafts.get(inputId);
   const input = document.getElementById(inputId);
-  if (!draft || input.disabled || (draft.initialRating !== null && draft.initialRating !== undefined)) return;
+  if (!draft || (draft.presentation && !draft.presentation.current()) || input.disabled || (draft.initialRating !== null && draft.initialRating !== undefined)) return;
   draft.preference = draft.preference === value ? null : value;
   draft.preferenceTouched = true;
   draft.ratingTouched = false; // Final preference intent must not send UPDATE OF rating NULL.

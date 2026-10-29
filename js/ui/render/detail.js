@@ -6,20 +6,31 @@
 // Apre il modale #detailModal e popola #detailBody con i metadati del film.
 // Usa i campi già in memoria; solo gli Oscar sono letti su richiesta.
 // ============================================
+let detailReturnFocus = null;
 let detailTransitionSource = null;
 let detailTransitionActive = false;
+
+function restoreMovieDetailFocus() {
+  const id = document.getElementById('detailBody')?.dataset.movieId;
+  const replacement = [...document.querySelectorAll('#movieGrid [data-movie-id], #statsModal [data-history-movie], [data-projection-movie]')]
+    .find(node => (node.dataset.movieId || node.dataset.historyMovie || node.dataset.projectionMovie) === id)
+    ?.querySelector('h3 button, h5 button');
+  const target = detailReturnFocus?.isConnected ? detailReturnFocus : replacement || document.getElementById('libraryBack');
+  target?.focus?.({preventScroll:true});
+}
 
 function canTransitionMovieDetail(source) {
   return !!(source && source.isConnected && document.startViewTransition
     && (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches));
 }
 
-function openMovieDetail(id, sourceCard) {
-  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.detail(id);
+function openMovieDetail(id, sourceCard, context = null) {
+  if (!context && typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.detail(id, sourceCard);
   if (detailTransitionActive) return;
-  const m = movies.find(x => x.id === id);
-  if (!m || (m.surprise_by && m.surprise_by !== currentUser)) return;
-  renderMovieDetail(m);
+  const m = context ? context.movies.find(x => x.id === id) : movies.find(x => x.id === id);
+  if (!m || (context ? context.hidden(m) : m.surprise_by && m.surprise_by !== currentUser)) return;
+  renderMovieDetail(m, context);
+  detailReturnFocus = context && sourceCard ? (sourceCard.matches?.('button,a,[tabindex]') ? sourceCard : sourceCard.querySelector?.('h3 button') || sourceCard) : sourceCard || document.activeElement;
   const panel = document.getElementById('detailPanel');
   if (panel && canTransitionMovieDetail(sourceCard) && !detailTransitionActive) {
     detailTransitionActive = true;
@@ -28,6 +39,7 @@ function openMovieDetail(id, sourceCard) {
     let transition;
     try {
       transition = document.startViewTransition(() => {
+        if(context && !context.current()) return;
         sourceCard.style.viewTransitionName = '';
         openModal('detailModal');
         panel.style.viewTransitionName = 'movie-detail';
@@ -52,7 +64,7 @@ function openMovieDetail(id, sourceCard) {
     detailTransitionSource = null;
     openModal('detailModal');
   }
-  if (m.tmdb_id) fetchOscarWins(m.tmdb_id).then(wins => renderOscarWins(m.id, wins));
+  if (!context && m.tmdb_id) fetchOscarWins(m.tmdb_id).then(wins => renderOscarWins(m.id, wins));
 }
 
 function closeMovieDetailWithTransition(closeNow) {
@@ -100,7 +112,7 @@ function renderOscarWins(movieId, wins) {
     : '';
 }
 
-function renderMovieDetail(m) {
+function renderMovieDetail(m, context = null) {
   const body = document.getElementById('detailBody');
   if (!body) return;
 
@@ -124,7 +136,7 @@ function renderMovieDetail(m) {
     ? `<p class="text-xs text-slate-400 leading-relaxed"><i class="fa-solid fa-masks-theater text-indigo-400 mr-1"></i>${m.cast_names.map(escapeHtml).join(', ')}</p>`
     : '';
   const trailerHtml = m.trailer_url
-    ? `<a href="${m.trailer_url}" target="_blank" rel="noopener" class="detail-trailer"><i class="fa-solid fa-play" aria-hidden="true"></i> Guarda il trailer <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>`
+    ? `<a href="${escapeHtml(m.trailer_url)}" target="_blank" rel="noopener" class="detail-trailer"><i class="fa-solid fa-play" aria-hidden="true"></i> Guarda il trailer <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>`
     : '';
 
   body.innerHTML = `
@@ -143,22 +155,25 @@ function renderMovieDetail(m) {
     ${trailerHtml}
     ${ratingsHtml}
     <div id="detailAwards" aria-live="polite"></div>
-    <div class="detail-viewing">${viewingStatusHtml(m)}</div>
-    ${reviewCardsHtml(m)}
-    ${sagaButtonHtml(m)}
-    ${nightIsDue(activeNightForMovie(m.id)) || togetherSeen(m) ? sharedVoteButtonHtml(m) : ''}
+    <div class="detail-viewing">${(context ? context.viewingStatusHtml : viewingStatusHtml)(m)}</div>
+    ${(context ? context.reviewCardsHtml : reviewCardsHtml)(m)}
+    ${(context ? context.sagaButtonHtml : sagaButtonHtml)(m)}
+    ${context ? context.detailActions(m) : `
+${nightIsDue(activeNightForMovie(m.id)) || togetherSeen(m) ? sharedVoteButtonHtml(m) : ''}
     ${personalWatchButtonHtml(m)}
     ${personalRemovalButtonsHtml(m)}
     ${rewatchActionsHtml(m)}
     <div class="flex gap-2 mt-3"><button class="min-h-11 px-3 bg-indigo-600/20 rounded" onclick="quickTonightUI('${jsAttrEscape(m.id)}')">Oggi</button><button class="min-h-11 px-3 bg-slate-800 rounded" onclick="scheduleMovie('${jsAttrEscape(m.id)}')">Programma</button></div>
     <div id="detailVetoAction">${detailVetoActionHtml(m)}</div>
+    `}
     <div class="detail-footer">
-      ${personBadge(m.added_by)}
+      ${(context ? context.personBadge : personBadge)(m.added_by)}
       ${m.surprise_by ? `<span class="badge bg-indigo-600/90">🎁 sorpresa di ${escapeHtml(CONFIG.PEOPLE[m.surprise_by]?.label || m.surprise_by)}</span>` : ''}
       ${m.matched === false ? `<span class="badge bg-amber-700/90" title="Nessun riscontro trovato"><i class="fa-solid fa-triangle-exclamation"></i> verifica titolo</span>` : ''}
     </div>
   `;
   body.dataset.movieId = String(m.id);
+  if (context) context.bind(body);
 
   // Step3 phase9.1 — ambient (poster sfocato come sfondo del modale).
   setDetailAmbient(m.poster);

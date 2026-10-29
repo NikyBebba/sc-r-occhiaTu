@@ -235,7 +235,7 @@ let ProductionSession = (() => {
     verifyLegacy: () => normal().verifyLegacy(), renderProtocolGate,
     startAuthenticated: () => normal().startAuthenticated(authIdentity?.uid),
     refreshAuthenticated: () => normal().refreshAuthenticated(authIdentity?.uid),
-    invalidateAuth() { stopLegacy(); return coordinator?.invalidateAuth(); },
+    invalidateAuth() { if (!coordinator?.isTarget()) stopLegacy(); return coordinator?.invalidateAuth(); },
     action: (...args) => coordinator?.action(...args) ?? Promise.resolve(Object.freeze({outcome:'NOT_READY'})),
     match: (...args) => coordinator?.match(...args) ?? Promise.resolve(Object.freeze({category:'INVALID_INPUT'})),
     subscribe: listener => normal().subscribe(listener), setObservedPerson: id => coordinator?.setObservedPerson(id),

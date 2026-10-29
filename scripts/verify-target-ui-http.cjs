@@ -12,6 +12,7 @@ for (const [index,person] of data.raw.personal.entries()) {
   person.states[index].seen=true;
   person.states[index].list={active:true,generation:person.person_id===data.N?'1':null};
 }
+for(const c of data.raw.catalog)c.poster='/fixture-poster.svg';
 F.finish(data.raw);
 function installFixture(data,delay){
  const at=data.at, session={access_token:'synthetic-target-session',user:{id:data.N},expires_at:Math.floor(Date.now()/1000)+3600};
@@ -38,6 +39,7 @@ const server=http.createServer((req,res)=>{const u=new URL(req.url,'http://local
  else if(file==='fixture-prelude.js')body=`window.tailwind={config:{}};const OD=Date;window.Date=class extends OD{constructor(...a){super(...(a.length?a:[${JSON.stringify(data.at)}]));}static now(){return new OD(${JSON.stringify(data.at)}).getTime();}};if(navigator.serviceWorker)navigator.serviceWorker.register=async()=>({addEventListener(){}});`;
  else if(file==='fixture-tailwind.js')body=fs.readFileSync(arg('tailwind'));
  else if(file==='fixture-start.js')body=`window.addEventListener('load',()=>(${installFixture.toString()})(${JSON.stringify(data)},${Number(u.searchParams.get('delay'))}));`;
+ else if(file==='fixture-poster.svg'){res.setHeader('Content-Type','image/svg+xml');res.end('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450"><rect width="300" height="450" fill="#1e293b"/></svg>');return;}
  else if(file==='js/config.js')body=config;
  else if(/^(js\/[a-z0-9_/-]+\.js|css\/style\.css|manifest\.json|icons\/[a-z0-9-]+\.png)$/.test(file))body=source(file);
  else{res.writeHead(404).end();return;}
@@ -50,11 +52,12 @@ const server=http.createServer((req,res)=>{const u=new URL(req.url,'http://local
   const context=await browser.newContext({viewport,serviceWorkers:'block'});await context.route('**/*',r=>r.request().url().startsWith(origin+'/')?r.continue():r.abort());const page=await context.newPage(),errors=[];
   page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
   const ready=async()=>{await page.waitForFunction(()=>ProductionSession.getState().phase==='READY'&&ProductionSession.getState().view.kind==='AVAILABLE'&&ProductionSession.getState().runtime.source==='ONLINE');await page.waitForTimeout(250);};
-  const inspect=()=>page.evaluate(()=>{const visible=id=>{const el=document.getElementById(id);return !!el&&getComputedStyle(el).display!=='none'&&!!el.getClientRects().length;};return {route:TargetShell.getDestination?.() || (dashboardView==='home'?'home':currentTab==='match'?'match':'groupList'),active:[...document.querySelectorAll('#destinationNav [aria-current="page"]')].map(e=>e.dataset.destination),navs:document.querySelectorAll('#movieGrid nav').length,topNav:visible('destinationNav'),loader:visible('initialLoadingBanner'),pending:initialLoadingPending,busy:document.getElementById('librarySection').getAttribute('aria-busy'),home:visible('sceltaCta'),library:visible('librarySection'),wheel:visible('dashboardSidebar'),title:document.getElementById('libraryPageTitle').textContent,personal:visible('targetPersonalCollections'),group:visible('libraryViewSelect')||visible('segControl'),technical:/Verificato online|Osserva N|Osserva V|Mia Lista \d/.test(document.getElementById('movieGrid').textContent),cards:document.querySelectorAll('#movieGrid article').length,overflow:document.documentElement.scrollWidth>innerWidth};});
+  const inspect=()=>page.evaluate(()=>{const visible=id=>{const el=document.getElementById(id);return !!el&&getComputedStyle(el).display!=='none'&&!!el.getClientRects().length;};return {route:TargetShell.getDestination?.() || (dashboardView==='home'?'home':currentTab==='match'?'match':'groupList'),active:[...document.querySelectorAll('#destinationNav [aria-current="page"]')].map(e=>e.dataset.destination),navs:document.querySelectorAll('#movieGrid nav').length,topNav:visible('destinationNav'),loader:visible('initialLoadingBanner'),pending:initialLoadingPending,busy:document.getElementById('librarySection').getAttribute('aria-busy'),home:visible('sceltaCta'),library:visible('librarySection'),wheel:visible('dashboardSidebar'),title:document.getElementById('libraryPageTitle').textContent,personal:visible('targetPersonalCollections'),group:visible('libraryViewSelect')||visible('segControl'),technical:/Verificato online|Osserva N|Osserva V|Mia Lista \d/.test(document.getElementById('movieGrid').textContent),cards:document.querySelectorAll('#movieGrid .movie-ticket').length,overflow:document.documentElement.scrollWidth>innerWidth};});
   await page.goto(origin+'/?delay='+delay);await ready();let s=await inspect();
   check(s.route==='home'&&s.home&&!s.library,'Home panel only '+viewport.width+'/'+delay);
   check(!s.loader&&!s.pending&&s.busy==='false','startup loader dismissed, including timer race '+viewport.width+'/'+delay);
   for(let cycle=0;cycle<2;cycle++)for(const [route,top,title] of [['groupList','library','Libreria'],['personalList','','Lista personale'],['personalSeen','','Visti personali'],['memories','memories','Ricordi'],['match','match',''],['wheel','wheel',''],['home','home','']]){
+   if(await page.locator('#statsModal').isVisible())await page.locator('#statsModal .memories-header button').click();
    if(route==='groupList'){if((await inspect()).route==='home')await page.locator('#sceltaCta [onclick="setTab(\'watchlist\')"]').click();else await page.locator('#destinationNav [data-destination="library"]').click();}
    else if(route==='personalList'){await page.evaluate(()=>activateDestination('history'));await page.locator('#targetPersonalList').click();}
    else if(route==='personalSeen')await page.locator('#targetPersonalSeen').click();
@@ -63,7 +66,8 @@ const server=http.createServer((req,res)=>{const u=new URL(req.url,'http://local
    check(s.route===route&&s.active.join()===top,'route and navbar selection '+label);
    check(s.topNav===(viewport.width>=768||route!=='home')&&s.navs===0&&!s.technical,'single app navigation and no technical surface '+label);
    check(!s.loader&&!s.pending&&!s.overflow,'no loader or horizontal overflow '+label);
-   if(title)check(s.title===title&&s.library,'matching collection title/container '+label);
+   if(title&&route!=='memories')check(s.title===title&&s.library,'matching collection title/container '+label);
+   if(route==='memories')check(await page.locator('#statsModal').isVisible(),'product memories dialog '+label);
    check(s.personal===['personalList','personalSeen'].includes(route),'contextual personal controls '+label);
    if(cycle===0&&delay===450)await page.screenshot({path:path.join(out,route+'-'+viewport.width+'.png'),fullPage:true});
    if(route==='home')check(s.home&&!s.library&&!s.wheel,'home exclusive '+label);
@@ -79,9 +83,9 @@ const server=http.createServer((req,res)=>{const u=new URL(req.url,'http://local
   check(!(await page.locator('#tabAll').isVisible())&&await page.locator('#movieGrid [data-movie-id]').count()<=24,'no TARGET Tutti collection and bounded cards '+viewport.width+'/'+delay);
   check(await page.locator('#movieGrid button').filter({hasText:'Veto'}).count()===0,'management stays out of primary card '+viewport.width+'/'+delay);
   await page.locator('#movieSearchInput').fill('no synthetic title matches');
-  check(await page.locator('#movieGrid article').count()===0,'existing search filters TARGET locally '+viewport.width+'/'+delay);
+  check(await page.locator('#movieGrid .movie-ticket').count()===0,'existing search filters TARGET locally '+viewport.width+'/'+delay);
   await page.locator('#movieSearchInput').fill('');
-  check(await page.locator('#movieGrid article').count()>0,'existing search clears without losing collection '+viewport.width+'/'+delay);
+  check(await page.locator('#movieGrid .movie-ticket').count()>0,'existing search clears without losing collection '+viewport.width+'/'+delay);
   await page.screenshot({path:path.join(out,'library-'+viewport.width+'-'+delay+'.png'),fullPage:true});
   await page.evaluate(()=>activateDestination('home'));await page.reload();await ready();s=await inspect();
   check(s.home&&!s.library&&!s.loader,'reload returns coherent Home '+viewport.width+'/'+delay);

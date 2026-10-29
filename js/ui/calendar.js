@@ -123,16 +123,16 @@ function formatDayLabel(key) {
 
 // Riga di riepilogo per una night (usata sia nel giorno selezionato sia nel
 // footer "Scelte rapide (oggi)"). Tutti i testi utente passano da escapeHtml.
-function nightRowHtml(entry) {
+function nightRowHtml(entry, context = null) {
   const ui = nightStatusUI(entry.night.status);
-  const title = entry.movie ? entry.movie.title : 'Film rimosso';
+  const title = entry.movie ? context && context.hidden(entry.movie) ? 'Film a sorpresa' : entry.movie.title : 'Film rimosso';
   const time = entry.night.time || '';
   const proposer = entry.night.proposed_by
     ? (CONFIG.PEOPLE[entry.night.proposed_by]?.label || entry.night.proposed_by)
     : null;
   const meta = [time, proposer ? `proposto da ${proposer}` : ''].filter(Boolean).join(' • ');
   const metaHtml = meta ? `<div class="text-[10px] text-slate-400">${escapeHtml(meta)}</div>` : '';
-  return `<div class="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-slate-800/80 last:border-0">
+  return `<div data-calendar-movie="${escapeHtml(entry.movie?.id || '')}" class="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-slate-800/80 last:border-0">
       <div class="min-w-0">
         <div class="text-xs font-semibold text-slate-100 truncate">${escapeHtml(title)}</div>
         ${metaHtml}
@@ -153,8 +153,8 @@ function dayCellHtml(cell, nights, selected) {
 
 // ---- Render ----
 
-function renderCalendar() {
-  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('calendar');
+function renderCalendar(context = null) {
+  if (!context && typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.refreshCalendar();
   if (calendarYear === null || calendarMonth === null) {
     const now = new Date();
     calendarYear = now.getFullYear();
@@ -162,7 +162,7 @@ function renderCalendar() {
   }
   const grid = document.getElementById('movieGrid');
   const weeks = monthGrid(calendarYear, calendarMonth);
-  const { byDay, undated } = nightsByDayKey(movieNights, movies, calendarYear, calendarMonth);
+  const { byDay, undated } = nightsByDayKey(context ? context.nights : movieNights, context ? context.movies : movies, calendarYear, calendarMonth);
 
   // Se dopo un resync (realtime) il giorno selezionato non ha più serate, o il
   // mese è cambiato, chiudiamo il riepilogo senza errori.
@@ -195,7 +195,7 @@ function renderCalendar() {
   const summary = calendarSelectedKey ? `
     <div class="mt-3 p-3 bg-slate-900/80 rounded-xl border border-slate-800">
       <div class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">${formatDayLabel(calendarSelectedKey)}</div>
-      ${byDay[calendarSelectedKey].map(nightRowHtml).join('')}
+      ${byDay[calendarSelectedKey].map(entry=>nightRowHtml(entry,context)).join('')}
     </div>` : '';
 
   // Quick pick "Stasera" senza data: solo le night attive (proposed/confirmed).
@@ -203,7 +203,7 @@ function renderCalendar() {
   const undatedHtml = activeUndated.length ? `
     <div class="mt-4 pt-3 border-t border-slate-800">
       <div class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Scelte rapide (oggi)</div>
-      ${activeUndated.map(nightRowHtml).join('')}
+      ${activeUndated.map(entry=>nightRowHtml(entry,context)).join('')}
     </div>` : '';
 
   const emptyHint = (Object.keys(byDay).length === 0 && activeUndated.length === 0)
@@ -227,6 +227,7 @@ function renderCalendar() {
       ${emptyHint}
       ${legend}
     </div>`;
+  if (context) context.bindCalendar(grid);
 }
 
 // ---- Azioni di navigazione (niente gestione serate: step 3b) ----

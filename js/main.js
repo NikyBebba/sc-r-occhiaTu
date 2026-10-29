@@ -58,7 +58,7 @@ function showLanding() {
   if (typeof resetWatchForms === 'function') resetWatchForms();
   if (typeof resetHistorySearch === 'function') resetHistorySearch();
   if (typeof resetMemoriesState === 'function') resetMemoriesState();
-  modalStack = [];
+  if (typeof resetModalPresentation === 'function') resetModalPresentation(); else modalStack = [];
   document.getElementById('appRoot').inert = false;
   document.getElementById('landingScreen').classList.remove('hidden');
   document.getElementById('loginGate').classList.add('hidden');

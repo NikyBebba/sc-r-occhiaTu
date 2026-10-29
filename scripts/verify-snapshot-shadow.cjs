@@ -426,9 +426,9 @@ async function main() {
     for(const v of next.versions.entries)if(v.entity_id===m && v.scope_kind!=='night')v.tombstone=false;F.finish(next);
     await h.start();await h.resolve(next);assert.equal(h.state().status,'CONTRACT_INVALID');assert.equal(h.state().view.source,'CACHE');assert.equal(h.store.writes.length,0);
   });
-  await test('I01', 'inactive target entry and no direct I/O APIs in target modules',()=>{
+  await test('I01', 'protocol-gated entry and no direct I/O APIs in target modules',()=>{
     const names=['projection','controller','cache'];
-    assert(fs.readFileSync(path.join(__dirname,'../js/production-session.js'),'utf8').includes("mode: 'LEGACY'"));
+    assert(fs.readFileSync(path.join(__dirname,'../js/production-session.js'),'utf8').includes("rpc('read_app_protocol'"));
     for(const name of names) {
       const source=fs.readFileSync(path.join(__dirname,'../js/snapshot',name+'.js'),'utf8').split('\n').filter(l=>!l.trim().startsWith('//')).join('\n');
       assert(!/\b(?:window|document|localStorage|sessionStorage|fetch|supabase|Realtime|setTimeout|setInterval|addEventListener)\b|Date\.now\s*\(/.test(source));

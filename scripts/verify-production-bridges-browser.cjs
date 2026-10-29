@@ -34,7 +34,7 @@ function automated(){
  assert.throws(()=>vm.runInContext(source('js/runtime/production-host.js'),context),e=>e.name==='SyntaxError');
  return vm.runInContext(checks,context).then(r=>{
   assert(r.cases>=121);assert.equal(r.moduleIO,0);
-  assert(source('js/production-session.js').includes("mode: 'LEGACY'"), 'Production entry remains LEGACY');
+  assert(source('js/production-session.js').includes("rpc('read_app_protocol'"), 'Production entry negotiates authority through the protocol reader');
   console.log('PRODUCTION BRIDGES CLASSIC VM: '+r.cases+' integration groups; '+r.assertions+' assertions; module I/O 0. Not Safari.');
  });
 }

@@ -32,7 +32,7 @@ function automated(){
  assert.throws(()=>vm.runInContext(source('js/runtime/consumer-facade.js'),context),e=>e.name==='SyntaxError');
  return vm.runInContext(checks,context).then(r=>{
   assert.equal(r.cases,53);assert.equal(r.moduleIO,0);
-  assert(source('js/production-session.js').includes("mode: 'LEGACY'"), 'Production entry remains LEGACY');
+  assert(source('js/production-session.js').includes("rpc('read_app_protocol'"), 'Production entry negotiates authority through the protocol reader');
   console.log('CONSUMER FACADE CLASSIC VM: '+r.cases+'/53 consumer groups; '+r.assertions+' assertions; module I/O 0. Not Safari.');
  });
 }

@@ -18,7 +18,7 @@ function fixture(snapshot=null){
   escapeHtml:String,jsAttrEscape:String,personBadge:()=>'',sagaButtonHtml:()=>'',isVetoed:false,
   vetoForMovieThisWeek:()=>null,loadMovies:async()=>{},saveLocal(){},openModal(){},closeModal(){},closeModalNow(){},suggestSagaAfterViewing(){},showActionError(message){throw Error(message);}
  };
- vm.createContext(ctx);for(const file of ['js/format.js','js/store/viewing.js','js/store/movies.js','js/store/nights.js','js/ui/render/cards.js','js/ui/render/memories.js','js/ui/render/projections.js','js/ui/actions/viewing.js'])vm.runInContext(fs.readFileSync(file,'utf8'),ctx,{filename:file});
+ vm.createContext(ctx);vm.runInContext('function assertLegacyDomainAccess()'+fs.readFileSync('js/store.js','utf8').split('function assertLegacyDomainAccess()')[1],ctx);for(const file of ['js/format.js','js/store/viewing.js','js/store/movies.js','js/store/nights.js','js/ui/render/cards.js','js/ui/render/memories.js','js/ui/render/projections.js','js/ui/actions/viewing.js'])vm.runInContext(fs.readFileSync(file,'utf8'),ctx,{filename:file});
  return {ctx,el};
 }
 let checks=0;const test=async(name,fn)=>{await fn();checks++;console.log('PASS '+process.env.TZ+': '+name);};

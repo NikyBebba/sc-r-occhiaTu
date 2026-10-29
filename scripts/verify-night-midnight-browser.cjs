@@ -38,6 +38,7 @@ let checks=0;
    }};
   },{mode,emails:runtimeEmails,rows:persistedRows});
   for(const f of scripts)await page.addScriptTag({content:read(f)});
+  await require('./install-legacy-ui-fixture.cjs')(page);
   await page.evaluate(()=>checkLoginState());
  };
  const check=async(name,fn)=>{await fn();checks++;console.log('PASS '+name);};
