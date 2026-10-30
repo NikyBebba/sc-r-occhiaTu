@@ -7,6 +7,8 @@ const TargetShell = (() => {
     const el = id => root.getElementById(id);
     const bindings = new Map();
     let homeTrigger = null; // DOM keyboard return only; never viewing/session state.
+    let lastAction = null;
+    const savedMessage = name => ({quickNight:'Film scelto. Da vedere insieme.',scheduleNight:'Proposta salvata. La trovate in In programma.',withdrawGroupCandidacy:'Tolto dalla Lista. Il film, le visioni e i giudizi restano nel catalogo.'}[name] || 'Salvato.');
     function bind(id, property, handler) {
       const node = el(id); if (!node) return;
       if (!bindings.has(node)) bindings.set(node, new Map());
@@ -76,7 +78,8 @@ const TargetShell = (() => {
       const result = await session.action(token, name, ...args);
       if (!session.current(token)) return result;
       operation = result;
-      feedback = result.outcome === 'SUCCESS' ? 'Salvato. Aggiornamento della vista in corso…' : result.outcome === 'ALREADY_IN_TARGET_STATE' ? 'Già aggiornato.' : result.outcome === 'STALE' ? 'I dati sono cambiati. Attendi l’aggiornamento e riprova.' : result.outcome === 'TRANSPORT_UNCERTAIN' ? 'Esito da verificare. Puoi riprovare la stessa operazione.' : result.outcome === 'NOT_READY' ? 'Attendi la verifica online.' : 'Non siamo riusciti a completare l’operazione.';
+      if(name!=='retry')lastAction=name;
+      feedback = result.outcome === 'SUCCESS' ? savedMessage(lastAction)+' Aggiornamento della vista in corso…' : result.outcome === 'ALREADY_IN_TARGET_STATE' ? 'Già aggiornato.' : result.outcome === 'STALE' ? 'I dati sono cambiati. Attendi l’aggiornamento e riprova.' : result.outcome === 'TRANSPORT_UNCERTAIN' ? 'Esito da verificare. Puoi riprovare la stessa operazione.' : result.outcome === 'NOT_READY' ? 'Attendi la verifica online.' : 'Non siamo riusciti a completare l’operazione.';
       notice(); // Feedback only; retry controls reuse the unchanged committed view.
       if (result.retryHandle || name === 'retry') render();
       return result;
@@ -343,7 +346,7 @@ const TargetShell = (() => {
       detail(id,source) { const context=product();openMovieDetail(id,source,context); }, edit,
       presentation:product,
       refreshCalendar(){renderCalendar(product());}, refreshMemories(){renderStats(product());},
-      publication(state) { if(generation!==null&&generation!==state.generation)this.dispose();generation=state.generation; if (['AUTH_INVALIDATING','STOPPED','DISPOSED'].includes(state.phase)) { el('movieGrid').innerHTML = ''; this.dispose(); return; } if (state.view !== shared) { shared = state.view; if(state.view.kind==='AVAILABLE'&&!el('reviewModal')?.classList.contains('hidden'))ProductEditors.refresh(product()); if(operation?.closeTicket)finishScheduledMatch(); if(state.runtime?.pending.thresholds===null&&operation?.outcome==='SUCCESS')feedback='Salvato.'; render(); } else if (state.match !== match && destination === 'match') render(); match = state.match; },
+      publication(state) { if(generation!==null&&generation!==state.generation)this.dispose();generation=state.generation; if (['AUTH_INVALIDATING','STOPPED','DISPOSED'].includes(state.phase)) { el('movieGrid').innerHTML = ''; this.dispose(); return; } if (state.view !== shared) { shared = state.view; if(state.view.kind==='AVAILABLE'&&!el('reviewModal')?.classList.contains('hidden'))ProductEditors.refresh(product()); if(operation?.closeTicket)finishScheduledMatch(); if(state.runtime?.pending.thresholds===null&&operation?.outcome==='SUCCESS')feedback=savedMessage(lastAction); render(); } else if (state.match !== match && destination === 'match') render(); match = state.match; },
       dispose() { uiEpoch++;if(!el('confirmModal')?.classList.contains('hidden'))cancelConfirmModal();if(matchExit)clearTimeout(matchExit);matchExit=null;createdTitle=null;closingMatchTicket=null; for(const id of ['detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id); for(const id of ['nextMovieBox','recommendationResults'])if(el(id))el(id).innerHTML='';for(const [node,properties] of bindings)for(const [key,handler] of properties)node[key]=handler;bindings.clear();el('tabAll')?.classList.remove('!hidden');const all=el('libraryViewSelect')?.querySelector?.('option[value="all"]');if(all){all.hidden=false;all.disabled=false;}show('targetPersonalCollections',false); el('matchReveal')?.classList.add('hidden'); for (const id of ['sceltaCta','dashboardSidebar','recommendationSection','segControl','libraryTools','historySwitch','listFiltersBlock','syncNotice']) el(id)?.classList.remove('!hidden'); generation = null; query = ''; genre=''; duration=''; sort='added'; sortDir='desc'; platform=''; proposer=''; availability='streaming'; page = 0; destination = 'home'; revealedKey = null; operation = null; matchOperation = null; recommendation = []; shared = null; match = null; }
     });
   }

@@ -7,7 +7,12 @@ function fixtureData() {
   const raw = require('./verify-target-match-adapter.cjs').fixtureData().raw;
   const absent = F.relationless();
   const unavailable = JSON.parse(JSON.stringify(raw)); unavailable.people[1].personal_readable = false; unavailable.personal.pop(); F.finish(unavailable);
-  return { raw, absent, unavailable, rewatch: F.rewatch(), multiple: F.multipleEvents(), N: F.N, V: F.V, G: F.G, M: F.M, Q: F.Q, R: F.uid(3), NIGHT: F.NIGHT, observer: F.uid(998000), other: F.uid(998001), at: F.AT };
+  const quickCard=JSON.parse(JSON.stringify(raw));
+  quickCard.nights.push({...F.night(),status:'confirmed',date:null,time:null,confirmed_at:F.AT});
+  quickCard.versions.entries.push(F.version('night',F.G,F.NIGHT));
+  quickCard.group.states.find(g=>g.movie_id===F.M).list_visible=false;
+  F.finish(quickCard);
+  return { quickCard, raw, absent, unavailable, rewatch: F.rewatch(), multiple: F.multipleEvents(), N: F.N, V: F.V, G: F.G, M: F.M, Q: F.Q, R: F.uid(3), NIGHT: F.NIGHT, observer: F.uid(998000), other: F.uid(998001), at: F.AT };
 }
 async function runChecks(modules, data, onCase = () => {}) {
   // Component regressions inject explicit legacy authority; normal negotiation
@@ -324,6 +329,20 @@ async function runChecks(modules, data, onCase = () => {}) {
     Shell.navigate('together');eq(document.getElementById('libraryPageTitle').textContent,'Visti insieme','shared memory title');
     eq(h.commands.length,0,'navigation sends no domain command');
   });
+  await test('UX3 shared cards expose choice first and relation removal separately',async h=>{
+    await h.boot();Shell.navigate('groupList');const context=Shell.presentation(),movie=context.getMovie(data.M),ops=context.cardOperationsHtml(movie);
+    check(ops.includes('Guardiamolo')&&ops.includes('Pianifica'),'two direct daily actions');
+    check(ops.includes('movie-list-overflow')&&ops.includes('Togli dalla Lista'),'secondary relationship removal');
+    check(!/Programmazione|Gestione|Ritira candidatura|Proponi al gruppo|Elimina film/.test(ops),'no technical or delete panel');
+    const initial=context.scheduleInitial(movie);eq(initial.selectCandidate,true,'selection capture remains explicit');eq(initial.selectionView,h.state.view,'same committed view');
+    eq(h.commands.length,0,'render never creates a relation or night');
+  });
+  await test('UX3 existing quick is state, not a duplicate-choice CTA',async h=>{
+    await h.boot();Shell.navigate('groupList');const context=Shell.presentation(),ops=context.cardOperationsHtml(context.getMovie(data.M));
+    check(ops.includes('FILM SCELTO')&&ops.includes('Da vedere insieme'),'approved quick state');
+    check(ops.includes('Apri In programma')&&!ops.includes('Guardiamolo'),'no duplicate-choice button for active event');
+    eq(h.state.view.events.scheduled[0].event.night_id,data.NIGHT,'original event');eq(h.commands.length,0,'state is read only');
+  },{raw:data.quickCard});
   return {cases,assertions};
 }
 module.exports={fixtureData,runChecks};

@@ -1647,6 +1647,21 @@ details[open] > .memory-summary::before { transform: rotate(90deg); }
 /* Home: a compact doorway to every other open event, not an agenda editor. */
 .home-open-events { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 44px; text-align: left; color: var(--color-testo-1); font-size: var(--fs-sm); font-weight: 700; }
 .home-open-events i { color: var(--color-dettaglio); flex-shrink: 0; }
+.movie-list-choices { margin-top: 12px; }
+.movie-list-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.movie-list-primary, .movie-list-secondary { display: inline-flex; justify-content: center; align-items: center; gap: 6px; min-width: 0; min-height: 44px; padding: 10px 8px; border-radius: var(--radius-lg); font-size: 13px; font-weight: 700; }
+.movie-list-primary { background: linear-gradient(135deg,color-mix(in srgb,var(--color-accento) 65%,#000),color-mix(in srgb,var(--color-accento-alto) 60%,#000)); color: #fff; }
+.movie-list-secondary { background: var(--color-chip); border: 1px solid var(--color-bordo-forte); color: var(--color-testo-2); }
+.movie-list-overflow { margin-top: 8px; }
+.movie-list-overflow > summary { display: flex; justify-content: flex-end; align-items: center; min-height: 44px; padding: 0 12px; list-style: none; cursor: pointer; color: var(--color-testo-3); }
+.movie-list-overflow > summary::-webkit-details-marker { display: none; }
+.movie-list-overflow-body { padding: 8px; border: 1px solid var(--color-bordo); border-radius: var(--radius-lg); background: var(--color-superficie); }
+.movie-list-remove { display: block; width: 100%; min-height: 44px; padding: 8px; text-align: left; color: var(--color-testo-2); font-size: 13px; }
+.movie-list-note { padding: 0 8px 8px; color: var(--color-testo-3); font-size: 12px; line-height: 1.5; }
+.movie-list-state { padding: 8px 0 12px; font-size: 13px; color: var(--color-dettaglio); }
+.movie-list-state p { color: var(--color-testo-2); margin-top: 4px; }
+.movie-list-primary:disabled, .movie-list-remove:disabled { opacity: .6; cursor: wait; }
+.movie-list-confirm { min-height: 44px; }
 .destination-heading:focus { outline: none; }
 @media (max-width: 639px) {
   #nextMovieHero .next-movie-poster { align-self: start; aspect-ratio: 2 / 3; }

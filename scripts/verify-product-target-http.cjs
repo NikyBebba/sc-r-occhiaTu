@@ -112,8 +112,8 @@ const server=http.createServer((req,res)=>{const u=new URL(req.url,'http://local
   await page.locator('#detailModal').waitFor({state:'visible'});check(await page.locator('#detailModal').isVisible(),'card '+target+' opens modal '+width);await shot('detail-'+target);await page.keyboard.press('Escape');console.log('ESCAPE',await page.locator('#detailModal').isVisible());check(!await page.locator('#detailModal').isVisible(),'Escape closes detail '+width);check(await page.evaluate(()=>document.activeElement?.matches('#movieGrid h3 button')),'focus returns to movie title '+width);
  }
  await page.locator('#movieGrid .movie-ticket').first().locator('h3 button').focus();await page.keyboard.press('Enter');check(await page.locator('#detailModal').isVisible(),'keyboard detail '+width);await page.keyboard.press('Escape');
- await page.locator('#movieGrid .movie-ticket').first().locator('summary').filter({hasText:'Programmazione'}).click();check(!await page.locator('#detailModal').isVisible(),'nested disclosure does not open detail '+width);
- await page.locator('#movieGrid .movie-ticket').first().getByText('Programma',{exact:true}).click();check(await page.locator('#scheduleModal').isVisible(),'nested CTA opens product schedule only '+width);await shot('schedule-modal');await page.evaluate(()=>closeModal('scheduleModal'));
+ await page.locator('#movieGrid .movie-ticket').first().locator('.movie-list-overflow > summary').click();check(!await page.locator('#detailModal').isVisible(),'nested disclosure does not open detail '+width);
+ await page.locator('#movieGrid .movie-ticket').first().getByText('Pianifica',{exact:true}).click();check(await page.locator('#scheduleModal').isVisible(),'nested CTA opens product schedule only '+width);await shot('schedule-modal');await page.evaluate(()=>closeModal('scheduleModal'));
 
  await nav('groupList');await page.locator('#movieGrid .movie-ticket h3 button').first().click();
  await page.evaluate(()=>{window.preRefreshView=ProductionSession.getState().view;ProductionSession.requestRefresh();});

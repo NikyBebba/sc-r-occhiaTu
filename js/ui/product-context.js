@@ -63,13 +63,29 @@ const ProductContext = (() => {
       return '';
     }
     const scheduleInitial = m => view.getCard(m.id).group.candidacy.effectiveCandidacy ? {selectCandidate:true,selectionView:view} : {};
-    const scheduleActions = m => action('Oggi',()=>edit('quickNight',m.id,scheduleInitial(m)),'flex-1 min-h-11 px-3 py-2 bg-indigo-600/20 text-indigo-300 rounded')+action('Programma',()=>edit('scheduleNight',m.id,scheduleInitial(m)),'flex-1 min-h-11 px-3 py-2 bg-slate-800 rounded text-slate-300');
+    const scheduleActions = (m, list = false) => action(list?'<i class="fa-solid fa-ticket" aria-hidden="true"></i> Guardiamolo':'Oggi',()=>edit('quickNight',m.id,scheduleInitial(m)),list?'movie-list-primary':'flex-1 min-h-11 px-3 py-2 bg-indigo-600/20 text-indigo-300 rounded')+action(list?'<i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Pianifica':'Programma',()=>edit('scheduleNight',m.id,scheduleInitial(m)),list?'movie-list-secondary':'flex-1 min-h-11 px-3 py-2 bg-slate-800 rounded text-slate-300');
     function cardOperationsHtml(m) {
       if(hidden(m))return '';
+      if(['groupList','rewatch'].includes(destination)){
+        const group=view.getCard(m.id).group, events=group.events.filter(item=>['proposed','confirmed'].includes(item.event.status));
+        let controls;
+        if(events.length){
+          const n=events.length===1?events[0].event:null;
+          const title=!n?events.length+' serate aperte':n.status==='proposed'?'Proposta in attesa':n.date?'Serata aperta':'FILM SCELTO';
+          const description=n?(n.date?formatNightDate(n.date,n.time):n.status==='confirmed'?'Da vedere insieme':''):'';
+          controls=`<div class="movie-list-state"><strong>${esc(title)}</strong>${description?`<p>${esc(description)}</p>`:''}</div>`+action('Apri In programma',()=>setTab('tonight'),'movie-list-secondary');
+        }else controls=`<div class="movie-list-actions">${scheduleActions(m,true)}</div>`;
+        let secondary='';
+        if(group.candidacy.effectiveCandidacy)secondary+=action('Togli dalla Lista',async node=>{
+          if(node.disabled)return;node.disabled=true;
+          try{await perform('withdrawGroupCandidacy',m.id);}finally{if(current()&&node.isConnected)node.disabled=false;}
+        },'movie-list-remove')+'<p class="movie-list-note">Il film resta nel catalogo, con le visioni e i giudizi.</p>';
+        else if(destination==='rewatch')secondary+=action('Aggiungi alla Lista',()=>perform('proposeToGroup',m.id),'movie-list-remove');
+        if(m.matched===false)secondary+=action('Correggi titolo e ricerca di nuovo',()=>edit('updateMetadata',m.id),'movie-list-remove');
+        return `<div class="movie-list-choices">${controls}${secondary?`<details class="movie-list-overflow"><summary aria-label="Altre azioni per ${esc(m.title)}"><i class="fa-solid fa-ellipsis" aria-hidden="true"></i><span class="sr-only">Altre azioni</span></summary><div class="movie-list-overflow-body">${secondary}</div></details>`:''}</div>`;
+      }
       let primary=personalActions(m),programming='',management='';
       if(destination==='scheduled')return projectionInfoHtml(m,ctx);
-      if(['groupList','rewatch'].includes(destination))programming=`<div class="flex gap-2">${scheduleActions(m)}</div>`;
-      if(destination==='rewatch'&&!view.getCard(m.id).group.candidacy.effectiveCandidacy)primary+=action('Proponi al gruppo',()=>perform('proposeToGroup',m.id));
       if(['personalList','personalSeen','together'].includes(destination))management+=action('Proponi al gruppo',()=>perform('proposeToGroup',m.id));
       if(destination==='personalSeen'&&view.context.observedPerson.personId===view.context.caller.personId)management+=action('Rimuovi dai miei Visti',()=>perform('removeSeen',m.id));
       if(m.matched===false)management+=action('Correggi titolo e ricerca di nuovo',()=>edit('updateMetadata',m.id));

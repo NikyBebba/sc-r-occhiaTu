@@ -48,8 +48,11 @@ const ProductEditors = (() => {
     } else {
       const completed=['completeNow','completeScheduled'].includes(action), historical=initial.status==='completed';
       const scheduled=action==='scheduleNight'||action==='scheduleMatch'||action==='editNight'&&!historical&&initial.date!==null&&initial.date!==undefined;
-      el('scheduleModalTitle').textContent=completed?'Concludi la serata':action==='editNight'?'Dettagli della serata':scheduled?'Programma la proiezione':'Oggi si guarda';
-      el('scheduleHint').textContent=completed?'Chi ha partecipato alla visione?':initial.selectCandidate?'La scelta proviene dalla Lista del gruppo. Snack e luogo sono facoltativi.':'Snack e luogo sono facoltativi.';
+      const choosing=action==='quickNight', planning=action==='scheduleNight';
+      el('scheduleModalTitle').textContent=completed?'Concludi la serata':action==='editNight'?'Dettagli della serata':planning?'Pianifica la serata':choosing?'Guardiamolo':scheduled?'Programma la proiezione':'Oggi si guarda';
+      el('scheduleHint').textContent=completed?'Chi ha partecipato alla visione?':choosing?'Scegliete questo film per vederlo insieme. Snack e luogo sono facoltativi.':planning?'Scegliete quando vederlo. Snack e luogo sono facoltativi.':initial.selectCandidate?'La scelta proviene dalla Lista del gruppo. Snack e luogo sono facoltativi.':'Snack e luogo sono facoltativi.';
+      submit.textContent=choosing?'Conferma la scelta':planning?'Proponi la serata':'Conferma';
+      submit.classList.toggle('movie-list-confirm',choosing||planning);
       el('scheduleDateField').classList.toggle('hidden',!scheduled);el('scheduleTimeField').classList.toggle('hidden',!scheduled);
       el('scheduleDate').value=initial.date??'';el('scheduleTime').value=initial.time?.slice(0,5)??'';
       const snacks=el('scheduleSnack');if(![...snacks.options].some(o=>o.value===''))snacks.add(new Option('Nessuno snack',''),0);
