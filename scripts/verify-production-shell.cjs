@@ -299,6 +299,31 @@ async function runChecks(modules, data, onCase = () => {}) {
   // Actual product dialog/participant/double-submit gestures are exercised over
   // real HTTP DOM by verify-product-target-http.cjs (not this non-parsing stub).
   await test('CACHE is visibly stale and cannot authorize shell writes',async h=>{await h.boot();eq(h.state.runtime.source,'CACHE','cache');check(html().includes('Dati salvati'),'explicit cache presentation');eq((await Shell.perform('recordSeen',data.M)).outcome,'NOT_READY','runtime rejects writes');eq(h.commands.length,0,'no mutation');await h.reply();eq(h.state.runtime.source,'ONLINE','accepted online');},{cached:true});
+  await test('UX2 Home chooses open events by explicit creation, never clock expiry',async h=>{
+    const event=(id,status,created,date=null)=>({night_id:id,movie_id:data.M,status,created_at:created,date,time:date?'21:30':null,snack:'Poke',location:'Casa sintetica',proposed_by_person_id:data.N});
+    const a=event(data.NIGHT,'confirmed','2027-01-03T22:30:00Z');
+    const b=event(data.observer,'confirmed','2027-01-03T23:00:00Z','2027-02-01');
+    const proposal=event(data.other,'proposed','2027-01-04T10:00:00Z');
+    const context=(events,at)=>ProductContext.create({view:{kind:'AVAILABLE',context:{caller:{personId:data.N,legacyLabel:'N'},observedPerson:{personId:data.N},temporal:{as_of:at,timezone:'Europe/Rome',local_date:at.slice(0,10)}},catalog:{contents:[{movie_id:data.M,title:'Shutter Island'}]},getRecommendationInput:()=>({kind:'AVAILABLE',input:{users:[]}}),getCard:()=>({group:{events:events.map(event=>({event,participants:[]}))}})},session:{capture:()=>({}),current:()=>true},perform(){throw Error('Read-only selector');},edit(){throw Error('Read-only selector');}});
+    for(const at of ['2027-01-03T22:30:00Z','2027-01-04T01:30:00Z','2027-01-11T12:00:00Z']){
+      const events=[a,b,proposal],before=JSON.stringify(events),pick=context(events,at).homeNightPick();
+      eq(pick.nightId,b.night_id,'newest confirmed beats newer proposal');eq(pick.snack,'Poke','event snack');eq(pick.location,'Casa sintetica','event location');eq(JSON.stringify(events),before,'no event mutation');
+      eq(context([a],at).homeNightPick().nightId,a.night_id,'one event survives midnight/days');
+    }
+    eq(context([proposal],data.at).homeNightPick().night_confirmed,false,'fallback remains proposed');
+    eq(context([{...b,created_at:a.created_at},a],data.at).homeNightPick().nightId,a.night_id,'creation tie uses ascending nightId');
+    eq(context([{...a,status:'completed'},{...b,status:'cancelled'}],data.at).homeNightPick(),null,'terminal events excluded');
+    eq(h.commands.length,0,'selection sends no commands');
+  });
+  await test('UX2 navigation names are contextual and All remains hidden',async h=>{
+    await h.boot();Shell.navigate('groupList');syncLibraryNavigation();
+    check(document.getElementById('tabAll').classList.contains('!hidden'),'All hidden after navigation styling');
+    eq(document.getElementById('libraryPageTitle').textContent,'Lista','group-first title');
+    Shell.navigate('personalList');eq(document.getElementById('libraryPageTitle').textContent,'Il mio cinema','personal entry');
+    eq(document.getElementById('targetPersonalList').textContent,'La mia Lista','own collection label');
+    Shell.navigate('together');eq(document.getElementById('libraryPageTitle').textContent,'Visti insieme','shared memory title');
+    eq(h.commands.length,0,'navigation sends no domain command');
+  });
   return {cases,assertions};
 }
 module.exports={fixtureData,runChecks};

@@ -6,6 +6,7 @@ const TargetShell = (() => {
     let shared = null, match = null, generation = null, uiEpoch = 0, closingMatchTicket = null, createdTitle = null, matchExit = null, scheduledMatchTitle = null;
     const el = id => root.getElementById(id);
     const bindings = new Map();
+    let homeTrigger = null; // DOM keyboard return only; never viewing/session state.
     function bind(id, property, handler) {
       const node = el(id); if (!node) return;
       if (!bindings.has(node)) bindings.set(node, new Map());
@@ -19,7 +20,7 @@ const TargetShell = (() => {
       if (typeof syncTargetNavigation === 'function') syncTargetNavigation(destination);
       const home = destination === 'home', wheel = destination === 'wheel', proposals = destination === 'recommendations';
       const personal = personalDestination(), group = ['groupList','rewatch','scheduled'].includes(destination);
-      const titles = {groupList:'Libreria',rewatch:'Rewatch',scheduled:'In programma',personalList:'Lista personale',personalSeen:'Visti personali',together:'Visti e recensioni',memories:'Ricordi',calendar:'Calendario',search:'Cerca nel catalogo',bulk:'Aggiungi film'};
+      const titles = {groupList:'Lista',rewatch:'Lista',scheduled:'Lista',personalList:'Il mio cinema',personalSeen:'Il mio cinema',together:'Visti insieme',memories:'Ricordi',calendar:'Calendario',search:'Cerca nel catalogo',bulk:'Aggiungi film'};
       show('appRoot',true); show('sceltaCta',home); show('dashboardSidebar',wheel); show('recommendationSection',proposals);
       show('librarySection',!home && !wheel && !proposals); show('nextMovieHero',false); show('scheduledPanel',false);
       show('libraryHeader',destination!=='match'); show('matchViewHeader',destination==='match'); show('libraryBack',destination!=='match');
@@ -30,7 +31,10 @@ const TargetShell = (() => {
       show('libraryTools',(group || ['together','search'].includes(destination)));
       show('listFiltersBlock',!personal); show('syncNotice',false);
       text('libraryPageTitle',titles[destination] || '');
-      text('libraryPageEyebrow',personal?'IL PERCORSO PERSONALE':destination==='memories'?'TITOLI DI CODA':destination==='calendar'?'IL CARTELLONE':'LO SCAFFALE DEI FILM');
+      text('libraryPageEyebrow',personal?'IL CINEMA DI '+value.context.observedPerson.label:destination==='memories'?'TITOLI DI CODA':destination==='calendar'?'IL CARTELLONE':'LO SCAFFALE DEI FILM');
+      const own = value.context.caller.personId === value.context.observedPerson.personId;
+      text('targetPersonalList',own?'La mia Lista':'La Lista di '+value.context.observedPerson.label);
+      text('targetPersonalSeen',own?'I miei Visti':'I Visti di '+value.context.observedPerson.label);
       for (const [id,key] of [['targetPersonalList','personalList'],['targetPersonalSeen','personalSeen']]) el(id)?.setAttribute('aria-pressed',String(destination===key));
       for (const member of members()) {
         const code = member.legacyLabel;
@@ -137,7 +141,30 @@ const TargetShell = (() => {
       const input = view().getRecommendationInput();
       return input.kind === 'AVAILABLE' ? input.input.users.map(p => view().getIdentity(p.id)) : [];
     }
-    function navigate(next) { uiEpoch++;if(matchExit)clearTimeout(matchExit);matchExit=null;createdTitle=null;if(!el('confirmModal')?.classList.contains('hidden'))cancelConfirmModal(); for(const id of ['detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id); if (!['home','personalList','personalSeen','groupList','rewatch','scheduled','together','memories','calendar','match','wheel','recommendations','search','bulk'].includes(next)) return; const previous = destination; if(previous==='wheel'&&next!=='wheel')closeWheelWinner(); if(previous==='match'&&next!=='match'){revealedKey=null;el('matchReveal')?.classList.add('hidden');} if(personalDestination()!==['personalList','personalSeen'].includes(next)){query='';genre='';duration='';platform='';proposer='';} destination = next; page = 0; if (next === 'match') session.match(session.capture(), 'enter'); else if (previous === 'match') session.match(session.capture(), 'leave'); render(); }
+    function navigate(next, source = null) {
+      if (!['home','personalList','personalSeen','groupList','rewatch','scheduled','together','memories','calendar','match','wheel','recommendations','search','bulk'].includes(next)) return;
+      const previous = destination;
+      const origin = source ?? root.activeElement;
+      if (previous === 'home' && origin?.closest?.('#sceltaCta, #scheduledPanel')) homeTrigger = origin;
+      uiEpoch++; if(matchExit)clearTimeout(matchExit); matchExit=null; createdTitle=null;
+      if(!el('confirmModal')?.classList.contains('hidden'))cancelConfirmModal();
+      for(const id of ['detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id);
+      if(previous==='wheel'&&next!=='wheel')closeWheelWinner();
+      if(previous==='match'&&next!=='match'){revealedKey=null;el('matchReveal')?.classList.add('hidden');}
+      const scope = route => ['groupList','rewatch','scheduled'].includes(route) ? 'list'
+        : ['personalList','personalSeen'].includes(route) ? 'personal' : route;
+      if(scope(previous)!==scope(next)){query='';genre='';duration='';platform='';proposer='';availability='streaming';sort='added';sortDir='desc';}
+      destination = next; page = 0;
+      if(next==='match')session.match(session.capture(),'enter');else if(previous==='match')session.match(session.capture(),'leave');
+      render();
+      if (next !== 'memories') {
+        window.scrollTo?.({top:0,behavior:'auto'});
+        const heading = next==='home' ? el('sceltaTitle') : next==='wheel' ? el('wheelPanel')?.querySelector?.('h2')
+          : next==='recommendations' ? el('recommendationSection')?.querySelector?.('h2') : next==='match' ? el('matchViewHeader')?.querySelector?.('h2') : el('libraryPageTitle');
+        const target = next==='home' && homeTrigger?.isConnected ? homeTrigger : heading;
+        if(target){if(target===heading){target.setAttribute('tabindex','-1');target.classList.add('destination-heading');}target.focus?.({preventScroll:true});}
+      }
+    }
     function edit(action, id, initial = {}) {
       if(!initial||!Object.keys(initial).length){
         if(action==='setMyEvaluation')initial=view().getCard(id).personal.caller.judgment??{};
@@ -306,7 +333,9 @@ const TargetShell = (() => {
       const sortKey=personalDestination()?'title':sort;
       const metric=c=>sortKey==='duration'?parseDurationMinutes(c.duration):sortKey==='release_year'||sortKey==='year'?c.release_year:sortKey==='added'?c.created_at:sortKey==='imdb'?c.imdb_rating:sortKey==='proposer'?(c.added_by_person_id?context.getIdentity(c.added_by_person_id).label:null):sortKey==='rating'?context.getCard(c.movie_id).personal.caller.judgment?.rating:c.title;
       const sign=personalDestination()?1:sortDir==='desc'?-1:1;
-      return contents.filter(c=>(!query||[c.title,c.director,...(c.genres||[])].join(' ').toLocaleLowerCase('it').includes(query.toLocaleLowerCase('it')))&&(!genre||c.genres?.includes(genre))&&(!platform||c.platform===platform)&&(!proposer||(c.added_by_person_id?context.getIdentity(c.added_by_person_id).label:null)===proposer)&&(personalDestination()||(availability==='cinema'?c.cinema_watchlist:!c.cinema_watchlist))&&(!duration||(parseDurationMinutes(c.duration)!==null&&parseDurationMinutes(c.duration)<=Number(duration))))
+      // Route isolation only; Recommendation's existing sort/batch remain UX-10.
+      const libraryCriteria = destination !== 'recommendations';
+      return contents.filter(c=>!libraryCriteria||((!query||[c.title,c.director,...(c.genres||[])].join(' ').toLocaleLowerCase('it').includes(query.toLocaleLowerCase('it')))&&(!genre||c.genres?.includes(genre))&&(!platform||c.platform===platform)&&(!proposer||(c.added_by_person_id?context.getIdentity(c.added_by_person_id).label:null)===proposer)&&(personalDestination()||(availability==='cinema'?c.cinema_watchlist:!c.cinema_watchlist))&&(!duration||(parseDurationMinutes(c.duration)!==null&&parseDurationMinutes(c.duration)<=Number(duration)))))
         .slice().sort((a,b)=>{const x=metric(a),y=metric(b);if(x==null||y==null)return x==null?(y==null?0:1):-1;return sign*(typeof x==='number'&&typeof y==='number'?x-y:String(x).localeCompare(String(y),'it'))||a.movie_id.localeCompare(b.movie_id);});
     }
     return Object.freeze({ render, navigate, getDestination:()=>destination, changePage(delta){page=Math.max(0,page+delta);render();}, perform, performMatch, waitFor, saveContent, bulk,
@@ -320,5 +349,5 @@ const TargetShell = (() => {
   }
   let instance = null;
   const current = () => instance || (instance = createShell({ session: ProductionSession }));
-  return Object.freeze({ createShell, render: () => current().render(), getDestination:()=>current().getDestination(), changePage:delta=>current().changePage(delta), publication: state => current().publication(state), saveContent: (...args) => current().saveContent(...args), bulk: (...args) => current().bulk(...args), setFilters: input => current().setFilters(input), navigate: destination => current().navigate(destination), detail: (id,source) => current().detail(id,source), edit: (...args) => current().edit(...args), presentation:()=>current().presentation(), refreshCalendar:()=>current().refreshCalendar(), refreshMemories:()=>current().refreshMemories(), perform: (...args) => current().perform(...args), performMatch: (...args) => current().performMatch(...args), dispose() { instance?.dispose(); instance = null; } });
+  return Object.freeze({ createShell, render: () => current().render(), getDestination:()=>current().getDestination(), changePage:delta=>current().changePage(delta), publication: state => current().publication(state), saveContent: (...args) => current().saveContent(...args), bulk: (...args) => current().bulk(...args), setFilters: input => current().setFilters(input), navigate: (destination,source) => current().navigate(destination,source), detail: (id,source) => current().detail(id,source), edit: (...args) => current().edit(...args), presentation:()=>current().presentation(), refreshCalendar:()=>current().refreshCalendar(), refreshMemories:()=>current().refreshMemories(), perform: (...args) => current().perform(...args), performMatch: (...args) => current().performMatch(...args), dispose() { instance?.dispose(); instance = null; } });
 })();

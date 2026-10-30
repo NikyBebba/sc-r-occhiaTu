@@ -15,9 +15,10 @@ function syncLibraryNavigation() {
   LIBRARY_TABS.forEach(k => {
     const btn = document.getElementById(TAB_ID(k));
     if (!btn) return;
-    btn.className = k === currentTab
-      ? "flex-1 py-2 rounded-lg font-medium transition text-white whitespace-nowrap relative z-10"
-      : "flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap relative z-10";
+    // Preserve layout/visibility classes, notably TARGET's hidden All tab.
+    btn.classList.toggle('text-white', k === currentTab);
+    btn.classList.toggle('text-slate-400', k !== currentTab);
+    btn.classList.toggle('hover:text-white', k !== currentTab);
     btn.setAttribute('aria-selected', String(k === currentTab));
   });
   const select = document.getElementById('libraryViewSelect');
@@ -27,7 +28,7 @@ function syncLibraryNavigation() {
   updateTabIndicator();
 }
 
-function setTab(tab) {
+function setTab(tab, source = null) {
   if (typeof targetSessionActive === 'function' && targetSessionActive()) {
     if (tab === 'history_n' || tab === 'history_v') {
       const view = ProductionSession.getState().view;
@@ -36,7 +37,7 @@ function setTab(tab) {
       if (member) ProductionSession.setObservedPerson(member.personId);
       return TargetShell.navigate(TargetShell.getDestination() === 'personalList' ? 'personalList' : 'personalSeen');
     }
-    return TargetShell.navigate(({watchlist:'groupList',rewatch:'rewatch',tonight:'scheduled',watched:'together',calendar:'calendar',match:'match'})[tab] || 'groupList');
+    return TargetShell.navigate(({watchlist:'groupList',rewatch:'rewatch',tonight:'scheduled',watched:'together',calendar:'calendar',match:'match'})[tab] || 'groupList', source);
   }
   if (!TAB_KEYS.includes(tab)) return;
   if (tab === 'match' && dbMode !== 'supabase') return;
@@ -71,8 +72,8 @@ function setTab(tab) {
   if (enteringView) window.scrollTo?.({ top: 0, behavior: 'smooth' });
 }
 
-function openWheelView() {
-  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('wheel');
+function openWheelView(source = null) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('wheel', source);
   cancelListingSearch();
   if (currentTab === 'match') { clearMatchState(); leaveMatch(); currentTab = matchPrevTab; }
   dashboardView = 'wheel';
@@ -91,8 +92,8 @@ function openDashboardHome() {
   window.scrollTo?.({ top: 0, behavior: 'smooth' });
 }
 
-function openRecommendationView() {
-  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('recommendations');
+function openRecommendationView(source = null) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('recommendations', source);
   cancelListingSearch();
   if (currentTab === 'match') { clearMatchState(); leaveMatch(); currentTab = matchPrevTab; }
   dashboardView = 'recommendations';
@@ -102,11 +103,19 @@ function openRecommendationView() {
   window.scrollTo?.({ top: 0, behavior: 'smooth' });
 }
 
-// Pillola animata della libreria: #tabIndicator (absolute inside
-// #segControl) trasla left/width per stare sotto la vista attiva.
+// Pillola della libreria: #tabIndicator (absolute inside #segControl).
+// Measure once the complete render has settled, including visibility/counts.
 // Guardie: in ambienti privi di geometrie (stub/harness)
 // l'indicatore resta spento, mai errori.
+let tabIndicatorFrame = null;
+let tabIndicatorObserver = null;
 function updateTabIndicator() {
+  if (typeof requestAnimationFrame !== 'function') { measureTabIndicator(); return; }
+  if (tabIndicatorFrame !== null) return;
+  // Run after the complete render: visibility, selected state and counts.
+  tabIndicatorFrame = requestAnimationFrame(() => { tabIndicatorFrame = null; measureTabIndicator(); });
+}
+function measureTabIndicator() {
   const seg = document.getElementById('segControl');
   const indicator = document.getElementById('tabIndicator');
   if (!LIBRARY_TABS.includes(currentTab)) {
@@ -119,20 +128,26 @@ function updateTabIndicator() {
     indicator.style.opacity = '0';
     return;
   }
-  indicator.style.opacity = '';
   const segRect = seg.getBoundingClientRect();
   const btnRect = btn.getBoundingClientRect();
-  indicator.style.left = (btnRect.left - segRect.left) + 'px';
+  if (!segRect.width || !btnRect.width) { indicator.style.opacity = '0'; return; }
+  indicator.style.left = (btnRect.left - segRect.left - (seg.clientLeft || 0)) + 'px';
   indicator.style.width = btnRect.width + 'px';
+  indicator.style.opacity = '';
+  if (!tabIndicatorObserver && typeof ResizeObserver === 'function') {
+    tabIndicatorObserver = new ResizeObserver(updateTabIndicator);
+    tabIndicatorObserver.observe(seg);
+    LIBRARY_TABS.forEach(k => { const node=document.getElementById(TAB_ID(k)); if(node)tabIndicatorObserver.observe(node); });
+  }
 }
 
-// Riallinea l'indicatore al resize (debounce ~150ms; transition in CSS, mai
-// qui) e alle rotazioni mobile. L'ascolto è inerte negli harness (stub).
-let tabIndicatorResizeTimer = null;
+// Resize/orientation/fonts share the next-frame measurement. No delayed
+// geometric transition from a previously hidden or differently sized tab.
 window.addEventListener('resize', () => {
-  if (tabIndicatorResizeTimer) clearTimeout(tabIndicatorResizeTimer);
-  tabIndicatorResizeTimer = setTimeout(() => { updateTabIndicator(); syncDestinationNavigation(); }, 150);
+  updateTabIndicator(); syncDestinationNavigation();
 });
+document.fonts?.ready?.then(updateTabIndicator);
+document.fonts?.addEventListener?.('loadingdone', updateTabIndicator);
 
 // Una sola barra responsive; i flussi Match restano negli handler esistenti.
 function activeDestination() {
@@ -178,8 +193,8 @@ function syncDestinationNavigation() {
   });
 }
 
-function activateDestination(destination) {
-  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate(({library:'groupList',history:'personalSeen'})[destination] || destination);
+function activateDestination(destination, source = null) {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate(({library:'groupList',history:'personalList'})[destination] || destination, source);
   if (destination === 'match' && dbMode !== 'supabase') return;
   if (destination === activeDestination()) {
     const scroll = destination === 'memories' ? document.getElementById('memoriesScroll') : window;

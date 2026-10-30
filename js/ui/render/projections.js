@@ -22,7 +22,7 @@ function renderNextMovieBox(now = new Date(), context = null) {
   const box = document.getElementById('nextMovieBox');
   if (!box) return;
   const hero = document.getElementById('nextMovieHero');
-  const tonight = (context ? context.tonightPick : tonightPick)(now);
+  const tonight = context ? null : tonightPick(now);
   const rawPick = (context ? context.homeNightPick : homeNightPick)(now);
   const sourceMovie = (context ? context.movies : movies).find(m => m.id === rawPick?.id);
   const pick = rawPick && (context ? sourceMovie && context.hidden(sourceMovie) : sourceMovie?.surprise_by && sourceMovie.surprise_by !== currentUser)
@@ -30,15 +30,15 @@ function renderNextMovieBox(now = new Date(), context = null) {
   if (hero) {
     if(context)hero.classList.remove('!hidden');
     hero.classList.toggle('hidden', !pick || currentTab === 'match' || (dashboardView === 'library' && currentTab === 'calendar'));
-    hero.classList.toggle('is-tonight', !!tonight);
+    hero.classList.toggle('is-tonight', context ? !!pick?.night_confirmed : !!tonight);
   }
   if (!pick) {
     box.innerHTML = '';
     return;
   }
 
-  const pending = pick.proposed_by && !pick.night_confirmed;
-  const countdown = nextMovieTimeLabel(pick, now.getTime());
+  const pending = context ? !pick.night_confirmed : pick.proposed_by && !pick.night_confirmed;
+  const countdown = context && !pick.scheduled_date ? (pending ? '📅 Data non fissata' : 'Da vedere insieme') : nextMovieTimeLabel(pick, now.getTime());
   const countdownHtml = escapeHtml(countdown);
   const dateHtml = pick.scheduled_date ? escapeHtml(formatNightDate(pick.scheduled_date, pick.scheduled_time)) : '';
   const safeId = jsAttrEscape(pick.id);
@@ -74,12 +74,12 @@ function renderNextMovieBox(now = new Date(), context = null) {
   }
 
   box.innerHTML = `
-    <div class="next-movie-content${pending ? ' is-pending' : ''}">
+    <div class="next-movie-content${pending ? ' is-pending' : ''}" data-home-night-id="${escapeHtml(pick.nightId || '')}">
       <div class="next-movie-poster">
         ${pick.poster ? `<img src="${escapeHtml(pick.poster)}" alt="Locandina di ${escapeHtml(pick.title)}">` : '<i class="fa-solid fa-film" aria-hidden="true"></i>'}
       </div>
       <div class="next-movie-info">
-        <p class="dashboard-eyebrow next-movie-status"><i class="fa-solid ${pending ? 'fa-hourglass-half' : tonight ? 'fa-star' : 'fa-ticket'}" aria-hidden="true"></i>${tonight ? (pending ? 'OGGI · PROPOSTA' : 'OGGI SI GUARDA') : (pending ? 'PROPOSTA DI PROIEZIONE' : 'IN PROGRAMMA')}</p>
+        <p class="dashboard-eyebrow next-movie-status"><i class="fa-solid ${pending ? 'fa-hourglass-half' : 'fa-ticket'}" aria-hidden="true"></i>${context ? (pending ? 'PROPOSTA · IN ATTESA' : pick.scheduled_date ? 'SERATA APERTA' : 'FILM SCELTO') : tonight ? (pending ? 'OGGI · PROPOSTA' : 'OGGI SI GUARDA') : (pending ? 'PROPOSTA DI PROIEZIONE' : 'IN PROGRAMMA')}</p>
         <h2>${escapeHtml(pick.title)}</h2>
         <div class="next-movie-timing"><p class="next-movie-date">${countdownHtml}</p>${dateHtml && countdown.startsWith('⏳') ? `<p class="next-movie-when"><i class="fa-regular fa-calendar" aria-hidden="true"></i> ${dateHtml}</p>` : ''}</div>
         ${pick.snack ? `<p class="next-movie-snack">🍿 ${escapeHtml(pick.snack)}</p>` : ''}
@@ -122,6 +122,16 @@ function renderScheduled(now = new Date(), context = null, mount = null, entries
   if (!container) return;
   const pick = mount ? null : (context ? context.homeNightPick : homeNightPick)(now);
   const active = (context ? context.activeNights : activeNights)();
+  if (context && !mount) {
+    // Home is a doorway, not the agenda. Keep every other event reachable;
+    // agenda grouping, sorting and event editors are unchanged until UX-6.
+    const others = active.filter(n => n.id !== pick?.nightId).length;
+    if (panel) { panel.classList.remove('!hidden'); panel.classList.toggle('hidden', !others); }
+    const label = others === 1 ? 'Un’altra serata/scelta aperta' : 'Altre ' + others + ' serate/scelte aperte';
+    container.innerHTML = others ? context.action(label + ' <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>', () => setTab('tonight'), 'home-open-events') : '';
+    context.bind(container);
+    return;
+  }
   const entries = entriesOverride || active.filter(n => n.id !== pick?.nightId)
     .map(n => {
       const movie = (context ? context.movies : movies).find(m => m.id === n.movie_id);

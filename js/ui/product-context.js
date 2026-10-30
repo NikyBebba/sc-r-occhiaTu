@@ -37,7 +37,11 @@ const ProductContext = (() => {
     const activeNights=()=>nights.filter(n=>['proposed','confirmed'].includes(n.status));
     const pick=n=>n?{...byId.get(n.movie_id),...movieProjection(byId.get(n.movie_id)),nightId:n.id,scheduled_date:n.date,scheduled_time:n.time,snack:n.snack,location:n.location,proposed_by:n.proposed_by,night_confirmed:n.status==='confirmed'}:null;
     const tonightPick=()=>pick(activeNights().filter(n=>n.date===view.context.temporal.local_date||!n.date&&n.status==='confirmed'&&n.confirmed_at&&new Date(n.confirmed_at).toLocaleDateString('en-CA',{timeZone:view.context.temporal.timezone})===view.context.temporal.local_date).sort((a,b)=>(a.status==='confirmed'?-1:1)-(b.status==='confirmed'?-1:1)||(b.created_at||'').localeCompare(a.created_at||''))[0]);
-    const homeNightPick=()=>tonightPick()||pick(activeNights().filter(n=>n.date&&!due(n)).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')))[0]);
+    // Presentation priority only. Open events never expire, regardless of
+    // schedule or confirmed_at; a newer explicit choice may take the hero.
+    const homeNightPick=()=>pick(activeNights().slice().sort((a,b)=>
+      (a.status==='confirmed'?0:1)-(b.status==='confirmed'?0:1)||
+      (b.created_at||'').localeCompare(a.created_at||'')||a.id.localeCompare(b.id))[0]);
     const callbacks = new Map();let serial=0;
     function action(text, fn, classes='min-h-11 px-3 py-2 rounded-lg bg-slate-800 text-slate-200 text-sm',attributes={}) {
       const id='product-'+(++serial);callbacks.set(id,fn);

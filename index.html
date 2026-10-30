@@ -224,24 +224,24 @@
       <section id="sceltaCta" aria-labelledby="sceltaTitle" class="dashboard-choice is-home glass-panel rounded-2xl border border-slate-800">
         <div class="home-welcome">
           <div class="home-marquee" aria-hidden="true"><i class="fa-solid fa-clapperboard" aria-hidden="true"></i><span>LUCI BASSE, SCHERMO ACCESO</span><i class="fa-solid fa-clapperboard" aria-hidden="true"></i></div>
-          <h2 id="sceltaTitle" class="home-greeting">Benvenuti in sala.</h2>
+          <h2 id="sceltaTitle" tabindex="-1" class="home-greeting">Benvenuti in sala.</h2>
           <p class="home-headline">Che film si guarda?</p>
           <p class="home-intro">Popcorn pronti. Manca solo il film.</p>
           <div class="home-film-strip" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
         </div>
         <div class="dashboard-choice-actions">
-          <button id="tabMatch" onclick="setTab('match')" class="dashboard-match-btn home-mode home-mode-match hidden" aria-label="Apri Match Live" aria-current="false"><span class="home-mode-icon"><i class="fa-solid fa-heart" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Trova il Match</strong><small>Due sì fanno un Match.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
-          <button onclick="openRecommendationView()" class="dashboard-choice-btn home-mode home-mode-recommendation" aria-label="Apri Cosa guardiamo?"><span class="home-mode-icon"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Cosa guardiamo?</strong><small>Una proposta dai vostri giudizi.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
-          <button onclick="openWheelView()" class="dashboard-choice-btn home-mode home-mode-wheel" aria-label="Apri la ruota della fortuna"><span class="home-mode-icon"><i class="fa-solid fa-rotate" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Gira la Ruota</strong><small>Un giro e salta fuori il film.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
-          <button onclick="setTab('watchlist')" class="dashboard-choice-btn home-mode home-mode-list" aria-label="Sfoglia la lista dei film"><span class="home-mode-icon"><i class="fa-solid fa-film" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Sfoglia la lista</strong><small id="homeWatchlistCount">La lista aspetta il primo titolo.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
+          <button id="tabMatch" onclick="setTab('match', this)" class="dashboard-match-btn home-mode home-mode-match hidden" aria-label="Apri Match Live" aria-current="false"><span class="home-mode-icon"><i class="fa-solid fa-heart" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Trova il Match</strong><small>Due sì fanno un Match.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
+          <button onclick="openRecommendationView(this)" class="dashboard-choice-btn home-mode home-mode-recommendation" aria-label="Apri Cosa guardiamo?"><span class="home-mode-icon"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Cosa guardiamo?</strong><small>Una proposta dai vostri giudizi.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
+          <button onclick="openWheelView(this)" class="dashboard-choice-btn home-mode home-mode-wheel" aria-label="Apri la ruota della fortuna"><span class="home-mode-icon"><i class="fa-solid fa-rotate" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Gira la Ruota</strong><small>Un giro e salta fuori il film.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
+          <button onclick="setTab('watchlist', this)" class="dashboard-choice-btn home-mode home-mode-list" aria-label="Sfoglia la lista dei film"><span class="home-mode-icon"><i class="fa-solid fa-film" aria-hidden="true"></i></span><span class="home-mode-copy"><strong>Sfoglia la Lista</strong><small id="homeWatchlistCount">La lista aspetta il primo titolo.</small></span><i class="fa-solid fa-arrow-right home-mode-arrow" aria-hidden="true"></i></button>
         </div>
-        <div class="home-shortcuts" aria-label="Storico, ricordi, film visti e calendario">
+        <div class="home-shortcuts" aria-label="Il mio cinema e memoria condivisa">
           <div class="home-shortcuts-heading"><span>Tra un film e l’altro</span><i class="fa-solid fa-ticket" aria-hidden="true"></i></div>
           <div class="home-shortcuts-grid">
-            <button id="homeHistory" onclick="activateDestination('history')" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></span><span><strong>Storico</strong><small>I film già visti da N e V.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
-            <button id="homeMemories" onclick="activateDestination('memories')" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-solid fa-ticket" aria-hidden="true"></i></span><span><strong>Ricordi</strong><small>Serate concluse, recensioni e titoli di coda.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
-            <button onclick="setTab('watched')" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-solid fa-star" aria-hidden="true"></i></span><span><strong>Visti e recensioni</strong><small id="homeWatchedCount">Qui finiscono i film già visti.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
-            <button onclick="setTab('calendar')" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-regular fa-calendar" aria-hidden="true"></i></span><span><strong>Calendario</strong><small>Le proiezioni passate e quelle in arrivo.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+            <button id="homeHistory" onclick="activateDestination('history', this)" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></span><span><strong>Il mio cinema</strong><small>La mia Lista, i miei Visti.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+            <button onclick="setTab('watched', this)" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-solid fa-star" aria-hidden="true"></i></span><span><strong>Visti insieme</strong><small id="homeWatchedCount">Qui finiscono i film già visti.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+            <button id="homeMemories" onclick="activateDestination('memories', this)" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-solid fa-ticket" aria-hidden="true"></i></span><span><strong>Ricordi</strong><small>Serate concluse, recensioni e titoli di coda.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+            <button onclick="setTab('calendar', this)" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-regular fa-calendar" aria-hidden="true"></i></span><span><strong>Calendario</strong><small>Le proiezioni passate e quelle in arrivo.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
           </div>
         </div>
       </section>
@@ -310,7 +310,7 @@
         </div>
         <button id="libraryBack" onclick="openDashboardHome()" class="dashboard-back"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Torna alla home</button>
         <div id="libraryHeader" class="flex items-center justify-between gap-3">
-          <div><p id="libraryPageEyebrow" class="dashboard-eyebrow">LO SCAFFALE DEI FILM</p><h2 id="libraryPageTitle" class="text-lg font-bold text-slate-100">Libreria</h2></div>
+          <div><p id="libraryPageEyebrow" class="dashboard-eyebrow">LO SCAFFALE DEI FILM</p><h2 id="libraryPageTitle" tabindex="-1" class="text-lg font-bold text-slate-100">Libreria</h2></div>
           <span id="libraryCount" class="text-sm text-slate-400"></span>
         </div>
 
@@ -361,27 +361,27 @@
         <!-- AZIONI/VISTA: segmented control (header lista) -->
         <label for="libraryViewSelect" class="sr-only">Vista della libreria</label>
         <select id="libraryViewSelect" onchange="setTab(this.value)" class="field w-full lg:hidden min-h-11" aria-label="Vista della libreria">
-          <option value="all">Tutti i film</option><option value="watchlist" selected>Da vedere</option><option value="rewatch">Rewatch</option><option value="tonight">In programma</option>
+          <option value="all">Tutti i film</option><option value="watchlist" selected>Da vedere</option><option value="tonight">In programma</option><option value="rewatch">Rewatch</option>
         </select>
         <div id="segControl" role="tablist" aria-label="Viste della libreria" class="relative hidden lg:flex bg-slate-900/60 p-1 rounded-xl border border-slate-800 text-xs gap-1">
           <button onclick="setTab('all')" id="tabAll" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap relative z-10">Tutti <span id="pillCountAll" class="text-[10px] opacity-80">0</span></button>
-          <button onclick="setTab('watchlist')" id="tabWatchlist" role="tab" aria-selected="true" class="flex-1 py-2 rounded-lg font-medium transition text-white whitespace-nowrap relative z-10">Da Vedere <span id="pillCountWatchlist" class="text-[10px] opacity-80">0</span></button>
+          <button onclick="setTab('watchlist')" id="tabWatchlist" role="tab" aria-selected="true" class="flex-1 py-2 rounded-lg font-medium transition text-white whitespace-nowrap relative z-10">Da vedere <span id="pillCountWatchlist" class="text-[10px] opacity-80">0</span></button>
           <button onclick="setTab('tonight')" id="tabTonight" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap relative z-10">In programma <span id="pillCountTonight" class="text-[10px] opacity-80">0</span></button>
           <button onclick="setTab('rewatch')" id="tabRewatch" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap relative z-10">Rewatch <span id="pillCountRewatch" class="text-[10px] opacity-80">0</span></button>
           <div id="tabIndicator" aria-hidden="true" class="absolute inset-y-1 rounded-lg"></div>
         </div>
-        <div id="historySwitch" class="personal-history-tabs !hidden" role="group" aria-label="Scegli lo storico personale">
-          <button id="historySwitchN" type="button" aria-pressed="true" onclick="setTab('history_n')">Storico N</button>
-          <button id="historySwitchV" type="button" aria-pressed="false" onclick="setTab('history_v')">Storico V</button>
+        <div id="historySwitch" class="personal-history-tabs !hidden" role="group" aria-label="Persona da consultare">
+          <button id="historySwitchN" type="button" aria-pressed="true" onclick="setTab('history_n')">N</button>
+          <button id="historySwitchV" type="button" aria-pressed="false" onclick="setTab('history_v')">V</button>
         </div>
         <div id="targetPersonalCollections" class="personal-history-tabs !hidden" role="group" aria-label="Raccolta personale">
-          <button id="targetPersonalList" type="button" aria-pressed="false" onclick="TargetShell.navigate('personalList')">Lista personale</button>
-          <button id="targetPersonalSeen" type="button" aria-pressed="false" onclick="TargetShell.navigate('personalSeen')">Visti personali</button>
+          <button id="targetPersonalList" type="button" aria-pressed="false" onclick="TargetShell.navigate('personalList')">La mia Lista</button>
+          <button id="targetPersonalSeen" type="button" aria-pressed="false" onclick="TargetShell.navigate('personalSeen')">I miei Visti</button>
         </div>
         <div id="historySearch" class="history-search hidden">
-          <label for="historySearchInput" class="sr-only">Cerca nello storico per titolo o regista</label>
+          <label for="historySearchInput" class="sr-only">Cerca per titolo o regista</label>
           <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-          <input id="historySearchInput" type="search" placeholder="Cerca nello storico…" autocomplete="off" oninput="onHistorySearchInput()">
+          <input id="historySearchInput" type="search" placeholder="Cerca per titolo o regista…" autocomplete="off" oninput="onHistorySearchInput()">
         </div>
         <div id="resultsStart" role="region" tabindex="-1" aria-label="Risultati film"></div>
         <nav id="resultsPagerTop" class="results-pager hidden" aria-label="Pagine dei film, inizio risultati">

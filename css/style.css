@@ -1049,15 +1049,15 @@ textarea:focus-visible {
   50% { box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.55), 0 0 20px rgba(56, 189, 248, 0.6); }
 }
 
-/* ---- STEP 2 · Phase 4 — Segmented control: pillola animata.
-   L'indicatore vive dentro #segControl (relative), trasla left/width via
-   updateTabIndicator() (js/ui/navigation.js) con transition CSS; i pulsanti
+/* ---- Segmented control: pillola misurata dopo il layout definitivo.
+   L'indicatore vive dentro #segControl (relative), segue il tab selezionato
+   senza interpolare geometrie obsolete; i pulsanti
    attivi perdono il bg (resta solo testo bianco, z-10 sopra la pillola).
    Match Live usa una CTA separata dalla navigazione della libreria. ---- */
 #tabIndicator {
   background: linear-gradient(135deg, var(--color-accento), var(--color-accento-alto));
   box-shadow: 0 4px 14px -4px rgba(79, 70, 229, 0.55);
-  transition: left var(--duration-medio) var(--ease-out), width var(--duration-medio) var(--ease-out);
+  transition: opacity var(--duration-fast) var(--ease-out);
 }
 
 /* ---- STEP 2 · Phase 5 — Form controls (ricerca + filtri + sort).
@@ -1643,3 +1643,11 @@ details[open] > .memory-summary::before { transform: rotate(90deg); }
 .personal-judgment-form.auth-person-v { --person-accent:var(--color-persona-v); }
 .personal-judgment-form .personal-preference-options button { min-height:44px; }
 .personal-judgment-form p { font-size:12px; color:var(--color-testo-3); margin:6px 0; }
+
+/* Home: a compact doorway to every other open event, not an agenda editor. */
+.home-open-events { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 44px; text-align: left; color: var(--color-testo-1); font-size: var(--fs-sm); font-weight: 700; }
+.home-open-events i { color: var(--color-dettaglio); flex-shrink: 0; }
+.destination-heading:focus { outline: none; }
+@media (max-width: 639px) {
+  #nextMovieHero .next-movie-poster { align-self: start; aspect-ratio: 2 / 3; }
+}
