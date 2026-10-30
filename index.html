@@ -370,13 +370,17 @@
           <button onclick="setTab('rewatch')" id="tabRewatch" role="tab" aria-selected="false" class="flex-1 py-2 rounded-lg font-medium transition text-slate-400 hover:text-white whitespace-nowrap relative z-10">Rewatch <span id="pillCountRewatch" class="text-[10px] opacity-80">0</span></button>
           <div id="tabIndicator" aria-hidden="true" class="absolute inset-y-1 rounded-lg"></div>
         </div>
+        <div id="targetPersonalCollections" class="personal-history-tabs !hidden" role="group" aria-label="Raccolta personale">
+          <button id="targetPersonalList" type="button" aria-pressed="false" onclick="TargetShell.navigate('personalList')">La mia Lista</button>
+          <button id="targetPersonalSeen" type="button" aria-pressed="false" onclick="TargetShell.navigate('personalSeen')">I miei Visti</button>
+        </div>
         <div id="historySwitch" class="personal-history-tabs !hidden" role="group" aria-label="Persona da consultare">
           <button id="historySwitchN" type="button" aria-pressed="true" onclick="setTab('history_n')">N</button>
           <button id="historySwitchV" type="button" aria-pressed="false" onclick="setTab('history_v')">V</button>
         </div>
-        <div id="targetPersonalCollections" class="personal-history-tabs !hidden" role="group" aria-label="Raccolta personale">
-          <button id="targetPersonalList" type="button" aria-pressed="false" onclick="TargetShell.navigate('personalList')">La mia Lista</button>
-          <button id="targetPersonalSeen" type="button" aria-pressed="false" onclick="TargetShell.navigate('personalSeen')">I miei Visti</button>
+        <div id="targetPersonalIntro" class="personal-cinema-intro !hidden">
+          <p id="targetPersonalHint"></p>
+          <button id="targetPersonalAdd" type="button" class="movie-list-primary"></button>
         </div>
         <div id="historySearch" class="history-search hidden">
           <label for="historySearchInput" class="sr-only">Cerca per titolo o regista</label>

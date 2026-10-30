@@ -86,9 +86,49 @@ const ProductEditors = (() => {
     };
     openModal(modal);el(isEvaluation?'reviewRating':'scheduleSnack').focus();
   }
-  function catalog({context,session,lookup,detailsById,search,save,bulk,initial=null,label}) {
+  function catalog({context,session,lookup,detailsById,search,save,bulk,initial=null,label,retrospective=false}) {
     const serial=++editorSerial, el=id=>document.getElementById(id);let activeModal='addModal';
     const current=()=>context.current()&&serial===editorSerial&&!el(activeModal).classList.contains('hidden');
+    const importLink=el('targetImportLink')||el('addModal').querySelector('[onclick*="importModal"]');
+    importLink.classList.toggle('hidden',retrospective);
+    el('addCinemaWatchlist').parentElement.classList.toggle('hidden',retrospective);
+    if(retrospective){
+      el('addModalTitle').textContent=label;el('addTitle').value='';el('addBy').parentElement.classList.add('hidden');
+      const submit=el('addSaveBtn');submit.disabled=false;let busy=false;
+      const message=el('targetAddMessage')||document.createElement('p');message.id='targetAddMessage';message.className='text-sm text-slate-300';message.setAttribute('role','status');
+      message.textContent='Registra un film già visto da te. Liste, giudizio e serate insieme restano come sono.';submit.parentElement.before(message);
+      submit.onclick=async()=>{
+        const title=el('addTitle').value.trim();if(!current()||submit.disabled||!title)return;submit.disabled=true;
+        try{
+          const known=context.movies.filter(m=>!context.hidden(m)&&m.title.toLocaleLowerCase('it').includes(title.toLocaleLowerCase('it')));
+          let candidates=[],sourceFailed=false;try{candidates=await search(title);}catch(_){sourceFailed=true;}
+          if(!current())return;
+          const options=[...known.map(movie=>({movie})),...candidates.filter(c=>!known.some(m=>m.tmdb_id===String(c.id))).map(candidate=>({candidate}))];
+          if(!options.length){message.textContent=sourceFailed?'Ricerca non disponibile. Riprova più tardi.':'Nessun film trovato. Prova un altro titolo.';return;}
+          const box=el('pickerResults');box.replaceChildren();
+          const status=document.createElement('p');status.className='col-span-full text-sm text-slate-300';status.setAttribute('role','status');box.appendChild(status);
+          el('pickerNoneBtn').classList.add('hidden');
+          for(const option of options){
+            const item=option.movie||option.candidate,choice=document.createElement('button');choice.type='button';choice.className='personal-seen-choice picker-card text-left glass-card rounded-xl p-3';
+            if(item.poster){const img=document.createElement('img');img.src=item.poster;img.alt='';choice.appendChild(img);}
+            const caption=document.createElement('span'),name=document.createElement('strong'),hint=document.createElement('small');name.textContent=item.title+((item.release_year||item.year)?' · '+(item.release_year||item.year):'');hint.textContent='Aggiungi ai miei Visti';caption.append(name,hint);choice.appendChild(caption);
+            choice.onclick=async()=>{
+              if(!current()||busy)return;busy=true;box.querySelectorAll('button').forEach(b=>b.disabled=true);status.textContent='Salvataggio nei tuoi Visti…';
+              try{
+                const details=option.movie?{movie_id:item.id}:await detailsById(item.id);if(!current()||el('pickerModal').classList.contains('hidden'))return;
+                const done=await save(details);if(!current())return;
+                if(done){closeModal('pickerModal');closeModal('addModal');}
+                else status.textContent='Aggiunta non completata. Attendi il riallineamento prima di riprovare.';
+              }catch(_){if(current())status.textContent='Aggiunta non completata. Riprova più tardi.';}
+              finally{busy=false;if(current())box.querySelectorAll('button').forEach(b=>b.disabled=false);}
+            };box.appendChild(choice);
+          }
+          openModal('pickerModal');box.querySelector('button')?.focus();
+        }finally{if(current())submit.disabled=false;}
+      };
+      openModal('addModal');el('addTitle').focus();return;
+    }
+    el('pickerNoneBtn').classList.remove('hidden');
     const button=el('addSaveBtn');button.disabled=false;el('addTitle').value=initial?.title??'';el('addModalTitle').textContent=label;
     el('addBy').parentElement.classList.add('hidden');
     const message=document.getElementById('targetAddMessage')||document.createElement('p');message.id='targetAddMessage';message.className='text-sm text-slate-300';message.textContent='';button.parentElement.before(message);

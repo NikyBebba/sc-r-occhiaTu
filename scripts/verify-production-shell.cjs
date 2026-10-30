@@ -222,8 +222,26 @@ async function runChecks(modules, data, onCase = () => {}) {
     ui.navigate(destination);ui.edit('createContent',null);
     document.getElementById('addTitle').value='Synthetic contextual add';
     const originalSearch=searchTmdbCandidates;searchTmdbCandidates=async()=>[];
-    try{await document.getElementById('addSaveBtn').onclick();await h.pump();deep(h.commands.map(c=>c.body.intent),['CONTENT_CREATE',intent],'explicit primary relation only');}
+    try{await document.getElementById('addSaveBtn').onclick();await h.pump();if(destination==='personalSeen'){eq(h.commands.length,0,'unidentified search never writes seen');check(document.getElementById('targetAddMessage').textContent.includes('Nessun film'),'search feedback');}else deep(h.commands.map(c=>c.body.intent),['CONTENT_CREATE',intent],'explicit primary relation only');}
     finally{searchTmdbCandidates=originalSearch;ui.dispose();}
+  });
+  await test('UX4 existing catalog retrospective seen preserves personal intent and judgments',async h=>{
+    await h.boot();await Shell.perform('addToMyList',data.M);await h.pump();
+    const before=copy(h.state.view.getCard(data.M));const n=h.commands.length;
+    const result=await Shell.saveContent({movie_id:data.M},'recordSeen');await h.pump();
+    eq(result.movieId,data.M,'existing identity reused');deep(h.commands.slice(n).map(c=>c.body.intent),['RETROSPECTIVE_SEEN'],'no create or evaluation');
+    deep(h.commands.at(-1).body.parameters,{},'no patch');const after=h.state.view.getCard(data.M);
+    check(after.personal.caller.seen,'personal seen');deep(after.personal.caller.list,before.personal.caller.list,'interest preserved');
+    deep(after.personal.caller.judgment,before.personal.caller.judgment,'judgment preserved');deep(after.group,before.group,'group unchanged');
+  });
+  await test('UX4 new identified content is saved only to caller seen',async h=>{
+    await h.boot();const nights=copy(h.state.view.events),before=h.state.view.counts;
+    const result=await Shell.saveContent({title:'Synthetic identified past film',tmdb_id:'987654'},'recordSeen');await h.pump();
+    deep(h.commands.map(c=>c.body.intent),['CONTENT_CREATE','RETROSPECTIVE_SEEN'],'content then retrospective command');
+    const card=h.state.view.getCard(result.movieId);check(card.personal.caller.seen,'caller seen');check(!card.personal.caller.list.active,'no personal interest');
+    check(!card.group.candidacy.effectiveCandidacy&&!card.group.hasTogetherHistory,'no shared relation');
+    deep(card.personal.caller.judgment,{rating:null,preference:null,review:null},'no judgment');deep(h.state.view.events,nights,'no night');
+    eq(h.state.view.counts.groupListFilms,before.groupListFilms,'shared list unchanged');
   });
   await test('metadata command reaches accepted catalog',async h=>{await h.boot();await Shell.perform('updateMetadata',data.M,{title:'Synthetic corrected'});await h.pump();eq(h.state.view.catalog.getContent(data.M).content.title,'Synthetic corrected','accepted metadata');});
   await test('Match enter/start',async h=>{await h.boot();Shell.navigate('match');await h.pump();check(!!h.state.match.authoritative.session,'session');eq(h.commands.length,0,'no shared writer');});

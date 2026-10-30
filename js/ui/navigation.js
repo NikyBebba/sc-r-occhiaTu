@@ -194,7 +194,13 @@ function syncDestinationNavigation() {
 }
 
 function activateDestination(destination, source = null) {
-  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate(({library:'groupList',history:'personalList'})[destination] || destination, source);
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) {
+    if(destination==='history'){
+      const view=ProductionSession.getState().view;
+      if(view.kind==='AVAILABLE'&&view.context.observedPerson.personId!==view.context.caller.personId)ProductionSession.setObservedPerson(view.context.caller.personId);
+    }
+    return TargetShell.navigate(({library:'groupList',history:'personalList'})[destination] || destination, source);
+  }
   if (destination === 'match' && dbMode !== 'supabase') return;
   if (destination === activeDestination()) {
     const scroll = destination === 'memories' ? document.getElementById('memoriesScroll') : window;

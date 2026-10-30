@@ -56,11 +56,22 @@ const ProductContext = (() => {
     }
     const viewingState = m => ({N:state(m,'N').kind==='AVAILABLE'?state(m,'N').seen:null,V:state(m,'V').kind==='AVAILABLE'?state(m,'V').seen:null,together:together(m)});
     const sagaButtonHtml = m => !hidden(m)&&m.collection_id?action('<i class="fa-solid fa-layer-group" aria-hidden="true"></i> Continua la saga',()=>openSaga(m.id),'saga-entry'):'';
+    const personalCollection=['personalList','personalSeen'].includes(destination);
     function personalActions(m) {
       const own=view.context.observedPerson.personId===view.context.caller.personId,s=state(m,callerLabel);
-      if(destination==='personalList')return own?action('Rimuovi dalla mia Lista',()=>perform('removeFromMyList',m.id)):s.list?.active?'<span class="text-xs text-slate-400">Già nella mia Lista</span>':action('Anche nella mia Lista',()=>perform('addToMyList',m.id));
-      if(destination==='personalSeen'&&!own&&s.seen!==true)return action('L’ho visto anch’io',()=>perform('recordSeen',m.id));
+      if(destination==='personalList')return own?'':s.list?.active?'<span class="text-xs text-slate-400">Anche nella tua Lista</span>':action('Anche nella mia Lista',()=>perform('addToMyList',m.id),'movie-list-secondary');
+      if(destination==='personalSeen'&&!own&&s.seen!==true)return action('L’ho visto anch’io',()=>perform('recordSeen',m.id),'movie-list-secondary');
       return '';
+    }
+    function personalStatus(m) {
+      const observed=view.context.observedPerson,own=observed.personId===view.context.caller.personId;
+      const text=destination==='personalList'?(own?'Nella tua Lista':'Nella Lista di '+observed.label):(own?'Visto personalmente':'Visto da '+observed.label);
+      return '<div class="personal-cinema-state"><span>'+esc(text)+'</span>'+personalJudgmentSlotHtml(m,observed.legacyLabel,ctx)+'</div>';
+    }
+    function personalReview(m) {
+      if(hidden(m))return '';
+      const text=review(m,view.context.observedPerson.legacyLabel);
+      return text?'<p class="personal-cinema-review">'+esc(text)+'</p>':'';
     }
     const scheduleInitial = m => view.getCard(m.id).group.candidacy.effectiveCandidacy ? {selectCandidate:true,selectionView:view} : {};
     const scheduleActions = (m, list = false) => action(list?'<i class="fa-solid fa-ticket" aria-hidden="true"></i> Guardiamolo':'Oggi',()=>edit('quickNight',m.id,scheduleInitial(m)),list?'movie-list-primary':'flex-1 min-h-11 px-3 py-2 bg-indigo-600/20 text-indigo-300 rounded')+action(list?'<i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Pianifica':'Programma',()=>edit('scheduleNight',m.id,scheduleInitial(m)),list?'movie-list-secondary':'flex-1 min-h-11 px-3 py-2 bg-slate-800 rounded text-slate-300');
@@ -83,6 +94,11 @@ const ProductContext = (() => {
         else if(destination==='rewatch')secondary+=action('Aggiungi alla Lista',()=>perform('proposeToGroup',m.id),'movie-list-remove');
         if(m.matched===false)secondary+=action('Correggi titolo e ricerca di nuovo',()=>edit('updateMetadata',m.id),'movie-list-remove');
         return `<div class="movie-list-choices">${controls}${secondary?`<details class="movie-list-overflow"><summary aria-label="Altre azioni per ${esc(m.title)}"><i class="fa-solid fa-ellipsis" aria-hidden="true"></i><span class="sr-only">Altre azioni</span></summary><div class="movie-list-overflow-body">${secondary}</div></details>`:''}</div>`;
+      }
+      if(personalCollection){
+        const own=view.context.observedPerson.personId===view.context.caller.personId;
+        const remove=own?action(destination==='personalList'?'Rimuovi dalla mia Lista':'Rimuovi dai miei Visti',()=>perform(destination==='personalList'?'removeFromMyList':'removeSeen',m.id),'movie-list-remove'):'';
+        return '<div class="movie-list-choices">'+personalActions(m)+(remove?'<details class="movie-list-overflow"><summary aria-label="Altre azioni per '+esc(m.title)+'"><i class="fa-solid fa-ellipsis" aria-hidden="true"></i><span class="sr-only">Altre azioni</span></summary><div class="movie-list-overflow-body">'+remove+'<p class="movie-list-note">Il giudizio e le serate insieme restano.</p></div></details>':'')+'</div>';
       }
       let primary=personalActions(m),programming='',management='';
       if(destination==='scheduled')return projectionInfoHtml(m,ctx);
@@ -124,9 +140,9 @@ const ProductContext = (() => {
       return html;
     }
     const ctx={movies,nights,callerLabel,tab:destination==='scheduled'?'tonight':'watchlist',view,personBadge,viewingState,
-      personalRating:rating,personalPreference:preference,personalState:state,togetherSeen:together,togetherRating,reviewTextFor:review,edit,viewingStatusHtml:(m,o)=>viewingStatusHtml(m,o,ctx),
+      personalRating:rating,personalPreference:preference,personalState:state,togetherSeen:together,togetherRating,reviewTextFor:review,edit,viewingStatusHtml:(m,o)=>personalCollection&&!hidden(m)?personalStatus(m):viewingStatusHtml(m,o,ctx),
       participated:(m,code)=>view.getCard(m.id).group.events.some(x=>x.event.status==='completed'&&x.participants.some(p=>p.person_id===person(code)?.personId)),
-      cardReviewsHtml:m=>cardReviewsHtml(m,ctx),reviewCardsHtml:m=>reviewCardsHtml(m,ctx),sagaButtonHtml,cardOperationsHtml,detailActions,movieProjection,
+      cardReviewsHtml:m=>personalCollection?personalReview(m):cardReviewsHtml(m,ctx),reviewCardsHtml:m=>reviewCardsHtml(m,ctx),sagaButtonHtml,cardOperationsHtml,detailActions,movieProjection,
       detail,bind,action,eventActions,active,due,hidden,session,token,current,scheduleInitial,activeNights,tonightPick,homeNightPick,
       bindHistory(parent){
         parent.querySelectorAll('[data-history-movie], [data-projection-movie]').forEach(node=>{

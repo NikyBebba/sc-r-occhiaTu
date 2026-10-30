@@ -8,7 +8,7 @@ const TargetShell = (() => {
     const bindings = new Map();
     let homeTrigger = null; // DOM keyboard return only; never viewing/session state.
     let lastAction = null;
-    const savedMessage = name => ({quickNight:'Film scelto. Da vedere insieme.',scheduleNight:'Proposta salvata. La trovate in In programma.',withdrawGroupCandidacy:'Tolto dalla Lista. Il film, le visioni e i giudizi restano nel catalogo.'}[name] || 'Salvato.');
+    const savedMessage = name => ({quickNight:'Film scelto. Da vedere insieme.',scheduleNight:'Proposta salvata. La trovate in In programma.',recordSeen:'Aggiunto ai tuoi Visti.',removeSeen:'Rimosso dai tuoi Visti. Il giudizio resta.',addToMyList:'Aggiunto alla tua Lista.',removeFromMyList:'Tolto dalla tua Lista.',withdrawGroupCandidacy:'Tolto dalla Lista. Il film, le visioni e i giudizi restano nel catalogo.'}[name] || 'Salvato.');
     function bind(id, property, handler) {
       const node = el(id); if (!node) return;
       if (!bindings.has(node)) bindings.set(node, new Map());
@@ -29,7 +29,7 @@ const TargetShell = (() => {
       for (const id of ['segControl','libraryViewSelect']) el(id)?.classList.toggle('!hidden',!group);
       el('tabAll')?.classList.add('!hidden');
       const all = el('libraryViewSelect')?.querySelector?.('option[value="all"]'); if (all) { all.hidden = true; all.disabled = true; }
-      show('historySwitch',personal); show('targetPersonalCollections',personal); show('historySearch',personal);
+      show('targetPersonalIntro',personal); show('historySwitch',personal); show('targetPersonalCollections',personal); show('historySearch',personal);
       show('libraryTools',(group || ['together','search'].includes(destination)));
       show('listFiltersBlock',!personal); show('syncNotice',false);
       text('libraryPageTitle',titles[destination] || '');
@@ -38,11 +38,14 @@ const TargetShell = (() => {
       text('targetPersonalList',own?'La mia Lista':'La Lista di '+value.context.observedPerson.label);
       text('targetPersonalSeen',own?'I miei Visti':'I Visti di '+value.context.observedPerson.label);
       for (const [id,key] of [['targetPersonalList','personalList'],['targetPersonalSeen','personalSeen']]) el(id)?.setAttribute('aria-pressed',String(destination===key));
+      text('targetPersonalHint',own ? (destination==='personalList'?'I film che vuoi vedere o rivedere.':'I film che hai visto personalmente, anche fuori dalle serate insieme.') : 'Stai consultando il cinema di '+value.context.observedPerson.label+'. Le aggiunte restano tue.');
+      text('targetPersonalAdd',destination==='personalSeen'?'+ Aggiungi ai miei Visti':'+ Aggiungi alla mia Lista');
+      bind('targetPersonalAdd','onclick',()=>edit('createContent'));
       for (const member of members()) {
         const code = member.legacyLabel;
         const node = el('historySwitch'+code); if (!node) continue;
-        node.textContent = member.label || code; node.setAttribute('aria-pressed',String(value.context.observedPerson.personId===member.personId));
-        bind('historySwitch'+code,'onclick',()=>session.setObservedPerson(member.personId));
+        node.textContent = (member.label || code)+(member.personId===value.context.caller.personId?' · tu':''); node.setAttribute('aria-pressed',String(value.context.observedPerson.personId===member.personId));
+        bind('historySwitch'+code,'onclick',()=>{uiEpoch++;page=0;query='';for(const id of ['addModal','pickerModal','reviewModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id);session.setObservedPerson(member.personId);});
       }
       const input = el('movieSearchInput'); if (input) input.value = query;
       bind('movieSearchInput','oninput',()=>{query=input.value;page=0;render();});
@@ -118,7 +121,7 @@ const TargetShell = (() => {
     async function saveContent(details, relation = null) {
       const token = session.capture(), before = view();
       if (before.kind !== 'AVAILABLE') return { outcome: 'NOT_READY' };
-      let id = before.catalog.contents.find(c => details.tmdb_id != null && c.tmdb_id === String(details.tmdb_id))?.movie_id;
+      let id = details.movie_id&&before.catalog.getContent(details.movie_id).kind==='AVAILABLE'?details.movie_id:before.catalog.contents.find(c => details.tmdb_id != null && c.tmdb_id === String(details.tmdb_id))?.movie_id;
       let created = null;
       if (!id) {
         created = await perform('createContent', metadata(details));
@@ -128,7 +131,7 @@ const TargetShell = (() => {
         if (view().catalog.getContent(id).kind !== 'AVAILABLE') session.requestRefresh();
         if (!await waitFor(token, v => v.catalog.getContent(id).kind === 'AVAILABLE')) return { content: created, relation: { outcome: 'OBSOLETE' } };
       }
-      const result = relation ? await session.action(token, relation, id) : null;
+      const result = relation ? relation==='recordSeen'?await perform(relation,id):await session.action(token, relation, id) : null;
       return Object.freeze({ movieId: id, content: created, relation: result });
     }
     async function bulk(titles, relation = null) {
@@ -178,14 +181,14 @@ const TargetShell = (() => {
         return ProductEditors.open({action,id,initial,context:product(),perform,session,onMatchScheduled:result=>{const movie=product().getMovie(id.matched_movie_id);scheduledMatchTitle=movie?(product().hidden(movie)?'Film a sorpresa':movie.title):'La serata';operation=result;if(result.closeTicket)finishScheduledMatch();}});
       if(action==='createContent'||action==='updateMetadata'){
         const context=product(),relation=destination==='personalList'?'addToMyList':destination==='personalSeen'?'recordSeen':['home','groupList'].includes(destination)?'proposeToGroup':null;
-        return ProductEditors.catalog({context,session,lookup,detailsById,search:searchTmdbCandidates,initial:action==='updateMetadata'?context.getMovie(id):null,label:action==='updateMetadata'?'Correggi i metadati':relation==='proposeToGroup'?'Proponi alla Lista del gruppo':relation==='addToMyList'?'Aggiungi alla mia Lista':relation==='recordSeen'?'Aggiungi ai miei Visti':'Aggiungi al catalogo',
+        return ProductEditors.catalog({context,session,lookup,detailsById,search:searchTmdbCandidates,retrospective:action==='createContent'&&relation==='recordSeen',initial:action==='updateMetadata'?context.getMovie(id):null,label:action==='updateMetadata'?'Correggi i metadati':relation==='proposeToGroup'?'Proponi alla Lista del gruppo':relation==='addToMyList'?'Aggiungi alla mia Lista':relation==='recordSeen'?'Aggiungi ai miei Visti':'Aggiungi al catalogo',
           save:async details=>{if(!context.current())return false;const result=action==='updateMetadata'?await perform('updateMetadata',id,metadata(details)):await saveContent(details,relation);return action==='updateMetadata'?success(result):!!result.movieId&&(!relation||success(result.relation));},bulk:titles=>bulk(titles,relation)});
       }
       throw new TypeError('Unsupported product editor');
     }
     function product() {
-      const epoch=uiEpoch;
-      return ProductContext.create({view:view(),session,destination,perform,edit,isCurrent:()=>epoch===uiEpoch,
+      const epoch=uiEpoch,observed=view().context.observedPerson.personId;
+      return ProductContext.create({view:view(),session,destination,perform,edit,isCurrent:()=>epoch===uiEpoch&&view().kind==='AVAILABLE'&&view().context.observedPerson.personId===observed,
         detail:(id,source)=>openMovieDetail(id,source,product()),openSaga,
         ticket:id=>downloadTargetTicket(id,destination==='match'?'match':'wheel',session)});
     }
@@ -304,7 +307,15 @@ const TargetShell = (() => {
       const model=typeof paginateResults==='function'?paginateResults(rows,page):null;
       if(model)page=model.pageIndex;
       for (const c of (model?.items || rows.slice(page*24,(page+1)*24))) card(c.movie_id,container,context);
-      if (!rows.length) container.insertAdjacentHTML('beforeend','<p>Nessun film in questa vista.</p>');
+      if (!rows.length) {
+        if(personalDestination()){
+          const own=value.context.caller.personId===value.context.observedPerson.personId,seen=destination==='personalSeen';
+          const empty=root.createElement('section');empty.className='personal-cinema-empty col-span-full';
+          empty.innerHTML='<i class="fa-solid '+(seen?'fa-film':'fa-bookmark')+'" aria-hidden="true"></i><h3>'+escape(query?'Nessun film trovato':own?(seen?'I tuoi titoli di coda iniziano qui':'Il prossimo film ti aspetta'):'Questa raccolta aspetta il primo film')+'</h3><p>'+escape(query?'Prova un altro titolo o regista.':own?(seen?'Conserva qui i film che hai già visto personalmente.':'Salva qui i film che vuoi vedere o rivedere.'): 'Stai consultando '+value.context.observedPerson.label+'. Puoi aggiungere un film alle tue raccolte.')+'</p>';
+          if(!query)button(seen?'+ Aggiungi ai miei Visti':'+ Aggiungi alla mia Lista',()=>edit('createContent'),empty);
+          container.appendChild(empty);
+        }else container.insertAdjacentHTML('beforeend','<p>Nessun film in questa vista.</p>');
+      }
       if(model&&destination!=='recommendations'&&typeof renderResultsPager==='function')renderResultsPager(model);
       if(destination==='wheel')show('librarySection',false);
 

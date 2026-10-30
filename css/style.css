@@ -1666,3 +1666,23 @@ details[open] > .memory-summary::before { transform: rotate(90deg); }
 @media (max-width: 639px) {
   #nextMovieHero .next-movie-poster { align-self: start; aspect-ratio: 2 / 3; }
 }
+
+/* Il mio cinema: raccolta, poi punto di vista, poi ricerca e aggiunta. */
+#targetPersonalCollections { width:100%; }
+#historySwitch { align-self:flex-start; width:fit-content; gap:6px; }
+#historySwitch button { flex:none; min-width:64px; padding:8px 16px; }
+.personal-cinema-intro { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.personal-cinema-intro p { color:var(--color-testo-2); font-size:14px; line-height:1.5; max-width:48ch; }
+.personal-cinema-intro button { flex-shrink:0; min-height:44px; }
+.personal-cinema-state { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:12px; font-size:13px; color:var(--color-testo-2); }
+.personal-cinema-review { margin-top:10px; font-size:13px; line-height:1.6; color:var(--color-testo-2); white-space:pre-wrap; overflow-wrap:anywhere; }
+.personal-cinema-empty { text-align:center; padding:40px 20px; border:1px dashed var(--color-separatore); border-radius:20px; }
+.personal-cinema-empty > i { font-size:28px; color:var(--color-persona-n); }
+.personal-cinema-empty h3 { margin:16px 0 8px; font-size:20px; font-weight:700; }
+.personal-cinema-empty p { color:var(--color-testo-2); margin-bottom:16px; }
+.personal-seen-choice { grid-column:1 / -1; display:flex; align-items:center; gap:12px; width:100%; min-height:60px; }
+.personal-seen-choice img { width:44px; height:66px; object-fit:cover; border-radius:6px; }
+.personal-seen-choice span { min-width:0; overflow-wrap:anywhere; }
+.personal-seen-choice strong,.personal-seen-choice small { display:block; }
+.personal-seen-choice small { margin-top:6px; color:var(--color-testo-2); }
+@media(max-width:600px){ .personal-cinema-intro { flex-direction:column; align-items:stretch; gap:12px; } }
