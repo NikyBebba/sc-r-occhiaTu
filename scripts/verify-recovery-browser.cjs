@@ -9,6 +9,9 @@ const { randomUUID, randomBytes } = require('node:crypto');
 const assert = require('node:assert/strict');
 const { createTestPassword } = require('./test-password.cjs');
 const root = path.resolve(__dirname, '..');
+const clientVersion = fs.readFileSync(path.join(root, 'index.html'), 'utf8').match(/data-client-build="[^"]*-v(\d+)"/)?.[1];
+assert(clientVersion, 'Client version marker required for PWA recovery gate');
+const expectedShellCache = 'scorochiatu-shell-v' + clientVersion;
 const sdkPath = process.argv.find(arg => arg.startsWith('--sdk='))?.slice(6);
 if (!sdkPath) throw new Error('Specificare --sdk con il percorso del SDK pubblico v2.');
 const sdk = fs.readFileSync(sdkPath);
@@ -87,9 +90,9 @@ async function check(name, fn) { await fn(); checks++; console.log('PASS ' + nam
     });
     await page.evaluate(() => navigator.serviceWorker.ready);
     await page.reload();
-    await check('PWA: service worker v59 e app-shell attivi', async () => {
+    await check('PWA: service worker e app-shell della versione client corrente attivi', async () => {
       assert(await page.evaluate(() => !!navigator.serviceWorker.controller));
-      assert(await page.evaluate(async () => (await caches.keys()).includes('scorochiatu-shell-v59')));
+      assert(await page.evaluate(async expected => (await caches.keys()).includes(expected), expectedShellCache));
     });
     for (const person of ['N', 'V']) await check('SDK v2 + PWA: richiesta link '+person+' solo al mapping senza sessione', async () => {
       await page.evaluate(person => selectUser(person), person);

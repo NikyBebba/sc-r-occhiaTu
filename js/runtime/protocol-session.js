@@ -25,7 +25,22 @@ const ProtocolSession = (() => {
     function getState() {
       const valid = fresh(), failedStart = phase === 'BLOCKED' && reason?.code === 'SESSION_START_FAILED';
       const child = valid && !failedStart ? session?.getState() : null;
+      // Diagnostic only: an ordinary startup has no proof yet and must still
+      // remain BLOCKED to callers. Presentation must not infer failure from it.
+      // ProductionHost exposes the controller's public status, not its private
+      // diagnostics. Bootstrap precedes STARTING; an initial read is LOADING.
+      // A failed/timed-out read returns UNINITIALIZED (or DEGRADED for cache).
+      const controllerStatus = child?.runtime?.controllerStatus;
+      const readFailed = child?.runtime?.phase === 'STARTING' &&
+        ['UNINITIALIZED', 'DEGRADED', 'CONTRACT_INVALID', 'CONTEXT_INVALID'].includes(controllerStatus);
+      const presentationStatus = !uid || disposed ? 'IDLE'
+        : child?.phase === 'AUTH_INVALIDATING' || reason?.code === 'PROTOCOL_AUTH_INVALID' ? 'SESSION_EXPIRED'
+        : valid && mode === 'READ_ONLY' ? 'MAINTENANCE'
+        : child?.phase === 'READY' ? 'READY'
+        : reason || child?.phase === 'BLOCKED' || readFailed ||
+          ['CONTRACT_INVALID', 'CONTEXT_INVALID'].includes(controllerStatus) ? 'ERROR' : 'LOADING';
       return frozen({ ...(child || {}), mode: valid ? mode : 'UNAVAILABLE', phase: valid ? child?.phase ?? phase : phase === 'STOPPED' ? phase : 'BLOCKED',
+        presentationStatus,
         generation, reason: valid ? child?.reason ?? reason : reason || frozen({ code: 'PROTOCOL_UNAVAILABLE' }),
         view: child?.view ?? frozen({ kind: 'UNAVAILABLE', reason: 'PROTOCOL_UNAVAILABLE' }),
         actions: valid && mode === 'TARGET' ? child?.actions ?? null : null,
@@ -85,9 +100,9 @@ const ProtocolSession = (() => {
         reason = null;
         if (!fresh() || mode !== observation.mode || proof.epoch !== observation.epoch || restart) await retire(observation.mode, observation);
         else { setProof(observation); publish(); }
-      }).catch(async () => {
+      }).catch(async error => {
         if (disposed || ticket !== serial || uid !== identity) return;
-        reason = frozen({ code: 'PROTOCOL_UNAVAILABLE' }); await retire('UNAVAILABLE');
+        reason = frozen({ code: error?.category === 'AUTH_INVALIDATING' ? 'PROTOCOL_AUTH_INVALID' : 'PROTOCOL_UNAVAILABLE' }); await retire('UNAVAILABLE');
       }).finally(() => {
         cancel(deadline);
         if (flight === work) flight = null;

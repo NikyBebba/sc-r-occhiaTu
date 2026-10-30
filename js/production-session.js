@@ -129,7 +129,7 @@ let ProductionSession = (() => {
       if (mode === 'TARGET' && state.phase === 'AUTH_INVALIDATING') enqueue(() => {
         if (host.getState().generation !== state.generation || host.getState().phase !== 'AUTH_INVALIDATING') return;
         if (typeof ProductionSession !== 'undefined' && ProductionSession.ownsCoordinator?.(api)) {
-          if (typeof isAppAuthorized === 'function' && isAppAuthorized()) lockApp('Sessione non valida. Accedi di nuovo.');
+          if (typeof isAppAuthorized === 'function' && isAppAuthorized()) lockApp('La sessione non è più valida. Accedi di nuovo.');
           else if (typeof showLanding === 'function') showLanding();
         }
       });
@@ -174,8 +174,26 @@ let ProductionSession = (() => {
     gate.classList.toggle('hidden', !blocked);
     document.getElementById('appRoot')?.classList.toggle('hidden', blocked);
     if (blocked) {
+      const presentation = state?.presentationStatus ?? (state?.mode === 'READ_ONLY' ? 'MAINTENANCE' : 'LOADING');
+      const content = {
+        LOADING: ['Prepariamo la sala…', 'Tra poco si entra.', null],
+        ERROR: ['La sala non è ancora pronta', 'Non riusciamo a caricare tutto. Controlla la connessione e riprova.', 'fa-circle-exclamation'],
+        MAINTENANCE: ['Una pausa tra due ciak', 'Stiamo aggiornando la sala. Riprova tra poco.', 'fa-screwdriver-wrench'],
+        SESSION_EXPIRED: ['Accedi di nuovo', 'La sessione non è più valida. Torna all’ingresso per accedere.', 'fa-ticket']
+      }[presentation] ?? ['Prepariamo la sala…', 'Tra poco si entra.', null];
+      const previous = gate.dataset.state;
+      gate.dataset.state = presentation;
+      // Keep the live copy outside a busy region so loading is announced too.
+      const title = document.getElementById('protocolGateTitle');
+      if (title && title.textContent !== content[0]) title.textContent = content[0];
       const message = document.getElementById('protocolGateMessage');
-      if (message) message.textContent = state?.mode === 'READ_ONLY' ? 'Piccola pausa per un aggiornamento. Le modifiche sono sospese.' : 'Verifica online in corso o non disponibile. Le modifiche sono sospese.';
+      if (message && message.textContent !== content[1]) message.textContent = content[1];
+      document.getElementById('protocolGateLoader')?.classList.toggle('hidden', presentation !== 'LOADING');
+      const icon = document.getElementById('protocolGateIcon');
+      if (icon) icon.className = content[2] ? 'fa-solid ' + content[2] : 'hidden';
+      document.getElementById('protocolGateRetry')?.classList.toggle('hidden', !['ERROR', 'MAINTENANCE'].includes(presentation));
+      document.getElementById('protocolGateLogin')?.classList.toggle('hidden', presentation === 'LOADING');
+      if (previous !== presentation && ['ERROR', 'MAINTENANCE', 'SESSION_EXPIRED'].includes(presentation)) title?.focus?.({ preventScroll: true });
     }
     return blocked;
   }
@@ -189,7 +207,13 @@ let ProductionSession = (() => {
         if (!client || authIdentity.uid !== identity) throw new Error('AUTH_CHANGED');
         const result = await client.rpc('read_app_protocol', { p_client_protocol: 1 });
         assertAuthEpoch(epoch);
-        if (result.error) throw new Error('PROTOCOL_UNAVAILABLE');
+        if (result.error) {
+          const error = new Error('PROTOCOL_UNAVAILABLE');
+          // Preserve the existing fail-closed path; only distinguish the
+          // re-authentication message from a generic connection failure.
+          if (isAuthFailure(result.error)) error.category = 'AUTH_INVALIDATING';
+          throw error;
+        }
         return result.data;
       },
       createSession(mode) {

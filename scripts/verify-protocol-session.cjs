@@ -39,5 +39,34 @@ let count=0;const test=async(name,fn)=>{await fn();count++;console.log('PASS '+n
  await test('target error cannot silently select legacy',async()=>{const h=fixture();await h.start(reply('TARGET'));h.value={outcome:'ERROR'};await h.app.refresh();h.value=reply();await h.app.refresh();assert.equal(h.app.getState().mode,'UNAVAILABLE');});
  await test('writes recheck protocol before dispatch',async()=>{const h=fixture();await h.start(reply('TARGET'));const token=h.app.capture();h.value=reply('READ_ONLY',1,'b');const result=await h.app.action(token,'write');assert.equal(result.outcome,'NOT_READY');assert.equal(h.active,0);});
  await test('no cache/storage/URL injection participates in decoder',async()=>{global.localStorage={getItem:()=> 'TARGET'};global.location={search:'?mode=TARGET'};const h=fixture();await h.start(reply());assert.equal(h.app.getState().mode,'LEGACY');delete global.localStorage;delete global.location;});
+ await test('UX1 pending protocol is loading while authority remains blocked',async()=>{
+  const h=fixture();let release;h.read=()=>new Promise(r=>release=r);const pending=h.app.startAuthenticated(N);await tick();
+  const s=h.app.getState();assert.equal(s.presentationStatus,'LOADING');assert.equal(s.phase,'BLOCKED');assert.equal(s.mode,'UNAVAILABLE');assert.equal(s.actions,null);assert.throws(()=>h.app.assertLegacy());
+  release(reply('TARGET'));await pending;assert.equal(h.app.getState().presentationStatus,'READY');
+ });
+ await test('UX1 real protocol timeout is error and retry can recover',async()=>{
+  const h=fixture();h.read=()=>new Promise(()=>{});const pending=h.app.startAuthenticated(N);await tick();await h.advance(8001);await pending;
+  assert.equal(h.app.getState().presentationStatus,'ERROR');assert.equal(h.app.getState().actions,null);
+  h.read=()=>reply('TARGET');await h.app.retryStartup();assert.equal(h.app.getState().presentationStatus,'READY');
+ });
+ await test('UX1 maintenance remains distinct and grants no target authority',async()=>{
+  const h=fixture();await h.start(reply('READ_ONLY',1));assert.equal(h.app.getState().presentationStatus,'MAINTENANCE');assert.equal(h.app.getState().actions,null);await assert.rejects(h.app.verifyTarget());
+ });
+ await test('UX1 lease loss is a verification error, not session expiration',async()=>{
+  const h=fixture();await h.start(reply('TARGET'));h.read=()=>new Promise(()=>{});await h.advance(11000);assert.equal(h.app.getState().presentationStatus,'ERROR');assert.equal(h.app.getState().actions,null);
+ });
+ await test('UX1 explicit Auth invalidation is session expiration, not network failure',async()=>{
+  const h=fixture();await h.start(reply('TARGET'));h.children[0].phase='AUTH_INVALIDATING';assert.equal(h.app.getState().presentationStatus,'SESSION_EXPIRED');
+ });
+ await test('UX1 snapshot timeout is error even when child startup has not finished',async()=>{
+  const h=fixture();await h.start(reply('TARGET'));h.children[0].getState=()=>({phase:'STARTING',runtime:{phase:'STARTING',controllerStatus:'UNINITIALIZED'}});assert.equal(h.app.getState().presentationStatus,'ERROR');
+ });
+ await test('UX1 snapshot loading has no false error and stopped session is idle',async()=>{
+  const h=fixture();await h.start(reply('TARGET'));h.children[0].getState=()=>({phase:'STARTING',runtime:{phase:'BOOTSTRAPPING',controllerStatus:'UNINITIALIZED'}});assert.equal(h.app.getState().presentationStatus,'LOADING');h.children[0].getState=()=>({phase:'STARTING',runtime:{phase:'STARTING',controllerStatus:'LOADING'}});assert.equal(h.app.getState().presentationStatus,'LOADING');await h.app.invalidateAuth();assert.equal(h.app.getState().presentationStatus,'IDLE');
+ });
+ await test('UX1 verified protocol Auth failure requests login without granting authority',async()=>{
+  const h=fixture();h.read=()=>{throw Object.assign(new Error('Synthetic 401'),{category:'AUTH_INVALIDATING'});};await h.start(reply('TARGET'));
+  const s=h.app.getState();assert.equal(s.presentationStatus,'SESSION_EXPIRED');assert.equal(s.phase,'BLOCKED');assert.equal(s.mode,'UNAVAILABLE');assert.equal(s.actions,null);assert.equal(h.children.length,0);
+ });
  console.log('PROTOCOL SESSION '+JSON.stringify({cases:count})+' PASS');
 })().catch(e=>{console.error(e.stack);process.exitCode=1;});

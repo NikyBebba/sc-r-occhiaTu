@@ -152,10 +152,28 @@
     </main>
   </div>
 
-  <section id="protocolGate" class="hidden max-w-md mx-auto p-6 text-center" aria-live="polite">
-    <p id="protocolGateMessage" class="my-4"></p>
-    <button class="px-4 py-2 rounded-lg bg-indigo-600 text-white" onclick="ProductionSession.retryStartup()">Riprova la verifica</button>
-    <button class="px-4 py-2" onclick="logout()">Esci</button>
+  <section id="protocolGate" class="hidden protocol-entry" aria-labelledby="protocolGateTitle">
+    <div class="auth-scene">
+      <div class="auth-content protocol-entry-content">
+        <p class="auth-eyebrow">PROIEZIONE QUASI PRONTA</p>
+        <p class="auth-title gradient-text">sc(r)occhiaTu</p>
+        <div class="protocol-entry-ticket">
+          <div class="protocol-entry-symbol" aria-hidden="true">
+            <div id="protocolGateLoader" class="ciak-loader"><div class="ciak-clap"></div><div class="ciak-board"><i class="fa-solid fa-film"></i></div></div>
+            <i id="protocolGateIcon" class="hidden fa-solid fa-film"></i>
+          </div>
+          <div class="protocol-entry-copy" aria-live="polite" aria-atomic="true">
+            <h1 id="protocolGateTitle" tabindex="-1">Prepariamo la sala…</h1>
+            <p id="protocolGateMessage"></p>
+          </div>
+          <div class="protocol-entry-actions">
+            <button id="protocolGateRetry" type="button" class="hidden auth-enter-btn" onclick="ProductionSession.retryStartup()">Riprova</button>
+            <button id="protocolGateLogin" type="button" class="hidden auth-back-btn" onclick="logout()">Torna all’ingresso</button>
+          </div>
+        </div>
+        <p class="auth-footnote">Il prossimo ciak è per voi.</p>
+      </div>
+    </div>
   </section>
   <div id="appRoot" class="hidden">
     <!-- NAVBAR -->
