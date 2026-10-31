@@ -9,8 +9,14 @@ let memoriesReturnFocus = null;
 const modalReturnFocus = new Map();
 let modalBodyOverflow = null;
 
+// Nested editors must remain above their originating movie detail.
+function syncModalStackOrder() {
+  modalStack.forEach((id,index)=>{const node=document.getElementById(id);if(node)node.style.zIndex=String(50+index*10);});
+}
+
 // Authentication teardown resets presentation only, including non-route dialogs.
 function resetModalPresentation() {
+  for(const id of modalStack){const node=document.getElementById(id);if(node)node.style.zIndex='';}
   modalStack = []; modalReturnFocus.clear(); memoriesReturnFocus = null;
   if (document.body?.style && modalBodyOverflow !== null) document.body.style.overflow = modalBodyOverflow;
   modalBodyOverflow = null;
@@ -27,6 +33,7 @@ function openModal(id) {
   }
   el.classList.remove('hidden');
   if (!modalStack.includes(id)) modalStack.push(id);
+  syncModalStackOrder();
   wireBackdropClose(el, id);
   // ARIA (Phase 31): ogni modale è un dialog col suo titolo come referente.
   el.setAttribute('role', 'dialog');
@@ -53,11 +60,22 @@ function closeModalNow(id) {
   const el = document.getElementById(id);
   if (el) el.classList.add('hidden');
   modalStack = modalStack.filter(x => x !== id);
+  if(el)el.style.zIndex='';
+  syncModalStackOrder();
   const app = document.getElementById('appRoot');
   if (app) app.inert = modalStack.length > 0;
   if (!modalStack.length && document.body?.style && modalBodyOverflow !== null) { document.body.style.overflow = modalBodyOverflow; modalBodyOverflow = null; }
   const returnTo = modalReturnFocus.get(id); modalReturnFocus.delete(id);
   if (returnTo?.isConnected && !returnTo.closest?.('[inert]')) returnTo.focus?.({preventScroll:true});
+  else if(returnTo&&modalStack.length){
+    // A TARGET resync may replace the originating button while its editor is
+    // open. Return to the matching control in the still-open underlying modal.
+    const parent=document.getElementById(modalStack[modalStack.length-1]);
+    const candidates=[...(parent?.querySelectorAll('button,summary,a,input')||[])];
+    const key=returnTo.dataset?.returnFocusKey;
+    const replacement=candidates.find(node=>key?node.dataset?.returnFocusKey===key:node.tagName===returnTo.tagName&&node.textContent===returnTo.textContent)||candidates[0];
+    replacement?.focus?.({preventScroll:true});
+  }
   if (typeof syncDestinationNavigation === 'function') syncDestinationNavigation();
   if (id === 'detailModal' && typeof restoreMovieDetailFocus === 'function') restoreMovieDetailFocus();
   if (id === 'reviewModal' && typeof reviewEditorClosed === 'function') reviewEditorClosed();

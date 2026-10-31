@@ -12,7 +12,12 @@ function fixtureData() {
   quickCard.versions.entries.push(F.version('night',F.G,F.NIGHT));
   quickCard.group.states.find(g=>g.movie_id===F.M).list_visible=false;
   F.finish(quickCard);
-  return { quickCard, raw, absent, unavailable, rewatch: F.rewatch(), multiple: F.multipleEvents(), N: F.N, V: F.V, G: F.G, M: F.M, Q: F.Q, R: F.uid(3), NIGHT: F.NIGHT, observer: F.uid(998000), other: F.uid(998001), at: F.AT };
+  const seen=(wire,index)=>{wire.personal[index].states[0].seen=true;wire.exposure.push({person_id:wire.personal[index].person_id,movie_id:F.M,sources:['PERSONAL_SEEN']});return F.finish(wire);};
+  const addNight=(wire,date='2027-01-05',id=F.uid(20009))=>{wire.nights.push({...F.night(id,F.M,'confirmed'),date,time:date?'21:30':null,confirmed_at:F.AT});wire.versions.entries.push(F.version('night',F.G,id));wire.group.states[0].list_visible=false;wire.group.states[0].rewatch_visible=false;wire.group.states[0].eligibility={match_base:false,ruota_base:false};return F.finish(wire);};
+  const repeat=F.completed();repeat.nights.push({...F.night(F.uid(20002),F.M,'completed'),snack:'Secondo snack'});repeat.versions.entries.push(F.version('night',F.G,F.uid(20002)));repeat.participants.push({night_id:F.uid(20002),person_id:F.N});F.finish(repeat);
+  const togetherList=F.completed();togetherList.personal[0].states[0].list={active:true,generation:'1'};F.finish(togetherList);
+  const detailCases=[['none',F.relationless(),'shared'],['mine',F.selfList(),'choose'],['shared',F.candidate(),'choose'],['seenme',seen(F.relationless(),0),'myJudgment'],['seenother',seen(F.relationless(),1),'seen'],['separate',F.rewatch(),'shared'],['together',F.completed(),'groupJudgment'],['again',togetherList,'choose'],['future',addNight(F.relationless()),'nights'],['due',addNight(F.relationless(),'2027-01-03'),'complete'],['repeat',repeat,'nights'],['pastfuture',addNight(F.completed()),'nights']];
+  return { detailCases, quickCard, raw, absent, unavailable, rewatch: F.rewatch(), multiple: F.multipleEvents(), N: F.N, V: F.V, G: F.G, M: F.M, Q: F.Q, R: F.uid(3), NIGHT: F.NIGHT, observer: F.uid(998000), other: F.uid(998001), at: F.AT };
 }
 async function runChecks(modules, data, onCase = () => {}) {
   // Component regressions inject explicit legacy authority; normal negotiation
@@ -361,6 +366,41 @@ async function runChecks(modules, data, onCase = () => {}) {
     check(ops.includes('Apri In programma')&&!ops.includes('Guardiamolo'),'no duplicate-choice button for active event');
     eq(h.state.view.events.scheduled[0].event.night_id,data.NIGHT,'original event');eq(h.commands.length,0,'state is read only');
   },{raw:data.quickCard});
+  for(const [name,raw,primary] of data.detailCases)await test('UX5 detail '+name,async h=>{
+    await h.boot();const context=Shell.presentation(),movie=context.getMovie(data.M),html=context.detailActions(movie);
+    eq((html.match(/data-detail-primary=/g)||[]).length,1,'one primary');check(html.includes('data-detail-primary="'+primary+'"'),'contextual primary');
+    check(!/Il mio percorso|<h4>Il gruppo|Gestione|Ritira candidatura|Proponi al gruppo|Correggi metadati|Visto insieme ora/.test(html),'no command wall or metadata Add bridge');
+    check(!html.includes('Vieta questa settimana')&&!html.includes('>Sorpresa<'),'no residual creation');
+    check(html.includes('detail-danger-area')&&html.includes('Rimuovi film'),'delete separate');
+    eq((html.match(/>Il mio giudizio/g)||[]).length,1,'one personal editor access');
+    for(const n of raw.nights)check(html.includes('data-night-id="'+n.night_id+'"'),'each event retains identity');
+    eq(h.commands.length,0,'render never writes');
+  },{raw});
+  await test('UX5 multiple open events require explicit selection',async h=>{
+    await h.boot();const context=Shell.presentation(),html=context.detailActions(context.getMovie(data.M));
+    check(html.includes('Scegli la serata'),'no arbitrary first event');check(!html.includes('data-detail-primary="complete"'),'no accidental completion');
+  },{raw:(()=>{const wire=JSON.parse(JSON.stringify(data.detailCases.find(x=>x[0]==='due')[1]));const n={...wire.nights[0],night_id:'00000000-0000-4000-8000-000000020010'};wire.nights.push(n);wire.versions.entries.push({scope_kind:'night',scope_id:data.G,entity_id:n.night_id,version:'1',tombstone:false});wire.group.states[0].active_night_ids.push(n.night_id);wire.group.collections.scheduled_night_ids.push(n.night_id);wire.coverage.counts.nights++;wire.coverage.counts.version_entries++;return wire;})()});
+  await test('UX5 nested editor stays above film detail and returns to it',async h=>{
+    await h.boot();Shell.detail(data.M);Shell.edit('setMyEvaluation',data.M);
+    const detail=document.getElementById('detailModal'),review=document.getElementById('reviewModal');
+    check(Number(review.style.zIndex)>Number(detail.style.zIndex),'nested editor above detail');
+    closeModal('reviewModal');check(!detail.classList.contains('hidden'),'origin remains open');
+    eq(detail.style.zIndex,'50','remaining modal stack ordered');
+  });
+  await test('UX5 PO detail choices reuse compact card controls',async h=>{
+    await h.boot();const context=Shell.presentation(),html=context.detailActions(context.getMovie(data.M));
+    check(html.includes('movie-list-actions detail-choice-actions'),'paired card row');
+    check(html.includes('fa-ticket')&&html.includes('fa-calendar-days'),'same ticket and calendar icons');
+    check(html.includes('movie-list-primary')&&html.includes('movie-list-secondary'),'same card button styles');
+    check(html.includes('detail-menu-group')&&html.includes('Personali')&&html.includes('N+V'),'secondary scopes distinguished');
+  },{raw:data.detailCases.find(x=>x[0]==='shared')[1]});
+  await test('UX5 PO confirmations identify the completed command',async h=>{
+    await h.boot();await Shell.perform('setMyEvaluation',data.M,{rating:0});
+    check(document.getElementById('targetFeedback').textContent.includes('Giudizio personale aggiornato.'),'judgment confirmation');
+    await Shell.perform('addToMyList',data.M);check(document.getElementById('targetFeedback').textContent.includes('Aggiunto alla mia Lista.'),'list confirmation');
+    await Shell.perform('recordSeen',data.M);check(document.getElementById('targetFeedback').textContent.includes('Aggiunto ai miei Visti.'),'seen confirmation');
+    h.controls.commandOutcome='STALE';await Shell.perform('removeSeen',data.M);check(!document.getElementById('targetFeedback').textContent.includes('Rimosso dai miei Visti'),'no success on rejected operation');
+  });
   return {cases,assertions};
 }
 module.exports={fixtureData,runChecks};

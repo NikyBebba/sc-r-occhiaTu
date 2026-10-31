@@ -116,6 +116,12 @@ function renderMovieDetail(m, context = null) {
   const body = document.getElementById('detailBody');
   if (!body) return;
 
+  const sameMovie=body.dataset.movieId===String(m.id);
+  const openDisclosures=context&&sameMovie?[...body.querySelectorAll('details[open]')].map(node=>node.dataset.nightId||node.dataset.detailDisclosure||(node.hasAttribute('data-detail-nights')?'nights':'more')):[];
+  const focused=context&&sameMovie&&body.contains?.(document.activeElement)?{text:document.activeElement.textContent,tag:document.activeElement.tagName}:null;
+  const panelScroll=sameMovie?document.getElementById('detailPanel')?.scrollTop:0;
+  body.classList.toggle('target-film-detail',!!context);
+
   // Meta-blocco "{anno} • {durata}" su piattaforma (regola card: mai "•" isolato)
   const metaParts = [m.cinema_watchlist ? 'Al cinema / prossimamente' : (m.platform || 'Streaming')];
   if (m.release_year) metaParts.push(String(m.release_year));
@@ -146,19 +152,20 @@ function renderMovieDetail(m, context = null) {
         <div class="detail-head-top"><span class="dashboard-eyebrow">SCHEDA FILM</span><button onclick="closeModal('detailModal')" class="detail-close" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
         <h3 id="detailModalTitle" class="detail-title">${escapeHtml(m.title)}</h3>
         <p class="detail-meta">${metaParts.map(escapeHtml).join(' • ')}</p>
+        ${m.director?`<p class="detail-meta">Regia di ${escapeHtml(m.director)}</p>`:''}
         <div class="detail-genres">${genreChipsHtml}</div>
       </div>
     </div>
     ${m.cinema_watchlist ? '<span class="badge bg-amber-600/80">🎬 Al cinema / prossimamente</span>' : ''}
+    ${context ? `${trailerHtml}${ratingsHtml}<p id="detailFeedback" role="status" class="detail-feedback">${context.feedbackZone?'':escapeHtml(context.feedback||'')}</p>${context.detailActions(m)}
+    ${(overviewHtml||castHtml)?`<details class="detail-information" data-detail-disclosure="information"><summary>La storia e il cast</summary>${overviewHtml}${castHtml}</details>`:''}` : `
     ${overviewHtml ? `<section class="detail-section"><h4>La storia</h4>${overviewHtml}</section>` : ''}
     ${castHtml ? `<section class="detail-section"><h4>Nel cast</h4>${castHtml}</section>` : ''}
-    ${trailerHtml}
-    ${ratingsHtml}
+    ${trailerHtml}${ratingsHtml}
     <div id="detailAwards" aria-live="polite"></div>
-    <div class="detail-viewing">${(context ? context.viewingStatusHtml : viewingStatusHtml)(m)}</div>
-    ${(context ? context.reviewCardsHtml : reviewCardsHtml)(m)}
+    <div class="detail-viewing">${viewingStatusHtml(m)}</div>${reviewCardsHtml(m)}`}
     ${(context ? context.sagaButtonHtml : sagaButtonHtml)(m)}
-    ${context ? context.detailActions(m) : `
+    ${context ? '' : `
 ${nightIsDue(activeNightForMovie(m.id)) || togetherSeen(m) ? sharedVoteButtonHtml(m) : ''}
     ${personalWatchButtonHtml(m)}
     ${personalRemovalButtonsHtml(m)}
@@ -173,7 +180,15 @@ ${nightIsDue(activeNightForMovie(m.id)) || togetherSeen(m) ? sharedVoteButtonHtm
     </div>
   `;
   body.dataset.movieId = String(m.id);
-  if (context) context.bind(body);
+  if (context) {
+    context.bind(body);
+    body.querySelectorAll('details').forEach(node=>{
+      const key=node.dataset.nightId||node.dataset.detailDisclosure||(node.hasAttribute('data-detail-nights')?'nights':'more');
+      if(openDisclosures.includes(key))node.open=true;
+    });
+    if(focused){const replacement=[...body.querySelectorAll('button,summary,a')].find(node=>node.tagName===focused.tag&&node.textContent===focused.text)||body.querySelector('[data-detail-primary]');replacement?.focus({preventScroll:true});}
+    document.getElementById('detailPanel').scrollTop=panelScroll||0;
+  }
 
   // Step3 phase9.1 — ambient (poster sfocato come sfondo del modale).
   setDetailAmbient(m.poster);

@@ -7,8 +7,18 @@ const TargetShell = (() => {
     const el = id => root.getElementById(id);
     const bindings = new Map();
     let homeTrigger = null; // DOM keyboard return only; never viewing/session state.
-    let lastAction = null;
-    const savedMessage = name => ({quickNight:'Film scelto. Da vedere insieme.',scheduleNight:'Proposta salvata. La trovate in In programma.',recordSeen:'Aggiunto ai tuoi Visti.',removeSeen:'Rimosso dai tuoi Visti. Il giudizio resta.',addToMyList:'Aggiunto alla tua Lista.',removeFromMyList:'Tolto dalla tua Lista.',withdrawGroupCandidacy:'Tolto dalla Lista. Il film, le visioni e i giudizi restano nel catalogo.'}[name] || 'Salvato.');
+    let lastAction = null, feedbackZone = null, feedbackSerial = 0;
+    const savedMessage = name => ({
+      quickNight:'Film scelto. Da vedere insieme.',scheduleNight:'Proposta salvata in In programma.',
+      recordSeen:'Aggiunto ai miei Visti.',removeSeen:'Rimosso dai miei Visti. Il giudizio resta.',
+      addToMyList:'Aggiunto alla mia Lista.',removeFromMyList:'Rimosso dalla mia Lista.',
+      proposeToGroup:'Aggiunto alla Lista N+V.',withdrawGroupCandidacy:'Tolto dalla Lista N+V. Visioni e giudizi restano.',
+      setMyEvaluation:'Giudizio personale aggiornato.',setMyRating:'Voto personale aggiornato.',setMyPreference:'Gradimento aggiornato.',setMyReview:'Recensione personale aggiornata.',
+      setGroupEvaluation:'Giudizio N+V aggiornato.',setGroupRating:'Voto N+V aggiornato.',setGroupReview:'Recensione N+V aggiornata.',
+      confirmNight:'Proposta accettata.',cancelNight:'Serata annullata.',editNight:'Dettagli della serata aggiornati.',completeScheduled:'Serata conclusa.',completeNow:'Visione insieme registrata.',
+      createContent:'Film aggiunto al catalogo.',updateMetadata:'Informazioni del film aggiornate.',deleteContent:'Film rimosso dal catalogo.',
+      setCinema:'Collocazione del film aggiornata.',setSurprise:'Sorpresa aggiornata.',removeVeto:'Veto rimosso.',addVeto:'Veto aggiunto.',recordPersonalViewing:'Visione personale registrata.'
+    }[name] || 'Operazione completata.');
     function bind(id, property, handler) {
       const node = el(id); if (!node) return;
       if (!bindings.has(node)) bindings.set(node, new Map());
@@ -75,14 +85,21 @@ const TargetShell = (() => {
     const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
     const view = () => session.getState().view;
     const button = (label, handler, parent) => { const b = root.createElement('button'); b.className = 'min-h-11 px-3 py-2 rounded-lg border border-slate-700 bg-slate-800 text-slate-100 text-sm m-1'; b.textContent = label; const token = session.capture(); b.onclick = () => { if (session.current(token)) return handler(); }; parent.appendChild(b); return b; };
-    function notice() { const box = el('targetFeedback'); if (box) box.textContent = feedback; }
+    function notice() {
+      const global=el('targetFeedback');
+      const slots=root.querySelectorAll('[data-action-feedback]');
+      let local=false;for(const slot of slots){const selected=slot.dataset.actionFeedback===feedbackZone;slot.textContent=selected?feedback:'';if(selected&&slot.getClientRects?.().length!==0)local=true;else if(selected)slot.textContent='';}
+      if(global)global.textContent=local?'':feedback;
+      const fallback=el('detailFeedback');if(fallback)fallback.textContent=local?'':feedback;
+    }
     async function perform(name, ...args) {
-      const token = session.capture(); feedback = 'Salvataggio…'; notice();
-      const result = await session.action(token, name, ...args);
-      if (!session.current(token)) return result;
-      operation = result;
+      const token = session.capture(),serial=++feedbackSerial;
       if(name!=='retry')lastAction=name;
-      feedback = result.outcome === 'SUCCESS' ? savedMessage(lastAction)+' Aggiornamento della vista in corso…' : result.outcome === 'ALREADY_IN_TARGET_STATE' ? 'Già aggiornato.' : result.outcome === 'STALE' ? 'I dati sono cambiati. Attendi l’aggiornamento e riprova.' : result.outcome === 'TRANSPORT_UNCERTAIN' ? 'Esito da verificare. Puoi riprovare la stessa operazione.' : result.outcome === 'NOT_READY' ? 'Attendi la verifica online.' : 'Non siamo riusciti a completare l’operazione.';
+      feedback = 'Salvataggio…'; notice();
+      const result = await session.action(token, name, ...args);
+      if (!session.current(token)||serial!==feedbackSerial) return result;
+      operation = result;
+      feedback = result.outcome === 'SUCCESS' ? savedMessage(lastAction) : result.outcome === 'ALREADY_IN_TARGET_STATE' ? 'Nessuna modifica necessaria.' : result.outcome === 'STALE' ? 'I dati sono cambiati. Attendi l’aggiornamento e riprova.' : result.outcome === 'TRANSPORT_UNCERTAIN' ? 'Esito da verificare. Puoi riprovare la stessa operazione.' : result.outcome === 'NOT_READY' ? 'Attendi la verifica online.' : 'Non siamo riusciti a completare l’operazione.';
       notice(); // Feedback only; retry controls reuse the unchanged committed view.
       if (result.retryHandle || name === 'retry') render();
       return result;
@@ -131,7 +148,8 @@ const TargetShell = (() => {
         if (view().catalog.getContent(id).kind !== 'AVAILABLE') session.requestRefresh();
         if (!await waitFor(token, v => v.catalog.getContent(id).kind === 'AVAILABLE')) return { content: created, relation: { outcome: 'OBSOLETE' } };
       }
-      const result = relation ? relation==='recordSeen'?await perform(relation,id):await session.action(token, relation, id) : null;
+      if(!session.current(token))return Object.freeze({movieId:id,relation:{outcome:'OBSOLETE'}});
+      const result = relation ? await perform(relation,id) : null;
       return Object.freeze({ movieId: id, content: created, relation: result });
     }
     async function bulk(titles, relation = null) {
@@ -188,13 +206,17 @@ const TargetShell = (() => {
     }
     function product() {
       const epoch=uiEpoch,observed=view().context.observedPerson.personId;
-      return ProductContext.create({view:view(),session,destination,perform,edit,isCurrent:()=>epoch===uiEpoch&&view().kind==='AVAILABLE'&&view().context.observedPerson.personId===observed,
-        detail:(id,source)=>openMovieDetail(id,source,product()),openSaga,
+      return ProductContext.create({view:view(),session,destination,perform,edit,feedback,feedbackZone,onActionSource:node=>{feedbackZone=node.closest?.('[data-feedback-zone]')?.dataset.feedbackZone||null;feedback='';notice();},isCurrent:()=>epoch===uiEpoch&&view().kind==='AVAILABLE'&&view().context.observedPerson.personId===observed,
+        detail:openDetail,openSaga,
         ticket:id=>downloadTargetTicket(id,destination==='match'?'match':'wheel',session)});
     }
+    function openDetail(id,source){feedback='';feedbackZone=null;notice();openMovieDetail(id,source,product());}
     function card(id,parent,context) {
       const movie=context.getMovie(id);if(!movie)return;
-      parent.appendChild(createMovieCard(movie,view().getVetoForMovie(id).veto?[id]:[],context));
+      const node=createMovieCard(movie,view().getVetoForMovie(id).veto?[id]:[],context),zone='card-'+id;
+      node.dataset.feedbackZone=zone;
+      const status=root.createElement('p');status.className='detail-feedback';status.dataset.actionFeedback=zone;status.setAttribute('role','status');status.textContent=feedbackZone===zone?feedback:'';
+      node.querySelector('.ticket-seam')?.appendChild(status);parent.appendChild(node);
     }
     function drawMatch(parent) {
       const state=session.getState().match,derived=state.derived,context=product().matchContext(state);
@@ -312,12 +334,12 @@ const TargetShell = (() => {
           const own=value.context.caller.personId===value.context.observedPerson.personId,seen=destination==='personalSeen';
           const empty=root.createElement('section');empty.className='personal-cinema-empty col-span-full';
           empty.innerHTML='<i class="fa-solid '+(seen?'fa-film':'fa-bookmark')+'" aria-hidden="true"></i><h3>'+escape(query?'Nessun film trovato':own?(seen?'I tuoi titoli di coda iniziano qui':'Il prossimo film ti aspetta'):'Questa raccolta aspetta il primo film')+'</h3><p>'+escape(query?'Prova un altro titolo o regista.':own?(seen?'Conserva qui i film che hai già visto personalmente.':'Salva qui i film che vuoi vedere o rivedere.'): 'Stai consultando '+value.context.observedPerson.label+'. Puoi aggiungere un film alle tue raccolte.')+'</p>';
-          if(!query)button(seen?'+ Aggiungi ai miei Visti':'+ Aggiungi alla mia Lista',()=>edit('createContent'),empty);
           container.appendChild(empty);
         }else container.insertAdjacentHTML('beforeend','<p>Nessun film in questa vista.</p>');
       }
       if(model&&destination!=='recommendations'&&typeof renderResultsPager==='function')renderResultsPager(model);
       if(destination==='wheel')show('librarySection',false);
+      notice();
 
     }
     async function openSaga(movieId) {
@@ -354,10 +376,10 @@ const TargetShell = (() => {
     }
     return Object.freeze({ render, navigate, getDestination:()=>destination, changePage(delta){page=Math.max(0,page+delta);render();}, perform, performMatch, waitFor, saveContent, bulk,
       setFilters(input) { query = input.query ?? query; genre = input.genre ?? genre; duration = input.duration ?? duration; sort = input.sort ?? sort; page = 0; render(); },
-      detail(id,source) { const context=product();openMovieDetail(id,source,context); }, edit,
+      detail:openDetail, edit,
       presentation:product,
       refreshCalendar(){renderCalendar(product());}, refreshMemories(){renderStats(product());},
-      publication(state) { if(generation!==null&&generation!==state.generation)this.dispose();generation=state.generation; if (['AUTH_INVALIDATING','STOPPED','DISPOSED'].includes(state.phase)) { el('movieGrid').innerHTML = ''; this.dispose(); return; } if (state.view !== shared) { shared = state.view; if(state.view.kind==='AVAILABLE'&&!el('reviewModal')?.classList.contains('hidden'))ProductEditors.refresh(product()); if(operation?.closeTicket)finishScheduledMatch(); if(state.runtime?.pending.thresholds===null&&operation?.outcome==='SUCCESS')feedback=savedMessage(lastAction); render(); } else if (state.match !== match && destination === 'match') render(); match = state.match; },
+      publication(state) { if(generation!==null&&generation!==state.generation)this.dispose();generation=state.generation; if (['AUTH_INVALIDATING','STOPPED','DISPOSED'].includes(state.phase)) { el('movieGrid').innerHTML = ''; this.dispose(); return; } if (state.view !== shared) { shared = state.view; if(state.view.kind==='AVAILABLE'&&!el('reviewModal')?.classList.contains('hidden'))ProductEditors.refresh(product()); if(operation?.closeTicket)finishScheduledMatch(); render(); } else if (state.match !== match && destination === 'match') render(); match = state.match; },
       dispose() { uiEpoch++;if(!el('confirmModal')?.classList.contains('hidden'))cancelConfirmModal();if(matchExit)clearTimeout(matchExit);matchExit=null;createdTitle=null;closingMatchTicket=null; for(const id of ['detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id); for(const id of ['nextMovieBox','recommendationResults'])if(el(id))el(id).innerHTML='';for(const [node,properties] of bindings)for(const [key,handler] of properties)node[key]=handler;bindings.clear();el('tabAll')?.classList.remove('!hidden');const all=el('libraryViewSelect')?.querySelector?.('option[value="all"]');if(all){all.hidden=false;all.disabled=false;}show('targetPersonalCollections',false); el('matchReveal')?.classList.add('hidden'); for (const id of ['sceltaCta','dashboardSidebar','recommendationSection','segControl','libraryTools','historySwitch','listFiltersBlock','syncNotice']) el(id)?.classList.remove('!hidden'); generation = null; query = ''; genre=''; duration=''; sort='added'; sortDir='desc'; platform=''; proposer=''; availability='streaming'; page = 0; destination = 'home'; revealedKey = null; operation = null; matchOperation = null; recommendation = []; shared = null; match = null; }
     });
   }

@@ -1686,3 +1686,57 @@ details[open] > .memory-summary::before { transform: rotate(90deg); }
 .personal-seen-choice strong,.personal-seen-choice small { display:block; }
 .personal-seen-choice small { margin-top:6px; color:var(--color-testo-2); }
 @media(max-width:600px){ .personal-cinema-intro { flex-direction:column; align-items:stretch; gap:12px; } }
+
+/* Scheda film TARGET: un gesto forte, relazioni leggibili, serate distinte. */
+#detailPanel:has(.target-film-detail) { max-width:680px; }
+.target-film-detail .detail-head { grid-template-columns:120px minmax(0,1fr); gap:20px; }
+.target-film-detail .detail-cover { width:120px; min-height:180px; }
+.target-film-detail .detail-cover img { height:180px; }
+.detail-film-relations { display:grid; grid-template-columns:1fr 1fr; gap:16px; border-top:1px solid var(--color-bordo-forte); padding-top:16px; }
+.detail-film-relations h4 { font-size:12px; font-weight:700; color:var(--color-dettaglio); margin-bottom:8px; }
+.detail-film-relations p,.detail-relation-status { color:var(--color-testo-2); font-size:14px; line-height:1.6; }
+.detail-relation-status { display:flex; gap:6px; flex-wrap:wrap; }
+.detail-relation-status span { padding:3px 8px; border-radius:8px; background:var(--color-chip); }
+.detail-judgment,.detail-judgment-readonly { font-size:14px; line-height:1.6; padding:10px 0; text-align:left; }
+.detail-judgment { min-height:44px; color:var(--color-persona-n); text-decoration:underline; text-underline-offset:4px; }
+.detail-shared-summary .detail-judgment { color:var(--color-stella,#fbbf24); }
+.detail-together { color:#fbbf24!important; }
+.detail-review { white-space:pre-wrap; overflow-wrap:anywhere; max-height:12rem; overflow:auto; }
+.detail-other-person { margin-top:10px; padding-top:10px; border-top:1px solid var(--color-bordo-forte); }
+.detail-other-person .detail-judgment-readonly { padding-top:0; }
+.detail-next-action { display:flex; flex-direction:column; gap:8px; }
+.detail-primary { align-self:flex-start; width:auto; max-width:100%; }
+.detail-choice-actions { width:100%; max-width:360px; }
+.detail-secondary-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.detail-secondary,.detail-text-action,.detail-danger { min-height:44px; padding:10px 12px; font-size:14px; border-radius:10px; text-align:left; }
+.detail-secondary { background:var(--color-chip); color:var(--color-testo-1); border:1px solid var(--color-bordo-forte); }
+.detail-text-action { color:var(--color-testo-2); background:var(--color-chip); border:1px solid var(--color-bordo-forte); text-decoration:none; }
+.detail-more,.detail-nights,.detail-information { border-top:1px solid var(--color-bordo-forte); padding-top:8px; font-size:14px; }
+.detail-more>summary,.detail-nights>summary,.detail-information>summary,.detail-night>summary { min-height:44px; padding:10px 0; cursor:pointer; color:var(--color-testo-2); }
+.detail-menu-group { margin:10px 0; }
+.detail-menu-group h5 { font-size:12px; color:var(--color-testo-2); margin-bottom:6px; font-weight:700; }
+.detail-menu-controls { display:flex; flex-wrap:wrap; gap:6px; }
+.detail-menu-controls .detail-text-action { padding:8px 10px; }
+.detail-danger-area { margin-top:8px; padding-top:8px; border-top:1px solid var(--color-bordo-forte); }
+.detail-danger { color:#fda4af; }
+.detail-night { margin:8px 0; padding:0 12px; border:1px solid var(--color-bordo-forte); border-radius:12px; }
+.detail-night>summary { display:flex; gap:12px; align-items:center; justify-content:space-between; }
+.detail-night small { display:block; margin-top:3px; }
+.detail-night-body { padding:4px 0 12px; color:var(--color-testo-2); }
+.detail-information p { font-size:14px; line-height:1.7; margin:8px 0; }
+.target-film-detail button:disabled { opacity:.6; }
+@media(max-width:639px){
+ .target-film-detail .detail-head { grid-template-columns:96px minmax(0,1fr); gap:14px; }
+ .target-film-detail .detail-cover { width:96px; min-height:144px; }
+ .target-film-detail .detail-cover img { height:144px; }
+ .detail-film-relations { grid-template-columns:1fr; gap:14px; }
+}
+
+.target-film-detail .detail-meta,.detail-information,.detail-night { overflow-wrap:anywhere; }
+
+.detail-feedback { color:var(--color-testo-2); font-size:14px; line-height:1.5; }
+.detail-feedback:empty { display:none; }
+
+/* Proposte TARGET: card dello stesso linguaggio della Lista, mai dilatate. */
+#recommendationResults:has(.movie-ticket) { grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),300px)); gap:16px; align-items:start; justify-content:start; }
+#recommendationResults .movie-ticket { min-width:0; width:100%; }

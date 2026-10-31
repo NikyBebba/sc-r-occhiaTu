@@ -3,7 +3,7 @@
 // Store: the captured TARGET view is the only source, callbacks the only writer.
 const ProductContext = (() => {
   const esc = value => escapeHtml(String(value ?? ''));
-  function create({ view, session, destination, perform, edit, detail, openSaga, ticket, isCurrent = () => true }) {
+  function create({ view, session, destination, perform, edit, detail, openSaga, ticket, feedback = '', feedbackZone = null, onActionSource = () => {}, isCurrent = () => true }) {
     if (view.kind !== 'AVAILABLE') throw new TypeError('Committed TARGET view required');
     const token = session.capture(), current=()=>session.current(token)&&isCurrent(), identities = view.getRecommendationInput();
     const people = identities.kind === 'AVAILABLE' ? identities.input.users.map(p => view.getIdentity(p.id)) : [];
@@ -49,7 +49,7 @@ const ProductContext = (() => {
     }
     function bind(parent) {
       parent.querySelectorAll('[data-product-action]').forEach(node=>{
-        const fn=callbacks.get(node.dataset.productAction);node.onclick=e=>{e.stopPropagation();if(current()&&fn)fn(node);};
+        const fn=callbacks.get(node.dataset.productAction);node.onclick=e=>{e.stopPropagation();if(current()&&fn){onActionSource(node);if(node.dataset.returnFocusKey)node.focus({preventScroll:true});fn(node);}};
       });
       // The reusable product template's surprise controls get TARGET callbacks.
       parent.querySelectorAll('[onclick^="revealSurpriseUI"]').forEach(node=>{node.removeAttribute('onclick');node.onclick=e=>{e.stopPropagation();if(current())perform('setSurprise',node.closest('[data-movie-id]').dataset.movieId,false);};});
@@ -108,24 +108,81 @@ const ProductContext = (() => {
       if(view.getCard(m.id).group.candidacy.effectiveCandidacy)management+=action('Ritira candidatura',()=>perform('withdrawGroupCandidacy',m.id));
       return primary+`<div class="movie-card-sections pt-2 border-t border-slate-800/80 text-xs">${cardSectionHtml('Programmazione',programming)}${cardSectionHtml('Gestione',management)}</div>`;
     }
+    // Detail is film-centric. Each disclosure below retains its exact nightId;
+    // opening it never creates an event or selects another event for the film.
+    const detailNightLabel = n => n.status==='completed'?'Visione insieme':n.status==='proposed'?'Proposta in attesa':n.status==='confirmed'?(n.date?'Serata aperta':'FILM SCELTO'):n.status==='cancelled'?'Serata annullata':'Serata non effettuata';
+    function detailNightActions(n) {
+      let html='';
+      if(n.status==='proposed'&&n.proposed_by_person_id!==view.context.caller.personId)html+=action('Accetta proposta',()=>perform('confirmNight',n.id),'detail-secondary');
+      if(n.status==='confirmed'&&(!n.date||due(n)))html+=action('Concludi questa serata',()=>edit('completeScheduled',n.id,n),'detail-secondary');
+      if(!['cancelled','skipped'].includes(n.status))html+=action('Snack e luogo',()=>edit('editNight',n.id,n),'detail-text-action');
+      if(['proposed','confirmed'].includes(n.status))html+=action('Annulla serata',()=>perform('cancelNight',n.id),'detail-text-action');
+      return html;
+    }
     function eventHistory(m) {
       return view.getCard(m.id).group.events.map(item=>{
         const n=nights.find(n=>n.id===item.event.night_id);
-        const date=n.status==='completed'?completedNightLabel({night:n,timelineDate:nightTimelineDate(n)}):formatNightDate(n.date,n.time);
+        const date=n.status==='completed'?completedNightLabel({night:n,timelineDate:nightTimelineDate(n)}):n.date?formatNightDate(n.date,n.time):'Data non fissata';
         const participants=item.participants.map(p=>view.getIdentity(p.person_id).label||'Partecipante').join(', ');
-        return `<div class="projection-card-info" data-night-id="${esc(n.id)}"><p>${esc(date)}</p>${n.snack?`<p>🍿 ${esc(n.snack)}</p>`:''}${n.location?`<p>${esc(n.location)}</p>`:''}${participants?`<p>${esc(participants)}</p>`:''}<div class="projection-actions">${eventActions(n)}</div></div>`;
+        return `<details class="detail-night" data-night-id="${esc(n.id)}"><summary><span>${esc(detailNightLabel(n))}<small>${esc(date)}</small></span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary><div class="detail-night-body" data-feedback-zone="night-${esc(n.id)}">${n.snack?`<p>🍿 ${esc(n.snack)}</p>`:''}${n.location?`<p>${esc(n.location)}</p>`:''}${participants?`<p>Partecipanti: ${esc(participants)}</p>`:''}<div class="detail-secondary-actions">${detailNightActions(n)}</div><p class="detail-feedback" data-action-feedback="night-${esc(n.id)}" role="status">${feedbackZone==='night-'+n.id?esc(feedback):''}</p></div></details>`;
       }).join('');
+    }
+    function openDetailNights(id=null) {
+      const box=document.getElementById('detailBody'),list=box?.querySelector('[data-detail-nights]');
+      if(!list||!current())return;list.open=true;
+      const row=id?[...list.querySelectorAll('[data-night-id]')].find(node=>node.dataset.nightId===id):null;
+      if(row)row.open=true;
+      const summary=(row||list).querySelector('summary');summary?.focus();summary?.scrollIntoView({block:'nearest'});
     }
     function detailActions(m) {
       if(hidden(m))return '';
-      const s=state(m,callerLabel),g=view.getCard(m.id).group;
-      let mine=action(s.list?.active?'Rimuovi dalla mia Lista':'Nella mia Lista',()=>perform(s.list?.active?'removeFromMyList':'addToMyList',m.id));
-      mine+=s.seen?action('Nuova visione personale',()=>perform('recordPersonalViewing',m.id)):action('L’ho visto anch’io',()=>perform('recordSeen',m.id));
-      mine+=action('Il mio giudizio',()=>edit('setMyEvaluation',m.id,s.judgment));
-      const group=action(g.candidacy.effectiveCandidacy?'Ritira candidatura':'Proponi al gruppo',()=>perform(g.candidacy.effectiveCandidacy?'withdrawGroupCandidacy':'proposeToGroup',m.id));
+      const s=state(m,callerLabel),g=view.getCard(m.id).group,available=s.kind==='AVAILABLE';
+      const open=g.events.filter(x=>['proposed','confirmed'].includes(x.event.status)),completed=g.events.filter(x=>x.event.status==='completed');
+      const other=people.filter(p=>p.personId!==view.context.caller.personId).map(p=>({person:p,state:state(m,p.legacyLabel)}));
+      const judgment=g.judgment.judgment;
+      const status=zone=>'<p class="detail-feedback" data-action-feedback="'+zone+'" role="status">'+(feedbackZone===zone?esc(feedback):'')+'</p>';
+      let primary,secondary='';
+      if(open.length>1)primary={text:'Scegli la serata',fn:()=>openDetailNights(),kind:'nights'};
+      else if(open.length===1){
+        const n=nights.find(n=>n.id===open[0].event.night_id);
+        primary=n.status==='confirmed'&&n.date&&due(n)?{text:'Concludi questa serata',fn:()=>edit('completeScheduled',n.id,n),kind:'complete'}:{text:'Apri la serata',fn:()=>openDetailNights(n.id),kind:'nights'};
+      }else if((available&&s.list.active)||g.candidacy.effectiveCandidacy){
+        primary={text:'Guardiamolo',fn:()=>edit('quickNight',m.id,scheduleInitial(m)),kind:'choose'};
+        secondary+=action('<i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Pianifica',()=>edit('scheduleNight',m.id,scheduleInitial(m)),'movie-list-secondary');
+      }else if(completed.length>1)primary={text:'Apri le '+completed.length+' serate',fn:()=>openDetailNights(),kind:'nights'};
+      else if(g.hasTogetherHistory)primary={text:'Il giudizio N+V',fn:()=>edit('setGroupEvaluation',m.id,judgment),kind:'groupJudgment'};
+      else if(available&&s.seen&&other.some(x=>x.state.kind==='AVAILABLE'&&x.state.seen))primary={text:'Aggiungi alla Lista N+V',fn:()=>perform('proposeToGroup',m.id),kind:'shared'};
+      else if(available&&s.seen)primary={text:'Il mio giudizio',fn:()=>edit('setMyEvaluation',m.id,s.judgment),kind:'myJudgment'};
+      else if(available&&other.some(x=>x.state.kind==='AVAILABLE'&&x.state.seen))primary={text:'L’ho visto anch’io',fn:()=>perform('recordSeen',m.id),kind:'seen'};
+      else primary={text:'Aggiungi alla Lista N+V',fn:()=>perform('proposeToGroup',m.id),kind:'shared'};
+      if(available&&!s.list.active&&primary.kind!=='choose')secondary+=action('Aggiungi alla mia Lista',()=>perform('addToMyList',m.id),'detail-text-action');
+      const judgmentHtml=(j,caption,editable,fn)=>{
+        const parts=[];
+        if(j?.rating!==null&&j?.rating!==undefined)parts.push('★ '+formatMovieRating(j.rating)+'/10');
+        else if(j?.preference===true)parts.push('Mi è piaciuto');else if(j?.preference===false)parts.push('Non mi è piaciuto');
+        const content=esc(caption)+(parts.length?' · '+esc(parts.join(' · ')):'');
+        return (editable?action(content,fn,'detail-judgment',{'data-return-focus-key':caption}):(parts.length?'<p class="detail-judgment-readonly">'+content+'</p>':''))+(j?.review?'<p class="detail-review">'+esc(j.review)+'</p>':'');
+      };
+      const mine=available?'<div class="detail-relation-status">'+(s.list.active?'<span>Nella tua Lista</span>':'')+(s.seen?'<span>Nei tuoi Visti</span>':'')+(!s.seen&&g.hasTogetherHistory?'<span>Nessuna visione personale registrata</span>':'')+'</div>'+judgmentHtml(s.judgment,'Il mio giudizio',primary.kind!=='myJudgment',()=>edit('setMyEvaluation',m.id,s.judgment)):'<p>Dati personali non disponibili.</p>';
+      const otherHtml=other.filter(x=>x.state.kind==='AVAILABLE'&&(x.state.seen||x.state.judgment?.rating!==null&&x.state.judgment?.rating!==undefined||x.state.judgment?.preference!=null||x.state.judgment?.review)).map(({person:p,state:q})=>'<div class="detail-other-person"><p>'+esc(p.label)+(q.seen?' · Nei suoi Visti':'')+'</p>'+judgmentHtml(q.judgment,'Giudizio di '+p.label,false)+'</div>').join('');
+      let shared=(g.candidacy.effectiveCandidacy?'<p>Nella Lista N+V</p>':'')+(g.hasTogetherHistory?'<p class="detail-together"><i class="fa-solid fa-film" aria-hidden="true"></i> Visti insieme · '+completed.length+(completed.length===1?' serata':' serate')+'</p>':'');
+      if(open.length){const n=open.length===1?open[0].event:null;shared+='<p>'+(n?esc(detailNightLabel(n))+(n.date?' · '+esc(formatNightDate(n.date,n.time)):n.status==='confirmed'?' · Da vedere insieme':' · Data non fissata'):open.length+' serate aperte')+'</p>';}
+      if(g.hasTogetherHistory||judgment?.rating!=null||judgment?.review)shared+=judgmentHtml(judgment,'Il giudizio N+V',primary.kind!=='groupJudgment',()=>edit('setGroupEvaluation',m.id,judgment));
+      let personalControls='',groupControls='',filmControls='';
+      if(available&&!s.list.active&&primary.kind==='choose')personalControls+=action('Aggiungi alla mia Lista',()=>perform('addToMyList',m.id),'detail-text-action');
+      if(available&&!s.seen&&primary.kind!=='seen')personalControls+=action('Aggiungi ai miei Visti',()=>perform('recordSeen',m.id),'detail-text-action');
+      if(available&&s.list.active)personalControls+=action('Rimuovi dalla mia Lista',()=>perform('removeFromMyList',m.id),'detail-text-action');
+      if(available&&s.seen)personalControls+=action('Rimuovi dai miei Visti',()=>perform('removeSeen',m.id),'detail-text-action');
+      if(g.candidacy.effectiveCandidacy)groupControls+=action('Togli dalla Lista N+V',()=>perform('withdrawGroupCandidacy',m.id),'detail-text-action');
+      filmControls+=action(m.cinema_watchlist?'Sposta in Streaming':'Sposta al cinema',()=>perform('setCinema',m.id,!m.cinema_watchlist),'detail-text-action');
       const veto=view.getVetoForMovie(m.id).veto;
-      const vetoAction=veto?(veto.person_id===view.context.caller.personId?action('Togli il veto',()=>perform('removeVeto',m.id,veto.veto_id)):''):action('Vieta questa settimana',()=>perform('addVeto',m.id));
-      return `<section class="detail-section"><h4>Il mio percorso</h4><div class="flex gap-2 flex-wrap">${mine}</div></section><section class="detail-section"><h4>Il gruppo</h4><div class="flex gap-2 flex-wrap">${group}${scheduleActions(m)}${together(m)?action('Modifica voto N+V',()=>edit('setGroupEvaluation',m.id,groupJudgment(m))):''}${action('Visto insieme ora',()=>edit('completeNow',m.id))}</div></section>`+cardSectionHtml('Serate',eventHistory(m))+cardSectionHtml('Gestione',vetoAction+action(m.cinema_watchlist?'Sposta in Streaming':'Sposta al cinema',()=>perform('setCinema',m.id,!m.cinema_watchlist))+action(m.surprise_by_person_id?'Annulla sorpresa':'Sorpresa',()=>perform('setSurprise',m.id,!m.surprise_by_person_id))+action('Correggi metadati',()=>edit('updateMetadata',m.id))+action('Elimina film',async()=>{if(await showConfirmModal('Rimuovere il film dal catalogo?','Questa azione è definitiva.'))if(current())perform('deleteContent',m.id);}));
+      if(veto?.person_id===view.context.caller.personId)filmControls+=action('Togli il mio veto',()=>perform('removeVeto',m.id,veto.veto_id),'detail-text-action');
+      if(m.surprise_by_person_id===view.context.caller.personId)filmControls+=action('Annulla la mia sorpresa',()=>perform('setSurprise',m.id,false),'detail-text-action');
+      const danger=action('Rimuovi film',async()=>{if(await showConfirmModal('Rimuovere il film dal catalogo?','Questa azione è definitiva.'))if(current())perform('deleteContent',m.id);},'detail-danger');
+      const main=action(primary.kind==='choose'?'<i class="fa-solid fa-ticket" aria-hidden="true"></i> Guardiamolo':esc(primary.text),async node=>{if(node.disabled)return;const pending=primary.fn();if(!pending?.then)return;node.disabled=true;try{await pending;}finally{if(current()&&node.isConnected)node.disabled=false;}},primary.kind==='choose'?'movie-list-primary':'movie-list-primary detail-primary',{'data-detail-primary':primary.kind,'data-return-focus-key':'detail-primary'});
+      const menuGroup=(title,controls,zone)=>(controls||feedbackZone===zone&&feedback)?'<section class="detail-menu-group" data-feedback-zone="'+zone+'"><h5>'+title+'</h5><div class="detail-menu-controls">'+controls+'</div>'+status(zone)+'</section>':'';
+      return '<div class="detail-film-relations"><section class="detail-personal-summary" data-feedback-zone="personal-judgment"><h4>Il mio cinema</h4>'+mine+status('personal-judgment')+otherHtml+'</section>'+(shared?'<section class="detail-shared-summary" data-feedback-zone="shared-judgment"><h4>N+V</h4>'+shared+status('shared-judgment')+'</section>':'')+'</div><div class="detail-next-action" data-feedback-zone="primary">'+(primary.kind==='choose'?'<div class="movie-list-actions detail-choice-actions">'+main+secondary+'</div>':main+'<div class="detail-secondary-actions">'+secondary+'</div>')+status('primary')+'</div>'+(g.events.length?'<details class="detail-nights" data-detail-nights><summary>Le serate · '+g.events.length+'</summary>'+eventHistory(m)+'</details>':'')+'<details class="detail-more" data-detail-disclosure="more"><summary>Altre azioni</summary>'+menuGroup('Personali',personalControls,'personal-actions')+menuGroup('N+V',groupControls,'group-actions')+menuGroup('Film',filmControls,'film-actions')+'<div class="detail-danger-area" data-feedback-zone="danger">'+danger+status('danger')+'</div></details>';
+
     }
     const movieProjection = (m, selectedNight = null) => {const n=selectedNight || active(m.id);return {...m,nightId:n?.id,scheduled_date:n?.date,scheduled_time:n?.time,snack:n?.snack,location:n?.location,night_confirmed:n?.status==='confirmed',proposed_by:n?.proposed_by};};
     const personBadge = code => code ? `<span class="badge badge-${esc(code.toLowerCase())}">${esc(label(code))}</span>`:'';
@@ -139,7 +196,7 @@ const ProductContext = (() => {
       if(!['cancelled','skipped'].includes(n.status))html+=action('Snack e luogo',()=>edit('editNight',args,n),'next-movie-action next-movie-secondary');
       return html;
     }
-    const ctx={movies,nights,callerLabel,tab:destination==='scheduled'?'tonight':'watchlist',view,personBadge,viewingState,
+    const ctx={movies,nights,callerLabel,feedback,feedbackZone,tab:destination==='scheduled'?'tonight':'watchlist',view,personBadge,viewingState,
       personalRating:rating,personalPreference:preference,personalState:state,togetherSeen:together,togetherRating,reviewTextFor:review,edit,viewingStatusHtml:(m,o)=>personalCollection&&!hidden(m)?personalStatus(m):viewingStatusHtml(m,o,ctx),
       participated:(m,code)=>view.getCard(m.id).group.events.some(x=>x.event.status==='completed'&&x.participants.some(p=>p.person_id===person(code)?.personId)),
       cardReviewsHtml:m=>personalCollection?personalReview(m):cardReviewsHtml(m,ctx),reviewCardsHtml:m=>reviewCardsHtml(m,ctx),sagaButtonHtml,cardOperationsHtml,detailActions,movieProjection,
