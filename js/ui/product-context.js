@@ -62,10 +62,10 @@ const ProductContext = (() => {
       ()=>openSaga(m.id),variant==='card'?'saga-entry saga-entry-compact':variant==='detail'?'detail-text-action detail-film-action saga-entry-detail':'saga-entry',
       {'aria-label':variant==='card'?'Apri la saga di '+m.title:'Apri la saga '+(m.collection_name||'di '+m.title)}
     ):'';
-    const intentIcon=(kind,seen=false)=>kind==='shared'?'fa-user-plus':seen?'fa-rotate':'fa-plus';
+    const intentIcon=kind=>kind==='shared'?'fa-users':'fa-user';
     const intentAction=(kind,seen,fn,classes='')=>action(
-      '<i class="fa-solid '+intentIcon(kind,seen)+'" aria-hidden="true"></i> '+(kind==='shared'?'Proponi per noi':seen?'Voglio rivederlo':'Voglio vederlo'),
-      fn,'intent-action is-'+kind+(classes?' '+classes:''));
+      '<i class="fa-solid '+intentIcon(kind)+'" aria-hidden="true"></i> '+(kind==='shared'?'Vorrei vederlo insieme':seen?'Voglio rivederlo':'Voglio vederlo'),
+      fn,'intent-action is-'+kind+(classes?' '+classes:''),{'data-intention-action':'true'});
     const personalCollection=['personalList','personalSeen'].includes(destination);
     async function confirmListRemoval(m, relation, listName, node) {
       if(node.disabled)return;
@@ -108,7 +108,7 @@ const ProductContext = (() => {
         }else controls=`<div class="movie-list-actions">${scheduleActions(m,true)}</div>`;
         let secondary='',withdraw='';
         if(group.candidacy.effectiveCandidacy)withdraw=listRemovalAction(m,'withdrawGroupCandidacy','Da vedere insieme','Togli dai Da vedere insieme');
-        else if(destination==='rewatch'&&!events.length)secondary+=action('<i class="fa-solid fa-user-plus" aria-hidden="true"></i> Proponi per noi',()=>perform('proposeToGroup',m.id),'movie-rewatch-propose',{'aria-label':'Proponi per noi · '+m.title});
+        else if(destination==='rewatch'&&!events.length)secondary+=action('<i class="fa-solid fa-users" aria-hidden="true"></i> Vorrei vederlo insieme',()=>perform('proposeToGroup',m.id),'movie-rewatch-propose',{'aria-label':'Vorrei vederlo insieme · '+m.title,'data-intention-action':'true'});
         return `<div class="movie-list-choices">${controls}<div class="movie-list-secondary-strip${destination==='rewatch'?' movie-rewatch-secondary':''}">${saga}${withdraw}${secondary}</div></div>`;
       }
       if(destination==='personalSeen'){
@@ -128,7 +128,7 @@ const ProductContext = (() => {
       let primary=personalActions(m),programming='',management='';
       if(destination==='scheduled')return projectionInfoHtml(m,ctx)+saga;
       if(destination==='together')return '<div class="movie-list-choices"><div class="movie-list-secondary-strip movie-together-secondary">'+saga+'<span class="movie-together-label">INSIEME</span></div></div>';
-      if(['personalList','personalSeen','together'].includes(destination))management+=action('Proponi al gruppo',()=>perform('proposeToGroup',m.id));
+      if(['personalList','personalSeen','together'].includes(destination))management+=intentAction('shared',false,()=>perform('proposeToGroup',m.id));
       if(destination==='personalSeen'&&view.context.observedPerson.personId===view.context.caller.personId)management+=action('Rimuovi dai miei Visti',()=>perform('removeSeen',m.id));
       if(view.getCard(m.id).group.candidacy.effectiveCandidacy)management+=action('Ritira candidatura',()=>perform('withdrawGroupCandidacy',m.id));
       return primary+saga+`<div class="movie-card-sections pt-2 border-t border-slate-800/80 text-xs">${cardSectionHtml('Programmazione',programming)}${cardSectionHtml('Gestione',management)}</div>`;

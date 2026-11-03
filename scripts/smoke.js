@@ -2126,7 +2126,7 @@ async function okA(name, fn) {
       renderNightHistory();
       const html = document.getElementById('nightHistory').innerHTML;
       return document.getElementById('nightHistoryCount').textContent === '3 serate'
-        && (html.match(/<article class="history-ticket">/g) || []).length === 3
+        && (html.match(/<article class="history-ticket"/g) || []).length === 3
         && html.indexOf('marzo 2026') < html.indexOf('gennaio 2026')
         && html.indexOf('gennaio 2026') < html.indexOf('Data non registrata')
         && html.includes('Serata del 31 gen') && html.includes('Registrata il');
@@ -2883,7 +2883,7 @@ async function okA(name, fn) {
         const html = document.getElementById('movieGrid')._children[0].innerHTML;
         const name = escapeHtml(CONFIG.PEOPLE[person]?.label || person);
         if (!html.includes('data-judgment-context="'+person+'"')
-          || !html.includes('Modifica il giudizio '+name)
+          || !html.includes('Modifica il giudizio di '+person)
           || (html.match(/addPersonalReview\(/g) || []).length !== 1
           || html.includes('Modifica la tua recensione')) return false;
       }
@@ -2991,9 +2991,9 @@ async function okA(name, fn) {
       movieNights=fixtureCompletedMovies(movies); render();
       const html = document.getElementById('movieGrid')._children[0].innerHTML;
       const joint = escapeHtml(sharedPeopleLabel());
-      return html.includes('viewing-score-together personal-judgment-slot') && html.includes('Modifica il giudizio ' + joint)
-        && html.includes(joint + ' <i class="fa-solid fa-star" aria-hidden="true"></i> 8,3/10')
-        && html.includes('Recensione ' + joint) && !html.includes('Modifica voto insieme')
+      return html.includes('viewing-score-together personal-judgment-slot') && html.includes('Modifica il giudizio Insieme')
+        && html.includes('8,3/10')
+        && html.includes('Recensione Insieme') && !html.includes('Modifica voto insieme')
         && document.getElementById('statsGrid').innerHTML.includes('Voto medio');
     } finally { movies = previous; currentUser = user; currentTab = tab; }
     } finally { movieNights=oldFixtureNights; }
@@ -3123,8 +3123,10 @@ async function okA(name, fn) {
       && personalRating({ seen_rating_v: 10 }, 'V') === 10
       && personalRating({ review_by: 'N', rating: 4 }, 'N') === null
       && personalRating({ review_by: 'N', rating: 4 }, 'V') === null
-      && viewingStatusHtml({ seen_rating_n: 0, seen_rating_v: 10 }).includes('N <i class="fa-solid fa-star" aria-hidden="true"></i> 0/10')
-      && viewingStatusHtml({ seen_rating_n: 0, seen_rating_v: 10 }).includes('V <i class="fa-solid fa-star" aria-hidden="true"></i> 10/10');
+      && viewingStatusHtml({ seen_rating_n: 0, seen_rating_v: 10 }).includes('data-judgment-context="N"')
+      && viewingStatusHtml({ seen_rating_n: 0, seen_rating_v: 10 }).includes('0/10')
+      && viewingStatusHtml({ seen_rating_n: 0, seen_rating_v: 10 }).includes('data-judgment-context="V"')
+      && viewingStatusHtml({ seen_rating_n: 0, seen_rating_v: 10 }).includes('10/10');
   }));
   await okA('modale L’ho già visto: voto facoltativo, salva 0/10 e recensione facoltativa; modifica testo senza cambiare voto', runA(async () => {
     const saved = movies, savedUser = currentUser;
@@ -3217,7 +3219,7 @@ async function okA(name, fn) {
       await confirmReview();
       return blank && first && prefilled && movies[0].seen_rating_together === 9
         && movies[0].seen_rating_n === 8 && movieNights[0].completed_at === completedAt
-        && reviewCardsHtml(movies[0]).includes('Recensione ' + escapeHtml(sharedPeopleLabel()) + ' · ★ 9/10');
+        && reviewCardsHtml(movies[0]).includes('Recensione Insieme · ★ 9/10');
     } finally { movies = savedMovies; movieNights = savedNights; currentUser = savedUser; saveLocal(); }
   }));
   await okA('modifica recensione insieme: conserva la data storica e non conclude un rewatch attivo', runA(async () => {
@@ -3263,7 +3265,8 @@ async function okA(name, fn) {
       const firstSaved = el('reviewModal').classList.contains('hidden')
         && movies[0].seen_rating_together === 6 && !movies[0].review_text_together
         && viewingStatusHtml(movies[0]).includes('viewing-score-together')
-        && viewingStatusHtml(movies[0]).includes(escapeHtml(sharedPeopleLabel()) + ' <i class="fa-solid fa-star" aria-hidden="true"></i> 6/10');
+        && viewingStatusHtml(movies[0]).includes('data-judgment-context="both"')
+        && viewingStatusHtml(movies[0]).includes('6/10');
       const completion = movieNights[0].completed_at;
       addReview('review-required'); el('reviewRating').value = '7';
       await confirmReview();
@@ -3427,7 +3430,7 @@ async function okA(name, fn) {
     movies = savedMovies; votes = savedVotes; currentUser = prevUser; currentTab = prevTab;
     return before.includes('markSeenUI') && before.includes("L'ho già visto")
       && !before.includes('voteMovie') && !before.includes('Match!')
-      && after.includes('Aggiungi il giudizio ' + escapeHtml(CONFIG.PEOPLE.N?.label || 'N'))
+      && after.includes('data-judgment-context="N"')
       && after.includes('addPersonalReview') && after.includes('undoSeenUI');
   }));
 
@@ -3521,7 +3524,7 @@ async function okA(name, fn) {
     const html = document.getElementById('detailBody')._innerHTML;
     return html.includes('detail-cover') && html.includes('Locandina di Film prova')
       && html.indexOf('La storia') < html.indexOf('Nel cast')
-      && html.indexOf('Nel cast') < html.indexOf('Guarda il trailer')
+      && html.indexOf('Guarda il trailer') < html.indexOf('La storia')
       && html.includes('detail-close');
   }));
   ok('premi: solo Oscar vinti espliciti, mai nomination o totali anonimi', run(() =>
@@ -6283,7 +6286,7 @@ async function okA(name, fn) {
         && filterMoviesByState(movies,'history_n').includes(m)===${n}
         && filterMoviesByState(movies,'history_v').includes(m)===${v}
         && viewingState(m).N===${n} && viewingState(m).V===${v}
-        && togetherSeen(m)===${t} && html.includes('aria-label="Visto insieme"')===${t};
+        && togetherSeen(m)===${t} && html.includes('aria-label="Visto insieme da N e V"')===${t};
     })`;
     await okA('Stato canonico: '+label,vm.runInContext(code,sandbox));
   }

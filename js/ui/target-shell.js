@@ -11,8 +11,8 @@ const TargetShell = (() => {
     const savedMessage = name => ({
       quickNight:'Film scelto. Da vedere insieme.',scheduleNight:'Proposta salvata in In programma.',
       recordSeen:'Aggiunto ai miei Visti.',removeSeen:'Rimosso dai miei Visti. Il giudizio resta.',
-      addToMyList:'Aggiunto ai tuoi Da vedere.',removeFromMyList:'Tolto dai tuoi Da vedere.',
-      proposeToGroup:'Proposto per voi.',withdrawGroupCandidacy:'Tolto dai Da vedere insieme. Visioni e giudizi restano.',
+      addToMyList:'Aggiunto ai tuoi Da vedere',removeFromMyList:'Tolto dai tuoi Da vedere.',
+      proposeToGroup:'Aggiunto a Da vedere insieme',withdrawGroupCandidacy:'Tolto dai Da vedere insieme. Visioni e giudizi restano.',
       setMyEvaluation:'Giudizio personale aggiornato.',setMyRating:'Voto personale aggiornato.',setMyPreference:'Gradimento aggiornato.',setMyReview:'Recensione personale aggiornata.',
       setGroupEvaluation:'Giudizio N+V aggiornato.',setGroupRating:'Voto N+V aggiornato.',setGroupReview:'Recensione N+V aggiornata.',
       confirmNight:'Proposta accettata.',cancelNight:'Serata annullata.',editNight:'Dettagli della serata aggiornati.',completeScheduled:'Serata conclusa.',completeNow:'Visione insieme registrata.',
@@ -112,7 +112,7 @@ const TargetShell = (() => {
       if(phase==='close'&&id===retainOnClose){retainOnClose=null;return;}
       clearFeedback();
     }
-    async function runAction(name, args, inlinePending = false) {
+    async function runAction(name, args, inlinePending = false, suppressSuccess = false) {
       const token = session.capture(),serial=++feedbackSerial, origin=destination;
       stopFeedbackTimer();feedbackKind='pending';retainOnClose=null;
       if(name!=='retry')lastAction=name;
@@ -128,6 +128,8 @@ const TargetShell = (() => {
       feedback = result.outcome === 'SUCCESS' ? savedMessage(lastAction) : result.outcome === 'ALREADY_IN_TARGET_STATE' ? 'Nessuna modifica necessaria.' : result.outcome === 'STALE' ? 'I dati sono cambiati. Attendi l’aggiornamento e riprova.' : result.outcome === 'TRANSPORT_UNCERTAIN' ? 'Esito da verificare. Puoi riprovare la stessa operazione.' : result.outcome === 'NOT_READY' ? 'Attendi la verifica online.' : 'Non siamo riusciti a completare l’operazione.';
       feedbackKind=['SUCCESS','ALREADY_IN_TARGET_STATE'].includes(result.outcome)?'success':'error';
       if(feedbackKind==='success'&&!el('reviewModal')?.classList.contains('hidden'))retainOnClose='reviewModal';
+      if(feedbackKind==='success'&&!el('pickerModal')?.classList.contains('hidden'))retainOnClose='pickerModal';
+      if(suppressSuccess&&result.outcome==='SUCCESS'){feedback='';feedbackKind=null;}
       if(inlinePending&&!['SUCCESS','ALREADY_IN_TARGET_STATE'].includes(result.outcome)&&!result.retryHandle)feedback+=' Riprova dal controllo di rimozione.';
       notice(); // Feedback only; retry controls reuse the unchanged committed view.
       if (result.retryHandle || name === 'retry') render();
@@ -176,7 +178,7 @@ const TargetShell = (() => {
       let id = details.movie_id&&before.catalog.getContent(details.movie_id).kind==='AVAILABLE'?details.movie_id:before.catalog.contents.find(c => details.tmdb_id != null && c.tmdb_id === String(details.tmdb_id))?.movie_id;
       let created = null;
       if (!id) {
-        created = await perform('createContent', metadata(details));
+        created = relation ? await runAction('createContent',[metadata(details)],false,true) : await perform('createContent', metadata(details));
         if (!success(created)) return { content: created, relation: null };
         if (!session.current(token)) return Object.freeze({ outcome: 'OBSOLETE' });
         id = created.result.movie_id;
@@ -345,7 +347,7 @@ const TargetShell = (() => {
     }
     function product() {
       const epoch=uiEpoch,observed=view().context.observedPerson.personId;
-      return ProductContext.create({view:view(),session,destination,perform,performInline,edit,feedback,feedbackZone,onActionSource:node=>{const removing=node.dataset.listRemoval==='true';clearFeedback();feedbackZone=removing?null:node.closest?.('[data-feedback-zone]')?.dataset.feedbackZone||null;if(removing){operation=null;el('targetFeedback')?.querySelectorAll('button').forEach(button=>button.remove());}},isCurrent:()=>epoch===uiEpoch&&view().kind==='AVAILABLE'&&view().context.observedPerson.personId===observed,
+      return ProductContext.create({view:view(),session,destination,perform,performInline,edit,feedback,feedbackZone,onActionSource:node=>{const removing=node.dataset.listRemoval==='true',intention=node.dataset.intentionAction==='true';clearFeedback();feedbackZone=removing||intention?null:node.closest?.('[data-feedback-zone]')?.dataset.feedbackZone||null;if(removing){operation=null;el('targetFeedback')?.querySelectorAll('button').forEach(button=>button.remove());}},isCurrent:()=>epoch===uiEpoch&&view().kind==='AVAILABLE'&&view().context.observedPerson.personId===observed,
         detail:openDetail,openTogether,openPersonalStatus,openOtherJudgment,openSaga,
         ticket:id=>downloadTargetTicket(id,destination==='match'?'match':'wheel',session)});
     }

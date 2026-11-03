@@ -243,7 +243,7 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   for(const destination of ['home','personalList','personalSeen','groupList','rewatch','scheduled','together','memories','calendar','recommendations','wheel']) await test('real shell '+destination,async h=>{await h.boot();Shell.navigate(destination);eq(Shell.getDestination(),destination,'selected route');eq(h.commands.length,0,'render not command');});
   for(const caller of [data.N,data.V])for(const observed of [data.N,data.V])await test('shell observed '+caller+'/'+observed,async h=>{await h.boot();h.host.setObservedPerson(observed);await h.pump();eq(h.state.view.context.observedPerson.personId,observed,'read identity');await Shell.perform('addToMyList',data.M);await h.pump();eq(h.commands[0].body.expected_versions[0].scope_id,caller,'caller authority');},{caller});
   await test('card/detail uses semantic view',async h=>{await h.boot();Shell.detail(data.M);check(document.getElementById('detailBody').innerHTML.includes('SCHEDA FILM'),'product detail modal');check(!('status' in h.state.view.getCard(data.M).content),'no status');});
-  await test('personal uncovered renders unavailable',async h=>{await h.boot();h.host.setObservedPerson(data.V);Shell.navigate('personalList');check(html().includes('non disponibili'),'not false empty');},{raw:data.unavailable});
+  await test('personal uncovered renders unavailable',async h=>{await h.boot();h.host.setObservedPerson(data.V);Shell.navigate('personalList');check(document.getElementById('targetFeedback').textContent.includes('Dati personali non disponibili'),'unavailable state in feedback panel');check(!html().includes(data.unavailable.catalog[0].title),'uncovered personal data not rendered');},{raw:data.unavailable});
   await test('Rewatch selector reaches screen',async h=>{await h.boot();Shell.navigate('rewatch');check(h.state.view.group.rewatch.length>0,'selector');check(html().includes(h.state.view.group.rewatch[0].title),'render');},{raw:data.rewatch});
   await test('Ricordi preserves repeat events',async h=>{await h.boot();Shell.navigate('memories');check(h.state.view.events.completed.length>h.state.view.counts.togetherFilms,'events versus films');},{raw:data.multiple});
   for(const [method,args,intent]of [['addToMyList',[data.M],'ADD_PERSONAL_LIST'],['removeFromMyList',[data.M],'REMOVE_PERSONAL_LIST'],['recordSeen',[data.M],'RETROSPECTIVE_SEEN'],['removeSeen',[data.M],'REMOVE_PERSONAL_SEEN'],['setMyEvaluation',[data.M,{rating:0,review:''}],'SET_PERSONAL_EVALUATION'],['proposeToGroup',[data.M],'PROPOSE_TO_GROUP'],['withdrawGroupCandidacy',[data.M],'WITHDRAW_GROUP_CANDIDACY'],['scheduleNight',[data.M,{date:'2027-01-05'}],'SCHEDULE_NIGHT'],['quickNight',[data.M],'QUICK_NIGHT'],['completeNow',[data.M,{participants:[data.N]}],'COMPLETE_NOW']])await test('shell action '+intent,async h=>{await h.boot();eq((await Shell.perform(method,...args)).outcome,'SUCCESS','result');await h.pump();eq(h.commands[0].body.intent,intent,'actual action path');});
@@ -263,7 +263,7 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   });
   for(const [destination,intent] of [['personalList','ADD_PERSONAL_LIST'],['groupList','PROPOSE_TO_GROUP'],['personalSeen','RETROSPECTIVE_SEEN']])await test('UX11A selection and explicit primary save '+destination,async h=>{
     await h.boot();const originalSearch=searchTmdbCandidates;searchTmdbCandidates=async()=>[];
-    const ui=Shell.createShell({session:h.host,root:document});
+    const ui=Shell;
     try{
       ui.navigate(destination);ui.edit('createContent',null);eq(document.getElementById('targetAddDestination').value,destination,'context destination');
       document.getElementById('addTitle').value=data.absent.catalog[0].title;
@@ -273,9 +273,32 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
       eq(document.getElementById('targetPickerDestination').value,destination,'destination shown with selection');
       await document.getElementById('targetPickerCommit').onclick();await h.pump();
       deep(h.commands.map(c=>c.body.intent),[intent],'existing content reused');
-      check(document.getElementById('targetPickerMessage').textContent.includes(destination==='groupList'?'Film proposto':'Film aggiunto'),'specific outcome');
+      eq(document.getElementById('targetPickerMessage').textContent,'','no duplicate success inside picker');
+      eq(document.getElementById('targetFeedbackMessage').textContent,destination==='groupList'?'Aggiunto a Da vedere insieme':destination==='personalList'?'Aggiunto ai tuoi Da vedere':'Aggiunto ai miei Visti.','specific success toast');
       await document.getElementById('targetPickerCommit').onclick();eq(h.commands.length,1,'repeat submission blocked');
-    }finally{searchTmdbCandidates=originalSearch;ui.dispose();}
+    }finally{searchTmdbCandidates=originalSearch;}
+  },{raw:data.absent});
+  for(const [label,raw,observed] of [['Voglio vederlo',data.seenOther,data.V],['Voglio rivederlo',(()=>{const wire=copy(data.absent);wire.personal[0].states[0].seen=true;return finish(wire);})(),data.N]])
+    await test('intent picker uses authenticated Seen for '+label,async h=>{
+      await h.boot();h.host.setObservedPerson(observed);await h.pump();
+      const originalSearch=searchTmdbCandidates;searchTmdbCandidates=async()=>[];
+      try{
+        Shell.navigate('personalList');Shell.edit('createContent',null);
+        document.getElementById('addTitle').value=raw.catalog[0].title;await document.getElementById('addSaveBtn').onclick();
+        document.getElementById('pickerResults')._children[0].onclick();
+        const commit=document.getElementById('targetPickerCommit');
+        check(commit.innerHTML.includes('fa-user')&&commit.innerHTML.includes(label)&&!commit.innerHTML.includes('fa-user-plus'),'personal icon and caller-specific wording');
+        eq(h.commands.length,0,'selection has no write');
+      }finally{searchTmdbCandidates=originalSearch;}
+    },{raw});
+  await test('intent success uses one temporary toast and errors never report success',async h=>{
+    await h.boot();modules.clearTimers();
+    await Shell.perform('proposeToGroup',data.M);await h.pump();
+    eq(document.getElementById('targetFeedbackMessage').textContent,'Aggiunto a Da vedere insieme','shared toast after success');
+    modules.advanceTime(2600);eq(document.getElementById('targetFeedbackMessage').textContent,'','shared toast dismissed');
+    h.controls.commandOutcome='STALE';await Shell.perform('addToMyList',data.M);await h.pump();
+    check(!document.getElementById('targetFeedbackMessage').textContent.includes('Aggiunto'),'no false personal success');
+    modules.advanceTime(10000);check(document.getElementById('targetFeedbackMessage').textContent.includes('I dati sono cambiati'),'error remains readable');
   },{raw:data.absent});
   await test('UX11A global Add requires destination and writes only caller seen',async h=>{
     await h.boot();h.host.setObservedPerson(data.V);await h.pump();
@@ -565,11 +588,11 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   await test('H1 UI uncertain retry preserves exact observed movie',async h=>{await h.boot();const observed=await h.pending();h.controls.matchUncertain='acknowledge-match';const r=await Shell.performMatch('acknowledge',observed);eq(r.category,'TRANSPORT_UNCERTAIN','uncertain ack');await Shell.performMatch('retry',r.retryHandle);deep(h.matchCalls.at(-1).request.p_parameters,observed,'exact session and movie');});
   await test('H1 old UI observation cannot acknowledge newer pending',async h=>{await h.boot();const old=await h.pending(),id=h.matchServer.session.deck.find(id=>id!==old.matched_movie_id);for(const person of ['N','V'])h.matchServer.swipes.push({id:uid(person==='N'?87001:87002),session_id:old.session_id,movie_id:id,person,liked:true,created_at:data.at});await h.state.matchCommands.reconcile();await h.pump();eq((await Shell.performMatch('acknowledge',old)).category,'INVALID_INPUT','old observation rejected');eq(h.matchCalls.filter(c=>c.request.p_action==='acknowledge-match').length,0,'no accidental newer ack');});
   await test('actual uncertain-action CTA retries the exact captured request',async h=>{
-    await h.boot();h.controls.holdSnapshot=true;h.controls.uncertain=true;const before=h.state.view,result=await Shell.perform('recordSeen',data.M);eq(result.outcome,'TRANSPORT_UNCERTAIN','uncertain');const nodes=[];const visit=n=>{nodes.push(n);for(const child of n._children??Array.from(n.children??[]))visit(child);};visit(document.getElementById('movieGrid'));const retry=nodes.find(n=>n.textContent==='Riprova la stessa operazione');check(!!retry,'retry control visible');const original=copy(h.commands[0].body);await retry.onclick();deep(h.commands[1].body,original,'same UUID body and CAS');deep(h.state.view.personal.caller.seen,before.personal.caller.seen,'no optimistic seen');deep(h.state.view.counts,before.counts,'no optimistic counts');
+    await h.boot();h.controls.holdSnapshot=true;h.controls.uncertain=true;const before=h.state.view,result=await Shell.perform('recordSeen',data.M);eq(result.outcome,'TRANSPORT_UNCERTAIN','uncertain');const nodes=[];const visit=n=>{nodes.push(n);for(const child of n._children??Array.from(n.children??[]))visit(child);};visit(document.getElementById('targetFeedback'));const retry=nodes.filter(n=>n.textContent==='Riprova la stessa operazione').at(-1);check(!!retry,'retry control visible in feedback panel');const original=copy(h.commands[0].body);await retry.onclick();deep(h.commands[1].body,original,'same UUID body and CAS');deep(h.state.view.personal.caller.seen,before.personal.caller.seen,'no optimistic seen');deep(h.state.view.counts,before.counts,'no optimistic counts');
   });
   // Actual product dialog/participant/double-submit gestures are exercised over
   // real HTTP DOM by verify-product-target-http.cjs (not this non-parsing stub).
-  await test('CACHE is visibly stale and cannot authorize shell writes',async h=>{await h.boot();eq(h.state.runtime.source,'CACHE','cache');check(html().includes('Dati salvati'),'explicit cache presentation');eq((await Shell.perform('recordSeen',data.M)).outcome,'NOT_READY','runtime rejects writes');eq(h.commands.length,0,'no mutation');await h.reply();eq(h.state.runtime.source,'ONLINE','accepted online');},{cached:true});
+  await test('CACHE is visibly stale and cannot authorize shell writes',async h=>{await h.boot();eq(h.state.runtime.source,'CACHE','cache');check(document.getElementById('targetFeedbackMessage').textContent.includes('Dati salvati')&&document.getElementById('syncNotice').textContent.includes('verifica online'),'explicit cache presentation');eq((await Shell.perform('recordSeen',data.M)).outcome,'NOT_READY','runtime rejects writes');eq(h.commands.length,0,'no mutation');await h.reply();eq(h.state.runtime.source,'ONLINE','accepted online');},{cached:true});
   await test('UX2 Home chooses open events by explicit creation, never clock expiry',async h=>{
     const event=(id,status,created,date=null)=>({night_id:id,movie_id:data.M,status,created_at:created,date,time:date?'21:30':null,snack:'Poke',location:'Casa sintetica',proposed_by_person_id:data.N});
     const a=event(data.NIGHT,'confirmed','2027-01-03T22:30:00Z');
@@ -589,16 +612,16 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   await test('UX2 navigation names are contextual and All remains hidden',async h=>{
     await h.boot();Shell.navigate('groupList');syncLibraryNavigation();
     check(document.getElementById('tabAll').classList.contains('!hidden'),'All hidden after navigation styling');
-    eq(document.getElementById('libraryPageTitle').textContent,'Lista','group-first title');
+    eq(document.getElementById('libraryPageTitle').textContent,'Da vedere insieme','group collection title');
     Shell.navigate('personalList');eq(document.getElementById('libraryPageTitle').textContent,'Il mio cinema','personal entry');
-    eq(document.getElementById('targetPersonalList').textContent,'La mia Lista','own collection label');
+    eq(document.getElementById('targetPersonalList').textContent,'Da vedere','own collection label');
     Shell.navigate('together');eq(document.getElementById('libraryPageTitle').textContent,'Visti insieme','shared memory title');
     eq(h.commands.length,0,'navigation sends no domain command');
   });
   await test('UX3 shared cards expose choice first and relation removal separately',async h=>{
     await h.boot();Shell.navigate('groupList');const context=Shell.presentation(),movie=context.getMovie(data.M),ops=context.cardOperationsHtml(movie);
     check(ops.includes('Guardiamolo')&&ops.includes('Pianifica'),'two direct daily actions');
-    check(ops.includes('movie-list-withdraw')&&ops.includes('Togli dalla Lista'),'secondary relationship removal');
+    check(ops.includes('movie-list-withdraw')&&ops.includes('Togli dai Da vedere insieme'),'secondary relationship removal');
     check(!/Programmazione|Gestione|Ritira candidatura|Proponi al gruppo|Elimina film/.test(ops),'no technical or delete panel');
     const initial=context.scheduleInitial(movie);eq(initial.selectCandidate,true,'selection capture remains explicit');eq(initial.selectionView,h.state.view,'same committed view');
     eq(h.commands.length,0,'render never creates a relation or night');
@@ -641,7 +664,7 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   await test('UX5 PO confirmations identify the completed command',async h=>{
     await h.boot();await Shell.perform('setMyEvaluation',data.M,{rating:0});
     check(document.getElementById('targetFeedbackMessage').textContent.includes('Giudizio personale aggiornato.'),'judgment confirmation');
-    await Shell.perform('addToMyList',data.M);check(document.getElementById('targetFeedbackMessage').textContent.includes('Aggiunto ai tuoi Da vedere.'),'list confirmation');
+    await Shell.perform('addToMyList',data.M);check(document.getElementById('targetFeedbackMessage').textContent.includes('Aggiunto ai tuoi Da vedere'),'list confirmation');
     await Shell.perform('recordSeen',data.M);check(document.getElementById('targetFeedbackMessage').textContent.includes('Aggiunto ai miei Visti.'),'seen confirmation');
     h.controls.commandOutcome='STALE';await Shell.perform('removeSeen',data.M);check(!document.getElementById('targetFeedbackMessage').textContent.includes('Rimosso dai miei Visti'),'no success on rejected operation');
   });
@@ -748,10 +771,10 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     },{raw});
   await test('UX12 Ponyo from Valeria Seen adds same catalog film to shared List',async h=>{
     await h.boot();h.host.setObservedPerson(data.V);await h.pump();Shell.navigate('personalSeen');const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.detailActions(movie);
-    check(markup.includes('Proponi per noi'),'inverse action visible');
-    await clickProduct(context,markup,'Proponi per noi');await h.pump();
+    check(markup.includes('Vorrei vederlo insieme'),'inverse action visible');
+    await clickProduct(context,markup,'Vorrei vederlo insieme');await h.pump();
     eq(h.commands.length,1,'one write');eq(h.commands[0].body.intent,'PROPOSE_TO_GROUP','group relation');eq(h.commands[0].body.target.movie_id,data.M,'same catalog id');
-    check(document.getElementById('targetFeedbackMessage').textContent.includes('Proposto'),'visible outcome');
+    eq(document.getElementById('targetFeedbackMessage').textContent,'Aggiunto a Da vedere insieme','visible outcome');
   },{raw:data.seenOther});
   const tokenCases=[
     ['nobody seen',{},false],['only N seen',{nSeen:true},false],['only V seen',{vSeen:true},false],
@@ -959,13 +982,13 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   await test('UX12 Seen card has own contextual actions without legacy menu',async h=>{
     await h.boot();h.host.setObservedPerson(data.V);Shell.navigate('personalSeen');
     const context=Shell.presentation(),movie=context.getMovie(data.M),markup=createMovieCard(movie,[],context).innerHTML;
-    check(markup.includes('Voglio vederlo')&&markup.includes('Proponi per noi'),'caller list actions available');
+    check(markup.includes('Voglio vederlo')&&markup.includes('Vorrei vederlo insieme'),'caller list actions available');
     check(!markup.includes('L’ho visto anch’io')&&!context.detailActions(movie).includes('L’ho visto anch’io'),'personal seen managed only through own token');
     check(!markup.includes('movie-list-overflow')&&!markup.includes('fa-ellipsis'),'no Seen overflow menu');
     check(markup.includes('personal-tokens')&&!markup.includes('together-cluster'),'other Seen remains separate from Together');
     eq(h.commands.length,0,'render is read only');
   },{raw:data.seenOther});
-  for(const [label,intent] of [['Voglio vederlo','ADD_PERSONAL_LIST'],['Proponi per noi','PROPOSE_TO_GROUP']])
+  for(const [label,intent] of [['Voglio vederlo','ADD_PERSONAL_LIST'],['Vorrei vederlo insieme','PROPOSE_TO_GROUP']])
     await test('UX12 other member Seen card action '+label+' writes caller or group only',async h=>{
       await h.boot();h.host.setObservedPerson(data.V);Shell.navigate('personalSeen');
       const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.cardOperationsHtml(movie);
@@ -977,7 +1000,7 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   await test('UX12 Seen card hides already existing list relations',async h=>{
     await h.boot();Shell.navigate('personalSeen');
     const context=Shell.presentation(),movie=context.getMovie(data.M),markup=createMovieCard(movie,[],context).innerHTML;
-    check(!markup.includes('Voglio vederlo')&&!markup.includes('Voglio rivederlo')&&!markup.includes('Proponi per noi'),'no duplicate relation actions');
+    check(!markup.includes('Voglio vederlo')&&!markup.includes('Voglio rivederlo')&&!markup.includes('Vorrei vederlo insieme'),'no duplicate relation actions');
     check(!markup.includes('movie-list-overflow'),'no management menu');
   },{raw:(()=>{const wire=copy(data.selfList);wire.personal[0].states[0].seen=true;Object.assign(wire.group.states[0],{effective_candidacy:true,list_visible:true});return finish(wire);})()});
   await test('UX12 cinema metadata has one location on card and detail',async h=>{
@@ -1059,9 +1082,9 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   },{raw:(()=>{const wire=copy(data.absent);wire.personal[0].states[0].seen=true;wire.personal[0].states[0].judgment.rating=8.6;return finish(wire);})()});
   await test('UX12 human intent copy and TARGET commands stay distinct',async h=>{
     await h.boot();Shell.navigate('personalSeen');const context=Shell.presentation(),movie=context.getMovie(data.M),card=context.cardOperationsHtml(movie);
-    check(card.includes('Voglio rivederlo')&&card.includes('Proponi per noi'),'seen leads to rewatch intent and separate shared proposal');
+    check(card.includes('Voglio rivederlo')&&card.includes('Vorrei vederlo insieme'),'seen leads to rewatch intent and separate shared proposal');
     await clickProduct(context,card,'Voglio rivederlo');await h.pump();eq(h.commands[0].body.intent,'ADD_PERSONAL_LIST','personal intention only');
-    await clickProduct(context,card,'Proponi per noi');await h.pump();eq(h.commands[1].body.intent,'PROPOSE_TO_GROUP','shared intention only');
+    await clickProduct(context,card,'Vorrei vederlo insieme');await h.pump();eq(h.commands[1].body.intent,'PROPOSE_TO_GROUP','shared intention only');
     Shell.navigate('groupList');const choices=Shell.presentation().cardOperationsHtml(Shell.presentation().getMovie(data.M));
     check(choices.includes('Guardiamolo')&&choices.includes('Pianifica'),'choice and scheduling remain distinct');
   },{raw:(()=>{const wire=copy(data.absent);wire.personal[0].states[0].seen=true;return finish(wire);})()});
@@ -1100,20 +1123,20 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     await h.boot();Shell.navigate('personalSeen');const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.cardOperationsHtml(movie);
     check(markup.includes('movie-list-actions movie-seen-actions')&&markup.includes('movie-list-secondary-strip movie-seen-secondary')&&markup.includes('saga-entry-compact')&&markup.includes('is-shared')&&markup.includes('is-personal'),'two primary actions above Saga footer');
     eq((markup.match(/movie-seen-primary/g)||[]).length,2,'both Seen buttons use the same row geometry');
-    check(markup.indexOf('Proponi per noi')<markup.indexOf('Voglio rivederlo')&&markup.indexOf('Voglio rivederlo')<markup.indexOf('movie-seen-secondary'),'group then personal above Saga footer');
+    check(markup.indexOf('Vorrei vederlo insieme')<markup.indexOf('Voglio rivederlo')&&markup.indexOf('Voglio rivederlo')<markup.indexOf('movie-seen-secondary'),'group then personal above Saga footer');
     check(modules.css.includes('.is-target-card .movie-list-actions > button { min-height:52px;')&&modules.css.includes('.is-target-card .movie-seen-secondary,.is-target-card .movie-rewatch-secondary { min-height:44px; }'),'shared action geometry and stable footer');
   },{raw:(()=>{const wire=copy(data.absent);wire.personal[0].states[0].seen=true;wire.catalog[0].collection_id='123';wire.catalog[0].collection_name='Saga';return finish(wire);})()});
   await test('UX12 visual Seen footer without Saga keeps the same slot',async h=>{
     await h.boot();Shell.navigate('personalSeen');const context=Shell.presentation(),markup=context.cardOperationsHtml(context.getMovie(data.M));
     check(markup.includes('movie-list-actions movie-seen-actions')&&markup.includes('movie-list-secondary-strip movie-seen-secondary')&&!markup.includes('saga-entry-compact'),'same footer with Saga absent');
-    check(markup.includes('Voglio rivederlo')&&markup.includes('Proponi per noi'),'both quick actions remain');
+    check(markup.includes('Voglio rivederlo')&&markup.includes('Vorrei vederlo insieme'),'both quick actions remain');
     check(modules.css.includes('.is-target-card .movie-seen-secondary:empty { display:flex; }'),'footer slot remains when empty');
   },{raw:(()=>{const wire=copy(data.absent);wire.personal[0].states[0].seen=true;return finish(wire);})()});
   await test('UX12 Seen unseen caller uses the same two-column action slot',async h=>{
     await h.boot();h.host.setObservedPerson(data.V);await h.pump();Shell.navigate('personalSeen');
     const context=Shell.presentation(),markup=context.cardOperationsHtml(context.getMovie(data.M));
     check(markup.includes('movie-list-actions movie-seen-actions')&&markup.includes('Voglio vederlo'),'same action row for first viewing intent');
-    check(markup.indexOf('Proponi per noi')<markup.indexOf('Voglio vederlo'),'group-first even when viewing other member');
+    check(markup.indexOf('Vorrei vederlo insieme')<markup.indexOf('Voglio vederlo'),'group-first even when viewing other member');
     check(markup.includes('movie-list-secondary-strip movie-seen-secondary')&&!markup.includes('saga-entry-compact'),'footer remains below the row');
     check(modules.css.includes('.is-target-card .movie-list-actions > button { min-height:52px; padding:7px 8px; gap:6px; border-radius:var(--radius-lg); font-size:13px; }'),'shared geometry independent of Saga');
   },{raw:data.seenOther});
@@ -1130,8 +1153,8 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
       else check(markup.includes('movie-list-actions')&&markup.includes('Guardiamolo')&&markup.includes('Pianifica'),'choice pair remains primary');
       check(markup.includes('movie-list-secondary-strip movie-rewatch-secondary'),'stable footer slot');
       eq(markup.includes('saga-entry-compact'),saga,'Saga availability');
-      eq(markup.includes('Proponi per noi'),!open,'proposal only without an open event');
-      if(saga&&!open)check(markup.indexOf('Saga')<markup.indexOf('Proponi per noi'),'Saga left proposal right');
+      eq(markup.includes('Vorrei vederlo insieme'),!open,'proposal only without an open event');
+      if(saga&&!open)check(markup.indexOf('Saga')<markup.indexOf('Vorrei vederlo insieme'),'Saga left proposal right');
       check(markup.indexOf(open?'movie-list-state':'movie-list-actions')<markup.indexOf('movie-rewatch-secondary'),'primary area before footer');
       check(modules.css.includes('.is-target-card .movie-rewatch-secondary:empty { display:flex; }')&&modules.css.includes('#movieGrid:has(> .is-target-card) { grid-auto-rows:1fr; align-items:stretch; }'),'empty footer and desktop baseline');
     },{raw:(()=>{const wire=copy(data.rewatch);wire.catalog[0].collection_id=saga?'555':null;wire.catalog[0].collection_name=saga?'Saga':null;
@@ -1140,12 +1163,12 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   await test('UX12 My Seen candidate keeps personal actions separate from Rewatch choice',async h=>{
     await h.boot();Shell.navigate('personalSeen');const context=Shell.presentation(),markup=context.cardOperationsHtml(context.getMovie(data.M));
     check(markup.includes('movie-list-actions movie-seen-actions')&&!markup.includes('Guardiamolo')&&!markup.includes('Pianifica'),'Seen card does not reuse Rewatch choice');
-    check(!markup.includes('Proponi per noi'),'no duplicate proposal when candidate');
+    check(!markup.includes('Vorrei vederlo insieme'),'no duplicate proposal when candidate');
     check(markup.includes('movie-list-secondary-strip movie-seen-secondary'),'secondary footer retained');
   },{raw:(()=>{const wire=copy(data.absent);wire.personal[0].states[0].seen=true;Object.assign(wire.group.states[0],{effective_candidacy:true,list_visible:true});return finish(wire);})()});
   await test('UX12 personal interest alone does not present a shared choice in detail',async h=>{
     await h.boot();Shell.detail(data.M);const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.detailActions(movie);
-    check(markup.includes('Proponi per noi')&&!markup.includes('Guardiamolo')&&!markup.includes('Pianifica'),'proposal represents first shared step');
+    check(markup.includes('Vorrei vederlo insieme')&&!markup.includes('Guardiamolo')&&!markup.includes('Pianifica'),'proposal represents first shared step');
     check(markup.includes('Nei tuoi Da vedere'),'personal intention retained');
   },{raw:data.selfList});
   await test('UX12 Detail story and cast precede decisions',async h=>{
@@ -1216,7 +1239,7 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     check(!togetherCard.includes('card-poster::before'),'no second poster label');
     Shell.navigate('rewatch');context=Shell.presentation();
     const rewatch=context.cardOperationsHtml(context.getMovie(data.M));
-    check(rewatch.includes('movie-rewatch-propose')&&rewatch.includes('fa-user-plus')&&!rewatch.includes('intent-action is-shared'),'proposal is text footer action');
+    check(rewatch.includes('movie-rewatch-propose')&&rewatch.includes('fa-users')&&!rewatch.includes('intent-action is-shared'),'proposal is text footer action');
     check(rewatch.indexOf('movie-list-actions')<rewatch.indexOf('movie-rewatch-secondary'),'primary row precedes footer');
     check(modules.css.includes('.movie-rewatch-propose:focus-visible')&&modules.css.includes('min-height:44px'),'touch and focus treatment');
   },{raw:(()=>{const wire=copy(data.cancelledCompleted);wire.personal[0].states[0].seen=true;wire.personal[1].states[0].seen=true;wire.group.states[0].rewatch_visible=true;wire.group.states[0].rewatch_semantic=true;return finish(wire);})()});
@@ -1230,7 +1253,7 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   await test('UX12 final detail intent buttons share geometry and separate emphasis',async h=>{
     await h.boot();const context=Shell.presentation(),markup=context.detailActions(context.getMovie(data.M));
     check(markup.indexOf('Per noi')<markup.indexOf('Per me'),'group first');
-    check(markup.includes('fa-user-plus')&&markup.includes('fa-rotate'),'shared and rewatch icons');
+    check(markup.includes('fa-users')&&markup.includes('fa-user'),'group and personal intent icons');
     check(markup.includes('intent-action is-shared detail-intent-action')&&markup.includes('intent-action is-personal detail-intent-action'),'one button family');
     check(modules.css.includes('.intent-action { display:inline-flex;')&&modules.css.includes('.intent-action.is-shared')&&modules.css.includes('.detail-intent-personal .intent-action'),'same dimensions, different emphasis');
   },{raw:(()=>{const wire=copy(data.absent);wire.personal[0].states[0].seen=true;return finish(wire);})()});

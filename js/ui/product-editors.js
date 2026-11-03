@@ -90,8 +90,7 @@ const ProductEditors = (() => {
     const serial=++editorSerial, el=id=>document.getElementById(id);
     let activeModal='addModal', searchRevision=0, selected=null, saving=false, saved=false;
     const current=()=>context.current()&&serial===editorSerial&&!el(activeModal).classList.contains('hidden');
-    const verbs={personalList:'Aggiungi ai miei Da vedere',groupList:'Proponi per noi',personalSeen:'Aggiungi ai miei Visti'};
-    const added={personalList:'Film aggiunto ai tuoi Da vedere.',groupList:'Film proposto per voi.',personalSeen:'Film aggiunto ai miei Visti.'};
+    const verbs={groupList:'Vorrei vederlo insieme',personalSeen:'Aggiungi ai miei Visti'};
     const already={personalList:'Il film è già nei tuoi Da vedere.',groupList:'Il film è già nei Da vedere insieme.',personalSeen:'Il film è già nei miei Visti.'};
     const relation={personalList:'addToMyList',groupList:'proposeToGroup',personalSeen:'recordSeen'};
     const destination=el('targetAddDestination'),pickerDestination=el('targetPickerDestination');
@@ -119,7 +118,10 @@ const ProductEditors = (() => {
     };
     const updateSelection=()=>{
       const target=pickerDestination.value,commit=el('targetPickerCommit');
-      commit.textContent=verbs[target]||'Scegli una destinazione';commit.disabled=!target||saving||saved;
+      const seen=selected?.movie&&context.view.personal.getState(context.view.context.caller.personId,selected.movie.id).seen===true;
+      const label=target==='personalList'?(seen?'Voglio rivederlo':'Voglio vederlo'):verbs[target];
+      commit.innerHTML=label?'<i class="fa-solid '+(target==='groupList'?'fa-users':target==='personalList'?'fa-user':'fa-check')+'" aria-hidden="true"></i> '+label:'Scegli una destinazione';
+      commit.disabled=!target||saving||saved;
       destination.value=target;
     };
     pickerDestination.onchange=updateSelection;
@@ -145,7 +147,9 @@ const ProductEditors = (() => {
         const result=await save(details,relation[target]);if(!current())return;
         if(!result?.movieId||!['SUCCESS','ALREADY_IN_TARGET_STATE'].includes(result.relation?.outcome))
           throw new Error('Aggiunta non completata. Attendi il riallineamento prima di riprovare.');
-        saved=true;status.textContent=result.relation.outcome==='ALREADY_IN_TARGET_STATE'?already[target]:added[target];
+        saved=true;
+        if(result.relation.outcome==='ALREADY_IN_TARGET_STATE')status.textContent=already[target];
+        else {status.textContent='';closeModal('pickerModal');}
       }catch(error){if(current())status.textContent=error.message||'Aggiunta non completata. Riprova.';}
       finally{saving=false;if(current())updateSelection();}
     };
