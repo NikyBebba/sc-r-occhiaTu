@@ -16,10 +16,39 @@ function fixtureData() {
   const addNight=(wire,date='2027-01-05',id=F.uid(20009))=>{wire.nights.push({...F.night(id,F.M,'confirmed'),date,time:date?'21:30':null,confirmed_at:F.AT});wire.versions.entries.push(F.version('night',F.G,id));wire.group.states[0].list_visible=false;wire.group.states[0].rewatch_visible=false;wire.group.states[0].eligibility={match_base:false,ruota_base:false};return F.finish(wire);};
   const repeat=F.completed();repeat.nights.push({...F.night(F.uid(20002),F.M,'completed'),snack:'Secondo snack'});repeat.versions.entries.push(F.version('night',F.G,F.uid(20002)));repeat.participants.push({night_id:F.uid(20002),person_id:F.N});F.finish(repeat);
   const togetherList=F.completed();togetherList.personal[0].states[0].list={active:true,generation:'1'};F.finish(togetherList);
+  const agenda=F.base();
+  for(const [number,status,date] of [[20001,'proposed','2027-01-03'],[20002,'confirmed','2027-01-03'],[20003,'confirmed',null],[20004,'confirmed','2027-01-05']]){
+    const id=F.uid(number),night={...F.night(id,F.M,status),date,time:date?'21:30':null,snack:'Poke',location:'Casa',confirmed_at:status==='confirmed'?F.AT:null};
+    agenda.nights.push(night);agenda.versions.entries.push(F.version('night',F.G,id));
+  }
+  F.finish(agenda);
+  const recommendationSet=F.base(Array.from({length:12},(_,index)=>F.uid(index+1)));
+  for(const [index,row] of recommendationSet.catalog.entries()){
+    row.title='Proposal '+String(index+1).padStart(2,'0');row.release_year=2000+index;row.duration='110 min';
+    Object.assign(recommendationSet.group.states[index],{effective_candidacy:true,list_visible:true,eligibility:{match_base:true,ruota_base:true}});
+  }
+  recommendationSet.personal[0].states[0].judgment.rating=8;
+  F.finish(recommendationSet);
+  const metadata=F.completed();
+  Object.assign(metadata.catalog[0],{tmdb_id:'777',poster:'https://example.test/old.jpg',overview:'Trama precedente',platform:'Netflix',cinema_watchlist:true});
+  metadata.personal[0].states[0].list={active:true,generation:'1'};
+  metadata.personal[0].states[0].judgment.rating=8;
+  metadata.nights[0].snack='Poke';metadata.nights[0].location='Casa';F.finish(metadata);
+  const withCancelled=(wire,id=F.uid(20003))=>{
+    wire.nights.push({...F.night(id,F.M,'cancelled'),cancelled_at:F.AT});
+    wire.versions.entries.push(F.version('night',F.G,id));return F.finish(wire);
+  };
+  const cancelledOnly=withCancelled(F.base());
+  const cancelledCompleted=withCancelled(F.completed());
+  const cancelledOpen=withCancelled(F.scheduled());
+  const cancelledMixed=withCancelled(F.completed());
+  cancelledMixed.nights.push(F.night(F.uid(20002),F.M,'proposed'));
+  cancelledMixed.versions.entries.push(F.version('night',F.G,F.uid(20002)));F.finish(cancelledMixed);
   const detailCases=[['none',F.relationless(),'shared'],['mine',F.selfList(),'choose'],['shared',F.candidate(),'choose'],['seenme',seen(F.relationless(),0),'myJudgment'],['seenother',seen(F.relationless(),1),'seen'],['separate',F.rewatch(),'shared'],['together',F.completed(),'groupJudgment'],['again',togetherList,'choose'],['future',addNight(F.relationless()),'nights'],['due',addNight(F.relationless(),'2027-01-03'),'complete'],['repeat',repeat,'nights'],['pastfuture',addNight(F.completed()),'nights']];
-  return { detailCases, quickCard, raw, absent, unavailable, rewatch: F.rewatch(), multiple: F.multipleEvents(), N: F.N, V: F.V, G: F.G, M: F.M, Q: F.Q, R: F.uid(3), NIGHT: F.NIGHT, observer: F.uid(998000), other: F.uid(998001), at: F.AT };
+  return { detailCases, quickCard, agenda, recommendationSet, metadata, cancelledOnly, cancelledCompleted, cancelledOpen, cancelledMixed,
+    noEligible: F.scheduled(), raw, absent, unavailable, selfList:F.selfList(), seenOther:seen(F.relationless(),1), rewatch: F.rewatch(), multiple: F.multipleEvents(), N: F.N, V: F.V, G: F.G, M: F.M, Q: F.Q, R: F.uid(3), NIGHT: F.NIGHT, observer: F.uid(998000), other: F.uid(998001), at: F.AT };
 }
-async function runChecks(modules, data, onCase = () => {}) {
+async function runChecks(modules, data, onCase = () => {}, selected = () => true) {
   // Component regressions inject explicit legacy authority; normal negotiation
   // is exercised separately by verify-protocol-session.cjs.
   const productionEntry = modules.originalSession;
@@ -64,7 +93,7 @@ async function runChecks(modules, data, onCase = () => {}) {
   async function make(options = {}) {
     const jobs = [], snapshots = [], commands = [], invalidation = [], matchCalls = [], matchReads = [], rt = [], presence = [], publications = [], timers = new Map(), records = new Map(), receipts = new Map();
     let serial = 0, request = 998100, contentSerial = 95000, nightSerial = 20000, swipeSerial = 70000, matchSerial = 60000;
-    const controls = { wire: copy(options.raw ?? data.raw), caller: options.caller ?? data.N, group: data.G, holdSnapshot: !!options.cached, holdCommand: false, commandOutcome: null, uncertain: false, snapshotError: null, matchUncertain: null, matchBefore: null, matchHold: false, matchCloseOutcome: null, satisfyOnComplete: false };
+    const controls = { wire: copy(options.raw ?? data.raw), caller: options.caller ?? data.N, group: data.G, holdSnapshot: !!options.cached, holdCommand: false, commandOutcome: null, uncertain: false, snapshotError: null, matchUncertain: null, matchBefore: null, matchHold: false, matchReadUnavailable: false, matchCloseOutcome: null, satisfyOnComplete: false };
     const matchServer = { session: null, swipes: [] };
     function wire() {
       const w = copy(controls.wire); w.caller.person_id = controls.caller; w.selected_group.group_id = controls.group; w.coverage.group_id = controls.group;
@@ -174,7 +203,7 @@ async function runChecks(modules, data, onCase = () => {}) {
       executeMatchAction(req) {
         return new Promise((resolve, reject) => { const actor = controls.caller; const row = { request: req, resolve() { if (controls.matchBefore === req.p_action) { controls.matchBefore = null; reject(Error('Synthetic before send')); return; } const r = matchExecute(req, actor); if (controls.matchUncertain === req.p_action) { controls.matchUncertain = null; reject(Error('Synthetic Match response lost')); } else resolve(r); } }; matchCalls.push(row); if (!controls.matchHold) row.resolve(); });
       },
-      readLatestMatchState: async () => { const value = { category: 'MATCH_STATE', session: copy(matchServer.session), swipes: copy(matchServer.swipes) }; matchReads.push(value); return value; },
+      readLatestMatchState: async () => { const value = controls.matchReadUnavailable ? { category: 'UNAVAILABLE', code: 'OFFLINE' } : { category: 'MATCH_STATE', session: copy(matchServer.session), swipes: copy(matchServer.swipes) }; matchReads.push(value); return value; },
       subscribeRealtime: h => { rt.push(h); return () => {}; }, subscribePresence: h => { presence.push(h); return { track: async () => {}, untrack: async () => {}, dispose() {} }; }, newSeed: () => 17, nowInstant: () => data.at
     } });
     const legacyEvents = [];
@@ -208,7 +237,7 @@ async function runChecks(modules, data, onCase = () => {}) {
       channel(topic,options){const callbacks=[],c={topic,options,callbacks,on(type,filter,fn){callbacks.push({type,filter,fn});return c;},subscribe(fn){c.status=fn;return c;},presenceState(){return{};},track:async()=>{},untrack:async()=>{}};channels.push(c);return c;},removeChannel(c){channels.splice(channels.indexOf(c),1);return Promise.resolve();}};
     sb=client;authIdentity={uid:caller,person:caller===data.N?'N':'V',expiresAt:(now+3600)*1000};currentUser=authIdentity.person;return{client,session};
   }
-  async function test(name, fn, options) { const h = await make(options); try { await fn(h); cases++; onCase(name); } finally { await h.shutdown(); } }
+  async function test(name, fn, options) { if(!selected(name))return;modules.clearTimers?.();const h = await make(options); try { await fn(h); cases++; onCase(name); } finally { await h.shutdown(); modules.clearTimers?.(); } }
   const html = () => modules.html();
   await test('initial accepted Snapshot renders real shell',async h=>{await h.boot();eq(h.state.phase,'READY','ready');check(!html().includes('Lista personale'),'no duplicate navigation in grid');Shell.navigate('groupList');check(html().includes(data.raw.catalog[0].title),'catalog rendered in library');});
   for(const destination of ['home','personalList','personalSeen','groupList','rewatch','scheduled','together','memories','calendar','recommendations','wheel']) await test('real shell '+destination,async h=>{await h.boot();Shell.navigate(destination);eq(Shell.getDestination(),destination,'selected route');eq(h.commands.length,0,'render not command');});
@@ -222,14 +251,174 @@ async function runChecks(modules, data, onCase = () => {}) {
   for(const outcome of ['STALE','REQUEST_ID_REUSE'])await test('shell '+outcome+' does not retry',async h=>{await h.boot();h.controls.commandOutcome=outcome;eq((await Shell.perform('recordSeen',data.M)).outcome,outcome,'semantic result');await h.pump();eq(h.commands.length,1,'no retry');});
   await test('uncertain exact request retry',async h=>{await h.boot();h.controls.uncertain=true;const r=await Shell.perform('recordSeen',data.M);eq(r.outcome,'TRANSPORT_UNCERTAIN','uncertain');const before=copy(h.commands[0].body);await Shell.perform('retry',r.retryHandle);deep(h.commands.at(-1).body,before,'exact request');});
   await test('content creation and explicit relation separate',async h=>{await h.boot();const r=await Shell.saveContent({title:'Synthetic new'},'addToMyList');await h.pump();eq(r.content.outcome,'SUCCESS','create');eq(r.relation.outcome,'SUCCESS','relation');deep(h.commands.map(c=>c.body.intent),['CONTENT_CREATE','ADD_PERSONAL_LIST'],'separate');});
-  for(const [destination,intent] of [['personalList','ADD_PERSONAL_LIST'],['personalSeen','RETROSPECTIVE_SEEN'],['groupList','PROPOSE_TO_GROUP']])await test('Add primary save follows '+destination,async h=>{
-    await h.boot();const ui=Shell.createShell({session:h.host,root:document,lookup:async title=>({title})});
-    ui.navigate(destination);ui.edit('createContent',null);
-    document.getElementById('addTitle').value='Synthetic contextual add';
+  for(const destination of ['personalList','personalSeen','groupList'])await test('UX11A contextual Add keeps destination and zero results read-only '+destination,async h=>{
+    await h.boot();const ui=Shell.createShell({session:h.host,root:document});
+    ui.navigate(destination);
     const originalSearch=searchTmdbCandidates;searchTmdbCandidates=async()=>[];
-    try{await document.getElementById('addSaveBtn').onclick();await h.pump();if(destination==='personalSeen'){eq(h.commands.length,0,'unidentified search never writes seen');check(document.getElementById('targetAddMessage').textContent.includes('Nessun film'),'search feedback');}else deep(h.commands.map(c=>c.body.intent),['CONTENT_CREATE',intent],'explicit primary relation only');}
+    ui.edit('createContent',null);
+    eq(document.getElementById('targetAddDestination').value,destination,'contextual destination shown');
+    document.getElementById('addTitle').value='Synthetic contextual add';
+    try{await document.getElementById('addSaveBtn').onclick();await h.pump();eq(h.commands.length,0,'search never writes');check(document.getElementById('targetAddMessage').textContent.includes('Nessun film'),'zero results feedback: '+document.getElementById('targetAddMessage').textContent);}
     finally{searchTmdbCandidates=originalSearch;ui.dispose();}
   });
+  for(const [destination,intent] of [['personalList','ADD_PERSONAL_LIST'],['groupList','PROPOSE_TO_GROUP'],['personalSeen','RETROSPECTIVE_SEEN']])await test('UX11A selection and explicit primary save '+destination,async h=>{
+    await h.boot();const originalSearch=searchTmdbCandidates;searchTmdbCandidates=async()=>[];
+    const ui=Shell.createShell({session:h.host,root:document});
+    try{
+      ui.navigate(destination);ui.edit('createContent',null);eq(document.getElementById('targetAddDestination').value,destination,'context destination');
+      document.getElementById('addTitle').value=data.absent.catalog[0].title;
+      await document.getElementById('addSaveBtn').onclick();
+      const choices=document.getElementById('pickerResults')._children;check(choices.length>0,'known result offered');
+      eq(h.commands.length,0,'search does not write');choices[0].onclick();eq(h.commands.length,0,'selection does not write');
+      eq(document.getElementById('targetPickerDestination').value,destination,'destination shown with selection');
+      await document.getElementById('targetPickerCommit').onclick();await h.pump();
+      deep(h.commands.map(c=>c.body.intent),[intent],'existing content reused');
+      check(document.getElementById('targetPickerMessage').textContent.includes(destination==='groupList'?'Film proposto':'Film aggiunto'),'specific outcome');
+      await document.getElementById('targetPickerCommit').onclick();eq(h.commands.length,1,'repeat submission blocked');
+    }finally{searchTmdbCandidates=originalSearch;ui.dispose();}
+  },{raw:data.absent});
+  await test('UX11A global Add requires destination and writes only caller seen',async h=>{
+    await h.boot();h.host.setObservedPerson(data.V);await h.pump();
+    const originalSearch=searchTmdbCandidates;searchTmdbCandidates=async()=>[];
+    const ui=Shell.createShell({session:h.host,root:document});
+    try{
+      ui.navigate('personalSeen');ui.edit('createContent',null,{entry:'global'});
+      eq(document.getElementById('targetAddDestination').value,'','global has no preselection');
+      document.getElementById('addTitle').value=data.absent.catalog[0].title;await document.getElementById('addSaveBtn').onclick();
+      document.getElementById('pickerResults')._children[0].onclick();
+      check(document.getElementById('targetPickerCommit').disabled,'no implicit destination');eq(h.commands.length,0,'no write yet');
+      const pickerDestination=document.getElementById('targetPickerDestination');pickerDestination.value='personalSeen';pickerDestination.onchange();
+      await document.getElementById('targetPickerCommit').onclick();await h.pump();
+      eq(h.commands[0].body.intent,'RETROSPECTIVE_SEEN','personal seen intent');
+      eq(h.commands[0].body.expected_versions[0].scope_id,data.N,'authenticated caller scope');
+      check(!h.state.view.getCard(data.M).personal.observed.seen,'other person unchanged');
+    }finally{searchTmdbCandidates=originalSearch;ui.dispose();}
+  },{raw:data.absent});
+  await test('UX11A cancel and already-present relation stay explicit',async h=>{
+    await h.boot();const originalSearch=searchTmdbCandidates;searchTmdbCandidates=async()=>[];
+    const ui=Shell.createShell({session:h.host,root:document});
+    try{
+      ui.navigate('groupList');ui.edit('createContent',null);document.getElementById('addTitle').value=data.absent.catalog[0].title;
+      await document.getElementById('addSaveBtn').onclick();document.getElementById('pickerResults')._children[0].onclick();
+      closeModal('pickerModal');eq(h.commands.length,0,'cancel has no effects');
+      ui.edit('createContent',null);document.getElementById('addTitle').value=data.absent.catalog[0].title;
+      await document.getElementById('addSaveBtn').onclick();document.getElementById('pickerResults')._children[0].onclick();
+      h.controls.commandOutcome='ALREADY_IN_TARGET_STATE';await document.getElementById('targetPickerCommit').onclick();
+      check(document.getElementById('targetPickerMessage').textContent.includes('già nei Da vedere insieme'),'already-present relation explained');
+      eq(h.commands.length,1,'only explicit command');
+    }finally{searchTmdbCandidates=originalSearch;ui.dispose();}
+  },{raw:data.absent});
+  await test('UX11A homonyms remain distinct by TMDb identity',async h=>{
+    await h.boot();const originalSearch=searchTmdbCandidates;
+    searchTmdbCandidates=async()=>[{id:4101,title:'The Same Title',year:'1998',poster:''},{id:4102,title:'The Same Title',year:'2024',poster:''}];
+    const ui=Shell.createShell({session:h.host,root:document,detailsById:async id=>({tmdb_id:id,title:'The Same Title',matched:true,release_year:id===4102?2024:1998})});
+    try{
+      ui.navigate('personalList');ui.edit('createContent',null);document.getElementById('addTitle').value='The Same Title';
+      await document.getElementById('addSaveBtn').onclick();const choices=document.getElementById('pickerResults')._children;
+      eq(choices.length,2,'two years offered');check(choices[0].innerHTML.includes('1998')&&choices[1].innerHTML.includes('2024'),'years visible');
+      choices[1].onclick();eq(h.commands.length,0,'selection neutral');await document.getElementById('targetPickerCommit').onclick();await h.pump();
+      deep(h.commands.map(c=>c.body.intent),['CONTENT_CREATE','ADD_PERSONAL_LIST'],'content and chosen relation');
+      eq(h.commands[0].body.parameters.tmdb_id,'4102','chosen identity retained');
+    }finally{searchTmdbCandidates=originalSearch;ui.dispose();}
+  },{raw:data.absent});
+  await test('UX11A TMDb match reuses known content while adding missing relation',async h=>{
+    await h.boot();const originalSearch=searchTmdbCandidates;
+    searchTmdbCandidates=async()=>[{id:777,title:'Alternate search title',year:'2020',poster:''}];
+    const ui=Shell.createShell({session:h.host,root:document,detailsById:async()=>{throw Error('Known content must not be fetched again');}});
+    try{
+      ui.navigate('personalList');ui.edit('createContent',null);document.getElementById('addTitle').value='Alternate search title';
+      await document.getElementById('addSaveBtn').onclick();const choices=document.getElementById('pickerResults')._children;
+      eq(choices.length,1,'existing TMDb ID deduplicated');check(choices[0].innerHTML.includes('Già nel catalogo'),'known status visible');
+      choices[0].onclick();await document.getElementById('targetPickerCommit').onclick();await h.pump();
+      deep(h.commands.map(c=>c.body.intent),['ADD_PERSONAL_LIST'],'no duplicate content create');
+    }finally{searchTmdbCandidates=originalSearch;ui.dispose();}
+  },{raw:(()=>{const wire=copy(data.absent);wire.catalog[0].tmdb_id='777';return wire;})()});
+  await test('UX11A search error differs from zero results',async h=>{
+    await h.boot();const originalSearch=searchTmdbCandidates;searchTmdbCandidates=async()=>{throw Error('Synthetic network failure');};
+    const ui=Shell.createShell({session:h.host,root:document});
+    try{ui.navigate('groupList');ui.edit('createContent',null);document.getElementById('addTitle').value='Missing';
+      await document.getElementById('addSaveBtn').onclick();check(document.getElementById('targetAddMessage').textContent.includes('Ricerca non disponibile'),'network error');eq(h.commands.length,0,'no fallback save');}
+    finally{searchTmdbCandidates=originalSearch;ui.dispose();}
+  },{raw:data.absent});
+  await test('UX11A stale search response cannot replace newer query',async h=>{
+    await h.boot();const originalSearch=searchTmdbCandidates,resolvers=new Map();
+    searchTmdbCandidates=title=>new Promise(resolve=>resolvers.set(title,resolve));
+    const ui=Shell.createShell({session:h.host,root:document});
+    try{
+      ui.navigate('groupList');ui.edit('createContent',null);const input=document.getElementById('addTitle'),button=document.getElementById('addSaveBtn');
+      input.value='First query';const first=button.onclick();input.value='Second query';input.oninput();const second=button.onclick();
+      resolvers.get('First query')([{id:5101,title:'Old result',year:'2001',poster:''}]);await first;
+      check(document.getElementById('pickerModal').classList.contains('hidden'),'late old result ignored');
+      resolvers.get('Second query')([{id:5102,title:'Current result',year:'2024',poster:''}]);await second;
+      check(document.getElementById('pickerResults').innerHTML.includes('Current result'),'latest result displayed');
+      check(!document.getElementById('pickerResults').innerHTML.includes('Old result'),'old result never displayed');eq(h.commands.length,0,'search remains read only');
+    }finally{searchTmdbCandidates=originalSearch;ui.dispose();}
+  },{raw:data.absent});
+  await test('UX11A global navigation entry has no preselected relation',async h=>{
+    await h.boot();Shell.navigate('personalList');openAddModal();
+    eq(document.getElementById('targetAddDestination').value,'','global plus requires choice');eq(h.commands.length,0,'opening global Add read only');
+  },{raw:data.absent});
+  await test('UX11B same-ID preview applies only changed allowed fields',async h=>{
+    await h.boot();const before=copy(h.state.view.getCard(data.M)),nights=copy(h.controls.wire.nights),participants=copy(h.controls.wire.participants);
+    const ui=Shell.createShell({session:h.host,root:document,detailsById:async id=>({tmdb_id:Number(id),matched:true,title:before.content.title,
+      overview:'Trama aggiornata',poster:'https://example.test/new.jpg',platform:'Streaming',cinema_watchlist:false})});
+    try{
+      const context=ui.presentation(),detail=context.detailActions(context.getMovie(data.M));
+      check(detail.includes('Aggiorna informazioni da TMDb')&&!detail.includes('Correggi titolo'),'secondary action in film detail');
+      ui.edit('refreshMetadata',data.M);await tick();eq(h.commands.length,0,'preview read only');
+      const changes=document.getElementById('metadataRefreshChanges').innerHTML;
+      check(changes.includes('Trama')&&changes.includes('Locandina'),'compact changes shown');
+      await document.getElementById('metadataRefreshApply').onclick();await h.pump();
+      eq(h.commands.length,1,'single explicit write');eq(h.commands[0].body.intent,'CONTENT_UPDATE_METADATA','metadata command');
+      deep(h.commands[0].body.parameters,{poster:'https://example.test/new.jpg',overview:'Trama aggiornata'},'changed content only');
+      const after=h.state.view.getCard(data.M);
+      deep(after.personal,before.personal,'personal relations and judgments preserved');
+      deep(after.group.candidacy,before.group.candidacy,'group relation preserved');
+      deep(after.group.judgment,before.group.judgment,'group judgment preserved');
+      deep(h.controls.wire.nights,nights,'night snack and location preserved');deep(h.controls.wire.participants,participants,'participants preserved');
+      eq(after.content.cinema_watchlist,true,'cinema classification preserved');
+      await document.getElementById('metadataRefreshApply').onclick();eq(h.commands.length,1,'repeat submission blocked');
+    }finally{ui.dispose();}
+  },{raw:data.metadata});
+  await test('UX11B no differences and incomplete data do not write',async h=>{
+    await h.boot();const original=data.metadata.catalog[0];
+    const ui=Shell.createShell({session:h.host,root:document,detailsById:async()=>({tmdb_id:777,matched:true,title:original.title,
+      overview:null,poster:'',genres:[],platform:'Streaming'})});
+    try{ui.edit('refreshMetadata',data.M);await tick();
+      check(document.getElementById('metadataRefreshStatus').textContent.includes('già aggiornate'),'no differences feedback');
+      check(document.getElementById('metadataRefreshApply').classList.contains('hidden'),'apply hidden');eq(h.commands.length,0,'no write');
+    }finally{ui.dispose();}
+  },{raw:data.metadata});
+  await test('UX11B mismatched TMDb response and transport error are read only',async h=>{
+    await h.boot();let response={tmdb_id:778,matched:true,title:'Wrong film'};
+    const ui=Shell.createShell({session:h.host,root:document,detailsById:async()=>{if(response==='throw')throw Error('Synthetic network failure');return response;}});
+    try{ui.edit('refreshMetadata',data.M);await tick();
+      check(document.getElementById('metadataRefreshStatus').textContent.includes('coerenti'),'wrong identity rejected');eq(h.commands.length,0,'no write');
+      response=null;document.getElementById('metadataRefreshRetry').onclick();await tick();
+      check(document.getElementById('metadataRefreshStatus').textContent.includes('coerenti'),'empty response rejected');eq(h.commands.length,0,'no write after retry');
+      response='throw';document.getElementById('metadataRefreshRetry').onclick();await tick();
+      check(document.getElementById('metadataRefreshStatus').textContent.includes('TMDb non disponibile'),'transport error explained');eq(h.commands.length,0,'no write on error');
+    }finally{ui.dispose();}
+  },{raw:data.metadata});
+  await test('UX11B stale preview cannot overwrite newer metadata',async h=>{
+    await h.boot();const ui=Shell.createShell({session:h.host,root:document,detailsById:async()=>({tmdb_id:777,matched:true,title:data.metadata.catalog[0].title,overview:'Proposed overview'})});
+    try{ui.edit('refreshMetadata',data.M);await tick();
+      h.controls.wire.catalog[0].overview='Changed elsewhere';await h.refresh();
+      await document.getElementById('metadataRefreshApply').onclick();
+      eq(h.commands.length,0,'stale preview no write');check(document.getElementById('metadataRefreshStatus').textContent.includes('Aggiorna l’anteprima'),'refresh required');
+    }finally{ui.dispose();}
+  },{raw:data.metadata});
+  await test('UX11B closing modal ignores late TMDb response',async h=>{
+    await h.boot();let resolve;const ui=Shell.createShell({session:h.host,root:document,detailsById:()=>new Promise(r=>resolve=r)});
+    try{ui.edit('refreshMetadata',data.M);closeModal('metadataRefreshModal');
+      resolve({tmdb_id:777,matched:true,title:'Late title'});await tick();
+      eq(h.commands.length,0,'late response cannot write');check(document.getElementById('metadataRefreshModal').classList.contains('hidden'),'modal stays closed');
+    }finally{ui.dispose();}
+  },{raw:data.metadata});
+  await test('UX11B no TMDb identity exposes no refresh action',async h=>{
+    await h.boot();const context=Shell.presentation();
+    check(!context.detailActions(context.getMovie(data.M)).includes('Aggiorna informazioni da TMDb'),'no unavailable action');
+  },{raw:data.absent});
   await test('UX4 existing catalog retrospective seen preserves personal intent and judgments',async h=>{
     await h.boot();await Shell.perform('addToMyList',data.M);await h.pump();
     const before=copy(h.state.view.getCard(data.M));const n=h.commands.length;
@@ -253,6 +442,11 @@ async function runChecks(modules, data, onCase = () => {}) {
   await test('Match swipe pending H1 exact',async h=>{await h.boot();const token=await h.pending();eq((await h.state.matchCommands.acknowledge(token)).outcome,'SUCCESS','ack');deep(h.matchCalls.at(-1).request.p_parameters,token,'exact observed token');});
   await test('Match Presence separate',async h=>{await h.boot();await h.enterMatch();const before=h.state.view;h.presence[0].onSync([data.N,data.N,data.V]);await h.pump();deep(h.state.match.presence,[data.N,data.V],'UUID dedup');eq(h.state.view,before,'shared unchanged');});
   await test('Match reconnect revalidates',async h=>{await h.boot();await h.enterMatch();const n=h.matchReads.length;h.rt[0].onReconnect();await h.pump();check(h.matchReads.length>n,'read');});
+  await test('Match connecting is transient, then ordinary lobby',async h=>{await h.boot();Shell.navigate('match');check(html().includes('Connessione…'),'connecting feedback');await h.pump();eq(h.state.match.phase,'READY','ready');check(html().includes('Chi c&#39;è?')||html().includes("Chi c'è?"),'ordinary lobby');check(!html().includes('Match non disponibile'),'no false error');});
+  await test('Match disconnect hides swipe and reconnects without session reset',async h=>{await h.boot();Shell.navigate('match');await h.pump();h.presence[0].onSync([data.N,data.V]);await h.pump();const id=h.matchServer.session.id,deck=copy(h.matchServer.session.deck),card=h.state.match.derived.currentCard;check(html().includes('swipeCard(')||html().includes('Nope'),'swipe visible');h.rt[0].onDisconnected();await h.pump();eq(h.state.match.phase,'DISCONNECTED','disconnected');check(html().includes('riconnetterà automaticamente'),'automatic recovery copy');check(!html().includes('Nope')&&!html().includes('Riprova</button>'),'no swipe or manual retry');h.rt[0].onReconnect();await h.pump();eq(h.state.match.phase,'READY','recovered');eq(h.matchServer.session.id,id,'same session');deep(h.matchServer.session.deck,deck,'same deck');eq(h.state.match.derived.currentCard.movie_id,card.movie_id,'same card');eq(h.matchCalls.filter(c=>['start','close'].includes(c.request.p_action)).length,1,'no restart or close');});
+  await test('Match waiting for partner remains normal Match state',async h=>{await h.boot();Shell.navigate('match');await h.pump();h.presence[0].onSync([data.N,data.V]);await h.pump();const card=h.state.match.derived.currentCard;await h.state.matchCommands.swipe(card,true);await h.pump();eq(h.state.match.phase,'READY','still connected');check(html().includes('In attesa di'),'partner wait visible');check(!html().includes('Match non disponibile')&&!html().includes('Nope'),'no false connection error or second swipe');});
+  await test('Match unavailable retries read of existing session',async h=>{await h.boot();Shell.navigate('match');await h.pump();const id=h.matchServer.session.id,card=h.state.match.derived.currentCard;h.controls.matchReadUnavailable=true;await h.state.matchCommands.reconcile();await h.pump();eq(h.state.match.phase,'UNAVAILABLE','unavailable');check(html().includes('Riprova a caricare la sessione'),'recovery copy');check(html().includes('reconcileMatch()'),'recovery control uses reconciliation');check(!html().includes('Nope'),'no swipe while unavailable');h.controls.matchReadUnavailable=false;await Shell.performMatch('reconcile');await h.pump();eq(h.state.match.phase,'READY','read recovered');eq(h.matchServer.session.id,id,'same session');eq(h.state.match.derived.currentCard.movie_id,card.movie_id,'same card');eq(h.matchCalls.filter(c=>['start','close'].includes(c.request.p_action)).length,1,'no restart or close');});
+  await test('Match initial read failure recovers without creating a session',async h=>{await h.boot();h.controls.matchReadUnavailable=true;Shell.navigate('match');await h.pump();eq(h.state.match.phase,'UNAVAILABLE','initial read unavailable');eq(h.matchServer.session,null,'no invented session');check(html().includes('reconcileMatch()'),'read retry available');h.controls.matchReadUnavailable=false;await Shell.performMatch('reconcile');await h.pump();eq(h.state.match.phase,'READY','read recovers');eq(h.matchServer.session,null,'retry does not start');eq(h.matchCalls.length,0,'no Match mutation');check(html().includes('Chi c&#39;è?')||html().includes("Chi c'è?"),'normal lobby');});
   await test('Match leave preserves server session',async h=>{await h.boot();await h.enterMatch();const id=h.matchServer.session.id;await h.state.matchCommands.leave();eq(h.matchServer.session.id,id,'not close');});
   await test('Match schedule Snapshot explicit close',async h=>{await h.boot();const token=await h.pending();h.controls.holdSnapshot=true;const r=await h.host.scheduleMatchedMovie(token,{date:'2027-01-05'});eq((await h.host.closeScheduledMatch(r.closeTicket)).code,'SCHEDULE_SNAPSHOT_REQUIRED','gate');await h.reply();eq((await h.host.closeScheduledMatch(r.closeTicket)).outcome,'SUCCESS','close');});
   await test('Match close partial failure remains separate',async h=>{await h.boot();const token=await h.pending();h.controls.matchCloseOutcome='ERROR';const r=await h.host.scheduleMatchedMovie(token,{date:'2027-01-05'});await h.pump();eq(r.actionResult.outcome,'SUCCESS','schedule');eq((await h.host.closeScheduledMatch(r.closeTicket)).outcome,'ERROR','partial');});
@@ -289,7 +483,56 @@ async function runChecks(modules, data, onCase = () => {}) {
   await test('old Realtime callback cannot refresh replacement',async h=>{await h.boot();await h.enterMatch();const rt=h.rt[0];await h.replace(data.V);const n=h.matchReads.length;rt.onReconnect();rt.onChange();await h.pump();eq(h.matchReads.length,n,'old callback inert');});
   await test('unavailable Realtime blocks target without fallback',async h=>{h.targetDependencies.runtime.subscribeInvalidation=()=>{throw Error('Synthetic source unavailable');};await h.boot();eq(h.state.phase,'BLOCKED','blocked');eq(h.legacyEvents.length,0,'no fallback');});
   await test('Recommendation consumes target and CTA shares actions',async h=>{await h.boot();const input=h.state.view.getRecommendationInput();eq(input.kind,'AVAILABLE','target input');const rows=Engine.recommend(input.input);check(Array.isArray(rows),'real engine');await Shell.perform('proposeToGroup',data.M);eq(h.commands.at(-1).body.intent,'PROPOSE_TO_GROUP','same writer');});
+  await test('UX10 shortlist follows Core order and shows evidence',async h=>{
+    await h.boot();Shell.navigate('recommendations');check(document.getElementById('recommendationSection').getAttribute('aria-busy')==='true','loading');await h.pump();
+    const input=h.state.view.getRecommendationInput({constraints:{context:'all'}}).input;
+    const expected=Engine.rerank(Engine.recommend(input),5).map(row=>row.movieId);
+    const markup=document.getElementById('recommendationResults').innerHTML;
+    const shown=[...markup.matchAll(/data-recommendation-id="([^"]+)"/g)].map(match=>match[1]);
+    deep(shown,expected,'Core shortlist order');check(shown.length<=5,'at most five');
+    check(markup.includes('recommendation-reason')&&markup.includes('voto positivo'),'real direct evidence visible');
+    check(markup.includes('Pochi giudizi disponibili'),'low evidence stays honest');
+    check(!markup.includes('movie-ticket')&&markup.includes('recommendation-card'),'dedicated compact row');
+    check(markup.includes('2000')&&markup.includes('110 min'),'essential metadata');eq(h.commands.length,0,'read-only ranking');
+  },{raw:data.recommendationSet});
+  await test('UX10 next batch replaces results without duplicates and exhausts',async h=>{
+    await h.boot();Shell.navigate('recommendations');await h.pump();
+    const rows=()=>[...document.getElementById('recommendationResults').innerHTML.matchAll(/data-recommendation-id="([^"]+)"/g)].map(match=>match[1]);
+    const seen=new Set(rows());eq(seen.size,5,'first batch');
+    Shell.showMoreRecommendations();const second=rows();eq(second.length,5,'second batch replaces first');check(second.every(id=>!seen.has(id)),'no duplicate');second.forEach(id=>seen.add(id));
+    Shell.showMoreRecommendations();const third=rows();eq(third.length,2,'short final batch');check(third.every(id=>!seen.has(id)),'no duplicate final');
+    check(document.getElementById('recommendationMore').classList.contains('hidden'),'no more button after exhaustion');
+    check(document.getElementById('recommendationStatus').textContent.includes('tutti i suggerimenti'),'explicit exhaustion');
+  },{raw:data.recommendationSet});
+  await test('UX10 stale keeps batch until explicit refresh',async h=>{
+    await h.boot();Shell.navigate('recommendations');await h.pump();
+    const results=document.getElementById('recommendationResults'),before=results.innerHTML;
+    for(const row of h.controls.wire.catalog)row.title='Updated proposal '+row.movie_id.slice(-4);
+    await h.refresh();
+    eq(results.innerHTML,before,'stable shortlist and copy');check(!document.getElementById('recommendationStale').classList.contains('hidden'),'stale visible');
+    Shell.refreshRecommendations();check(document.getElementById('recommendationSection').getAttribute('aria-busy')==='true','refresh loading');await h.pump();
+    check(document.getElementById('recommendationStale').classList.contains('hidden'),'refresh clears stale');
+    check(results.innerHTML.includes('Updated proposal'),'current TARGET snapshot used');
+    Shell.detail(data.M);check(document.getElementById('detailBody').innerHTML.includes('SCHEDA FILM'),'existing detail opens');
+  },{raw:data.recommendationSet});
+  await test('UX10 empty and unavailable inputs are distinct',async h=>{
+    await h.boot();Shell.navigate('recommendations');await h.pump();
+    check(document.getElementById('recommendationEmpty').textContent.includes('Lista condivisa è vuota'),'empty shared list');
+    eq(document.getElementById('recommendationResults').innerHTML,'','no invented result');
+  },{raw:data.absent});
+  await test('UX10 ineligible candidates are not called empty Lista',async h=>{
+    await h.boot();Shell.navigate('recommendations');await h.pump();
+    check(document.getElementById('recommendationEmpty').textContent.includes('Nessun film'),'ineligible explanation');
+  },{raw:data.noEligible});
+  await test('UX10 unavailable Recommendation input shows recoverable error',async h=>{
+    await h.boot();Shell.navigate('recommendations');await h.pump();
+    check(!document.getElementById('recommendationError').classList.contains('hidden'),'error panel visible');
+    check(!!document.getElementById('recommendationRefresh'),'explicit retry control');
+  },{raw:data.unavailable});
   await test('Ruota pool never invokes legacy eligibility',async h=>{await h.boot();const ids=wheelPool().map(c=>c.movie_id);deep(ids,h.state.view.ruota.eligibleMovieIds,'approved target pool');await Shell.perform('quickNight',ids[0]);eq(h.commands.at(-1).body.target.movie_id,ids[0],'stable UUID');});
+  await test('UX9 empty TARGET wheel points to the Lista',async h=>{await h.boot();resetWheelFilters();Shell.navigate('wheel');eq(wheelBasePool().length,0,'no authoritative candidates');check(document.getElementById('wheelSpinBtn').disabled,'spin disabled');check(document.getElementById('wheelEmptyMessage').textContent.includes('Nessun film disponibile'),'empty explanation');check(!document.getElementById('wheelListAction').classList.contains('hidden'),'Lista access');check(document.getElementById('wheelResetAction').classList.contains('hidden'),'no false filter reset');openWheelList();eq(Shell.getDestination(),'groupList','TARGET Lista route');},{raw:data.absent});
+  await test('UX9 filters empty wheel then reset and reactivate spin',async h=>{await h.boot();resetWheelFilters();Shell.navigate('wheel');check(wheelBasePool().length>0,'authoritative pool');h.controls.wire.vetoes.push({veto_id:uid(96999),person_id:data.N,movie_id:data.Q,week_key:h.controls.wire.temporal.week_key});const vetoInfo=document.getElementById('vetoInfo');vetoInfo.textContent='Obsolete veto';Shell.render();check(vetoInfo.hidden&&vetoInfo.textContent==='','no stale veto copy');const result=document.getElementById('wheelWinner');result.classList.remove('hidden');setDurationFilter('epic');eq(wheelPool().length,0,'filtered out');check(result.classList.contains('hidden'),'old result hidden');check(document.getElementById('wheelSpinBtn').disabled,'spin disabled');check(document.getElementById('wheelEmptyMessage').textContent.includes('filtri'),'filter explanation');check(!document.getElementById('wheelResetAction').classList.contains('hidden'),'filter reset visible');resetWheelFilters();check(wheelPool().length>0,'pool restored');check(!document.getElementById('wheelSpinBtn').disabled,'spin enabled');check(document.getElementById('wheelEmptyState').classList.contains('hidden'),'empty explanation hidden');});
+  await test('UX9 result keeps quick choice command with Guardiamolo copy',async h=>{await h.boot();resetWheelFilters();Shell.navigate('wheel');const winner=h.state.view.ruota.eligibleContents[0],result=document.getElementById('wheelWinner');renderWheelWinner(result,winner,Shell.presentation());check(result.innerHTML.includes('Guardiamolo')&&!result.innerHTML.includes('>Oggi</button>'),'approved choice label');await Shell.perform('quickNight',winner.movie_id);eq(h.commands.at(-1).body.intent,'QUICK_NIGHT','same date-free command');check(!document.getElementById('wheelPanel').innerHTML.includes('openSurprisePicker'),'misleading Surprise entry absent');});
   await test('captured action request input cannot change later',async h=>{await h.boot();h.controls.holdCommand=true;const input={rating:0,review:''};const result=Shell.perform('setMyEvaluation',data.M,input);await tick();input.rating=10;h.commands[0].resolve();await result;eq(h.commands[0].body.parameters.rating,0,'captured command meaning');});
   await test('bulk reports per-film partial results',async h=>{await h.boot();let n=0;const ui=Shell.createShell({session:h.host,root:document,lookup:async title=>{if(++n===2)h.controls.commandOutcome='STALE';return{title};}});const results=await ui.bulk(['Synthetic one','Synthetic two']);eq(results.length,2,'independent results');eq(results[0].content.outcome,'SUCCESS','first');eq(results[1].content.outcome,'STALE','second');eq(h.commands.length,2,'two commands');});
   await test('target command rejection cannot invoke legacy writer',async h=>{await h.boot();h.controls.commandOutcome='FORBIDDEN';const r=await Shell.perform('recordSeen',data.M);check(r.outcome!=='SUCCESS','rejected');eq(h.legacyEvents.length,0,'no fallback');});
@@ -355,7 +598,7 @@ async function runChecks(modules, data, onCase = () => {}) {
   await test('UX3 shared cards expose choice first and relation removal separately',async h=>{
     await h.boot();Shell.navigate('groupList');const context=Shell.presentation(),movie=context.getMovie(data.M),ops=context.cardOperationsHtml(movie);
     check(ops.includes('Guardiamolo')&&ops.includes('Pianifica'),'two direct daily actions');
-    check(ops.includes('movie-list-overflow')&&ops.includes('Togli dalla Lista'),'secondary relationship removal');
+    check(ops.includes('movie-list-withdraw')&&ops.includes('Togli dalla Lista'),'secondary relationship removal');
     check(!/Programmazione|Gestione|Ritira candidatura|Proponi al gruppo|Elimina film/.test(ops),'no technical or delete panel');
     const initial=context.scheduleInitial(movie);eq(initial.selectCandidate,true,'selection capture remains explicit');eq(initial.selectionView,h.state.view,'same committed view');
     eq(h.commands.length,0,'render never creates a relation or night');
@@ -368,11 +611,12 @@ async function runChecks(modules, data, onCase = () => {}) {
   },{raw:data.quickCard});
   for(const [name,raw,primary] of data.detailCases)await test('UX5 detail '+name,async h=>{
     await h.boot();const context=Shell.presentation(),movie=context.getMovie(data.M),html=context.detailActions(movie);
-    eq((html.match(/data-detail-primary=/g)||[]).length,1,'one primary');check(html.includes('data-detail-primary="'+primary+'"'),'contextual primary');
-    check(!/Il mio percorso|<h4>Il gruppo|Gestione|Ritira candidatura|Proponi al gruppo|Correggi metadati|Visto insieme ora/.test(html),'no command wall or metadata Add bridge');
+    check((html.match(/data-detail-primary=/g)||[]).length<=1,'at most one primary');
+    if(['together','repeat'].includes(name))check(!html.includes('data-detail-primary=')&&!html.includes('Apri la serata'),'Together star replaces duplicate primary');
+    check(!/Il mio percorso|<h4>Il gruppo|Ritira candidatura|Proponi al gruppo|Correggi metadati|Visto insieme ora/.test(html),'no command wall or metadata Add bridge');
     check(!html.includes('Vieta questa settimana')&&!html.includes('>Sorpresa<'),'no residual creation');
-    check(html.includes('detail-danger-area')&&html.includes('Rimuovi film'),'delete separate');
-    eq((html.match(/>Il mio giudizio/g)||[]).length,1,'one personal editor access');
+    check(html.includes('detail-menu-controls')&&html.includes('Rimuovi film')&&!html.includes('detail-danger-area'),'delete shares management grid');
+    check(!html.includes('detail-token-row'),'tokens are in shared film header');
     for(const n of raw.nights)check(html.includes('data-night-id="'+n.night_id+'"'),'each event retains identity');
     eq(h.commands.length,0,'render never writes');
   },{raw});
@@ -392,14 +636,673 @@ async function runChecks(modules, data, onCase = () => {}) {
     check(html.includes('movie-list-actions detail-choice-actions'),'paired card row');
     check(html.includes('fa-ticket')&&html.includes('fa-calendar-days'),'same ticket and calendar icons');
     check(html.includes('movie-list-primary')&&html.includes('movie-list-secondary'),'same card button styles');
-    check(html.includes('detail-menu-group')&&html.includes('Personali')&&html.includes('N+V'),'secondary scopes distinguished');
+    check(html.includes('Per me')&&html.includes('Per noi')&&html.includes('Altre azioni'),'human scopes distinguished');
   },{raw:data.detailCases.find(x=>x[0]==='shared')[1]});
   await test('UX5 PO confirmations identify the completed command',async h=>{
     await h.boot();await Shell.perform('setMyEvaluation',data.M,{rating:0});
-    check(document.getElementById('targetFeedback').textContent.includes('Giudizio personale aggiornato.'),'judgment confirmation');
-    await Shell.perform('addToMyList',data.M);check(document.getElementById('targetFeedback').textContent.includes('Aggiunto alla mia Lista.'),'list confirmation');
-    await Shell.perform('recordSeen',data.M);check(document.getElementById('targetFeedback').textContent.includes('Aggiunto ai miei Visti.'),'seen confirmation');
-    h.controls.commandOutcome='STALE';await Shell.perform('removeSeen',data.M);check(!document.getElementById('targetFeedback').textContent.includes('Rimosso dai miei Visti'),'no success on rejected operation');
+    check(document.getElementById('targetFeedbackMessage').textContent.includes('Giudizio personale aggiornato.'),'judgment confirmation');
+    await Shell.perform('addToMyList',data.M);check(document.getElementById('targetFeedbackMessage').textContent.includes('Aggiunto ai tuoi Da vedere.'),'list confirmation');
+    await Shell.perform('recordSeen',data.M);check(document.getElementById('targetFeedbackMessage').textContent.includes('Aggiunto ai miei Visti.'),'seen confirmation');
+    h.controls.commandOutcome='STALE';await Shell.perform('removeSeen',data.M);check(!document.getElementById('targetFeedbackMessage').textContent.includes('Rimosso dai miei Visti'),'no success on rejected operation');
+  });
+  await test('UX6 agenda groups four events without changing them',async h=>{
+    await h.boot();Shell.navigate('scheduled');const page=html();
+    const sections=['Da concludere','Proposte in attesa','Scelte senza data','Prossime serate'];
+    let previous=-1;for(const title of sections){const position=page.indexOf('aria-label="'+title+'"');check(position>previous,'ordered section '+title);previous=position;}
+    for(const n of data.agenda.nights)check(page.includes('data-night-id="'+n.night_id+'"'),'event identity '+n.night_id);
+    check(page.includes('FILM SCELTO')&&page.includes('Da vedere insieme'),'quick choice wording');
+    check(!page.includes('Data non fissata')&&!page.includes('Scelte rapide (oggi)'),'no misleading quick wording');
+    eq(h.state.view.events.scheduled.length,4,'all events remain open');eq(h.commands.length,0,'render is read only');
+  },{raw:data.agenda});
+  await test('UX6 past proposal has no completion and event details stay scoped',async h=>{
+    await h.boot();const context=Shell.presentation(),proposal=context.nights.find(n=>n.status==='proposed');
+    const actions=context.eventActions(proposal);check(actions.includes('Annulla proposta')&&!actions.includes('Completa serata'),'past proposal cannot complete');
+    for(const night of context.nights)check(night.snack==='Poke'&&night.location==='Casa','event details retained');
+    Shell.navigate('calendar');check(html().includes('data-night-id="'+data.agenda.nights[2].night_id+'"'),'calendar quick identity');
+    check(html().includes('Scelte senza data')&&html().includes('FILM SCELTO'),'calendar quick wording');
+    eq(h.commands.length,0,'calendar is read only');
+  },{raw:data.agenda});
+  await test('UX6 selected night opens inside its film detail',async h=>{
+    await h.boot();const selectedId=data.agenda.nights[2].night_id,body=document.getElementById('detailBody');let focused=null;
+    const summary={focus(){focused=selectedId;},scrollIntoView(){}};
+    const row={dataset:{nightId:selectedId},open:false,querySelector:()=>summary};
+    const list={open:false,querySelectorAll:()=>[row],querySelector:()=>summary};
+    body.querySelector=selector=>selector==='[data-detail-nights]'?list:null;
+    detailTransitionActive=false;
+    Shell.detail(data.M,null,selectedId);
+    check(list.open&&row.open&&focused===selectedId,'selected night expanded and focused: '+[list.open,row.open,focused,body.innerHTML.includes('SCHEDA FILM'),Shell.presentation().current()].join(','));
+    eq(h.commands.length,0,'opening detail does not write');
+  },{raw:data.agenda});
+  await test('UX7 one completed night has a single film archive access',async h=>{
+    await h.boot();Shell.navigate('together');const context=Shell.presentation(),movie=context.getMovie(data.M);
+    eq(context.completedNights(movie).length,1,'one completed event');
+    check(!html().includes('1 serata')&&html().includes('together-star'),'star replaces card count');
+    check(context.togetherPopupHtml(movie).includes('Le nostre visioni'),'completed night is in Together popup');
+    check(!context.detailActions(movie).includes('Apri la serata'),'no parallel detail access');
+    eq(h.commands.length,0,'archive rendering is read only');
+  },{raw:data.detailCases.find(x=>x[0]==='together')[1]});
+  await test('UX7 rewatch count and detail order exclude open event',async h=>{
+    await h.boot();Shell.navigate('together');const context=Shell.presentation(),movie=context.getMovie(data.M),completed=context.completedNights(movie);
+    eq(completed.length,2,'only completed nights counted');check(!html().includes('2 serate')&&context.togetherPopupHtml(movie).includes('Le nostre visioni · 2'),'count moved into popup');
+    const detail=context.detailActions(movie),first=detail.indexOf('data-night-id="'+completed[0].night.id+'"'),second=detail.indexOf('data-night-id="'+completed[1].night.id+'"');
+    check(first>=0&&second>first,'completed nights ordered newest first');
+    check(detail.indexOf('Altre serate')>second,'open event separated after completed');
+    check(completed.every(entry=>entry.night.status==='completed'),'status remains event specific');
+    eq(h.commands.length,0,'no event or judgment changes');
+  },{raw:(()=>{const wire=JSON.parse(JSON.stringify(data.multiple));const completed=wire.nights.filter(n=>n.status==='completed');completed[0].date='2027-01-02';completed[1].date='2027-01-03';return wire;})()});
+  await test('UX7 multi-night access expands existing detail list',async h=>{
+    await h.boot();Shell.navigate('together');const body=document.getElementById('detailBody');let focused=false;
+    const summary={focus(){focused=true;},scrollIntoView(){}};
+    const list={open:false,querySelectorAll:()=>[],querySelector:()=>summary};
+    body.querySelector=selector=>selector==='[data-detail-nights]'?list:null;
+    detailTransitionActive=false;Shell.detail(data.M,null,null,true);
+    check(list.open&&focused,'completed list expanded and reachable');eq(h.commands.length,0,'detail access is read only');
+  },{raw:data.multiple});
+  for(const [name,wire,visible,completed,open] of [
+    ['only cancelled',data.cancelledOnly,0,0,0],
+    ['cancelled with completed',data.cancelledCompleted,1,1,0],
+    ['cancelled with open',data.cancelledOpen,1,0,1]
+  ])await test('cancelled film nights hidden: '+name,async h=>{
+    await h.boot();const rawBefore=copy(h.controls.wire.nights),context=Shell.presentation(),markup=context.detailActions(context.getMovie(data.M));
+    const rows=[...markup.matchAll(/data-night-id="([^"]+)"/g)].map(match=>match[1]);
+    eq(rows.length,visible,'visible row count');check(!markup.includes('Serata annullata'),'cancelled label absent');
+    if(visible){check(markup.includes('Le serate · '+visible),'summary count');check(!markup.includes('Le serate · '+(visible+1)),'cancelled excluded from count');}
+    else check(!markup.includes('data-detail-nights')&&!markup.includes('Le serate')&&!markup.includes('Altre serate'),'empty nights section absent');
+    if(completed)check(markup.includes('Serate concluse · '+completed),'completed group retained');
+    if(open)check(markup.includes('Altre serate'),'open group retained');
+    deep(h.controls.wire.nights,rawBefore,'persistent cancelled event untouched');eq(h.commands.length,0,'presentation read only');
+  },{raw:wire});
+  await test('cancelled selected night cannot reopen after Snapshot reconciliation',async h=>{
+    await h.boot();const selected=data.cancelledMixed.nights.find(n=>n.status==='proposed').night_id;
+    const body=document.getElementById('detailBody'),summary={focus(){},scrollIntoView(){}};
+    const row={dataset:{nightId:selected},open:false,querySelector:()=>summary};
+    const list={open:false,querySelectorAll:()=>[row],querySelector:()=>summary};
+    body.querySelector=selector=>selector==='[data-detail-nights]'?list:null;
+    detailTransitionActive=false;Shell.detail(data.M,null,selected);check(list.open&&row.open,'selected open event initially reached');
+    await Shell.perform('cancelNight',selected);await h.pump();
+    list.open=false;row.open=false;const context=Shell.presentation(),markup=context.detailActions(context.getMovie(data.M));
+    check(!markup.includes('data-night-id="'+selected+'"'),'cancelled row removed after resync');
+    check(markup.includes('Le serate · 1'),'remaining completed count');
+    context.openDetailNights(selected);check(!list.open&&!row.open,'stale nightId cannot reopen cancelled event');
+    eq(h.state.view.getEvent(selected).event.event.status,'cancelled','domain record retained');
+  },{raw:data.cancelledMixed});
+  const clickProduct=(context,markup,label)=>{
+    const tag=[...markup.matchAll(/<button[^>]*data-product-action="([^"]+)"[^>]*>([\s\S]*?)<\/button>/g)].find(match=>match[2].includes(label));
+    check(!!tag,'action '+label+' exists');
+    const node={dataset:{productAction:tag[1],listRemoval:label.startsWith('Togli dai')?'true':undefined},disabled:false,isConnected:true,innerHTML:label,closest:()=>null,focus(){},setAttribute(){},removeAttribute(){}};
+    context.bind({querySelectorAll:selector=>selector==='[data-product-action]'?[node]:[]});
+    return node.onclick({stopPropagation(){}});
+  };
+  for(const [name,route,raw,intent,label] of [['shared','groupList',data.raw,'WITHDRAW_GROUP_CANDIDACY','Togli dai Da vedere insieme'],['personal','personalList',data.selfList,'REMOVE_PERSONAL_LIST','Togli dai miei Da vedere']])
+    await test('UX12 list removal '+name+' cancel then confirm',async h=>{
+      await h.boot();Shell.navigate(route);const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.cardOperationsHtml(movie);
+      check(markup.includes('>'+label+'</button>')&&!markup.includes('movie-list-minus'),'plain text action');
+      const original=showConfirmModal;let question='';
+      try{
+        showConfirmModal=(title)=>{question=title;return Promise.resolve(false);};await clickProduct(context,markup,label);eq(h.commands.length,0,'cancel writes nothing');check(question.includes(movie.title),'film in prompt');
+        showConfirmModal=(title)=>{question=title;return Promise.resolve(true);};await clickProduct(context,markup,label);await h.pump();eq(h.commands.length,1,'one confirmed write');eq(h.commands[0].body.intent,intent,'relation only');
+        check(question.includes(name==='shared'?'Da vedere insieme':'tuoi Da vedere'),'list in prompt');
+        check(document.getElementById('targetFeedbackMessage').textContent.includes('Rimosso')||document.getElementById('targetFeedbackMessage').textContent.includes('Tolto'),'feedback outside grid');
+        Shell.navigate('home');eq(document.getElementById('targetFeedbackMessage').textContent,'','no feedback in other collection');
+      }finally{showConfirmModal=original;}
+    },{raw});
+  await test('UX12 Ponyo from Valeria Seen adds same catalog film to shared List',async h=>{
+    await h.boot();h.host.setObservedPerson(data.V);await h.pump();Shell.navigate('personalSeen');const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.detailActions(movie);
+    check(markup.includes('Proponi per noi'),'inverse action visible');
+    await clickProduct(context,markup,'Proponi per noi');await h.pump();
+    eq(h.commands.length,1,'one write');eq(h.commands[0].body.intent,'PROPOSE_TO_GROUP','group relation');eq(h.commands[0].body.target.movie_id,data.M,'same catalog id');
+    check(document.getElementById('targetFeedbackMessage').textContent.includes('Proposto'),'visible outcome');
+  },{raw:data.seenOther});
+  const tokenCases=[
+    ['nobody seen',{},false],['only N seen',{nSeen:true},false],['only V seen',{vSeen:true},false],
+    ['both separately seen',{nSeen:true,vSeen:true},false],['N rating',{nSeen:true,nRating:8.6},false],
+    ['N positive preference',{nPreference:true},false],['N negative preference',{nPreference:false},false],
+    ['V preference',{vSeen:true,vPreference:true},false],['both judgments',{nRating:8.6,vPreference:false},false],
+    ['N preference and V rating',{nPreference:true,vRating:7.5},false],
+    ['Together without personal seen',{},true],['Together with N seen',{nSeen:true},true],
+    ['Together with both seen',{nSeen:true,vSeen:true},true],['Together without rating',{},true],
+    ['Together with rating',{groupRating:8.8},true],['judgment without seen',{nRating:7.3},false],
+    ['Together N rating and V preference',{nRating:8.6,vPreference:true,groupRating:8.2},true],
+    ['Together N preference and V rating',{nPreference:true,vRating:7.5,groupRating:8.2},true]
+  ];
+  for(const [name,options,together]of tokenCases){
+    const raw=copy(together?data.cancelledCompleted:data.absent);
+    raw.personal[0].states[0].seen=!!options.nSeen;raw.personal[1].states[0].seen=!!options.vSeen;
+    if(options.nRating!=null)raw.personal[0].states[0].judgment.rating=options.nRating;
+    if(options.nPreference!=null)raw.personal[0].states[0].judgment.preference=options.nPreference;
+    if(options.vRating!=null)raw.personal[1].states[0].judgment.rating=options.vRating;
+    if(options.vPreference!=null)raw.personal[1].states[0].judgment.preference=options.vPreference;
+    if(options.groupRating!=null)raw.group.judgments.push({movie_id:data.M,rating:options.groupRating,review:null});
+    finish(raw);
+    await test('UX12 tokens '+name,async h=>{
+      await h.boot();const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.viewingStatusHtml(movie);
+      check(markup.includes('person-token-n')&&markup.includes('person-token-v'),'both identity tokens');
+      check(markup.includes('person-token-n '+(options.nSeen?'is-seen':'is-outline')),'N seen independent');
+      check(markup.includes('person-token-v '+(options.vSeen?'is-seen':'is-outline')),'V seen independent');
+      eq(markup.includes('together-cluster'),together,'gold only completed');eq(markup.includes('together-star'),together,'star only completed');
+      check(!markup.includes('/10'),'no card scale suffix');
+      check(!markup.includes('fa-pen')&&!markup.includes('person-token-edit'),'no permanent edit affordance');
+      if(options.nRating!=null)check(markup.includes('fa-star')&&markup.includes(String(options.nRating).replace('.',',')),'personal numeric rating has a star');
+      if(options.nRating!=null)check(markup.includes(String(options.nRating).replace('.',',')),'N rating visible');
+      if(options.nPreference!=null)check(markup.includes(options.nPreference?'fa-thumbs-up':'fa-thumbs-down'),'N preference visible');
+      if(options.vRating!=null)check(markup.includes(String(options.vRating).replace('.',',')),'V rating visible');
+      if(options.vPreference!=null)check(markup.includes(options.vPreference?'fa-thumbs-up':'fa-thumbs-down'),'V preference visible');
+      if(options.groupRating!=null)check(markup.includes(String(options.groupRating).replace('.',',')),'Together rating is own value');
+      if(together)check(markup.includes('fa-users')&&markup.includes('together-star'),'group icon opens Together');
+      if(together)eq(markup.includes('together-rating'),options.groupRating!=null,'group star only accompanies numeric rating');
+      check(markup.includes('aria-label="Apri il tuo Visto e giudizio'),'one caller context label');
+      eq((markup.match(/class="person-token person-token-n/g)||[]).length,1,'one caller token');
+      check(!markup.includes('aria-label="Valuta il film · '+movie.title+'" class="person-token-v'),'other read only');
+    },{raw});
+  }
+  await test('UX12 Together popup one completed night is read first',async h=>{
+    await h.boot();const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.togetherPopupHtml(movie);
+    check(markup.includes('Il nostro giudizio')&&markup.includes('Le nostre visioni'),'narrative sections');
+    eq((markup.match(/data-night-id=/g)||[]).length,1,'only completed night');
+    check(!markup.includes('Serata annullata')&&!markup.includes('Racconto della serata'),'no cancelled or fake memory');
+    check(markup.includes('Modifica serata')&&markup.includes('data-night-id="'+data.cancelledCompleted.nights[0].night_id+'"'),'existing night identity');
+    Shell.together(data.M);eq(modalStackTop(),'togetherModal','star opens modal');closeModal('togetherModal');
+  },{raw:data.cancelledCompleted});
+  await test('UX12 Together popup multiple nights remain event scoped',async h=>{
+    await h.boot();const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.togetherPopupHtml(movie);
+    eq((markup.match(/data-night-id=/g)||[]).length,2,'only completed nights listed');
+    for(const n of data.multiple.nights.filter(n=>n.status==='completed'))check(markup.includes('data-night-id="'+n.night_id+'"'),'completed night id');
+    check(!markup.includes('data-night-id="'+data.multiple.nights.find(n=>n.status==='proposed').night_id+'"'),'open proposal excluded');
+    check(!context.viewingStatusHtml(movie).includes('2 serate'),'card has no count');
+  },{raw:data.multiple});
+  await test('UX12 Together read view keeps movie judgment and event details separate',async h=>{
+    await h.boot();const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.togetherPopupHtml(movie);
+    check(markup.includes('Una recensione del film')&&markup.includes('★ 8,8'),'movie-based judgment');
+    eq((markup.match(/★ 8,8/g)||[]).length,1,'Together rating only in header');
+    check(markup.includes('Casa')&&markup.includes('🍿 Poke'),'event-specific context');
+    check(!markup.includes('Registrata il')&&!markup.includes('La data della visione resta'),'narrative night copy');
+    check(!context.viewingStatusHtml(movie).includes('Una recensione del film'),'review is in popup, not cluster');
+    eq(h.commands.length,0,'reading is not a write');
+  },{raw:(()=>{const wire=copy(data.cancelledCompleted);wire.group.judgments.push({movie_id:data.M,rating:8.8,review:'Una recensione del film'});wire.nights[0].location='Casa';wire.nights[0].snack='Poke';return finish(wire);})()});
+  await test('UX12 completed night edit reuses its event editor without date mutation',async h=>{
+    await h.boot();const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.togetherPopupHtml(movie);
+    await clickProduct(context,markup,'Modifica serata');
+    eq(modalStackTop(),'scheduleModal','existing night editor');
+    eq(document.getElementById('scheduleModalTitle').textContent,'Dettagli della serata','night editing context');
+    check(document.getElementById('scheduleDateField').classList.contains('hidden'),'completed date stays protected');
+    check(document.getElementById('scheduleHint').textContent.includes('data e l’ora'),'constraint explained only in editor');
+    eq(h.commands.length,0,'opening editor does not write');closeModal('scheduleModal');
+  },{raw:data.cancelledCompleted});
+  await test('UX12 Together star is a keyboard button and popup closes',async h=>{
+    await h.boot();const context=Shell.presentation(),markup=context.viewingStatusHtml(context.getMovie(data.M));
+    const match=markup.match(/<button[^>]*data-product-action="([^"]+)"[^>]*class="together-star"/);check(!!match,'semantic star button');
+    check(markup.includes('aria-label="Apri Insieme e le serate'),'accessible star name');
+    const node={dataset:{productAction:match[1]},closest:()=>null,focus(){},setAttribute(){},removeAttribute(){}};
+    context.bind({querySelectorAll:selector=>selector==='[data-product-action]'?[node]:[]});node.onclick({stopPropagation(){}});
+    eq(modalStackTop(),'togetherModal','star opens Together modal');closeModal('togetherModal');eq(modalStackTop(),null,'modal closes');
+    check(modules.css.includes('.together-star:focus-visible')&&modules.modalsSource.includes("'togetherModal'")&&modules.modalsSource.includes("'personalStatusModal'"),'focus ring and Tab trap');
+  },{raw:data.cancelledCompleted});
+  await test('UX12 whole personal token opens seen and judgment context',async h=>{
+    await h.boot();const context=Shell.presentation(),markup=context.viewingStatusHtml(context.getMovie(data.M));
+    const own=markup.match(/<button[^>]*data-product-action="([^"]+)"[^>]*class="person-token person-token-n/);check(!!own,'whole caller token is button');
+    check(markup.includes('<span class="person-token person-token-v'),'other token is read only');
+    check(!markup.includes('person-token-identity')&&!markup.includes('person-token-judgment'),'no internal controls');
+    const node={dataset:{productAction:own[1]},closest:()=>null,focus(){},setAttribute(){},removeAttribute(){}};
+    context.bind({querySelectorAll:selector=>selector==='[data-product-action]'?[node]:[]});node.onclick({stopPropagation(){}});
+    eq(modalStackTop(),'personalStatusModal','token opens personal context');
+    const content=document.getElementById('personalStatusBody').innerHTML;
+    check(content.includes('Segna come visto')&&content.includes('Valuta il film'),'both independent actions available');closeModal('personalStatusModal');
+  },{raw:data.absent});
+  await test('UX12 own judgment opens from the unified token context',async h=>{
+    await h.boot();const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.viewingStatusHtml(movie);
+    eq(context.cardReviewsHtml(movie),'','no review accordion or preview on card');
+    check(!context.detailActions(movie).includes('Recensione di'),'no parallel detail judgment entry');
+    const match=markup.match(/<button[^>]*data-product-action="([^"]+)"[^>]*class="person-token person-token-n/);check(!!match,'one own token');
+    const node={dataset:{productAction:match[1]},closest:()=>null,focus(){},setAttribute(){},removeAttribute(){}};
+    context.bind({querySelectorAll:selector=>selector==='[data-product-action]'?[node]:[]});node.onclick({stopPropagation(){}});
+    eq(modalStackTop(),'personalStatusModal','personal context opens first');
+    await clickProduct(context,context.personalStatusHtml(movie),'Modifica giudizio');
+    eq(modalStackTop(),'reviewModal','own editor');eq(document.getElementById('reviewText').value,'Recensione mia','own review prefilled');
+    closeModal('reviewModal');
+  },{raw:(()=>{const wire=copy(data.absent);wire.personal[0].states[0].judgment.rating=7.5;wire.personal[0].states[0].judgment.review='Recensione mia';return finish(wire);})()});
+  for(const [name,judgment,visible]of [
+    ['review',{rating:null,preference:null,review:'Recensione di Valeria'},'Recensione di Valeria'],
+    ['rating',{rating:7.5,preference:null,review:null},'★ 7,5'],
+    ['preference',{rating:null,preference:false,review:null},'👎 Non mi è piaciuto']
+  ])await test('UX12 other member '+name+' opens read only',async h=>{
+    await h.boot();const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.viewingStatusHtml(movie);
+    eq(context.cardReviewsHtml(movie),'','no card review');
+    const match=markup.match(/<button[^>]*data-product-action="([^"]+)"[^>]*class="person-token person-token-v/);check(!!match,'other token is a read control');
+    const node={dataset:{productAction:match[1]},closest:()=>null,focus(){},setAttribute(){},removeAttribute(){}};
+    context.bind({querySelectorAll:selector=>selector==='[data-product-action]'?[node]:[]});node.onclick({stopPropagation(){}});
+    eq(modalStackTop(),'otherJudgmentModal','read-only popup');
+    const content=document.getElementById('otherJudgmentBody').innerHTML;
+    check(content.includes(visible),'correct other judgment');
+    check(!content.includes('data-product-action')&&!content.includes('<input')&&!content.includes('<textarea'),'no other-person writer');
+    eq(h.commands.length,0,'read only');closeModal('otherJudgmentModal');
+  },{raw:(()=>{const wire=copy(data.absent);wire.personal[1].states[0].judgment={...judgment};return finish(wire);})()});
+  await test('UX12 Together popup omits redundant film action over film detail',async h=>{
+    await h.boot();const context=Shell.presentation(),movie=context.getMovie(data.M);
+    check(context.togetherPopupHtml(movie).includes('Apri dettaglio film'),'outside detail access remains');
+    check(!context.togetherPopupHtml(movie,{fromDetail:true}).includes('Apri dettaglio film'),'underlying detail needs no duplicate');
+    Shell.detail(data.M);Shell.together(data.M);
+    check(!document.getElementById('togetherPopupBody').innerHTML.includes('Apri dettaglio film'),'shell detects underlying detail');
+    closeModal('togetherModal');closeModal('detailModal');
+  },{raw:data.cancelledCompleted});
+  await test('UX12 320px cluster uses wrap without a fixed card height',async h=>{
+    await h.boot();const css=modules.css;
+    check(css.includes('.personal-tokens { display:flex; align-items:center; flex-wrap:wrap'),'token wrapping');
+    check(css.includes('@media(max-width:360px){ .together-cluster { max-width:100%; justify-content:center'),'narrow cluster rule');
+    check(css.includes('.together-cluster .person-token-face,.together-cluster .person-token.is-seen .person-token-face { min-height:28px; padding:2px 6px; border:0; background:transparent'),'no nested pills');
+    check(css.includes('.together-star { display:inline-flex;')&&css.includes('background:transparent; color:inherit'),'star shares one gold surface');
+    check(!css.includes('.movie-ticket { height:'),'no fixed whole-card height');
+  },{raw:data.cancelledCompleted});
+  await test('UX12 TARGET card film identity precedes ratings and state',async h=>{
+    await h.boot();Shell.navigate('personalList');
+    const context=Shell.presentation(),movie=context.getMovie(data.M),card=createMovieCard(movie,[],context),markup=card.innerHTML;
+    const order=['card-poster','card-title-band','card-director','card-genres','rating-holo','personal-tokens','movie-list-choices'];
+    for(let index=1;index<order.length;index++)check(markup.indexOf(order[index-1])<markup.indexOf(order[index]),order[index-1]+' before '+order[index]);
+    check(markup.includes('IMDb')&&markup.includes('RT')&&markup.includes('MC'),'all external providers retained');
+    check(!markup.includes('movie-card-review')&&!markup.includes('>Recensione<'),'no inline reviews');
+    check(card.className.includes('collection-personalList'),'collection layout context');
+  },{raw:(()=>{const wire=copy(data.selfList);Object.assign(wire.catalog[0],{title:'Christiane F. - Noi, i ragazzi dello zoo di Berlino',director:'Uli Edel',genres:['Dramma','Biografico'],imdb_rating:'7.5',rt_rating:'64%',metacritic_rating:'62'});return finish(wire);})()});
+  await test('UX12 sparse Together card collapses absent film metadata',async h=>{
+    await h.boot();Shell.navigate('together');
+    const context=Shell.presentation(),movie=context.getMovie(data.M),card=createMovieCard(movie,[],context),markup=card.innerHTML;
+    check(card.className.includes('collection-together')&&markup.includes('together-cluster'),'Together card preserves its cluster');
+    check(!markup.includes('card-director')&&!markup.includes('card-genres')&&markup.includes('IMDb n.d.')&&markup.includes('RT n.d.')&&markup.includes('MC n.d.'),'missing film metadata retains provider slots');
+    check(!markup.includes('movie-card-review')&&!markup.includes('1 serata'),'compact Together presentation');
+  },{raw:(()=>{const wire=copy(data.cancelledCompleted);Object.assign(wire.catalog[0],{title:'Detachment',director:null,genres:[],imdb_rating:null,rt_rating:null,metacritic_rating:null,collection_id:null});return finish(wire);})()});
+  await test('UX12 Ponyo personal card keeps preference and wrapping genres',async h=>{
+    await h.boot();Shell.navigate('personalList');
+    const context=Shell.presentation(),markup=createMovieCard(context.getMovie(data.M),[],context).innerHTML;
+    check(markup.includes('Ponyo sulla scogliera')&&markup.includes('Animazione')&&markup.includes('Fantastico')&&markup.includes('Avventura'),'film identity retained');
+    check(markup.includes('fa-thumbs-up')&&!markup.includes('together-cluster'),'personal preference stays separate');
+    check(markup.indexOf('card-genres')<markup.indexOf('personal-tokens'),'genres before personal state');
+  },{raw:(()=>{const wire=copy(data.selfList);Object.assign(wire.catalog[0],{title:'Ponyo sulla scogliera',director:'Hayao Miyazaki',genres:['Animazione','Fantastico','Avventura']});wire.personal[0].states[0].judgment.preference=true;return finish(wire);})()});
+  await test('UX12 Dune shared card keeps choices Saga and list removal',async h=>{
+    await h.boot();Shell.navigate('groupList');
+    const context=Shell.presentation(),card=createMovieCard(context.getMovie(data.M),[],context),markup=card.innerHTML;
+    check(markup.includes('Dune')&&markup.includes('personal-tokens')&&!markup.includes('together-cluster'),'personal rating without Together');
+    check(markup.includes('Guardiamolo')&&markup.includes('Pianifica'),'primary choices retained');
+    check(markup.includes('saga-entry-compact')&&markup.includes('movie-list-withdraw'),'secondary actions retained');
+    check(markup.indexOf('movie-list-actions')<markup.indexOf('movie-list-secondary-strip'),'primary before secondary');
+    check(card.className.includes('collection-groupList'),'shared collection aligns actions');
+  },{raw:(()=>{const wire=copy(data.absent);Object.assign(wire.catalog[0],{title:'Dune',director:'Denis Villeneuve',genres:['Fantascienza'],collection_id:'123',collection_name:'Dune',imdb_rating:'8.0'});Object.assign(wire.group.states[0],{effective_candidacy:true,list_visible:true,eligibility:{match_base:true,ruota_base:true}});wire.personal[0].states[0].judgment.rating=8.6;return finish(wire);})()});
+  await test('UX12 Scary Movie Together card retains Saga and star access',async h=>{
+    await h.boot();Shell.navigate('together');
+    const context=Shell.presentation(),markup=createMovieCard(context.getMovie(data.M),[],context).innerHTML;
+    check(markup.includes('Scary Movie')&&markup.includes('together-cluster')&&markup.includes('together-star'),'Together state preserved');
+    check(markup.includes('saga-entry-compact')&&!markup.includes('1 serata'),'Saga without card night count');
+    check(markup.indexOf('card-genres')<markup.indexOf('together-cluster'),'film identity before Together');
+  },{raw:(()=>{const wire=copy(data.cancelledCompleted);Object.assign(wire.catalog[0],{title:'Scary Movie',director:'Keenen Ivory Wayans',genres:['Commedia','Horror'],collection_id:'456',collection_name:'Scary Movie'});wire.personal[0].states[0].judgment.rating=7.3;wire.group.judgments.push({movie_id:data.M,rating:8.2,review:null});return finish(wire);})()});
+  for(const [title,judgments,expected] of [
+    ['(500) giorni insieme',[{rating:7.3},{rating:8.2}],['7,3','8,2']],
+    ['1917',[{preference:true},{}],['fa-thumbs-up']],
+    ['2012',[{},{}],['person-token-n','person-token-v']]
+  ])await test('UX12 sparse and dual-judgment card '+title,async h=>{
+    await h.boot();Shell.navigate('personalList');const context=Shell.presentation(),markup=createMovieCard(context.getMovie(data.M),[],context).innerHTML;
+    check(markup.includes(title),'movie title');for(const value of expected)check(markup.includes(value),'state '+value);
+    check(!markup.includes('together-cluster')&&!markup.includes('movie-card-review'),'no invented Together or inline review');
+  },{raw:(()=>{const wire=copy(data.selfList);Object.assign(wire.catalog[0],{title,director:null,genres:[],imdb_rating:null,rt_rating:null,metacritic_rating:null,collection_id:null});for(let index=0;index<2;index++)Object.assign(wire.personal[index].states[0].judgment,judgments[index]);return finish(wire);})()});
+  await test('UX12 card layout rules keep narrow and long content fluid',async h=>{
+    await h.boot();const css=modules.css;
+    check(css.includes('.is-target-card .card-director')&&css.includes('overflow-wrap:anywhere'),'long director wraps');
+    check(css.includes('.is-target-card .rating-holo')&&css.includes('background:none; animation:none'),'ratings are quiet metadata');
+    check(css.includes('.is-target-card .card-genres')&&css.includes('flex-wrap'),'genres wrap');
+    check(css.includes('@media (max-width:360px)')&&css.includes('.is-target-card .movie-list-actions { grid-template-columns:minmax(0,1fr); }'),'320px actions stack');
+    check(css.includes('.movie-ticket.is-target-card::before')&&css.includes('.is-target-card .ticket-seam { border-top:0; }'),'poster seam removed');
+    check(!css.includes('.movie-ticket.is-target-card { height:'),'no fixed card height');
+  },{raw:data.absent});
+  await test('UX12 unified desktop grid and mobile card rules',async h=>{
+    await h.boot();const css=modules.css;
+    check(css.includes('#movieGrid:has(> .is-target-card) { grid-auto-rows:1fr; align-items:stretch; }'),'desktop rows share track size');
+    check(css.includes('.is-target-card .card-actions { display:flex; flex-direction:column; justify-content:flex-end; min-height:108px; margin-top:auto; }'),'action zone anchors to bottom');
+    check(css.includes('#movieGrid:has(> .is-target-card) { grid-auto-rows:auto; align-items:start; }'),'mobile uses natural height');
+    check(css.includes('.is-target-card .card-actions { min-height:0; }'),'mobile removes reserved action space');
+  },{raw:data.absent});
+  await test('UX12 Seen card has own contextual actions without legacy menu',async h=>{
+    await h.boot();h.host.setObservedPerson(data.V);Shell.navigate('personalSeen');
+    const context=Shell.presentation(),movie=context.getMovie(data.M),markup=createMovieCard(movie,[],context).innerHTML;
+    check(markup.includes('Voglio vederlo')&&markup.includes('Proponi per noi'),'caller list actions available');
+    check(!markup.includes('L’ho visto anch’io')&&!context.detailActions(movie).includes('L’ho visto anch’io'),'personal seen managed only through own token');
+    check(!markup.includes('movie-list-overflow')&&!markup.includes('fa-ellipsis'),'no Seen overflow menu');
+    check(markup.includes('personal-tokens')&&!markup.includes('together-cluster'),'other Seen remains separate from Together');
+    eq(h.commands.length,0,'render is read only');
+  },{raw:data.seenOther});
+  for(const [label,intent] of [['Voglio vederlo','ADD_PERSONAL_LIST'],['Proponi per noi','PROPOSE_TO_GROUP']])
+    await test('UX12 other member Seen card action '+label+' writes caller or group only',async h=>{
+      await h.boot();h.host.setObservedPerson(data.V);Shell.navigate('personalSeen');
+      const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.cardOperationsHtml(movie);
+      const otherBefore=copy(h.controls.wire.personal.find(p=>p.person_id===data.V).states[0]);
+      await clickProduct(context,markup,label);await h.pump();
+      eq(h.commands.length,1,'one action command');eq(h.commands[0].body.intent,intent,'expected relation intent');
+      deep(h.controls.wire.personal.find(p=>p.person_id===data.V).states[0],otherBefore,'observed person remains read only');
+    },{raw:data.seenOther});
+  await test('UX12 Seen card hides already existing list relations',async h=>{
+    await h.boot();Shell.navigate('personalSeen');
+    const context=Shell.presentation(),movie=context.getMovie(data.M),markup=createMovieCard(movie,[],context).innerHTML;
+    check(!markup.includes('Voglio vederlo')&&!markup.includes('Voglio rivederlo')&&!markup.includes('Proponi per noi'),'no duplicate relation actions');
+    check(!markup.includes('movie-list-overflow'),'no management menu');
+  },{raw:(()=>{const wire=copy(data.selfList);wire.personal[0].states[0].seen=true;Object.assign(wire.group.states[0],{effective_candidacy:true,list_visible:true});return finish(wire);})()});
+  await test('UX12 cinema metadata has one location on card and detail',async h=>{
+    await h.boot();Shell.navigate('groupList');
+    const context=Shell.presentation(),movie=context.getMovie(data.M),markup=createMovieCard(movie,[],context).innerHTML;
+    eq((markup.match(/Al cinema \/ prossimamente/g)||[]).length,1,'cinema card media overlay only');
+    check(!markup.includes('bg-amber-600/80'),'no legacy orange body badge');
+    Shell.detail(data.M);const detail=document.getElementById('detailBody').innerHTML;
+    eq((detail.match(/Al cinema \/ prossimamente/g)||[]).length,1,'cinema detail metadata only');
+    check(!detail.includes('bg-amber-600/80'),'detail badge removed');
+  },{raw:(()=>{const wire=copy(data.absent);Object.assign(wire.catalog[0],{title:'Digger',cinema_watchlist:true});return finish(wire);})()});
+  await test('UX12 Movie Detail reuses ratings and token row in film header',async h=>{
+    await h.boot();Shell.detail(data.M);const markup=document.getElementById('detailBody').innerHTML;
+    const order=['detail-cover','detail-title','detail-meta','card-director','card-genres','external-ratings','detail-token-row'];
+    for(let index=1;index<order.length;index++)check(markup.indexOf(order[index-1])<markup.indexOf(order[index]),'detail '+order[index-1]+' before '+order[index]);
+    eq((markup.match(/external-ratings/g)||[]).length,1,'one shared rating component');
+    eq((markup.match(/class="detail-token-row"/g)||[]).length,1,'one token row');
+    check(!markup.includes('Visti insieme ·'),'no parallel Together label');
+  },{raw:(()=>{const wire=copy(data.selfList);Object.assign(wire.catalog[0],{title:'Ponyo',director:'Hayao Miyazaki',genres:['Animazione','Avventura'],imdb_rating:'7.7',rt_rating:'91%',metacritic_rating:'86'});return finish(wire);})()});
+  await test('UX12 trailer appears once inside the detail header',async h=>{
+    await h.boot();Shell.detail(data.M);const markup=document.getElementById('detailBody').innerHTML;
+    const header=markup.indexOf('detail-header-actions'),trailer=markup.indexOf('Guarda il trailer'),story=markup.indexOf('data-detail-story');
+    check(header>=0&&trailer>header&&story>trailer,'trailer before story in header');
+    eq((markup.match(/Guarda il trailer/g)||[]).length,1,'no second trailer below');
+    check(markup.includes('target="_blank" rel="noopener"')&&markup.includes('fa-play'),'existing link behavior and icon');
+    check(modules.css.includes('.detail-header-actions { grid-column:1 / -1; display:flex;')&&modules.css.includes('flex-wrap:wrap; gap:8px 14px;'),'header wraps when space is narrow');
+  },{raw:(()=>{const wire=copy(data.absent);wire.catalog[0].trailer_url='https://example.test/trailer';wire.catalog[0].overview='Una storia.';return finish(wire);})()});
+  await test('UX12 Together detail uses star without parallel completed-night CTAs',async h=>{
+    await h.boot();Shell.navigate('together');Shell.detail(data.M);const markup=document.getElementById('detailBody').innerHTML;
+    check(markup.includes('together-star')&&markup.includes('detail-nights-deeplink'),'star and deep-link night list coexist');
+    check(!markup.includes('Apri la serata')&&!markup.includes('Visti insieme ·'),'duplicate completed access removed');
+    check(modules.css.includes('.target-film-detail .detail-nights-deeplink:not([open]) { display:none; }'),'completed list only appears for explicit night selection');
+    check(Shell.presentation().togetherPopupHtml(Shell.presentation().getMovie(data.M)).includes('Le nostre visioni'),'completed access retained in popup');
+  },{raw:data.cancelledCompleted});
+  await test('UX12 outline identity records only caller Seen',async h=>{
+    await h.boot();const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.viewingStatusHtml(movie);
+    check(markup.includes('class="person-token person-token-n is-outline"')&&markup.includes('Apri il tuo Visto e giudizio'),'outline personal context control');
+    const other=copy(h.controls.wire.personal.find(p=>p.person_id===data.V).states[0]);
+    await clickProduct(context,context.personalStatusHtml(movie),'Segna come visto');await h.pump();
+    eq(h.commands.length,1,'one command');eq(h.commands[0].body.intent,'RETROSPECTIVE_SEEN','personal seen intent');
+    eq(h.controls.wire.personal[0].states[0].judgment.rating,null,'Seen does not create a rating');
+    eq(h.controls.wire.personal[0].states[0].judgment.preference,null,'Seen does not create a preference');
+    eq(h.controls.wire.nights.length,0,'no night');eq(h.controls.wire.group.judgments.length,0,'no Together judgment');
+    deep(h.controls.wire.personal.find(p=>p.person_id===data.V).states[0],other,'other member unchanged');
+    check(Shell.presentation().viewingStatusHtml(Shell.presentation().getMovie(data.M)).includes('person-token-n is-seen'),'accepted state fills own token');
+  },{raw:data.absent});
+  await test('UX12 judgment from the personal context does not record Seen',async h=>{
+    await h.boot();const context=Shell.presentation(),movie=context.getMovie(data.M);
+    await clickProduct(context,context.personalStatusHtml(movie),'Valuta il film');
+    eq(modalStackTop(),'reviewModal','existing evaluation editor');closeModal('reviewModal');
+    await Shell.perform('setMyEvaluation',data.M,{rating:9});await h.pump();
+    eq(h.commands[0].body.intent,'SET_PERSONAL_EVALUATION','evaluation only');
+    eq(h.controls.wire.personal[0].states[0].seen,false,'personal Seen remains absent');
+  },{raw:data.absent});
+  await test('UX12 completed Together keeps three independent token targets',async h=>{
+    await h.boot();const context=Shell.presentation(),markup=context.viewingStatusHtml(context.getMovie(data.M));
+    const own=markup.match(/<button[^>]*data-product-action="([^"]+)"[^>]*class="person-token person-token-n/);
+    const group=markup.match(/<button[^>]*data-product-action="([^"]+)"[^>]*class="together-star/);
+    const other=markup.match(/<button[^>]*data-product-action="([^"]+)"[^>]*class="person-token person-token-v/);
+    check(!!own&&!!group&&!!other&&new Set([own[1],group[1],other[1]]).size===3,'N, group, V are separate buttons');
+    const node=id=>({dataset:{productAction:id},closest:()=>null,focus(){},setAttribute(){},removeAttribute(){}});
+    const n=node(own[1]),g=node(group[1]),v=node(other[1]);context.bind({querySelectorAll:selector=>selector==='[data-product-action]'?[n,g,v]:[]});
+    n.onclick({stopPropagation(){}});eq(modalStackTop(),'personalStatusModal','N opens own context');closeModal('personalStatusModal');
+    g.onclick({stopPropagation(){}});eq(modalStackTop(),'togetherModal','group opens Together');closeModal('togetherModal');
+    v.onclick({stopPropagation(){}});eq(modalStackTop(),'otherJudgmentModal','V judgment is read only');closeModal('otherJudgmentModal');
+    eq(h.commands.length,0,'opening targets does not write');
+  },{raw:(()=>{const wire=copy(data.cancelledCompleted);wire.personal[1].states[0].judgment.rating=8.5;return finish(wire);})()});
+  await test('UX12 filled identity removal requires confirmation and preserves judgment',async h=>{
+    await h.boot();const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.personalStatusHtml(movie);
+    check(markup.includes('Rimuovi dai miei Visti')&&context.viewingStatusHtml(movie).includes('Apri il tuo Visto e giudizio'),'removal only in own context');
+    const original=showConfirmModal;
+    try{
+      showConfirmModal=()=>Promise.resolve(false);await clickProduct(context,markup,'Rimuovi dai miei Visti');eq(h.commands.length,0,'cancel is read only');
+      showConfirmModal=()=>Promise.resolve(true);await clickProduct(context,markup,'Rimuovi dai miei Visti');await h.pump();
+      eq(h.commands.length,1,'confirmed once');eq(h.commands[0].body.intent,'REMOVE_PERSONAL_SEEN','only Seen relation removed');
+      eq(h.controls.wire.personal[0].states[0].judgment.rating,8.6,'judgment preserved');
+      check(!context.detailActions(movie).includes('Rimuovi dai miei Visti'),'no parallel detail seen action');
+    }finally{showConfirmModal=original;}
+  },{raw:(()=>{const wire=copy(data.absent);wire.personal[0].states[0].seen=true;wire.personal[0].states[0].judgment.rating=8.6;return finish(wire);})()});
+  await test('UX12 human intent copy and TARGET commands stay distinct',async h=>{
+    await h.boot();Shell.navigate('personalSeen');const context=Shell.presentation(),movie=context.getMovie(data.M),card=context.cardOperationsHtml(movie);
+    check(card.includes('Voglio rivederlo')&&card.includes('Proponi per noi'),'seen leads to rewatch intent and separate shared proposal');
+    await clickProduct(context,card,'Voglio rivederlo');await h.pump();eq(h.commands[0].body.intent,'ADD_PERSONAL_LIST','personal intention only');
+    await clickProduct(context,card,'Proponi per noi');await h.pump();eq(h.commands[1].body.intent,'PROPOSE_TO_GROUP','shared intention only');
+    Shell.navigate('groupList');const choices=Shell.presentation().cardOperationsHtml(Shell.presentation().getMovie(data.M));
+    check(choices.includes('Guardiamolo')&&choices.includes('Pianifica'),'choice and scheduling remain distinct');
+  },{raw:(()=>{const wire=copy(data.absent);wire.personal[0].states[0].seen=true;return finish(wire);})()});
+  await test('UX12 missing ratings slot and detail hierarchy',async h=>{
+    await h.boot();Shell.navigate('personalSeen');const context=Shell.presentation(),movie=context.getMovie(data.M);
+    const card=createMovieCard(movie,[],context).innerHTML;
+    check(card.includes('IMDb n.d.')&&card.includes('RT n.d.')&&card.includes('MC n.d.')&&card.indexOf('IMDb n.d.')<card.indexOf('personal-tokens'),'provider slots before status');
+    Shell.detail(data.M);const detail=document.getElementById('detailBody').innerHTML;
+    check(detail.includes('IMDb n.d.')&&detail.includes('RT n.d.')&&detail.includes('MC n.d.')&&detail.includes('Per me')&&detail.includes('Per noi')&&detail.includes('Altre azioni'),'same ratings slot and human sections');
+    check(!detail.includes('Aggiungi ai miei Visti')&&!detail.includes('Rimuovi dai miei Visti'),'Seen actions only in token');
+    check(modules.css.includes('.is-target-card .external-ratings,.target-film-detail .external-ratings { min-height:16px; }'),'ratings slot has consistent height');
+  },{raw:data.absent});
+  await test('UX12 visual token dimensions share one geometry',async h=>{
+    await h.boot();const css=modules.css;
+    check(css.includes('height:44px; min-height:44px; max-height:44px; width:96px; min-width:96px; max-width:96px')&&!css.includes('.person-token.has-rating .person-token-face'),'same fixed outer size regardless of judgment');
+    check(css.includes('.person-token-face { display:inline-flex;')&&css.includes('width:92px; height:28px; min-height:28px; padding:2px 6px; border:1px solid currentColor; border-radius:999px'),'shared height padding and radius');
+    check(!css.includes('.person-token-identity')&&!css.includes('.person-token-judgment'),'no reserved internal hit zones');
+    const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.viewingStatusHtml(movie);
+    check(markup.includes('person-token-n')&&markup.includes('person-token-v')&&!markup.includes('together-cluster'),'personal tokens rendered without changing Together rule');
+  },{raw:data.absent});
+  await test('UX12 visual ratings keep three provider positions',async h=>{
+    await h.boot();Shell.navigate('personalList');const context=Shell.presentation(),movie=context.getMovie(data.M);
+    const markup=createMovieCard(movie,[],context).innerHTML;
+    check(markup.includes('IMDb 7.7')&&markup.includes('RT n.d.')&&markup.includes('MC n.d.'),'partial ratings retain missing providers');
+    eq((markup.match(/external-ratings/g)||[]).length,1,'single ratings strip');
+    check(!markup.includes('Valutazioni non disponibili'),'no separate empty sentence');
+  },{raw:(()=>{const wire=copy(data.selfList);Object.assign(wire.catalog[0],{imdb_rating:'7.7',rt_rating:null,metacritic_rating:null});return finish(wire);})()});
+  await test('UX12 visual Movie Detail is group first with candidate actions',async h=>{
+    await h.boot();Shell.detail(data.M);const detail=document.getElementById('detailBody').innerHTML;
+    check(detail.indexOf('Per noi')<detail.indexOf('Per me')&&detail.indexOf('Per me')<detail.indexOf('Altre azioni'),'group then personal then technical');
+    check(detail.includes('Guardiamolo')&&detail.includes('Pianifica')&&detail.includes('Togli dai Da vedere insieme'),'candidate action hierarchy');
+    check(!detail.includes('<p>Da vedere insieme</p>'),'no redundant candidate status');
+    check(modules.css.includes('.intent-action.is-shared')&&modules.css.includes('.detail-intent-personal .intent-action'),'distinct action weights');
+  },{raw:data.detailCases.find(x=>x[0]==='shared')[1]});
+  await test('UX12 Seen primary row remains separate from Saga footer',async h=>{
+    await h.boot();Shell.navigate('personalSeen');const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.cardOperationsHtml(movie);
+    check(markup.includes('movie-list-actions movie-seen-actions')&&markup.includes('movie-list-secondary-strip movie-seen-secondary')&&markup.includes('saga-entry-compact')&&markup.includes('is-shared')&&markup.includes('is-personal'),'two primary actions above Saga footer');
+    eq((markup.match(/movie-seen-primary/g)||[]).length,2,'both Seen buttons use the same row geometry');
+    check(markup.indexOf('Proponi per noi')<markup.indexOf('Voglio rivederlo')&&markup.indexOf('Voglio rivederlo')<markup.indexOf('movie-seen-secondary'),'group then personal above Saga footer');
+    check(modules.css.includes('.is-target-card .movie-list-actions > button { min-height:52px;')&&modules.css.includes('.is-target-card .movie-seen-secondary,.is-target-card .movie-rewatch-secondary { min-height:44px; }'),'shared action geometry and stable footer');
+  },{raw:(()=>{const wire=copy(data.absent);wire.personal[0].states[0].seen=true;wire.catalog[0].collection_id='123';wire.catalog[0].collection_name='Saga';return finish(wire);})()});
+  await test('UX12 visual Seen footer without Saga keeps the same slot',async h=>{
+    await h.boot();Shell.navigate('personalSeen');const context=Shell.presentation(),markup=context.cardOperationsHtml(context.getMovie(data.M));
+    check(markup.includes('movie-list-actions movie-seen-actions')&&markup.includes('movie-list-secondary-strip movie-seen-secondary')&&!markup.includes('saga-entry-compact'),'same footer with Saga absent');
+    check(markup.includes('Voglio rivederlo')&&markup.includes('Proponi per noi'),'both quick actions remain');
+    check(modules.css.includes('.is-target-card .movie-seen-secondary:empty { display:flex; }'),'footer slot remains when empty');
+  },{raw:(()=>{const wire=copy(data.absent);wire.personal[0].states[0].seen=true;return finish(wire);})()});
+  await test('UX12 Seen unseen caller uses the same two-column action slot',async h=>{
+    await h.boot();h.host.setObservedPerson(data.V);await h.pump();Shell.navigate('personalSeen');
+    const context=Shell.presentation(),markup=context.cardOperationsHtml(context.getMovie(data.M));
+    check(markup.includes('movie-list-actions movie-seen-actions')&&markup.includes('Voglio vederlo'),'same action row for first viewing intent');
+    check(markup.indexOf('Proponi per noi')<markup.indexOf('Voglio vederlo'),'group-first even when viewing other member');
+    check(markup.includes('movie-list-secondary-strip movie-seen-secondary')&&!markup.includes('saga-entry-compact'),'footer remains below the row');
+    check(modules.css.includes('.is-target-card .movie-list-actions > button { min-height:52px; padding:7px 8px; gap:6px; border-radius:var(--radius-lg); font-size:13px; }'),'shared geometry independent of Saga');
+  },{raw:data.seenOther});
+  await test('UX12 poster fades into the card without affecting media controls',async h=>{
+    await h.boot();Shell.navigate('groupList');const context=Shell.presentation(),markup=createMovieCard(context.getMovie(data.M),[],context).innerHTML,css=modules.css;
+    check(css.includes('.is-target-card .card-poster { overflow:visible; background:transparent; }')&&css.includes('.is-target-card .card-poster img,')&&css.includes('.is-target-card .card-poster > .absolute.inset-0'),'image and backdrop fade into the shared card surface');
+    check(css.includes('-webkit-mask-image:linear-gradient')&&css.includes('mask-image:linear-gradient')&&css.includes('.is-target-card .ticket-seam { border-top:0; }'),'controlled cross-browser fade without dashed seam');
+    check(markup.includes('card-poster')&&markup.includes('Trailer')&&markup.includes('fa-tv'),'poster crop, trailer and metadata markup retained');
+  },{raw:(()=>{const wire=copy(data.raw);wire.catalog[0].trailer_url='https://example.test/trailer';return finish(wire);})()});
+  for(const [name,saga,open] of [['Saga and proposal',true,false],['proposal only',false,false],['Saga only',true,true],['neither',false,true]])
+    await test('UX12 Rewatch footer '+name,async h=>{
+      await h.boot();Shell.navigate('rewatch');const context=Shell.presentation(),markup=context.cardOperationsHtml(context.getMovie(data.M));
+      if(open)check(markup.includes('Apri In programma')&&!markup.includes('Guardiamolo'),'open event keeps its existing state action');
+      else check(markup.includes('movie-list-actions')&&markup.includes('Guardiamolo')&&markup.includes('Pianifica'),'choice pair remains primary');
+      check(markup.includes('movie-list-secondary-strip movie-rewatch-secondary'),'stable footer slot');
+      eq(markup.includes('saga-entry-compact'),saga,'Saga availability');
+      eq(markup.includes('Proponi per noi'),!open,'proposal only without an open event');
+      if(saga&&!open)check(markup.indexOf('Saga')<markup.indexOf('Proponi per noi'),'Saga left proposal right');
+      check(markup.indexOf(open?'movie-list-state':'movie-list-actions')<markup.indexOf('movie-rewatch-secondary'),'primary area before footer');
+      check(modules.css.includes('.is-target-card .movie-rewatch-secondary:empty { display:flex; }')&&modules.css.includes('#movieGrid:has(> .is-target-card) { grid-auto-rows:1fr; align-items:stretch; }'),'empty footer and desktop baseline');
+    },{raw:(()=>{const wire=copy(data.rewatch);wire.catalog[0].collection_id=saga?'555':null;wire.catalog[0].collection_name=saga?'Saga':null;
+      if(open){const night=copy(data.agenda.nights[0]);wire.nights.push(night);wire.versions.entries.push(copy(data.agenda.versions.entries.find(row=>row.scope_kind==='night'&&row.entity_id===night.night_id)));}
+      return finish(wire);})()});
+  await test('UX12 My Seen candidate keeps personal actions separate from Rewatch choice',async h=>{
+    await h.boot();Shell.navigate('personalSeen');const context=Shell.presentation(),markup=context.cardOperationsHtml(context.getMovie(data.M));
+    check(markup.includes('movie-list-actions movie-seen-actions')&&!markup.includes('Guardiamolo')&&!markup.includes('Pianifica'),'Seen card does not reuse Rewatch choice');
+    check(!markup.includes('Proponi per noi'),'no duplicate proposal when candidate');
+    check(markup.includes('movie-list-secondary-strip movie-seen-secondary'),'secondary footer retained');
+  },{raw:(()=>{const wire=copy(data.absent);wire.personal[0].states[0].seen=true;Object.assign(wire.group.states[0],{effective_candidacy:true,list_visible:true});return finish(wire);})()});
+  await test('UX12 personal interest alone does not present a shared choice in detail',async h=>{
+    await h.boot();Shell.detail(data.M);const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.detailActions(movie);
+    check(markup.includes('Proponi per noi')&&!markup.includes('Guardiamolo')&&!markup.includes('Pianifica'),'proposal represents first shared step');
+    check(markup.includes('Nei tuoi Da vedere'),'personal intention retained');
+  },{raw:data.selfList});
+  await test('UX12 Detail story and cast precede decisions',async h=>{
+    await h.boot();Shell.detail(data.M);const markup=document.getElementById('detailBody').innerHTML;
+    const order=['detail-head','data-detail-story','data-detail-cast','Per noi','Per me','Altre azioni'];
+    for(let i=1;i<order.length;i++)check(markup.indexOf(order[i-1])<markup.indexOf(order[i]),order[i-1]+' before '+order[i]);
+    check(markup.includes('data-story-toggle')&&markup.includes('detail-story-copy is-clamped')&&markup.includes('hidden>Leggi tutto'),'story toggle waits for layout measurement');
+    check(markup.includes('Vedi tutto il cast')&&markup.includes('detailCastList'),'long cast has its own expander');
+    check(!markup.includes('La storia e il cast'),'old combined accordion removed');
+    check(modules.css.includes('-webkit-line-clamp:4')&&modules.css.includes('li:nth-child(n+7)'),'four story lines and first six cast names');
+  },{raw:(()=>{const wire=copy(data.absent);wire.catalog[0].overview='Una storia di cinema e di persone. '.repeat(14);wire.catalog[0].cast_names=['Uno','Due','Tre','Quattro','Cinque','Sei','Sette','Otto'];return finish(wire);})()});
+  await test('UX12 Detail short story and cast need no expanders',async h=>{
+    await h.boot();Shell.detail(data.M);const markup=document.getElementById('detailBody').innerHTML;
+    check(markup.includes('data-detail-story')&&markup.includes('data-detail-cast'),'both content sections shown');
+    check(markup.includes('hidden>Leggi tutto')&&!markup.includes('Vedi tutto il cast'),'short story control starts hidden');
+    check(markup.indexOf('data-detail-story')<markup.indexOf('data-detail-cast')&&markup.indexOf('data-detail-cast')<markup.indexOf('Per noi'),'editorial content first');
+    check(!markup.includes('Cosa facciamo'),'redundant heading absent');
+  },{raw:(()=>{const wire=copy(data.absent);wire.catalog[0].overview='Una storia breve.';wire.catalog[0].cast_names=['Uno','Due'];return finish(wire);})()});
+  await test('UX12 story toggle follows measured clipping at different widths',async h=>{
+    await h.boot();const modal=document.getElementById('detailModal'),original=modal.querySelector;
+    const flags=new Set(),copy={clientHeight:96,scrollHeight:96};
+    const button={hidden:true,textContent:'',attributes:{},setAttribute(k,v){this.attributes[k]=v;}};
+    const section={classList:{contains:k=>flags.has(k),add:k=>flags.add(k),remove:k=>flags.delete(k)},querySelector:s=>s==='.detail-story-copy'?copy:button};
+    modal.classList.remove('hidden');modal.querySelector=s=>s==='[data-detail-story]'?section:null;
+    try{
+      syncDetailStoryOverflow();check(button.hidden,'fully visible story has no link');
+      copy.scrollHeight=144;syncDetailStoryOverflow();check(!button.hidden&&button.textContent==='Leggi tutto','narrow layout exposes real truncation');
+      flags.add('is-expanded');syncDetailStoryOverflow();check(!button.hidden&&button.textContent==='Mostra meno'&&button.attributes['aria-expanded']==='true','expanded state persists when clipped');
+      copy.scrollHeight=96;syncDetailStoryOverflow();check(button.hidden&&!flags.has('is-expanded'),'wide layout hides ineffective link');
+    }finally{modal.querySelector=original;modal.classList.add('hidden');}
+  },{raw:data.absent});
+  await test('UX12 Detail story and cast expand and survive same-film render',async h=>{
+    await h.boot();const body=document.getElementById('detailBody'),original=body.querySelector;
+    const section=()=>{const marks=new Set(),button={textContent:'',attributes:{},setAttribute(k,v){this.attributes[k]=v;}};
+      return {button,classList:{contains:key=>marks.has(key),add:key=>marks.add(key),toggle(key){if(marks.has(key)){marks.delete(key);return false;}marks.add(key);return true;}},querySelector:()=>button};};
+    const story=section(),cast=section();
+    body.querySelector=selector=>selector==='[data-detail-story]'?story:selector==='[data-detail-cast]'?cast:null;
+    try{
+      Shell.detail(data.M);eq(story.button.textContent,'Leggi tutto','story starts collapsed');eq(cast.button.textContent,'Vedi tutto il cast','cast starts compact');
+      story.button.onclick();cast.button.onclick();check(story.classList.contains('is-expanded')&&cast.classList.contains('is-expanded'),'both sections expand');
+      eq(story.button.attributes['aria-expanded'],'true','story accessibility state');eq(cast.button.attributes['aria-expanded'],'true','cast accessibility state');
+      const context=Shell.presentation();renderMovieDetail(context.getMovie(data.M),context);
+      eq(story.button.textContent,'Mostra meno','story expansion retained');eq(cast.button.textContent,'Mostra meno','cast expansion retained');
+    }finally{body.querySelector=original;}
+  },{raw:(()=>{const wire=copy(data.absent);wire.catalog[0].overview='Una storia di cinema e di persone. '.repeat(14);wire.catalog[0].cast_names=['Uno','Due','Tre','Quattro','Cinque','Sei','Sette'];return finish(wire);})()});
+  await test('UX12 Detail delete is the fourth management button and requires confirmation',async h=>{
+    await h.boot();const context=Shell.presentation(),markup=context.detailActions(context.getMovie(data.M));
+    const grid=markup.split('<div class="detail-menu-controls"')[1].split('</div>')[0];
+    const names=['Continua la saga','Sposta al cinema','Aggiorna informazioni da TMDb','Rimuovi film'];
+    for(let i=1;i<names.length;i++)check(grid.indexOf(names[i-1])<grid.indexOf(names[i]),'management button '+i+' before '+(i+1));
+    check(!markup.includes('detail-danger-area')&&grid.includes('data-feedback-zone="danger"'),'danger remains in same grid');
+    const original=showConfirmModal;
+    try{showConfirmModal=()=>Promise.resolve(false);await clickProduct(context,markup,'Rimuovi film');eq(h.commands.length,0,'cancel is read only');
+      showConfirmModal=()=>Promise.resolve(true);await clickProduct(context,markup,'Rimuovi film');await h.pump();eq(h.commands[0].body.intent,'CONTENT_DELETE','confirmed delete uses existing command');
+    }finally{showConfirmModal=original;}
+  },{raw:(()=>{const wire=copy(data.absent);Object.assign(wire.catalog[0],{collection_id:'123',collection_name:'Saga',tmdb_id:'777'});return finish(wire);})()});
+  await test('UX12 visual Together card has subtle gold identity only',async h=>{
+    await h.boot();Shell.navigate('together');const context=Shell.presentation(),markup=createMovieCard(context.getMovie(data.M),[],context).innerHTML;
+    check(markup.includes('together-cluster')&&markup.includes('together-star')&&!markup.includes('1 serata'),'single Together entry point');
+    check(markup.includes('movie-together-label')&&markup.includes('INSIEME')&&modules.css.includes('.is-target-card .movie-together-label'),'micro gold label lives in secondary footer');
+    check(!modules.css.includes('.is-target-card.collection-together .card-poster::before'),'poster label removed');
+    check(!markup.includes('Snack')&&!markup.includes('Apri serata'),'no duplicated night data');
+  },{raw:data.cancelledCompleted});
+  await test('UX12 Together label and Rewatch proposal share secondary footer grammar',async h=>{
+    await h.boot();let context=Shell.presentation();Shell.navigate('together');context=Shell.presentation();
+    const togetherCard=createMovieCard(context.getMovie(data.M),[],context).innerHTML;
+    check(togetherCard.includes('movie-list-secondary-strip movie-together-secondary')&&togetherCard.includes('movie-together-label'),'Together label in footer');
+    check(!togetherCard.includes('card-poster::before'),'no second poster label');
+    Shell.navigate('rewatch');context=Shell.presentation();
+    const rewatch=context.cardOperationsHtml(context.getMovie(data.M));
+    check(rewatch.includes('movie-rewatch-propose')&&rewatch.includes('fa-user-plus')&&!rewatch.includes('intent-action is-shared'),'proposal is text footer action');
+    check(rewatch.indexOf('movie-list-actions')<rewatch.indexOf('movie-rewatch-secondary'),'primary row precedes footer');
+    check(modules.css.includes('.movie-rewatch-propose:focus-visible')&&modules.css.includes('min-height:44px'),'touch and focus treatment');
+  },{raw:(()=>{const wire=copy(data.cancelledCompleted);wire.personal[0].states[0].seen=true;wire.personal[1].states[0].seen=true;wire.group.states[0].rewatch_visible=true;wire.group.states[0].rewatch_semantic=true;return finish(wire);})()});
+  await test('UX12 detail ambient layers cover the content-sized surface',async h=>{
+    await h.boot();const source=modules.indexSource,css=modules.css;
+    const start=source.indexOf('<div id="detailPanel"'),surface=source.indexOf('<div class="detail-surface">',start),ambient=source.indexOf('id="detailAmbient"',surface),overlay=source.indexOf('id="detailOverlay"',ambient),body=source.indexOf('id="detailBody"',overlay);
+    check(start>=0&&surface>start&&ambient>surface&&overlay>ambient&&body>overlay,'ambient and overlay share the content wrapper');
+    check(css.includes('.detail-surface { position:relative; min-height:100%; padding-bottom:env(safe-area-inset-bottom); isolation:isolate; }'),'layers cover scroll content and the safe area');
+    check(css.includes('.ambient-bg {')&&css.includes('background-size: cover;')&&css.includes('filter: blur(18px)'),'existing poster treatment retained');
+  },{raw:data.absent});
+  await test('UX12 final detail intent buttons share geometry and separate emphasis',async h=>{
+    await h.boot();const context=Shell.presentation(),markup=context.detailActions(context.getMovie(data.M));
+    check(markup.indexOf('Per noi')<markup.indexOf('Per me'),'group first');
+    check(markup.includes('fa-user-plus')&&markup.includes('fa-rotate'),'shared and rewatch icons');
+    check(markup.includes('intent-action is-shared detail-intent-action')&&markup.includes('intent-action is-personal detail-intent-action'),'one button family');
+    check(modules.css.includes('.intent-action { display:inline-flex;')&&modules.css.includes('.intent-action.is-shared')&&modules.css.includes('.detail-intent-personal .intent-action'),'same dimensions, different emphasis');
+  },{raw:(()=>{const wire=copy(data.absent);wire.personal[0].states[0].seen=true;return finish(wire);})()});
+  await test('UX12 final detail Saga and technical actions share a grid',async h=>{
+    await h.boot();const context=Shell.presentation(),markup=context.detailActions(context.getMovie(data.M));
+    check(markup.includes('detail-film-action saga-entry-detail')&&markup.includes('Continua la saga')&&!markup.includes('Continua la saga ·'),'compact Saga caption');
+    check(markup.includes('Sposta al cinema')&&markup.includes('Aggiorna informazioni da TMDb'),'existing technical actions');
+    check(modules.css.includes('.detail-menu-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr));')&&modules.css.includes('.detail-menu-controls > button { display:inline-flex;'),'shared button geometry');
+    check(modules.css.includes('@media(max-width:480px){ .detail-menu-controls { grid-template-columns:minmax(0,1fr); } }'),'mobile single column');
+  },{raw:(()=>{const wire=copy(data.absent);Object.assign(wire.catalog[0],{collection_id:'123',collection_name:'Dune – Collezione',tmdb_id:'777'});return finish(wire);})()});
+  await test('UX12 final Together compact zone and desktop baseline rules',async h=>{
+    await h.boot();const css=modules.css;
+    check(css.includes('.is-target-card.collection-together .card-actions { min-height:44px; }'),'Together reserves only one footer row');
+    check(css.includes('#movieGrid:has(> .is-target-card) { grid-auto-rows:1fr; align-items:stretch; }'),'desktop cards share track height');
+    check(css.includes('.is-target-card .card-actions { display:flex; flex-direction:column; justify-content:flex-end; min-height:108px; margin-top:auto; }'),'actions anchor to bottom');
+    check(css.includes('.is-target-card.collection-together .card-actions { min-height:0; }'),'mobile Together height natural');
+  },{raw:data.cancelledCompleted});
+  await test('UX12 visual wheel result uses card grammar without changing commands',async h=>{
+    await h.boot();const source=modules.wheelSource;
+    check(source.includes('fa-ticket')&&source.includes('fa-calendar-days')&&source.includes('Guardiamolo</button>')&&source.includes('Pianifica</button>'),'wheel result copy and icons');
+    check(source.includes("TargetShell.edit('quickNight'")&&source.includes("TargetShell.edit('scheduleNight'"),'existing TARGET commands');
+    check(source.includes('function wheelPool()')&&source.includes('function spinWheel()'),'wheel pool and spin remain');
+  },{raw:data.absent});
+  for(const [name,patch] of [['rating',{rating:8.6}],['preference',{preference:true}],['review',{review:'Una recensione personale'}]])
+    await test('UX12 feedback personal '+name+' auto dismisses',async h=>{
+      await h.boot();modules.clearTimers();
+      document.getElementById('targetFeedback').querySelector=()=>null;
+      await Shell.perform('setMyEvaluation',data.M,patch);await h.pump();
+      const message=document.getElementById('targetFeedbackMessage');
+      eq(message.textContent,'Giudizio personale aggiornato.','success appears once');
+      modules.advanceTime(2500);eq(message.textContent,'Giudizio personale aggiornato.','readable before timeout');
+      modules.advanceTime(100);eq(message.textContent,'','success auto dismisses at 2.6 seconds');
+      check(document.getElementById('targetFeedback').hidden,'fixed toast hidden');
+    });
+  await test('UX12 feedback second judgment replaces first timer and message',async h=>{
+    await h.boot();modules.clearTimers();
+    await Shell.perform('setMyEvaluation',data.M,{rating:8});await h.pump();
+    modules.advanceTime(1000);
+    await Shell.perform('setMyEvaluation',data.M,{rating:9});await h.pump();
+    const message=document.getElementById('targetFeedbackMessage');
+    eq(message.textContent,'Giudizio personale aggiornato.','one current toast');
+    modules.advanceTime(1600);eq(message.textContent,'Giudizio personale aggiornato.','old timer cannot dismiss new toast');
+    modules.advanceTime(1000);eq(message.textContent,'','latest timer dismisses');
+  });
+  await test('UX12 feedback navigation and modal changes clear success',async h=>{
+    await h.boot();modules.clearTimers();
+    const message=document.getElementById('targetFeedbackMessage');
+    await Shell.perform('setMyEvaluation',data.M,{rating:8});Shell.navigate('personalList');eq(message.textContent,'','collection change clears toast');
+    await Shell.perform('setMyEvaluation',data.M,{rating:9});Shell.detail(data.M);eq(message.textContent,'','opening film detail clears toast');
+    await Shell.perform('setMyEvaluation',data.M,{rating:7});eq(document.getElementById('detailFeedback').textContent,'','detail does not duplicate global toast');closeModal('detailModal');eq(message.textContent,'','closing modal clears toast');
+    await Shell.perform('setMyEvaluation',data.M,{rating:6});openModal('reviewModal');eq(message.textContent,'','opening modal clears toast');closeModal('reviewModal');
+  });
+  await test('UX12 feedback editor auto close preserves short success toast',async h=>{
+    await h.boot();modules.clearTimers();Shell.edit('setMyEvaluation',data.M);
+    document.getElementById('reviewRating').value='8,6';
+    await document.getElementById('reviewSaveButton').onclick();await h.pump();
+    check(document.getElementById('reviewModal').classList.contains('hidden'),'editor closes after save');
+    eq(document.getElementById('targetFeedbackMessage').textContent,'Giudizio personale aggiornato.','toast survives automatic editor close');
+    modules.advanceTime(2600);eq(document.getElementById('targetFeedbackMessage').textContent,'','editor toast expires');
+  });
+  await test('UX12 feedback resync cannot resurrect dismissed success',async h=>{
+    await h.boot();modules.clearTimers();await Shell.perform('setMyEvaluation',data.M,{rating:8});await h.pump();
+    await h.refresh();check(document.getElementById('targetFeedbackMessage').textContent.includes('Giudizio personale'),'resync keeps active toast until timeout');
+    modules.advanceTime(2600);Shell.render();eq(document.getElementById('targetFeedbackMessage').textContent,'','rerender does not restore old feedback');
+    check(!html().includes('Giudizio personale aggiornato.'),'card grid has no persistent feedback');
+  });
+  await test('UX12 feedback error stays readable beyond success timeout',async h=>{
+    await h.boot();modules.clearTimers();h.controls.commandOutcome='STALE';
+    await Shell.perform('setMyEvaluation',data.M,{rating:8});await h.pump();
+    const message=document.getElementById('targetFeedbackMessage');
+    check(message.textContent.includes('I dati sono cambiati'),'error visible');
+    modules.advanceTime(10000);check(message.textContent.includes('I dati sono cambiati'),'error not auto dismissed');
   });
   return {cases,assertions};
 }
@@ -413,9 +1316,15 @@ if(require.main===module){
  dom=dom.replace('id, _value:', "get parentElement() { return makeEl('parent'); }, add(c) { this._children.push(c); }, get options() { return this._children; }, before() {}, removeAttribute(k) { delete this[k]; }, id, _value:");
  dom=dom.replace('appendChild(c) {', 'replaceChildren(...items) { this._children=[];this._innerHTML="";for(const item of items)this.appendChild(item); }, appendChild(c) {');
  dom=dom.replace('appendChild(c) {', 'insertAdjacentHTML(position, html) { this._innerHTML += html; }, appendChild(c) {');
- const context=vm.createContext({console,URL,URLSearchParams,AbortController,crypto:require('node:crypto').webcrypto,setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){}});
+ const pendingTimers=new Map();let timerSerial=0,virtualTime=0;
+ const advanceTime=ms=>{virtualTime+=ms;for(const [id,job] of [...pendingTimers])if(job.at<=virtualTime){pendingTimers.delete(id);job.fn();}};
+ const clearTimers=()=>{pendingTimers.clear();virtualTime=0;};
+ const context=vm.createContext({console,URL,URLSearchParams,AbortController,crypto:require('node:crypto').webcrypto,
+   setTimeout:(fn,ms=0)=>{const id=++timerSerial;pendingTimers.set(id,{fn,at:virtualTime+Number(ms)});return id;},
+   clearTimeout:id=>pendingTimers.delete(id),setInterval:()=>1,clearInterval(){}});
  vm.runInContext(dom+`const localStorage={getItem:()=>null,setItem(){},removeItem(){}};const sessionStorage=localStorage;const document=documentStub;const Option=function(text,value){const el=makeEl('option');el.textContent=text;el.value=value;return el;};const window={addEventListener(){},scrollTo(){}};const location={search:'',hash:'',href:'https://fixture.invalid/',reload(){}};const navigator={};const performance={now:()=>0};`,context);
  for(const f of graph)vm.runInContext(f==='js/config.js'?`const CONFIG={SUPABASE_URL:'',SUPABASE_ANON_KEY:'',TMDB_API_KEY:'',OMDB_API_KEY:'',PEOPLE:{N:{label:'Nicholas',badgeClass:''},V:{label:'Valeria',badgeClass:''}},AUTH_EMAILS:{N:'n@example.test',V:'v@example.test'}};`:read(f),context,{filename:f});
- const code=`(${runChecks.toString()})({Core:SnapshotCore,Cache:SnapshotCache,Engine:RecommendationEngine,Shell:TargetShell,originalSession:ProductionSession,createCoordinator:ProductionSession.createCoordinator,productionDependencies:ProductionSession.productionDependencies,install: app=>{ProductionSession=app;TargetShell.dispose();},html:()=>document.getElementById('movieGrid').innerHTML},${JSON.stringify(fixtureData())},name=>console.log('PASS '+name))`;
+ const code=`(${runChecks.toString()})({Core:SnapshotCore,Cache:SnapshotCache,Engine:RecommendationEngine,Shell:TargetShell,originalSession:ProductionSession,createCoordinator:ProductionSession.createCoordinator,productionDependencies:ProductionSession.productionDependencies,install: app=>{ProductionSession=app;TargetShell.dispose();},advanceTime,clearTimers,css:${JSON.stringify(read('css/style.css'))},indexSource:${JSON.stringify(read('index.html'))},wheelSource:${JSON.stringify(read('js/wheel.js'))},modalsSource:${JSON.stringify(read('js/ui/modals.js'))},html:()=>document.getElementById('movieGrid').innerHTML},${JSON.stringify(fixtureData())},name=>console.log('PASS '+name),name=>name.includes(${JSON.stringify(process.argv[2]||'')}))`;
+ context.advanceTime=advanceTime;context.clearTimers=clearTimers;
  vm.runInContext(code,context).then(r=>console.log('PRODUCTION SHELL VM '+JSON.stringify(r)+' PASS')).catch(e=>{console.error(e.stack);process.exitCode=1;});
 }

@@ -67,7 +67,16 @@ function renderMatchCta() {
 }
 
 // ---- Viste ----
-function matchUnavailableHtml() {
+function matchUnavailableHtml(targetPhase = null) {
+  if (targetPhase === 'DISCONNECTED' || targetPhase === 'UNAVAILABLE') {
+    const disconnected = targetPhase === 'DISCONNECTED';
+    return `<div class="match-panel match-error-state col-span-full text-center text-slate-400 text-sm space-y-3" role="status" aria-live="polite">
+      <div class="match-error-icon" aria-hidden="true"><i class="fa-solid fa-wifi"></i></div>
+      <h3>Match non disponibile in questo momento</h3>
+      <p>${disconnected ? 'Connessione interrotta. Match si riconnetterà automaticamente.' : 'Non riusciamo ad aggiornare Match. Riprova a caricare la sessione.'}</p>
+      ${disconnected ? '' : '<button onclick="reconcileMatch()" class="match-panel-action match-retry-btn">Riprova</button>'}
+    </div>`;
+  }
   const tech = matchEnterErrorMsg
     ? `<details class="match-error-details"><summary>Dettagli tecnici</summary><p class="text-slate-400 text-[10px] break-all">${escapeHtml(matchEnterErrorMsg)}</p></details>`
     : '';

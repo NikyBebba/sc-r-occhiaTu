@@ -38,7 +38,7 @@ function renderNextMovieBox(now = new Date(), context = null) {
   }
 
   const pending = context ? !pick.night_confirmed : pick.proposed_by && !pick.night_confirmed;
-  const countdown = context && !pick.scheduled_date ? (pending ? '📅 Data non fissata' : 'Da vedere insieme') : nextMovieTimeLabel(pick, now.getTime());
+  const countdown = context && !pick.scheduled_date ? (pending ? 'Proposta in attesa' : 'Da vedere insieme') : nextMovieTimeLabel(pick, now.getTime());
   const countdownHtml = escapeHtml(countdown);
   const dateHtml = pick.scheduled_date ? escapeHtml(formatNightDate(pick.scheduled_date, pick.scheduled_time)) : '';
   const safeId = jsAttrEscape(pick.id);
@@ -109,7 +109,7 @@ function projectionInfoHtml(movie, context = null) {
   const pick = context ? {...context.movieProjection(movie,night),nightId:night.id} : movieProjection(movie, night);
   if (movie.surprise_by && movie.surprise_by !== (context ? context.callerLabel : currentUser)) pick.title = 'Film a sorpresa';
   const pending = pick.proposed_by && !pick.night_confirmed;
-  return `<div class="projection-card-info"><p><i class="fa-solid ${pending ? 'fa-hourglass-half' : 'fa-calendar-check'}" aria-hidden="true"></i> ${pending ? 'Proposta da confermare' : 'Proiezione in programma'} · ${escapeHtml(formatNightDate(pick.scheduled_date, pick.scheduled_time))}</p>
+  return `<div class="projection-card-info"><p><i class="fa-solid ${pending ? 'fa-hourglass-half' : 'fa-calendar-check'}" aria-hidden="true"></i> ${pending ? 'Proposta da confermare' : pick.scheduled_date ? 'Proiezione in programma' : 'FILM SCELTO'} · ${pick.scheduled_date ? escapeHtml(formatNightDate(pick.scheduled_date, pick.scheduled_time)) : 'Da vedere insieme'}</p>
     ${pick.snack ? `<p>🍿 ${escapeHtml(pick.snack)}</p>` : ''}
     ${pick.location ? `<p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${escapeHtml(pick.location)}</p>` : ''}
     <div class="projection-actions">${context ? context.eventActions(night) : projectionActionsHtml(pick, new Date(), { showCompletion: false })}${!context && night ? `<button onclick="editNightDetailsUI('${jsAttrEscape(movie.id)}', '${jsAttrEscape(night.id)}')">Snack e luogo</button>` : ''}</div></div>`;
@@ -139,16 +139,30 @@ function renderScheduled(now = new Date(), context = null, mount = null, entries
     }).filter(Boolean);
   if(!entriesOverride)entries.sort((a, b) => (a.scheduled_date || '').localeCompare(b.scheduled_date || ''));
   if (panel) { if(context)panel.classList.remove('!hidden');panel.classList.toggle('hidden', !entries.length || currentTab === 'match'); }
-  container.innerHTML = entries.map(m => {
+  const renderEntry = m => {
     const hidden = context ? context.hidden(m) : m.surprise_by && m.surprise_by !== currentUser;
     const title = hidden ? 'Film a sorpresa' : m.title;
     const actionPick = { ...m, title };
-    return `<article class="upcoming-projection" data-projection-movie="${escapeHtml(m.id)}">
-      <div class="upcoming-projection-copy"><p class="dashboard-eyebrow">${m.proposed_by && !m.night_confirmed ? 'PROPOSTA' : (context ? context.due : nightIsDue)((context ? context.nights : movieNights).find(n => n.id === m.nightId), now) ? 'DA CONCLUDERE' : 'PROSSIMA PROIEZIONE'}</p><h3>${escapeHtml(title)}</h3>
-      <p>${escapeHtml(formatNightDate(m.scheduled_date, m.scheduled_time))}${!hidden && (m.cinema_watchlist || m.platform) ? ' · ' + escapeHtml(m.cinema_watchlist ? 'Al cinema' : m.platform) : ''}${m.snack ? ' · ' + escapeHtml(m.snack) : ''}</p>
+    const night = (context ? context.nights : movieNights).find(n => n.id === m.nightId);
+    const quick = context && night?.status === 'confirmed' && !m.scheduled_date;
+    return `<article class="upcoming-projection" data-projection-movie="${escapeHtml(m.id)}" data-night-id="${escapeHtml(m.nightId || '')}">
+      <div class="upcoming-projection-copy"><p class="dashboard-eyebrow">${quick ? 'FILM SCELTO' : m.proposed_by && !m.night_confirmed ? 'PROPOSTA' : (context ? context.due : nightIsDue)(night, now) ? 'DA CONCLUDERE' : 'PROSSIMA PROIEZIONE'}</p><h3>${escapeHtml(title)}</h3>
+      <p>${quick ? 'Da vedere insieme' : escapeHtml(formatNightDate(m.scheduled_date, m.scheduled_time))}${!hidden && (m.cinema_watchlist || m.platform) ? ' · ' + escapeHtml(m.cinema_watchlist ? 'Al cinema' : m.platform) : ''}${m.snack ? ' · ' + escapeHtml(m.snack) : ''}</p>
       ${m.location ? `<p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${escapeHtml(m.location)}</p>` : ''}</div>
-      <div class="projection-actions">${context ? context.eventActions(context.nights.find(n=>n.id===m.nightId)) : projectionActionsHtml(actionPick, now)}${!context && m.nightId ? `<button onclick="editNightDetailsUI('${jsAttrEscape(m.id)}', '${jsAttrEscape(m.nightId)}')">Snack e luogo</button>` : ''}</div>
+      <div class="projection-actions">${context ? context.eventActions(night) : projectionActionsHtml(actionPick, now)}${!context && m.nightId ? `<button onclick="editNightDetailsUI('${jsAttrEscape(m.id)}', '${jsAttrEscape(m.nightId)}')">Snack e luogo</button>` : ''}</div>
     </article>`;
-  }).join('');
+  };
+  if (context && mount) {
+    const groups = [
+      ['Da concludere', n => n.status === 'confirmed' && !!n.date && context.due(n)],
+      ['Proposte in attesa', n => n.status === 'proposed'],
+      ['Scelte senza data', n => n.status === 'confirmed' && !n.date],
+      ['Prossime serate', n => n.status === 'confirmed' && !!n.date && !context.due(n)]
+    ];
+    container.innerHTML = groups.map(([title, belongs]) => {
+      const rows = entries.filter(m => { const n = context.nights.find(n => n.id === m.nightId); return n && belongs(n); });
+      return rows.length ? `<section class="col-span-full" aria-label="${title}"><h3 class="text-lg font-semibold text-slate-100 mb-3">${title}</h3><div class="space-y-3">${rows.map(renderEntry).join('')}</div></section>` : '';
+    }).join('');
+  } else container.innerHTML = entries.map(renderEntry).join('');
   if (context) { context.bind(container); context.bindHistory(container); }
 }

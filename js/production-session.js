@@ -177,7 +177,7 @@ let ProductionSession = (() => {
       const presentation = state?.presentationStatus ?? (state?.mode === 'READ_ONLY' ? 'MAINTENANCE' : 'LOADING');
       const content = {
         LOADING: ['Prepariamo la sala…', 'Tra poco si entra.', null],
-        ERROR: ['La sala non è ancora pronta', 'Non riusciamo a caricare tutto. Controlla la connessione e riprova.', 'fa-circle-exclamation'],
+        ERROR: ['La sala non è ancora pronta', 'Connessione o verifica momentaneamente non disponibile. Riproviamo automaticamente; puoi anche toccare Riprova.', 'fa-circle-exclamation'],
         MAINTENANCE: ['Una pausa tra due ciak', 'Stiamo aggiornando la sala. Riprova tra poco.', 'fa-screwdriver-wrench'],
         SESSION_EXPIRED: ['Accedi di nuovo', 'La sessione non è più valida. Torna all’ingresso per accedere.', 'fa-ticket']
       }[presentation] ?? ['Prepariamo la sala…', 'Tra poco si entra.', null];

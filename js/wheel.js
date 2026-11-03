@@ -21,11 +21,14 @@ function durationBucket(mins) {
 
 // Film disponibili per la ruota: in watchlist, non vietati questa
 // settimana, ed eventualmente filtrati per durata e genere reali.
-function wheelPool() {
-  if (typeof targetSessionActive === 'function' && targetSessionActive()) { const value=ProductionSession.getState().view;return value.kind==='AVAILABLE'?value.ruota.eligibleContents.filter(c => (durationFilter==='all'||durationBucket(parseDurationMinutes(c.duration))===durationFilter) && (genreFilter==='all'||c.genres?.includes(genreFilter))):[]; }
+function wheelBasePool() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) { const value=ProductionSession.getState().view;return value.kind==='AVAILABLE'?value.ruota.eligibleContents:[]; }
   const vetoed = vetoedMovieIdsThisWeek();
-  return movies.filter(m => {
-    if (!choiceEligible(m, movieNights, vetoed)) return false;
+  return movies.filter(m => choiceEligible(m, movieNights, vetoed));
+}
+
+function wheelPool() {
+  return wheelBasePool().filter(m => {
     if (durationFilter !== 'all') {
       const bucket = durationBucket(parseDurationMinutes(m.duration));
       if (bucket === null || bucket !== durationFilter) return false;
@@ -39,12 +42,40 @@ function wheelPool() {
 
 function setDurationFilter(value) {
   durationFilter = value;
+  closeWheelWinner();
   drawWheel();
 }
 
 function setGenreFilter(value) {
   genreFilter = value;
+  closeWheelWinner();
   drawWheel();
+}
+
+function resetWheelFilters() {
+  durationFilter = 'all'; genreFilter = 'all';
+  const duration = document.getElementById('durationFilterSelect');
+  const genre = document.getElementById('genreFilterSelect');
+  if (duration) duration.value = 'all';
+  if (genre) genre.value = 'all';
+  closeWheelWinner();
+  drawWheel();
+}
+
+function openWheelList() { setTab('watchlist'); }
+
+function renderWheelEmptyState(available) {
+  const empty = !available.length, filteredOut = empty && wheelBasePool().length > 0;
+  const spin = document.getElementById('wheelSpinBtn');
+  if (spin) spin.disabled = empty;
+  const panel = document.getElementById('wheelEmptyState');
+  const message = document.getElementById('wheelEmptyMessage');
+  if (panel) panel.classList.toggle('hidden', !empty);
+  if (message) message.textContent = !empty ? '' : filteredOut
+    ? 'Nessun film corrisponde ai filtri scelti.'
+    : 'Nessun film disponibile per la Ruota. Controlla la Lista condivisa.';
+  document.getElementById('wheelListAction')?.classList.toggle('hidden', !empty || filteredOut);
+  document.getElementById('wheelResetAction')?.classList.toggle('hidden', !filteredOut);
 }
 
 // Ricostruisce le opzioni del select genere SOLO se cambiano (preserva la
@@ -88,6 +119,7 @@ function drawWheel() {
   const canvas = document.getElementById('wheelCanvas');
   const ctx = canvas.getContext('2d');
   const available = wheelPool();
+  renderWheelEmptyState(available);
   ctx.clearRect(0, 0, 256, 256);
 
   ctx.save();
@@ -96,10 +128,11 @@ function drawWheel() {
   ctx.translate(-128, -128);
 
   if (available.length === 0) {
+    closeWheelWinner();
     ctx.fillStyle = "#334155";
     ctx.beginPath(); ctx.arc(128, 128, 120, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "#94a3b8"; ctx.font = "12px system-ui"; ctx.textAlign = "center";
-    ctx.fillText("Aggiungi film!", 128, 132);
+    ctx.fillText("Nessun film", 128, 132);
     ctx.restore();
     return;
   }
@@ -219,8 +252,8 @@ function renderWheelWinner(resultDiv, source, context = null) {
           ? '<p class="mt-2 text-xs text-slate-300">Rivela la sorpresa dalla sua scheda nella lista per vedere i dettagli.</p>'
           : `<button onclick="openMovieDetail('${jsAttrEscape(winner.id)}')" class="w-full mt-2 min-h-10 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-lg text-sm font-medium transition"><i class="fa-solid fa-circle-info mr-1" aria-hidden="true"></i> Scheda film · trama e trailer</button>`}
         <div class="flex items-center gap-2 mt-2">
-          <button onclick="quickTonightUI('${jsAttrEscape(winner.id)}', 'wheel')" class="flex-1 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded-lg text-sm font-medium transition">Oggi</button>
-          <button onclick="wheelScheduleFor='${jsAttrEscape(winner.id)}'; scheduleMovie('${jsAttrEscape(winner.id)}')" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition">Programma</button>
+          <button onclick="quickTonightUI('${jsAttrEscape(winner.id)}', 'wheel')" class="flex-1 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded-lg text-sm font-medium transition"><i class="fa-solid fa-ticket" aria-hidden="true"></i> Guardiamolo</button>
+          <button onclick="wheelScheduleFor='${jsAttrEscape(winner.id)}'; scheduleMovie('${jsAttrEscape(winner.id)}')" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Pianifica</button>
         </div>
         ${(context ? context.sagaButtonHtml : sagaButtonHtml)(winner)}
         <div class="flex items-center gap-2 mt-1">

@@ -3,7 +3,17 @@
 
 // Apre il modale "Aggiungi film" precompilando "Proposto da" con l'utente loggato
 function openAddModal() {
-  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.edit('createContent',null);
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.edit('createContent',null,{entry:'global'});
+  document.getElementById('targetAddDestinationWrap')?.classList.add('hidden');
+  document.getElementById('targetPickerSelection')?.classList.add('hidden');
+  document.getElementById('targetPickerSearchAgain')?.classList.add('hidden');
+  document.getElementById('addModalTitle').textContent='Aggiungi un Film';
+  document.getElementById('addBy').parentElement.classList.remove('hidden');
+  document.getElementById('addCinemaWatchlist').parentElement.classList.remove('hidden');
+  document.getElementById('pickerNoneBtn').classList.remove('hidden');
+  const importLink=document.getElementById('targetImportLink');
+  if(importLink)importLink.onclick=()=>{closeModal('addModal');openModal('importModal');};
+  document.getElementById('importSaveBtn').onclick=bulkImportMovies;
   if (currentUser) document.getElementById('addBy').value = currentUser;
   document.getElementById('addCinemaWatchlist').checked = false;
   openModal('addModal');
@@ -275,7 +285,7 @@ async function deleteMovieConfirm(id, title) {
 
 // ---- Correggi titolo non trovato e ricerca di nuovo (TMDb/OMDb) ----
 function retryMatch(id, currentTitle) {
-  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.edit('updateMetadata',id);
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.edit('refreshMetadata',id);
   if (!canDeleteOrChangeIdentity(movies.find(m => m.id === id))) { showActionError('Il titolo non può essere cambiato: contiene dati dell’altra persona o serate.'); return; }
   document.getElementById('retryMovieId').value = id;
   document.getElementById('retryTitle').value = currentTitle;

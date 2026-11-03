@@ -12,13 +12,18 @@ function tmdbConfigured() {
 // Ricerca candidati per la scelta multipla (usata nell'aggiunta singola).
 // Ritorna fino a 5 risultati grezzi con poster piccolo e anno, senza
 // fare chiamate di dettaglio: quelle si fanno solo dopo che l'utente sceglie.
-async function searchTmdbCandidates(title) {
-  if (!tmdbConfigured()) return [];
+async function searchTmdbCandidates(title, { strict = false } = {}) {
+  if (!tmdbConfigured()) {
+    if (strict) throw new Error('TMDB_UNAVAILABLE');
+    return [];
+  }
   try {
     const res = await fetch(
       `https://api.themoviedb.org/3/search/movie?api_key=${CONFIG.TMDB_API_KEY}&query=${encodeURIComponent(title)}&language=it-IT`
     );
+    if (strict && !res.ok) throw new Error('TMDB_SEARCH_FAILED');
     const data = await res.json();
+    if (strict && !Array.isArray(data.results)) throw new Error('TMDB_SEARCH_FAILED');
     if (!data.results) return [];
     return data.results.slice(0, 5).map(r => ({
       id: r.id,
@@ -28,6 +33,7 @@ async function searchTmdbCandidates(title) {
     }));
   } catch (err) {
     console.error('Errore ricerca TMDb:', err);
+    if (strict) throw err;
     return [];
   }
 }

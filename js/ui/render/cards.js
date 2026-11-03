@@ -12,6 +12,20 @@ function genreChips(m) {
   ).join('');
 }
 
+function externalRatingsHtml(m, showEmpty = false) {
+  if (showEmpty) return `<div class="rating-holo flex gap-2 external-ratings mt-1 px-2 py-1 rounded text-[10px] text-slate-400">
+    <span><i class="fa-solid fa-star text-amber-400" aria-hidden="true"></i> IMDb ${m.imdb_rating ? escapeHtml(m.imdb_rating) : 'n.d.'}</span>
+    <span class="text-rose-400">RT ${m.rt_rating ? escapeHtml(m.rt_rating) : 'n.d.'}</span>
+    <span class="text-emerald-400">MC ${m.metacritic_rating ? escapeHtml(m.metacritic_rating) : 'n.d.'}</span>
+  </div>`;
+  if (!m.imdb_rating && !m.rt_rating && !m.metacritic_rating) return '';
+  return `<div class="rating-holo flex gap-2 external-ratings mt-1 px-2 py-1 rounded text-[10px] text-slate-400">
+    ${m.imdb_rating ? `<span><i class="fa-solid fa-star text-amber-400" aria-hidden="true"></i> IMDb ${escapeHtml(m.imdb_rating)}</span>` : ''}
+    ${m.rt_rating ? `<span class="text-rose-400">RT ${escapeHtml(m.rt_rating)}</span>` : ''}
+    ${m.metacritic_rating ? `<span class="text-emerald-400">MC ${escapeHtml(m.metacritic_rating)}</span>` : ''}
+  </div>`;
+}
+
 function sharedPeopleLabel() {
   return ['N', 'V'].map(person => CONFIG.PEOPLE[person]?.label || person).join('+');
 }
@@ -22,49 +36,96 @@ function sharedVoteButtonHtml(movie) {
   return `<button onclick="addReview('${jsAttrEscape(movie.id)}')" class="shared-vote-action w-full min-h-11 px-3 py-2 rounded-lg font-medium">${label} ${escapeHtml(sharedPeopleLabel())}</button>`;
 }
 
+function judgmentValueHtml(judgment, empty = 'Valuta') {
+  if (judgment?.rating !== null && judgment?.rating !== undefined) return '<i class="fa-solid fa-star" aria-hidden="true"></i> '+formatMovieRating(judgment.rating)+'/10';
+  if (judgment?.preference === true) return '<i class="fa-solid fa-thumbs-up" aria-hidden="true"></i><span class="sr-only">Mi è piaciuto</span>';
+  if (judgment?.preference === false) return '<i class="fa-solid fa-thumbs-down" aria-hidden="true"></i><span class="sr-only">Non mi è piaciuto</span>';
+  return escapeHtml(empty);
+}
+
+function judgmentIdentityHtml(name, together = false) {
+  return '<span class="judgment-identity'+(together?' is-together':'')+'">'+escapeHtml(name)+'</span>';
+}
+
 // One judgment slot: quantitative rating or manual preference, never both.
-function personalJudgmentSlotHtml(movie, person, context = null) {
+function personalJudgmentSlotHtml(movie, person, context = null, { allowPrompt = true } = {}) {
   if (context ? context.hidden(movie) : movie.surprise_by && movie.surprise_by !== (context ? context.callerLabel : currentUser)) return '';
-  if (context && context.personalState(movie,person).kind !== 'AVAILABLE') return `<span class="viewing-score" aria-label="${escapeHtml(person)}: dato non disponibile">${escapeHtml(person)} —</span>`;
+  const name=context?context.personLabel(person):person;
+  if (context && context.personalState(movie,person).kind !== 'AVAILABLE') return '';
   const rating = (context ? context.personalRating : personalRating)(movie, person), value = (context ? context.personalPreference : personalPreference)(movie, person);
-  const classes = 'viewing-score viewing-score-' + person.toLowerCase();
-  const editable = person === (context ? context.callerLabel : currentUser);
-  const eligible = (context ? context.viewingState : viewingState)(movie)[person] || (context ? context.togetherSeen : togetherSeen)(movie) || !!(context ? context.reviewTextFor : reviewTextFor)(movie, person);
-  if (rating === null && value === null && !(editable && eligible)) return '';
+  const classes = 'viewing-score viewing-score-' + (context?context.personTone(person):person.toLowerCase());
+  const editable = context ? context.isCaller(person) : person === currentUser;
+  const hasReview=!!(context ? context.reviewTextFor : reviewTextFor)(movie, person);
+  const eligible = (context ? context.viewingState : viewingState)(movie)[person] || (context ? context.togetherSeen : togetherSeen)(movie) || hasReview;
+  const prompt=editable&&allowPrompt&&(context?context.shouldPromptPersonal(movie):eligible);
+  if (rating === null && value === null && !prompt && !hasReview) return '';
   const state = rating !== null ? 'rating' : value === true ? 'like' : value === false ? 'dislike' : 'unknown';
-  const content = rating !== null
-    ? `${person} <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(rating)}/10`
-    : `${person} <i class="fa-solid ${value === true ? 'fa-thumbs-up' : value === false ? 'fa-thumbs-down' : 'fa-ellipsis'}" aria-hidden="true"></i>`;
-  const description = rating !== null ? `voto ${formatMovieRating(rating)}/10` : value === true ? 'Mi è piaciuto' : value === false ? 'Non mi è piaciuto' : 'non ancora espresso';
-  const label = `${state === 'unknown' ? 'Aggiungi' : 'Modifica'} il giudizio ${person}: ${description} · ${movie.title}`;
+  const content = (editable?'':judgmentIdentityHtml(name))+'<span class="judgment-value">'+judgmentValueHtml({rating,preference:value},editable?'Valuta':'Recensione')+'</span>';
+  const description = rating !== null ? `voto ${formatMovieRating(rating)}/10` : value === true ? 'Mi è piaciuto' : value === false ? 'Non mi è piaciuto' : hasReview ? 'recensione senza voto' : 'non ancora espresso';
+  const label = `${state === 'unknown' ? 'Valuta' : 'Modifica il giudizio di'} ${name}: ${description} · ${movie.title}`;
   if (context && editable) return context.action(content,()=>context.edit('setMyEvaluation',movie.id,context.personalState(movie,person).judgment),classes+' personal-judgment-slot'+(state==='unknown'?' is-unknown':''),{'data-judgment':state,'data-judgment-movie':movie.id,'data-judgment-context':person,'aria-label':label,'aria-haspopup':'dialog'});
   return editable
     ? `<button type="button" class="${classes} personal-judgment-slot${state === 'unknown' ? ' is-unknown' : ''}" data-judgment="${state}" data-judgment-movie="${escapeHtml(movie.id)}" data-judgment-context="${person}" aria-label="${escapeHtml(label)}" aria-haspopup="dialog" onclick="addPersonalReview('${jsAttrEscape(movie.id)}', this)">${content}</button>`
-    : `<span class="${classes}" data-judgment="${state}" data-judgment-context="${person}" aria-label="${escapeHtml(`${person}: ${description} · ${movie.title}`)}">${content}</span>`;
+    : `<span class="${classes}" data-judgment="${state}" data-judgment-context="${person}" aria-label="${escapeHtml(`${name}: ${description} · ${movie.title}`)}">${content}</span>`;
 }
 function togetherJudgmentSlotHtml(movie, context = null) {
-  if (!['N','V'].includes((context ? context.callerLabel : currentUser)) || (context ? context.hidden(movie) : movie.surprise_by && movie.surprise_by !== (context ? context.callerLabel : currentUser))) return '';
+  if (!(context ? context.callerPresent : ['N','V'].includes(currentUser)) || (context ? context.hidden(movie) : movie.surprise_by && movie.surprise_by !== currentUser)) return '';
   const completed = (context ? context.togetherSeen : togetherSeen)(movie);
   if (!completed && (context ? !context.due(context.active(movie.id)) : !nightIsDue(activeNightForMovie(movie.id)))) return '';
   const rating = completed ? (context ? context.togetherRating : togetherRating)(movie) : null;
   const label = rating !== null || (context ? context.reviewTextFor : reviewTextFor)(movie,'both') ? 'Modifica' : 'Aggiungi';
-  const content = rating !== null ? `<i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating(rating)}/10` : '<i class="fa-solid fa-ellipsis" aria-hidden="true"></i>';
-  if (context) return context.action(escapeHtml(sharedPeopleLabel())+' '+content,()=>context.edit('setGroupEvaluation',movie.id,context.view.getCard(movie.id).group.judgment.judgment),'viewing-score viewing-score-together personal-judgment-slot',{'data-judgment':rating!==null?'rating':'unknown','data-judgment-context':'both','data-judgment-movie':movie.id,'aria-label':label+' il giudizio '+sharedPeopleLabel(),'aria-haspopup':'dialog'});
-  return `<button type="button" class="viewing-score viewing-score-together personal-judgment-slot" data-judgment="${rating !== null ? 'rating' : 'unknown'}" data-judgment-movie="${escapeHtml(movie.id)}" data-judgment-context="both" aria-label="${label} il giudizio ${escapeHtml(sharedPeopleLabel())}: ${rating !== null ? 'voto '+formatMovieRating(rating)+'/10' : (context ? context.reviewTextFor : reviewTextFor)(movie,'both') ? 'recensione senza voto' : 'non ancora espresso'} · ${escapeHtml(movie.title)}" aria-haspopup="dialog" onclick="addReview('${jsAttrEscape(movie.id)}', this)">${escapeHtml(sharedPeopleLabel())} ${content}</button>`;
+  const content = rating !== null
+    ? judgmentIdentityHtml('Insieme',true)+'<span class="judgment-value">'+judgmentValueHtml({rating})+'</span>'
+    : '<span class="judgment-value">Valuta insieme</span>';
+  if (context) return context.action(content,()=>context.edit('setGroupEvaluation',movie.id,context.view.getCard(movie.id).group.judgment.judgment),'viewing-score viewing-score-together personal-judgment-slot',{'data-judgment':rating!==null?'rating':'unknown','data-judgment-context':'both','data-judgment-movie':movie.id,'aria-label':label+' il giudizio Insieme','aria-haspopup':'dialog'});
+  return `<button type="button" class="viewing-score viewing-score-together personal-judgment-slot" data-judgment="${rating !== null ? 'rating' : 'unknown'}" data-judgment-movie="${escapeHtml(movie.id)}" data-judgment-context="both" aria-label="${label} il giudizio Insieme · ${escapeHtml(movie.title)}" aria-haspopup="dialog" onclick="addReview('${jsAttrEscape(movie.id)}', this)">${content}</button>`;
 }
 
-function viewingStatusHtml(movie, { showRatings = true } = {}, context = null) {
+// TARGET: the personal face reports Seen and Judgment. A completed Together
+// replaces those faces with one shared gold surface, without changing data.
+function targetPersonalTokenHtml(movie, key, context) {
+  const state=context.personalState(movie,key), identity=context.personLabel(key);
+  if(state.kind!=='AVAILABLE')return '';
+  const own=context.isCaller(key), seen=state.seen===true, judgment=state.judgment||{};
+  const hasJudgment=judgment.rating!=null||judgment.preference!=null||!!judgment.review;
+  const value=judgment.rating!=null?'<i class="fa-solid fa-star" aria-hidden="true"></i> '+formatMovieRating(judgment.rating)
+    :judgment.preference===true?'<i class="fa-solid fa-thumbs-up" aria-hidden="true"></i>'
+    :judgment.preference===false?'<i class="fa-solid fa-thumbs-down" aria-hidden="true"></i>':'';
+  const initial=Array.from(identity||key)[0]||'•';
+  const content='<span class="person-token-face"><span class="person-token-initial">'+escapeHtml(initial)+'</span>'+(value?'<span class="person-token-value">'+value+'</span>':'')+'</span>';
+  const classes='person-token person-token-'+context.personTone(key)+(seen?' is-seen':' is-outline')+(value?' has-value':'')+(judgment.rating!=null?' has-rating':judgment.preference!=null?' has-preference':'');
+  const spoken=identity+': '+(seen?'visto personalmente':'non registrato nei Visti')+(judgment.rating!=null?', voto '+formatMovieRating(judgment.rating):judgment.preference===true?', gradimento positivo':judgment.preference===false?', gradimento negativo':'');
+  if(own)return context.action(content,node=>context.openPersonalStatus(movie.id,node),classes,
+    {'aria-label':'Apri il tuo Visto e giudizio · '+movie.title,'aria-description':spoken,'aria-haspopup':'dialog'});
+  if(hasJudgment)return context.action(content,node=>context.openOtherJudgment(movie.id,key,node),classes,
+    {'aria-label':'Leggi il giudizio di '+identity+' · '+movie.title,'aria-description':spoken,'aria-haspopup':'dialog'});
+  return '<span class="'+classes+'" aria-label="'+escapeHtml(spoken)+'">'+content+'</span>';
+}
+function targetViewingStatusHtml(movie, context) {
+  const keys=context.judgmentPeople, tokens=keys.map(key=>targetPersonalTokenHtml(movie,key,context)).filter(Boolean);
+  const together=context.togetherSeen(movie);
+  const star=together?context.action('<i class="fa-solid fa-users" aria-hidden="true"></i>'+(context.togetherRating(movie)!=null?'<span class="together-rating"><i class="fa-solid fa-star" aria-hidden="true"></i> '+formatMovieRating(context.togetherRating(movie))+'</span>':''),
+    node=>context.openTogether(movie.id,node),'together-star',{'aria-label':'Apri Insieme e le serate di '+movie.title,'aria-haspopup':'dialog'}):'';
+  const middle=Math.ceil(tokens.length/2), content=together?[...tokens.slice(0,middle),star,...tokens.slice(middle)].join(''):tokens.join('');
+  return '<div class="personal-tokens'+(together?' together-cluster':'')+'" role="group" aria-label="'+escapeHtml(together?'Visti personali e visioni insieme':'Visti e giudizi personali')+'">'+content+'</div>';
+}
+
+function viewingStatusHtml(movie, { showRatings = true, includeTogether = true, promptPersonal = true } = {}, context = null) {
   if (context && context.hidden(movie)) return '';
+  if (context) return targetViewingStatusHtml(movie,context);
   const seen = (context ? context.viewingState : viewingState)(movie);
-  const label = context && (seen.N === null || seen.V === null) ? 'Dati di visione parzialmente disponibili' : seen.together ? (context ? 'Visione del gruppo' : 'Visto insieme da N e V')
+  const label = context ? 'Visti personali e visioni insieme del gruppo' : seen.together ? 'Visto insieme da N e V'
     : seen.N && seen.V ? 'Visto separatamente da N e V'
     : seen.N ? 'Visto da N' : seen.V ? 'Visto da V' : 'Non ancora visto';
   // Together colora entrambi i badge originali, senza cambiare i fatti personali.
-  const person = key => `<span class="viewing-person viewing-person-${key.toLowerCase()}${(context ? context.participated(movie,key) : seen.together) ? ' is-together' : seen[key] ? ' is-seen' : ''}" aria-label="${(context ? context.participated(movie,key) : seen.together) ? 'Visto insieme' : key + ': ' + (seen[key] === null ? 'dato non disponibile' : seen[key] ? 'visto personalmente' : 'non segnato come visto')}">${key}</span>`;
-  const scores = ['N', 'V'].map(key => personalJudgmentSlotHtml(movie, key, context)).filter(Boolean);
-  const shared = togetherJudgmentSlotHtml(movie, context);
+  const person = key => {
+    const name=context?context.personLabel(key):key, mark=key.length<=2?key:(Array.from(name)[0]||'•');
+    return `<span class="viewing-person viewing-person-${key.toLowerCase()}${(context ? context.participated(movie,key) : seen.together) ? ' is-together' : seen[key] ? ' is-seen' : ''}" aria-label="${escapeHtml(name+': '+(seen[key] === null ? 'dato non disponibile' : seen[key] ? 'visto personalmente' : 'non segnato come visto')+((context ? context.participated(movie,key) : seen.together)?'; ha partecipato a una visione insieme':''))}">${escapeHtml(mark)}</span>`;
+  };
+  const scores = (context ? context.judgmentPeople : ['N', 'V']).map(key => personalJudgmentSlotHtml(movie, key, context, {allowPrompt:promptPersonal})).filter(Boolean);
+  const shared = includeTogether ? togetherJudgmentSlotHtml(movie, context) : '';
   if (shared) scores.push(shared);
-  return `<div class="viewing-status" role="group" aria-label="${label}"><span class="viewing-label" aria-hidden="true">Visto da</span>${person('N')}${person('V')}</div>${showRatings && scores.length ? `<div class="viewing-scores" aria-label="Giudizi del film">${scores.join('')}</div>` : ''}`;
+  return `<div class="viewing-status" role="group" aria-label="${label}"><span class="viewing-label" aria-hidden="true">Visto da</span>${(context?context.judgmentPeople:['N','V']).map(person).join('')}</div>${showRatings && scores.length ? `<div class="viewing-scores" aria-label="Giudizi del film">${scores.join('')}</div>` : ''}`;
 }
 
 function reviewCardsHtml(movie, context = null) {
@@ -72,10 +133,10 @@ function reviewCardsHtml(movie, context = null) {
   return ['N', 'V', 'both'].map(person => {
     const text = (context ? context.reviewTextFor : reviewTextFor)(movie, person);
     if (!text) return '';
-    const label = person === 'both' ? escapeHtml(sharedPeopleLabel()) : person;
+    const label = person === 'both' ? 'Insieme' : context ? context.personLabel(person) : person;
     const score = person === 'both' ? (context ? context.togetherRating : togetherRating)(movie) : (context ? context.personalRating : personalRating)(movie, person);
     return `<div class="mt-2 p-2.5 bg-slate-900/80 rounded-lg border border-slate-800 text-xs text-slate-300">
-      <span class="text-[11px] font-bold text-indigo-300">Recensione ${label}${score !== null ? ` · ★ ${formatMovieRating(score)}/10` : ''}</span>
+      <span class="text-[11px] font-bold text-indigo-300">Recensione ${escapeHtml(label)}${score !== null ? ` · ★ ${formatMovieRating(score)}/10` : ''}</span>
       <p class="italic mt-1">“${escapeHtml(text)}”</p>
     </div>`;
   }).join('');
@@ -84,16 +145,16 @@ function reviewCardsHtml(movie, context = null) {
 // Disclosure locale alla card: i form e le guardie dati restano quelli esistenti.
 function cardSectionHtml(label, content, summary = '') {
   if (!content.trim()) return '';
-  return `<details class="movie-card-section"><summary><span>${label}</span>${summary ? `<span class="movie-card-summary">${escapeHtml(summary)}</span>` : ''}<i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary><div class="movie-card-section-body card-action-row">${content}</div></details>`;
+  return `<details class="movie-card-section"><summary>${label.startsWith('Recension')?'<i class="fa-regular fa-comment" aria-hidden="true"></i>':''}<span>${label}</span>${summary ? `<span class="movie-card-summary">${escapeHtml(summary)}</span>` : ''}<i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary><div class="movie-card-section-body card-action-row">${content}</div></details>`;
 }
 
 function cardReviewsHtml(movie, context = null) {
   if (context && context.hidden(movie)) return '';
-  const reviews = ['N', 'V', 'both'].filter(person => (context ? context.reviewTextFor : reviewTextFor)(movie, person));
+  const reviews = (context ? context.judgmentPeople : ['N', 'V', 'both']).filter(person => (context ? context.reviewTextFor : reviewTextFor)(movie, person));
   return cardSectionHtml(reviews.length === 1 ? 'Recensione' : `Recensioni · ${reviews.length}`, reviews.map(person => {
-    const label = person === 'both' ? sharedPeopleLabel() : person;
+    const label = person === 'both' ? 'Insieme' : context ? context.personLabel(person) : person;
     const score = person === 'both' ? (context ? context.togetherRating : togetherRating)(movie) : (context ? context.personalRating : personalRating)(movie, person);
-    return `<div class="movie-card-review"><span class="text-[11px] font-bold text-indigo-300">Recensione ${escapeHtml(label)}${score !== null ? ` · ★ ${formatMovieRating(score)}/10` : ''}</span><p class="movie-card-review-text is-clamped">“${escapeHtml((context ? context.reviewTextFor : reviewTextFor)(movie, person))}”</p><button type="button" class="movie-card-review-toggle" aria-expanded="false" hidden>Mostra altro<span class="sr-only"> · Recensione ${escapeHtml(label)}</span></button></div>`;
+    return `<div class="movie-card-review"><span class="text-[11px] font-bold text-indigo-300">Recensione ${escapeHtml(label)}${score !== null ? ` · ★ ${formatMovieRating(score)}${context?'':'/10'}` : ''}</span><p class="movie-card-review-text is-clamped">“${escapeHtml((context ? context.reviewTextFor : reviewTextFor)(movie, person))}”</p><button type="button" class="movie-card-review-toggle" aria-expanded="false" hidden>Mostra altro<span class="sr-only"> · Recensione ${escapeHtml(label)}</span></button></div>`;
   }).join(''));
 }
 
@@ -171,11 +232,23 @@ function createMovieCard(m, vetoedIds, context = null) {
     const metaParts = [m.cinema_watchlist ? 'Al cinema / prossimamente' : (m.platform || 'Streaming')];
     if (m.release_year) metaParts.push(String(m.release_year));
     if (m.duration) metaParts.push(m.duration);
+    const genres = !isSurpriseHidden ? genreChips(m) : '';
+    const contextTags =
+      (!context&&m.cinema_watchlist?'<span class="badge bg-amber-600/80">🎬 Al cinema / prossimamente</span>':'')+
+      (projection.nightId&&(context?context.tab:currentTab)==='all'?'<span class="badge bg-sky-700/90">in programma</span>':'')+
+      (projection.nightId&&(context?context.tab:currentTab)==='tonight'?'<span class="badge bg-indigo-600/90"><i class="fa-regular fa-clock"></i> '+escapeHtml(formatNightDate(projection.scheduled_date,projection.scheduled_time))+'</span>':'');
+    const cardTags = genres + contextTags;
+    const directorHtml = !isSurpriseHidden && m.director ? (context
+      ? `<div class="card-director mt-1 text-[10px] text-slate-400" title="${escapeHtml(m.director)}"><i class="fa-solid fa-user mr-1" aria-hidden="true"></i>${escapeHtml(m.director)}</div>`
+      : `<div class="mt-1 text-[10px] text-slate-400 truncate" title="${escapeHtml(m.director)}"><i class="fa-solid fa-user mr-1"></i>${escapeHtml(m.director)}</div>`) : '';
+    const genresHtml = genres ? `<div class="card-genres flex items-center gap-2 mt-1 flex-wrap">${genres}</div>` : '';
+    const contextTagsHtml = contextTags ? `<div class="card-context-tags flex items-center gap-2 mt-1 flex-wrap">${contextTags}</div>` : '';
+    const ratingsHtml = isSurpriseHidden ? '' : externalRatingsHtml(m,!!context);
     const card = document.createElement('div');
-    card.className = "movie-ticket flex flex-col justify-between" + (m.cinema_watchlist ? ' is-cinema-ticket' : '') + (isVetoed ? ' card-vetoed' : '');
+    card.className = "movie-ticket flex flex-col" + (context ? ' is-target-card collection-' + context.destination : ' justify-between') + (m.cinema_watchlist ? ' is-cinema-ticket' : '') + (isVetoed ? ' card-vetoed' : '');
 
     card.innerHTML = `
-      <div class="relative h-48 bg-slate-900 overflow-hidden">
+      <div class="card-poster relative h-48 bg-slate-900 overflow-hidden">
         <img loading="lazy" decoding="async" src="${escapeHtml(poster)}" alt="${isSurpriseHidden ? 'Film a sorpresa' : escapeHtml(m.title)}" class="w-full h-full object-cover ${isSurpriseHidden ? 'surprise-blur' : ''}">
         ${!isSurpriseHidden ? `<div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" aria-hidden="true"></div>` : ''}
         ${isSurpriseHidden ? `
@@ -199,30 +272,18 @@ function createMovieCard(m, vetoedIds, context = null) {
         </div>` : ''}
         ${(m.trailer_url && !isSurpriseHidden) ? `<a href="${escapeHtml(m.trailer_url)}" target="_blank" rel="noopener" class="absolute bottom-4 right-2 px-2 py-1 bg-red-600/80 hover:bg-red-500 rounded text-[10px] text-white backdrop-blur"><i class="fa-solid fa-play"></i> Trailer</a>` : ''}
       </div>
-      <div class="p-4 flex-1 flex flex-col justify-between space-y-3 ticket-seam">
-        <div>
-          <div class="flex items-start justify-between gap-2">
+      <div class="card-body p-4 flex-1 flex flex-col ${context ? '' : 'justify-between space-y-3'} ticket-seam">
+        <div class="card-film-info">
+          <div class="card-title-band flex items-start justify-between gap-2">
             <h3 class="font-bold text-slate-100 text-base leading-snug">${isSurpriseHidden ? '???' : escapeHtml(m.title)}</h3>
           </div>
-          ${!isSurpriseHidden && m.director ? `<div class="mt-1 text-[10px] text-slate-400 truncate" title="${escapeHtml(m.director)}"><i class="fa-solid fa-user mr-1"></i>${escapeHtml(m.director)}</div>` : ''}
-          <div class="flex items-center gap-2 mt-1 flex-wrap">
-            ${!isSurpriseHidden ? genreChips(m) : ''}
-            ${m.cinema_watchlist ? '<span class="badge bg-amber-600/80">🎬 Al cinema / prossimamente</span>' : ''}
-            ${projection.nightId && (context ? context.tab : currentTab) === 'all' ? `<span class="badge bg-sky-700/90">in programma</span>` : ''}
-            ${projection.nightId && (context ? context.tab : currentTab) === 'tonight' ? `<span class="badge bg-indigo-600/90"><i class="fa-regular fa-clock"></i> ${escapeHtml(formatNightDate(projection.scheduled_date, projection.scheduled_time))}</span>` : ''}
-          </div>
-          ${(context ? context.viewingStatusHtml : viewingStatusHtml)(m)}
-          ${!isSurpriseHidden && (m.imdb_rating || m.rt_rating || m.metacritic_rating) ? `
-            <div class="rating-holo flex gap-2 mt-1 px-2 py-1 rounded text-[10px] text-slate-400">
-              ${m.imdb_rating ? `<span><i class="fa-solid fa-star text-amber-400"></i> IMDb ${m.imdb_rating}</span>` : ''}
-              ${m.rt_rating ? `<span class="text-rose-400">RT ${m.rt_rating}</span>` : ''}
-              ${m.metacritic_rating ? `<span class="text-emerald-400">MC ${m.metacritic_rating}</span>` : ''}
-            </div>
-          ` : ''}
+          ${context
+            ? directorHtml + genresHtml + contextTagsHtml + ratingsHtml + context.viewingStatusHtml(m)
+            : ratingsHtml + viewingStatusHtml(m) + directorHtml + (cardTags ? '<div class="flex items-center gap-2 mt-1 flex-wrap">' + cardTags + '</div>' : '')}
           ${(context ? context.cardReviewsHtml : cardReviewsHtml)(m)}
-          ${(context ? context.sagaButtonHtml : sagaButtonHtml)(m)}
+          ${context ? '' : sagaButtonHtml(m)}
         </div>
-        ${(context ? context.cardOperationsHtml : cardOperationsHtml)(m, projection, isSurpriseHidden)}
+        ${context ? `<div class="card-actions">${context.cardOperationsHtml(m, projection, isSurpriseHidden)}</div>` : cardOperationsHtml(m, projection, isSurpriseHidden)}
       </div>
     `;
     // Step3 phase9 — dettaglio film: il click sulla card apre il modale, ma

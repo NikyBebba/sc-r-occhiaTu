@@ -2,17 +2,17 @@
 // Semantic TARGET renderer. No legacy rows, store arrays or legacy selectors.
 const TargetShell = (() => {
   function createShell({ session, root = document, lookup = fetchMovieDetails, detailsById = fetchTmdbDetailsById }) {
-    let destination = 'home', query = '', genre = '', duration = '', sort = 'added', sortDir = 'desc', platform = '', proposer = '', availability = 'streaming', page = 0, feedback = '', operation = null, matchOperation = null, revealedKey = null, recommendation = [];
-    let shared = null, match = null, generation = null, uiEpoch = 0, closingMatchTicket = null, createdTitle = null, matchExit = null, scheduledMatchTitle = null;
+    let destination = 'home', query = '', genre = '', duration = '', sort = 'added', sortDir = 'desc', platform = '', proposer = '', availability = 'streaming', page = 0, feedback = '', operation = null, matchOperation = null, revealedKey = null, recommendation = null;
+    let shared = null, match = null, generation = null, uiEpoch = 0, closingMatchTicket = null, createdTitle = null, matchExit = null, scheduledMatchTitle = null, revealInterrupted = false;
     const el = id => root.getElementById(id);
     const bindings = new Map();
     let homeTrigger = null; // DOM keyboard return only; never viewing/session state.
-    let lastAction = null, feedbackZone = null, feedbackSerial = 0;
+    let lastAction = null, feedbackZone = null, feedbackSerial = 0, feedbackTimer = null, feedbackKind = null, retainOnClose = null;
     const savedMessage = name => ({
       quickNight:'Film scelto. Da vedere insieme.',scheduleNight:'Proposta salvata in In programma.',
       recordSeen:'Aggiunto ai miei Visti.',removeSeen:'Rimosso dai miei Visti. Il giudizio resta.',
-      addToMyList:'Aggiunto alla mia Lista.',removeFromMyList:'Rimosso dalla mia Lista.',
-      proposeToGroup:'Aggiunto alla Lista N+V.',withdrawGroupCandidacy:'Tolto dalla Lista N+V. Visioni e giudizi restano.',
+      addToMyList:'Aggiunto ai tuoi Da vedere.',removeFromMyList:'Tolto dai tuoi Da vedere.',
+      proposeToGroup:'Proposto per voi.',withdrawGroupCandidacy:'Tolto dai Da vedere insieme. Visioni e giudizi restano.',
       setMyEvaluation:'Giudizio personale aggiornato.',setMyRating:'Voto personale aggiornato.',setMyPreference:'Gradimento aggiornato.',setMyReview:'Recensione personale aggiornata.',
       setGroupEvaluation:'Giudizio N+V aggiornato.',setGroupRating:'Voto N+V aggiornato.',setGroupReview:'Recensione N+V aggiornata.',
       confirmNight:'Proposta accettata.',cancelNight:'Serata annullata.',editNight:'Dettagli della serata aggiornati.',completeScheduled:'Serata conclusa.',completeNow:'Visione insieme registrata.',
@@ -32,7 +32,7 @@ const TargetShell = (() => {
       if (typeof syncTargetNavigation === 'function') syncTargetNavigation(destination);
       const home = destination === 'home', wheel = destination === 'wheel', proposals = destination === 'recommendations';
       const personal = personalDestination(), group = ['groupList','rewatch','scheduled'].includes(destination);
-      const titles = {groupList:'Lista',rewatch:'Lista',scheduled:'Lista',personalList:'Il mio cinema',personalSeen:'Il mio cinema',together:'Visti insieme',memories:'Ricordi',calendar:'Calendario',search:'Cerca nel catalogo',bulk:'Aggiungi film'};
+      const titles = {groupList:'Da vedere insieme',rewatch:'Rewatch',scheduled:'In programma',personalList:'Il mio cinema',personalSeen:'Il mio cinema',together:'Visti insieme',memories:'Ricordi',calendar:'Calendario',search:'Cerca nel catalogo',bulk:'Aggiungi film'};
       show('appRoot',true); show('sceltaCta',home); show('dashboardSidebar',wheel); show('recommendationSection',proposals);
       show('librarySection',!home && !wheel && !proposals); show('nextMovieHero',false); show('scheduledPanel',false);
       show('libraryHeader',destination!=='match'); show('matchViewHeader',destination==='match'); show('libraryBack',destination!=='match');
@@ -45,11 +45,11 @@ const TargetShell = (() => {
       text('libraryPageTitle',titles[destination] || '');
       text('libraryPageEyebrow',personal?'IL CINEMA DI '+value.context.observedPerson.label:destination==='memories'?'TITOLI DI CODA':destination==='calendar'?'IL CARTELLONE':'LO SCAFFALE DEI FILM');
       const own = value.context.caller.personId === value.context.observedPerson.personId;
-      text('targetPersonalList',own?'La mia Lista':'La Lista di '+value.context.observedPerson.label);
+      text('targetPersonalList',own?'Da vedere':'Da vedere di '+value.context.observedPerson.label);
       text('targetPersonalSeen',own?'I miei Visti':'I Visti di '+value.context.observedPerson.label);
       for (const [id,key] of [['targetPersonalList','personalList'],['targetPersonalSeen','personalSeen']]) el(id)?.setAttribute('aria-pressed',String(destination===key));
       text('targetPersonalHint',own ? (destination==='personalList'?'I film che vuoi vedere o rivedere.':'I film che hai visto personalmente, anche fuori dalle serate insieme.') : 'Stai consultando il cinema di '+value.context.observedPerson.label+'. Le aggiunte restano tue.');
-      text('targetPersonalAdd',destination==='personalSeen'?'+ Aggiungi ai miei Visti':'+ Aggiungi alla mia Lista');
+      text('targetPersonalAdd','+ Cerca un film');
       bind('targetPersonalAdd','onclick',()=>edit('createContent'));
       for (const member of members()) {
         const code = member.legacyLabel;
@@ -87,29 +87,64 @@ const TargetShell = (() => {
     const button = (label, handler, parent) => { const b = root.createElement('button'); b.className = 'min-h-11 px-3 py-2 rounded-lg border border-slate-700 bg-slate-800 text-slate-100 text-sm m-1'; b.textContent = label; const token = session.capture(); b.onclick = () => { if (session.current(token)) return handler(); }; parent.appendChild(b); return b; };
     function notice() {
       const global=el('targetFeedback');
+      const globalMessage=el('targetFeedbackMessage');
       const slots=root.querySelectorAll('[data-action-feedback]');
       let local=false;for(const slot of slots){const selected=slot.dataset.actionFeedback===feedbackZone;slot.textContent=selected?feedback:'';if(selected&&slot.getClientRects?.().length!==0)local=true;else if(selected)slot.textContent='';}
-      if(global)global.textContent=local?'':feedback;
-      const fallback=el('detailFeedback');if(fallback)fallback.textContent=local?'':feedback;
+      if(globalMessage)globalMessage.textContent=local?'':feedback;
+      if(global)global.hidden=!(globalMessage?.textContent||global.querySelector('button'));
+      const fallback=el('detailFeedback');if(fallback)fallback.textContent='';
     }
-    async function perform(name, ...args) {
-      const token = session.capture(),serial=++feedbackSerial;
+    function stopFeedbackTimer() {
+      if(feedbackTimer){clearTimeout(feedbackTimer);feedbackTimer=null;}
+    }
+    function clearFeedback() {
+      feedbackSerial++;stopFeedbackTimer();feedback='';feedbackZone=null;feedbackKind=null;retainOnClose=null;notice();
+    }
+    function dismissSuccessAfter(serial) {
+      feedbackTimer=setTimeout(()=>{
+        if(serial===feedbackSerial&&feedbackKind==='success')clearFeedback();
+        feedbackTimer=null;
+      },2600);
+    }
+    function modalChanged(id,phase) {
+      if(feedbackKind!=='success')return;
+      // The editor closes after a successful save; the toast must remain readable.
+      if(phase==='close'&&id===retainOnClose){retainOnClose=null;return;}
+      clearFeedback();
+    }
+    async function runAction(name, args, inlinePending = false) {
+      const token = session.capture(),serial=++feedbackSerial, origin=destination;
+      stopFeedbackTimer();feedbackKind='pending';retainOnClose=null;
       if(name!=='retry')lastAction=name;
-      feedback = 'Salvataggio…'; notice();
-      const result = await session.action(token, name, ...args);
-      if (!session.current(token)||serial!==feedbackSerial) return result;
+      feedback = inlinePending?'':'Salvataggio…'; notice();
+      let result;
+      try { result=await session.action(token, name, ...args); }
+      catch (_) {
+        if(session.current(token)&&serial===feedbackSerial&&(!inlinePending||destination===origin)){feedbackKind='error';feedback='Non siamo riusciti a completare l’operazione.'+(inlinePending?' Riprova dal controllo di rimozione.':'');notice();}
+        return {outcome:'ERROR'};
+      }
+      if (!session.current(token)||serial!==feedbackSerial||(inlinePending&&destination!==origin)) return result;
       operation = result;
       feedback = result.outcome === 'SUCCESS' ? savedMessage(lastAction) : result.outcome === 'ALREADY_IN_TARGET_STATE' ? 'Nessuna modifica necessaria.' : result.outcome === 'STALE' ? 'I dati sono cambiati. Attendi l’aggiornamento e riprova.' : result.outcome === 'TRANSPORT_UNCERTAIN' ? 'Esito da verificare. Puoi riprovare la stessa operazione.' : result.outcome === 'NOT_READY' ? 'Attendi la verifica online.' : 'Non siamo riusciti a completare l’operazione.';
+      feedbackKind=['SUCCESS','ALREADY_IN_TARGET_STATE'].includes(result.outcome)?'success':'error';
+      if(feedbackKind==='success'&&!el('reviewModal')?.classList.contains('hidden'))retainOnClose='reviewModal';
+      if(inlinePending&&!['SUCCESS','ALREADY_IN_TARGET_STATE'].includes(result.outcome)&&!result.retryHandle)feedback+=' Riprova dal controllo di rimozione.';
       notice(); // Feedback only; retry controls reuse the unchanged committed view.
       if (result.retryHandle || name === 'retry') render();
+      if(feedbackKind==='success')dismissSuccessAfter(serial);
       return result;
     }
+    function perform(name, ...args) { return runAction(name,args); }
+    function performInline(name, ...args) { return runAction(name,args,true); }
     async function performMatch(name, ...args) {
       const token=session.capture(), result=await session.match(token,name,...args);
       if(!session.current(token))return result;
+      const serial=++feedbackSerial;stopFeedbackTimer();retainOnClose=null;
       matchOperation=result;
       if(name==='swipe'&&result.outcome==='SUCCESS'){hapticFeedback('swipe');playSound(args[1]?'like':'nope');}
       feedback=result.category==='TRANSPORT_UNCERTAIN'?'Esito Match da verificare. Riallinea o riprova la stessa operazione.':result.category==='SEMANTIC_RESULT'?'Match aggiornato.':'Non siamo riusciti ad aggiornare Match.';
+      feedbackKind=result.category==='SEMANTIC_RESULT'?'success':'error';
+      if(feedbackKind==='success')dismissSuccessAfter(serial);
       render();return result;
     }
     function waitFor(token, predicate) {
@@ -165,6 +200,104 @@ const TargetShell = (() => {
       const input = view().getRecommendationInput();
       return input.kind === 'AVAILABLE' ? input.input.users.map(p => view().getIdentity(p.id)) : [];
     }
+    const recommendationInput = value => value.getRecommendationInput({ constraints: { context: 'all' } });
+    const recommendationSignature = input => JSON.stringify({ users: input.users, group: input.group,
+      candidates: input.candidates, contentFeatures: input.contentFeatures, constraints: input.constraints,
+      personalSignals: Object.fromEntries(Object.entries(input.personalSignals || {}).map(([id,signals]) => [id,
+        { ratings: signals.ratings, preferences: signals.preferences }])),
+      sharedSignals: { ratings: input.sharedSignals?.ratings, events: input.sharedSignals?.events } });
+    function nextRecommendationBatch(ranked, shown) {
+      const used = new Set(shown);
+      return RecommendationEngine.rerank(ranked.filter(row => !used.has(row.movieId)), RecommendationConfig.diversity.defaultShortlistSize);
+    }
+    function recommendationReason(result, value) {
+      const reasons = result.reasons || [], personal = Object.values(result.personal || {});
+      const name = reason => {
+        const id = reason.userIds?.[0];
+        const label = id ? value.getIdentity(id)?.legacyLabel : null;
+        return label ? CONFIG.PEOPLE[label]?.label || label : 'Una persona del gruppo';
+      };
+      const direct = reasons.find(reason => ['EXPLICIT_LIKE','EXPLICIT_DISLIKE','PERSONAL_RATING_POSITIVE','PERSONAL_RATING_NEUTRAL','PERSONAL_RATING_NEGATIVE'].includes(reason.code) && reason.userIds?.length);
+      if (direct) return ({ EXPLICIT_LIKE:`A ${name(direct)} è piaciuto.`, EXPLICIT_DISLIKE:`A ${name(direct)} non è piaciuto.`,
+        PERSONAL_RATING_POSITIVE:`${name(direct)} gli ha dato un voto positivo.`, PERSONAL_RATING_NEUTRAL:`${name(direct)} gli ha dato un voto nella fascia neutra.`,
+        PERSONAL_RATING_NEGATIVE:`Il voto di ${name(direct)} è un segnale negativo.` })[direct.code];
+      if (personal.length && personal.every(p => ['UNKNOWN','LOW_EVIDENCE'].includes(p.state)))
+        return 'Pochi giudizi disponibili per spiegare questa proposta.';
+      if (reasons.some(reason => reason.code === 'FEATURE_AFFINITY' && reason.evidenceMovieIds?.length))
+        return 'Alcuni elementi richiamano film già valutati.';
+      if (reasons.some(reason => reason.code === 'TOGETHER_RATING' && reason.evidenceMovieIds?.length))
+        return 'I giudizi condivisi contribuiscono alla proposta.';
+      if (reasons.some(reason => reason.code === 'NEGATIVE_PROTECTION'))
+        return 'Un giudizio negativo riduce la priorità di questo film.';
+      return 'Pochi giudizi disponibili per spiegare questa proposta.';
+    }
+    function startRecommendations() {
+      const token = session.capture(), epoch = uiEpoch, source = view();
+      recommendation = { status:'loading' };
+      Promise.resolve().then(() => {
+        if (!session.current(token) || epoch !== uiEpoch || destination !== 'recommendations') return;
+        try {
+          const sourceInput = recommendationInput(source);
+          if (sourceInput.kind !== 'AVAILABLE') throw new TypeError('TARGET_RECOMMENDATION_INPUT_REQUIRED');
+          const input = sourceInput.input, ranked = RecommendationEngine.recommend(input);
+          const batch = nextRecommendationBatch(ranked, []), shown = batch.map(row => row.movieId);
+          recommendation = { status:'ready', ranked, batch, shown, hasMore:nextRecommendationBatch(ranked, shown).length > 0,
+            signature:recommendationSignature(input), hadSharedCandidates:input.candidates.some(row => row.inSharedList),
+            contents:new Map(source.catalog.contents.map(row => [row.movie_id,row])) };
+        } catch (error) { recommendation = { status:'error' }; console.error('[sc(r)occhiaTu] TARGET Recommendation consumer failed.',error); }
+        render();
+      });
+    }
+    function renderRecommendations(value) {
+      if (!recommendation) startRecommendations();
+      const state = recommendation, section = el('recommendationSection'), results = el('recommendationResults');
+      const status = el('recommendationStatus'), empty = el('recommendationEmpty'), error = el('recommendationError'),
+        stale = el('recommendationStale'), more = el('recommendationMore');
+      section?.setAttribute('aria-busy',String(state.status === 'loading'));
+      empty?.classList.add('hidden'); error?.classList.add('hidden'); stale?.classList.add('hidden'); more?.classList.add('hidden');
+      if (state.status !== 'ready') {
+        if (results) results.innerHTML='';
+        if (status) status.textContent=state.status==='loading'?'Stiamo preparando le proposte…':'';
+        if (state.status==='error') error?.classList.remove('hidden');
+        return;
+      }
+      if (status) status.textContent = !state.batch.length ? '' : state.hasMore
+        ? state.batch.length+' propost'+(state.batch.length===1?'a':'e')+' · altre disponibili.' : 'Questi sono tutti i suggerimenti disponibili. Aggiorna per ricominciare.';
+      if (!state.batch.length) {
+        if (empty) { empty.textContent=state.hadSharedCandidates
+          ? 'Nessun film della Lista condivisa è ora candidabile. Controlla le serate già aperte.'
+          : 'La Lista condivisa è vuota. Aggiungi un film alla Lista per ricevere proposte.'; empty.classList.remove('hidden'); }
+      }
+      const markup = state.batch.map(result => {
+        const content = state.contents.get(result.movieId);
+        if (!content) return '';
+        const title = result.title || content.title, meta = [content.release_year,content.duration].filter(Boolean).join(' · ');
+        const poster = content.poster ? '<img class="recommendation-poster" src="'+escape(content.poster)+'" alt="" loading="lazy">'
+          : '<div class="recommendation-poster" aria-hidden="true"><i class="fa-solid fa-film"></i></div>';
+        return '<article class="recommendation-card" role="button" tabindex="0" data-recommendation-id="'+escape(result.movieId)+'" aria-label="Apri la scheda di '+escape(title)+'">'
+          +poster+'<div class="min-w-0"><h3 class="recommendation-title">'+escape(title)+'</h3>'
+          +(meta?'<p class="recommendation-meta">'+escape(meta)+'</p>':'')
+          +'<p class="recommendation-reason">'+escape(recommendationReason(result,value))+'</p></div>'
+          +'<i class="fa-solid fa-chevron-right text-slate-400" aria-hidden="true"></i></article>';
+      }).join('');
+      if (results && results.innerHTML!==markup) results.innerHTML=markup;
+      results?.querySelectorAll('[data-recommendation-id]').forEach(row => {
+        const open = () => { const current=view(),id=row.dataset.recommendationId;
+          if (current.kind==='AVAILABLE' && current.catalog.getContent(id).kind==='AVAILABLE') openDetail(id,row); };
+        row.onclick=open; row.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open();}};
+      });
+      try { const current=recommendationInput(value);stale?.classList.toggle('hidden',current.kind==='AVAILABLE'&&recommendationSignature(current.input)===state.signature); }
+      catch (_) { stale?.classList.remove('hidden'); }
+      if (state.hasMore) more?.classList.remove('hidden');
+    }
+    function refreshRecommendations() { if (destination!=='recommendations') return; recommendation=null;render(); }
+    function showMoreRecommendations() {
+      if(destination!=='recommendations'||recommendation?.status!=='ready'||!recommendation.hasMore)return;
+      const batch=nextRecommendationBatch(recommendation.ranked,recommendation.shown);
+      recommendation.batch=batch;recommendation.shown.push(...batch.map(row=>row.movieId));
+      recommendation.hasMore=nextRecommendationBatch(recommendation.ranked,recommendation.shown).length>0;
+      render();
+    }
     function navigate(next, source = null) {
       if (!['home','personalList','personalSeen','groupList','rewatch','scheduled','together','memories','calendar','match','wheel','recommendations','search','bulk'].includes(next)) return;
       const previous = destination;
@@ -172,13 +305,15 @@ const TargetShell = (() => {
       if (previous === 'home' && origin?.closest?.('#sceltaCta, #scheduledPanel')) homeTrigger = origin;
       uiEpoch++; if(matchExit)clearTimeout(matchExit); matchExit=null; createdTitle=null;
       if(!el('confirmModal')?.classList.contains('hidden'))cancelConfirmModal();
-      for(const id of ['detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id);
+      for(const id of ['metadataRefreshModal','personalStatusModal','otherJudgmentModal','togetherModal','detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id);
       if(previous==='wheel'&&next!=='wheel')closeWheelWinner();
-      if(previous==='match'&&next!=='match'){revealedKey=null;el('matchReveal')?.classList.add('hidden');}
+      if(previous==='match'&&next!=='match'){revealedKey=null;revealInterrupted=false;el('matchReveal')?.classList.add('hidden');}
       const scope = route => ['groupList','rewatch','scheduled'].includes(route) ? 'list'
         : ['personalList','personalSeen'].includes(route) ? 'personal' : route;
       if(scope(previous)!==scope(next)){query='';genre='';duration='';platform='';proposer='';availability='streaming';sort='added';sortDir='desc';}
       destination = next; page = 0;
+      if(previous!==next){clearFeedback();operation=null;}
+      if(next==='recommendations'&&previous!==next)recommendation=null;
       if(next==='match')session.match(session.capture(),'enter');else if(previous==='match')session.match(session.capture(),'leave');
       render();
       if (next !== 'memories') {
@@ -197,38 +332,105 @@ const TargetShell = (() => {
       }
       if(['setMyEvaluation','setGroupEvaluation','scheduleNight','quickNight','editNight','completeNow','completeScheduled','scheduleMatch','quickMatch'].includes(action))
         return ProductEditors.open({action,id,initial,context:product(),perform,session,onMatchScheduled:result=>{const movie=product().getMovie(id.matched_movie_id);scheduledMatchTitle=movie?(product().hidden(movie)?'Film a sorpresa':movie.title):'La serata';operation=result;if(result.closeTicket)finishScheduledMatch();}});
-      if(action==='createContent'||action==='updateMetadata'){
-        const context=product(),relation=destination==='personalList'?'addToMyList':destination==='personalSeen'?'recordSeen':['home','groupList'].includes(destination)?'proposeToGroup':null;
-        return ProductEditors.catalog({context,session,lookup,detailsById,search:searchTmdbCandidates,retrospective:action==='createContent'&&relation==='recordSeen',initial:action==='updateMetadata'?context.getMovie(id):null,label:action==='updateMetadata'?'Correggi i metadati':relation==='proposeToGroup'?'Proponi alla Lista del gruppo':relation==='addToMyList'?'Aggiungi alla mia Lista':relation==='recordSeen'?'Aggiungi ai miei Visti':'Aggiungi al catalogo',
-          save:async details=>{if(!context.current())return false;const result=action==='updateMetadata'?await perform('updateMetadata',id,metadata(details)):await saveContent(details,relation);return action==='updateMetadata'?success(result):!!result.movieId&&(!relation||success(result.relation));},bulk:titles=>bulk(titles,relation)});
+      if(action==='createContent'){
+        const context=product(),defaultDestination=initial?.entry==='global'?null:destination==='personalList'?'personalList':destination==='personalSeen'?'personalSeen':destination==='groupList'?'groupList':null;
+        return ProductEditors.addCatalog({context,search:searchTmdbCandidates,detailsById,defaultDestination,
+          save:(details,relation)=>saveContent(details,relation),bulk:(titles,relation)=>bulk(titles,relation)});
+      }
+      if(action==='refreshMetadata'){
+        const context=product();
+        return ProductEditors.refreshMetadata({context,session,movieId:id,detailsById,perform});
       }
       throw new TypeError('Unsupported product editor');
     }
     function product() {
       const epoch=uiEpoch,observed=view().context.observedPerson.personId;
-      return ProductContext.create({view:view(),session,destination,perform,edit,feedback,feedbackZone,onActionSource:node=>{feedbackZone=node.closest?.('[data-feedback-zone]')?.dataset.feedbackZone||null;feedback='';notice();},isCurrent:()=>epoch===uiEpoch&&view().kind==='AVAILABLE'&&view().context.observedPerson.personId===observed,
-        detail:openDetail,openSaga,
+      return ProductContext.create({view:view(),session,destination,perform,performInline,edit,feedback,feedbackZone,onActionSource:node=>{const removing=node.dataset.listRemoval==='true';clearFeedback();feedbackZone=removing?null:node.closest?.('[data-feedback-zone]')?.dataset.feedbackZone||null;if(removing){operation=null;el('targetFeedback')?.querySelectorAll('button').forEach(button=>button.remove());}},isCurrent:()=>epoch===uiEpoch&&view().kind==='AVAILABLE'&&view().context.observedPerson.personId===observed,
+        detail:openDetail,openTogether,openPersonalStatus,openOtherJudgment,openSaga,
         ticket:id=>downloadTargetTicket(id,destination==='match'?'match':'wheel',session)});
     }
-    function openDetail(id,source){feedback='';feedbackZone=null;notice();openMovieDetail(id,source,product());}
+    function openDetail(id,source,nightId=null,openNights=false){clearFeedback();openMovieDetail(id,source,product(),nightId,openNights);}
+    function renderTogetherPopup() {
+      const body=el('togetherPopupBody'),context=product(),movie=context.getMovie(body?.dataset.movieId);
+      if(!body||!movie||context.hidden(movie)||!context.togetherSeen(movie)){closeModal('togetherModal');return;}
+      const opened=new Set([...body.querySelectorAll('details[data-night-id][open]')].map(node=>node.dataset.nightId));
+      const focused=body.contains?.(root.activeElement)?root.activeElement:null;
+      const focusKey=focused?.dataset?.returnFocusKey;
+      const focusNight=focused?.closest?.('[data-night-id]')?.dataset.nightId;
+      body.innerHTML=context.togetherPopupHtml(movie,{fromDetail:body.dataset.fromDetail==='true'});
+      for(const row of body.querySelectorAll('details[data-night-id]'))if(opened.has(row.dataset.nightId))row.open=true;
+      context.bind(body);
+      if(focused){
+        const replacement=focusKey?[...body.querySelectorAll('[data-return-focus-key]')].find(node=>node.dataset.returnFocusKey===focusKey)
+          :focusNight?[...body.querySelectorAll('[data-night-id]')].find(node=>node.dataset.nightId===focusNight)?.querySelector('summary'):null;
+        (replacement||el('togetherModalClose'))?.focus?.({preventScroll:true});
+      }
+    }
+    function openTogether(id,source) {
+      const context=product(),movie=context.getMovie(id),body=el('togetherPopupBody');
+      if(!body||!movie||context.hidden(movie)||!context.togetherSeen(movie))return;
+      if(source?.focus)source.focus({preventScroll:true});
+      body.dataset.movieId=id;
+      body.dataset.fromDetail=String(!el('detailModal')?.classList.contains('hidden')&&el('detailBody')?.dataset.movieId===id);
+      renderTogetherPopup();openModal('togetherModal');
+      el('togetherModalClose')?.focus({preventScroll:true});
+    }
+    function renderPersonalStatusPopup() {
+      const body=el('personalStatusBody'),context=product(),movie=context.getMovie(body?.dataset.movieId);
+      if(!body||!movie||context.hidden(movie)||!context.personalStatusHtml(movie)){closeModal('personalStatusModal');return;}
+      body.innerHTML=context.personalStatusHtml(movie);context.bind(body);
+    }
+    function openPersonalStatus(id,source) {
+      const context=product(),movie=context.getMovie(id),body=el('personalStatusBody');
+      if(!body||!movie||context.hidden(movie))return;
+      if(source?.focus)source.focus({preventScroll:true});
+      body.dataset.movieId=id;renderPersonalStatusPopup();openModal('personalStatusModal');
+      el('personalStatusClose')?.focus({preventScroll:true});
+    }
+    function renderOtherJudgment() {
+      const body=el('otherJudgmentBody'),context=product(),movie=context.getMovie(body?.dataset.movieId);
+      const html=movie&&!context.hidden(movie)?context.otherJudgmentHtml(movie,body.dataset.personKey):'';
+      if(!body||!html){closeModal('otherJudgmentModal');return;}
+      if(body.innerHTML!==html)body.innerHTML=html;
+    }
+    function openOtherJudgment(id,key,source) {
+      const body=el('otherJudgmentBody'),context=product(),movie=context.getMovie(id);
+      if(!body||!movie||context.hidden(movie)||!context.otherJudgmentHtml(movie,key))return;
+      if(source?.focus)source.focus({preventScroll:true});
+      body.dataset.movieId=id;body.dataset.personKey=key;
+      renderOtherJudgment();openModal('otherJudgmentModal');
+      el('otherJudgmentClose')?.focus({preventScroll:true});
+    }
     function card(id,parent,context) {
       const movie=context.getMovie(id);if(!movie)return;
-      const node=createMovieCard(movie,view().getVetoForMovie(id).veto?[id]:[],context),zone='card-'+id;
-      node.dataset.feedbackZone=zone;
-      const status=root.createElement('p');status.className='detail-feedback';status.dataset.actionFeedback=zone;status.setAttribute('role','status');status.textContent=feedbackZone===zone?feedback:'';
-      node.querySelector('.ticket-seam')?.appendChild(status);parent.appendChild(node);
+      const node=createMovieCard(movie,view().getVetoForMovie(id).veto?[id]:[],context);
+      parent.appendChild(node);
     }
     function drawMatch(parent) {
       const state=session.getState().match,derived=state.derived,context=product().matchContext(state);
       if(createdTitle){parent.innerHTML=matchNightCreatedHtml({createdTitle});return;}
+      if(state.phase==='DISCONNECTED'||state.phase==='UNAVAILABLE'){
+        parent.innerHTML=matchUnavailableHtml(state.phase);
+        const overlay=el('matchReveal');
+        if(overlay&&!overlay.classList.contains('hidden'))revealInterrupted=true;
+        overlay?.classList.add('hidden');
+        if(state.phase==='UNAVAILABLE')bindMatchProduct(parent,state,context);
+        return;
+      }
+      if(state.phase!=='READY'){
+        parent.innerHTML=matchConnectingHtml();
+        el('matchReveal')?.classList.add('hidden');
+        return;
+      }
       const card=derived?.currentCard,pending=derived?.pendingMatch,row=state.authoritative?.session;
       const model={movieId:pending?.matched_movie_id||card?.movie_id,index:row?.deck.indexOf(card?.movie_id)??0,matches:derived?.matches??0};
       parent.innerHTML=!derived?matchConnectingHtml():pending?matchMatchHtml(model,context):derived.view==='DONE'||derived.view==='CLOSED'?matchDoneHtml(model,context):context.matchPresentUsers().length<2||!card?matchLobbyHtml(row,context):matchSwipeHtml(model,context);
       bindMatchProduct(parent,state,context);
-      if(card&&el('matchCard')){const token=session.capture();matchBindSwipe(el('matchCard'),card.movie_id,liked=>{if(context.current())performMatch('swipe',card,liked);});}
+      if(card&&el('matchCard')){matchBindSwipe(el('matchCard'),card.movie_id,liked=>{if(context.current()&&session.getState().match.phase==='READY')performMatch('swipe',card,liked);});}
       const key=pending?pending.session_id+':'+pending.matched_movie_id:null;
-      if(!key)el('matchReveal')?.classList.add('hidden');
-      else if(key!==revealedKey){revealedKey=key;const overlay=el('matchReveal');overlay.innerHTML=matchRevealHtml(model,context);bindMatchProduct(overlay,state,context);overlay.classList.remove('hidden');hapticFeedback('match');playSound('match');fireConfetti();}
+      if(!key){revealInterrupted=false;el('matchReveal')?.classList.add('hidden');}
+      else if(key!==revealedKey){revealedKey=key;revealInterrupted=false;const overlay=el('matchReveal');overlay.innerHTML=matchRevealHtml(model,context);bindMatchProduct(overlay,state,context);overlay.classList.remove('hidden');hapticFeedback('match');playSound('match');fireConfetti();}
+      else if(revealInterrupted){revealInterrupted=false;const overlay=el('matchReveal');overlay.innerHTML=matchRevealHtml(model,context);bindMatchProduct(overlay,state,context);overlay.classList.remove('hidden');}
       if(matchOperation?.retryHandle){const handle=matchOperation.retryHandle;button('Riprova la stessa operazione',()=>performMatch('retry',handle),parent);}
     }
     function finishScheduledMatch() {
@@ -240,7 +442,7 @@ const TargetShell = (() => {
         const result=await session.closeScheduledMatch(ticket);if(!session.current(token))return;
         if(result.code==='SCHEDULE_SNAPSHOT_REQUIRED'){closingMatchTicket=null;return;}
         if(success(result)){operation=null;createdTitle=title;render();matchExit=setTimeout(()=>{matchExit=null;createdTitle=null;navigate('scheduled');},1400);}
-        else{matchOperation=result;feedback='Serata salvata. Chiusura Match da verificare.';notice();}
+        else{matchOperation=result;feedbackSerial++;stopFeedbackTimer();feedbackKind='error';feedback='Serata salvata. Chiusura Match da verificare.';notice();}
       });
     }
     function bindMatchProduct(parent,state,context) {
@@ -254,6 +456,7 @@ const TargetShell = (() => {
           }
           return performMatch('start');
         };
+        else if(code.startsWith('reconcileMatch('))handler=()=>performMatch('reconcile');
         else if(code.startsWith('continueFromMatch('))handler=()=>performMatch('acknowledge',state.derived.pendingMatch);
         else if(code.startsWith('createMatchNight('))handler=()=>edit(code.includes("'tonight'")?'quickMatch':'scheduleMatch',state.derived.pendingMatch,context.scheduleInitial(context.getMovie(state.derived.pendingMatch.matched_movie_id)));
         else if(code.startsWith('downloadTicket('))handler=()=>downloadTargetTicket(state.derived.pendingMatch.matched_movie_id,'match',session);
@@ -266,7 +469,10 @@ const TargetShell = (() => {
     function render() {
       const state = session.getState(), value = state.view;
       const grid = el('movieGrid'); if (!grid) return;
-      if(destination==='match'&&typeof matchDragging!=='undefined'&&matchDragging){matchPendingRender=true;return;}
+      if(destination==='match'&&typeof matchDragging!=='undefined'&&matchDragging){
+        if(session.getState().match.phase==='READY'){matchPendingRender=true;return;}
+        matchDragging=false;matchPendingRender=false;
+      }
       if (value.kind === 'AVAILABLE' && typeof finishInitialLoading === 'function') finishInitialLoading();
       grid.innerHTML = '';
       // Reuse the existing app chrome; there is no second navigation in the grid.
@@ -276,11 +482,14 @@ const TargetShell = (() => {
           const context=product(),movie=context.getMovie(el('detailBody').dataset.movieId);
           if(!movie||context.hidden(movie))closeModal('detailModal');else renderMovieDetail(movie,context);
         }
+        if(!el('togetherModal')?.classList.contains('hidden'))renderTogetherPopup();
+        if(!el('personalStatusModal')?.classList.contains('hidden'))renderPersonalStatusPopup();
+        if(!el('otherJudgmentModal')?.classList.contains('hidden'))renderOtherJudgment();
       }
-      const status = root.createElement('p'); status.id = 'targetFeedback'; status.className = 'col-span-full text-sm'; status.setAttribute('role','status'); grid.appendChild(status); notice();
-      if (value.kind !== 'AVAILABLE') { for(const id of ['detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id); status.textContent = state.phase === 'BLOCKED' ? 'Servizio momentaneamente non disponibile.' : 'Caricamento…'; button('Riprova',()=>state.phase==='BLOCKED'?session.retryStartup():session.requestRefresh(),status);return; }
-      if(value.freshness.source==='CACHE') {status.textContent='Dati salvati: attendi la verifica online.';text('syncNotice','Stai vedendo i dati salvati. Attendi la verifica online per modificare.');show('syncNotice',true);}
-      if (operation?.retryHandle) { const handle=operation.retryHandle; button('Riprova la stessa operazione',()=>perform('retry',handle),status); }
+      const status=el('targetFeedback');status?.querySelectorAll('button').forEach(node=>node.remove());notice();
+      if (value.kind !== 'AVAILABLE') { if(feedbackKind==='success')clearFeedback();for(const id of ['metadataRefreshModal','personalStatusModal','otherJudgmentModal','togetherModal','detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id); text('targetFeedbackMessage',state.phase === 'BLOCKED' ? 'Servizio momentaneamente non disponibile.' : 'Caricamento…'); button('Riprova',()=>state.phase==='BLOCKED'?session.retryStartup():session.requestRefresh(),status);status.hidden=false;return; }
+      if(value.freshness.source==='CACHE') {text('targetFeedbackMessage','Dati salvati: attendi la verifica online.');text('syncNotice','Stai vedendo i dati salvati. Attendi la verifica online per modificare.');show('syncNotice',true);}
+      if (operation?.retryHandle) { const handle=operation.retryHandle; button('Riprova la stessa operazione',()=>perform('retry',handle),status);status.hidden=false; }
 
       const context=product();
       if (destination === 'match') { const panel=root.createElement('section');panel.className='col-span-full match-panel glass-panel p-4 rounded-xl';grid.appendChild(panel);drawMatch(panel);return; }
@@ -295,6 +504,7 @@ const TargetShell = (() => {
         renderStats(product());return;
       }
       if (destination==='bulk') {edit('createContent');return;}
+      if (destination==='recommendations') {renderRecommendations(value);return;}
       let contents;
       if (destination === 'personalList' || destination === 'personalSeen') {
         const personal = value.personal.observed;
@@ -313,10 +523,8 @@ const TargetShell = (() => {
         renderScheduled(new Date(),context,grid,entries);if(!entries.length)grid.innerHTML='<p>'+ (value.events.scheduled.length?'Nessuna serata corrisponde ai filtri.':'Nessuna serata in programma.') +'</p>';
         return;
       } else if (destination === 'search') contents=query?value.search.contents:[];
-      else if (destination === 'recommendations') {
-        if(!recommendation.length){const input=value.getRecommendationInput();recommendation=input.kind==='AVAILABLE'?RecommendationEngine.rerank(RecommendationEngine.recommend(input.input),6):[];}
-        contents = recommendation.map(r=>value.catalog.getContent(r.movieId)).filter(x=>x.kind === 'AVAILABLE').map(x=>x.content);
-      } else if (destination === 'wheel') {
+      else if (destination === 'wheel') {
+        const vetoInfo=el('vetoInfo');if(vetoInfo){vetoInfo.textContent='';vetoInfo.hidden=true;}
         el('dashboardSidebar')?.classList.remove('hidden','!hidden'); syncGenreFilterOptions(); drawWheel();
         contents = value.ruota.eligibleContents;
 
@@ -369,21 +577,19 @@ const TargetShell = (() => {
       const sortKey=personalDestination()?'title':sort;
       const metric=c=>sortKey==='duration'?parseDurationMinutes(c.duration):sortKey==='release_year'||sortKey==='year'?c.release_year:sortKey==='added'?c.created_at:sortKey==='imdb'?c.imdb_rating:sortKey==='proposer'?(c.added_by_person_id?context.getIdentity(c.added_by_person_id).label:null):sortKey==='rating'?context.getCard(c.movie_id).personal.caller.judgment?.rating:c.title;
       const sign=personalDestination()?1:sortDir==='desc'?-1:1;
-      // Route isolation only; Recommendation's existing sort/batch remain UX-10.
-      const libraryCriteria = destination !== 'recommendations';
-      return contents.filter(c=>!libraryCriteria||((!query||[c.title,c.director,...(c.genres||[])].join(' ').toLocaleLowerCase('it').includes(query.toLocaleLowerCase('it')))&&(!genre||c.genres?.includes(genre))&&(!platform||c.platform===platform)&&(!proposer||(c.added_by_person_id?context.getIdentity(c.added_by_person_id).label:null)===proposer)&&(personalDestination()||(availability==='cinema'?c.cinema_watchlist:!c.cinema_watchlist))&&(!duration||(parseDurationMinutes(c.duration)!==null&&parseDurationMinutes(c.duration)<=Number(duration)))))
+      return contents.filter(c=>((!query||[c.title,c.director,...(c.genres||[])].join(' ').toLocaleLowerCase('it').includes(query.toLocaleLowerCase('it')))&&(!genre||c.genres?.includes(genre))&&(!platform||c.platform===platform)&&(!proposer||(c.added_by_person_id?context.getIdentity(c.added_by_person_id).label:null)===proposer)&&(personalDestination()||(availability==='cinema'?c.cinema_watchlist:!c.cinema_watchlist))&&(!duration||(parseDurationMinutes(c.duration)!==null&&parseDurationMinutes(c.duration)<=Number(duration)))))
         .slice().sort((a,b)=>{const x=metric(a),y=metric(b);if(x==null||y==null)return x==null?(y==null?0:1):-1;return sign*(typeof x==='number'&&typeof y==='number'?x-y:String(x).localeCompare(String(y),'it'))||a.movie_id.localeCompare(b.movie_id);});
     }
-    return Object.freeze({ render, navigate, getDestination:()=>destination, changePage(delta){page=Math.max(0,page+delta);render();}, perform, performMatch, waitFor, saveContent, bulk,
+    return Object.freeze({ render, navigate, modalChanged, refreshRecommendations, showMoreRecommendations, getDestination:()=>destination, changePage(delta){page=Math.max(0,page+delta);render();}, perform, performMatch, waitFor, saveContent, bulk,
       setFilters(input) { query = input.query ?? query; genre = input.genre ?? genre; duration = input.duration ?? duration; sort = input.sort ?? sort; page = 0; render(); },
-      detail:openDetail, edit,
+      detail:openDetail, together:openTogether, edit,
       presentation:product,
       refreshCalendar(){renderCalendar(product());}, refreshMemories(){renderStats(product());},
       publication(state) { if(generation!==null&&generation!==state.generation)this.dispose();generation=state.generation; if (['AUTH_INVALIDATING','STOPPED','DISPOSED'].includes(state.phase)) { el('movieGrid').innerHTML = ''; this.dispose(); return; } if (state.view !== shared) { shared = state.view; if(state.view.kind==='AVAILABLE'&&!el('reviewModal')?.classList.contains('hidden'))ProductEditors.refresh(product()); if(operation?.closeTicket)finishScheduledMatch(); render(); } else if (state.match !== match && destination === 'match') render(); match = state.match; },
-      dispose() { uiEpoch++;if(!el('confirmModal')?.classList.contains('hidden'))cancelConfirmModal();if(matchExit)clearTimeout(matchExit);matchExit=null;createdTitle=null;closingMatchTicket=null; for(const id of ['detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id); for(const id of ['nextMovieBox','recommendationResults'])if(el(id))el(id).innerHTML='';for(const [node,properties] of bindings)for(const [key,handler] of properties)node[key]=handler;bindings.clear();el('tabAll')?.classList.remove('!hidden');const all=el('libraryViewSelect')?.querySelector?.('option[value="all"]');if(all){all.hidden=false;all.disabled=false;}show('targetPersonalCollections',false); el('matchReveal')?.classList.add('hidden'); for (const id of ['sceltaCta','dashboardSidebar','recommendationSection','segControl','libraryTools','historySwitch','listFiltersBlock','syncNotice']) el(id)?.classList.remove('!hidden'); generation = null; query = ''; genre=''; duration=''; sort='added'; sortDir='desc'; platform=''; proposer=''; availability='streaming'; page = 0; destination = 'home'; revealedKey = null; operation = null; matchOperation = null; recommendation = []; shared = null; match = null; }
+      dispose() { uiEpoch++;if(feedbackTimer)clearTimeout(feedbackTimer);feedbackTimer=null;if(!el('confirmModal')?.classList.contains('hidden'))cancelConfirmModal();if(matchExit)clearTimeout(matchExit);matchExit=null;createdTitle=null;closingMatchTicket=null; for(const id of ['metadataRefreshModal','personalStatusModal','otherJudgmentModal','togetherModal','detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id); for(const id of ['nextMovieBox','recommendationResults'])if(el(id))el(id).innerHTML='';for(const [node,properties]of bindings)for(const [key,handler]of properties)node[key]=handler;bindings.clear();el('tabAll')?.classList.remove('!hidden');const all=el('libraryViewSelect')?.querySelector?.('option[value="all"]');if(all){all.hidden=false;all.disabled=false;}show('targetPersonalCollections',false); el('matchReveal')?.classList.add('hidden'); for(const id of ['sceltaCta','dashboardSidebar','recommendationSection','segControl','libraryTools','historySwitch','listFiltersBlock','syncNotice']) el(id)?.classList.remove('!hidden'); generation = null; query = ''; genre=''; duration=''; sort='added'; sortDir='desc'; platform=''; proposer=''; availability='streaming'; page = 0; destination = 'home'; revealedKey = null; operation = null; matchOperation = null; recommendation = null; shared = null; match = null; }
     });
   }
   let instance = null;
   const current = () => instance || (instance = createShell({ session: ProductionSession }));
-  return Object.freeze({ createShell, render: () => current().render(), getDestination:()=>current().getDestination(), changePage:delta=>current().changePage(delta), publication: state => current().publication(state), saveContent: (...args) => current().saveContent(...args), bulk: (...args) => current().bulk(...args), setFilters: input => current().setFilters(input), navigate: (destination,source) => current().navigate(destination,source), detail: (id,source) => current().detail(id,source), edit: (...args) => current().edit(...args), presentation:()=>current().presentation(), refreshCalendar:()=>current().refreshCalendar(), refreshMemories:()=>current().refreshMemories(), perform: (...args) => current().perform(...args), performMatch: (...args) => current().performMatch(...args), dispose() { instance?.dispose(); instance = null; } });
+  return Object.freeze({ createShell, modalChanged:(id,phase)=>instance?.modalChanged(id,phase), render: () => current().render(), getDestination:()=>current().getDestination(), refreshRecommendations:()=>current().refreshRecommendations(), showMoreRecommendations:()=>current().showMoreRecommendations(), changePage:delta=>current().changePage(delta), publication: state => current().publication(state), saveContent: (...args) => current().saveContent(...args), bulk: (...args) => current().bulk(...args), setFilters: input => current().setFilters(input), navigate: (destination,source) => current().navigate(destination,source), detail: (id,source,nightId,openNights) => current().detail(id,source,nightId,openNights), together: (id,source) => current().together(id,source), edit: (...args) => current().edit(...args), presentation:()=>current().presentation(), refreshCalendar:()=>current().refreshCalendar(), refreshMemories:()=>current().refreshMemories(), perform: (...args) => current().perform(...args), performMatch: (...args) => current().performMatch(...args), dispose() { instance?.dispose(); instance = null; } });
 })();

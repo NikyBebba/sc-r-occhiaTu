@@ -238,7 +238,7 @@
         <div class="home-shortcuts" aria-label="Il mio cinema e memoria condivisa">
           <div class="home-shortcuts-heading"><span>Tra un film e l’altro</span><i class="fa-solid fa-ticket" aria-hidden="true"></i></div>
           <div class="home-shortcuts-grid">
-            <button id="homeHistory" onclick="activateDestination('history', this)" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></span><span><strong>Il mio cinema</strong><small>La mia Lista, i miei Visti.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+            <button id="homeHistory" onclick="activateDestination('history', this)" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></span><span><strong>Il mio cinema</strong><small>Da vedere, i miei Visti.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
             <button onclick="setTab('watched', this)" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-solid fa-star" aria-hidden="true"></i></span><span><strong>Visti insieme</strong><small id="homeWatchedCount">Qui finiscono i film già visti.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
             <button id="homeMemories" onclick="activateDestination('memories', this)" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-solid fa-ticket" aria-hidden="true"></i></span><span><strong>Ricordi</strong><small>Serate concluse, recensioni e titoli di coda.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
             <button onclick="setTab('calendar', this)" class="home-shortcut"><span class="home-shortcut-icon"><i class="fa-regular fa-calendar" aria-hidden="true"></i></span><span><strong>Calendario</strong><small>Le proiezioni passate e quelle in arrivo.</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
@@ -247,16 +247,17 @@
       </section>
 
       <section id="recommendationSection" class="hidden space-y-5 min-w-0" aria-label="Cosa guardiamo?" aria-busy="false">
+        <button type="button" onclick="openDashboardHome()" class="dashboard-back"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Torna alla home</button>
         <div class="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-800">
           <div class="flex items-start justify-between gap-3">
-            <div><p class="dashboard-eyebrow">PROPOSTE DALLA LISTA CONDIVISA</p><h2 class="text-lg font-bold text-slate-100">Cosa guardiamo?</h2><p class="text-sm text-slate-400 mt-1">Ordinate in base ai giudizi personali e ai voti condivisi.</p></div>
-            <button type="button" onclick="openDashboardHome()" class="dashboard-back" aria-label="Torna alla home"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Torna alla home</button>
+            <div><p class="dashboard-eyebrow">PROPOSTE DALLA LISTA CONDIVISA</p><h2 class="text-lg font-bold text-slate-100">Cosa guardiamo?</h2><p class="text-sm text-slate-400 mt-1">Idee per scegliere insieme, dai giudizi disponibili.</p></div>
           </div>
+          <button id="recommendationRefresh" type="button" onclick="refreshRecommendations()" class="mt-3 min-h-11 rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:border-slate-500"><i class="fa-solid fa-rotate mr-1" aria-hidden="true"></i> Aggiorna proposte</button>
           <p id="recommendationStatus" class="text-sm text-slate-400 mt-4" role="status" aria-live="polite"></p>
-          <div id="recommendationStale" class="hidden mt-3 rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm text-slate-300" role="status">I giudizi o la lista sono cambiati. Aggiorna le proposte quando vuoi.<button type="button" onclick="refreshRecommendations()" class="ml-2 underline underline-offset-2">Aggiorna</button></div>
           <div id="recommendationResults" class="recommendation-results mt-4" aria-label="Proposte ordinate"></div>
+          <div id="recommendationStale" class="hidden mt-3 rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm text-slate-300" role="status">I giudizi o la Lista sono cambiati. Le proposte restano quelle di prima finché non aggiorni.<button type="button" onclick="refreshRecommendations()" class="ml-2 underline underline-offset-2">Aggiorna</button></div>
           <div id="recommendationEmpty" class="hidden mt-4 text-sm text-slate-400" role="status"></div>
-          <div id="recommendationError" class="hidden mt-4 text-sm text-rose-200" role="alert">Non riusciamo a preparare le proposte. Riprova tra poco.</div>
+          <div id="recommendationError" class="hidden mt-4 text-sm text-rose-200" role="alert">Non riusciamo a preparare le proposte. <button type="button" onclick="refreshRecommendations()" class="underline underline-offset-2">Riprova</button></div>
           <button id="recommendationMore" type="button" onclick="showMoreRecommendations()" class="hidden mt-4 min-h-11 rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:border-slate-500">Altri suggerimenti</button>
         </div>
       </section>
@@ -287,12 +288,16 @@
             </div>
             <canvas id="wheelCanvas" width="256" height="256" class="w-full h-full rounded-full shadow-2xl"></canvas>
           </div>
-          <button onclick="spinWheel()" class="wheel-spin-btn w-full py-3 text-white font-bold rounded-xl shadow-lg transition">
+          <button id="wheelSpinBtn" onclick="spinWheel()" aria-describedby="wheelEmptyMessage" class="wheel-spin-btn w-full py-3 text-white font-bold rounded-xl shadow-lg transition">
             GIRA LA RUOTA!
           </button>
+          <div id="wheelEmptyState" class="hidden mt-3 text-sm text-slate-300" role="status" aria-live="polite">
+            <p id="wheelEmptyMessage"></p>
+            <button id="wheelListAction" type="button" onclick="openWheelList()" class="hidden mt-3 min-h-11 px-4 rounded-xl bg-indigo-600/20 text-indigo-200">Apri la Lista</button>
+            <button id="wheelResetAction" type="button" onclick="resetWheelFilters()" class="hidden mt-3 min-h-11 px-4 rounded-xl bg-indigo-600/20 text-indigo-200">Azzera filtri</button>
+          </div>
           <div id="wheelWinner" class="mt-3 text-sm font-semibold text-emerald-400 hidden"></div>
           <div id="vetoInfo" class="mt-3 text-[11px] text-slate-400"></div>
-          <button onclick="openSurprisePicker()" type="button" class="wheel-surprise-link" aria-label="Scegli un film a sorpresa"><i class="fa-solid fa-gift" aria-hidden="true"></i><span>Un film a sorpresa</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
           <button id="audioToggle" onclick="toggleAudio()" type="button" class="hidden mt-3 w-full min-h-10 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition" aria-label="Attiva suoni" aria-pressed="false">
             <i class="fa-solid fa-volume-low mr-1" aria-hidden="true"></i><span id="audioLabel">Suoni su questo telefono: spenti</span>
           </button>
@@ -371,7 +376,7 @@
           <div id="tabIndicator" aria-hidden="true" class="absolute inset-y-1 rounded-lg"></div>
         </div>
         <div id="targetPersonalCollections" class="personal-history-tabs !hidden" role="group" aria-label="Raccolta personale">
-          <button id="targetPersonalList" type="button" aria-pressed="false" onclick="TargetShell.navigate('personalList')">La mia Lista</button>
+          <button id="targetPersonalList" type="button" aria-pressed="false" onclick="TargetShell.navigate('personalList')">Da vedere</button>
           <button id="targetPersonalSeen" type="button" aria-pressed="false" onclick="TargetShell.navigate('personalSeen')">I miei Visti</button>
         </div>
         <div id="historySwitch" class="personal-history-tabs !hidden" role="group" aria-label="Persona da consultare">
@@ -387,6 +392,7 @@
           <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
           <input id="historySearchInput" type="search" placeholder="Cerca per titolo o regista…" autocomplete="off" oninput="onHistorySearchInput()">
         </div>
+        <div id="targetFeedback" class="target-feedback" role="status" aria-live="polite" aria-atomic="true" hidden><span id="targetFeedbackMessage"></span></div>
         <div id="resultsStart" role="region" tabindex="-1" aria-label="Risultati film"></div>
         <nav id="resultsPagerTop" class="results-pager hidden" aria-label="Pagine dei film, inizio risultati">
           <button type="button" data-page-previous aria-controls="movieGrid" onclick="changeResultsPage(-1, event)">‹ Precedente</button>
@@ -436,6 +442,15 @@
       <div>
         <label class="block text-xs font-medium text-slate-400 mb-1">Titolo del Film</label>
         <input type="text" id="addTitle" placeholder="es. Inception" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
+      </div>
+      <div id="targetAddDestinationWrap" class="hidden">
+        <label for="targetAddDestination" class="block text-sm font-medium text-slate-200 mb-1">Dove vuoi aggiungerlo?</label>
+        <select id="targetAddDestination" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100">
+          <option value="">Scegli una destinazione</option>
+          <option value="personalList">I miei Da vedere</option>
+          <option value="groupList">Da vedere insieme</option>
+          <option value="personalSeen">I miei Visti</option>
+        </select>
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-400 mb-1">Proposto da</label>
@@ -628,9 +643,41 @@
       </div>
       <p class="text-xs text-slate-400">Scegli il film giusto tra i risultati trovati.</p>
       <div id="pickerResults" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+      <div id="targetPickerSelection" class="hidden mt-4 rounded-xl border border-indigo-500/50 bg-slate-900/80 p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-indigo-300">Film selezionato</p>
+        <p id="targetPickerSelectedTitle" class="mt-1 text-sm font-semibold text-slate-100"></p>
+        <p id="targetPickerSelectedStatus" class="mt-1 text-xs text-slate-300"></p>
+        <label for="targetPickerDestination" class="block mt-3 mb-1 text-sm font-medium text-slate-200">Destinazione</label>
+        <select id="targetPickerDestination" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100">
+          <option value="">Scegli una destinazione</option>
+          <option value="personalList">I miei Da vedere</option>
+          <option value="groupList">Da vedere insieme</option>
+          <option value="personalSeen">I miei Visti</option>
+        </select>
+        <p id="targetPickerMessage" class="mt-2 text-sm text-slate-300" role="status" aria-live="polite"></p>
+        <button id="targetPickerCommit" type="button" class="mt-3 min-h-11 w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" disabled>Scegli una destinazione</button>
+      </div>
       <div class="flex justify-between items-center pt-2 border-t border-slate-800">
+        <button id="targetPickerSearchAgain" type="button" class="hidden min-h-11 text-sm text-slate-300 underline underline-offset-2">Cerca un altro titolo</button>
         <button id="pickerNoneBtn" class="text-xs text-slate-400 hover:text-slate-300 underline">Nessuno di questi, salva come inserito</button>
         <button onclick="closeModal('pickerModal')" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="metadataRefreshModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass-panel p-5 rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto border border-slate-800 space-y-4">
+      <div class="flex items-center justify-between gap-2">
+        <h3 class="text-lg font-bold text-slate-100">Aggiorna informazioni da TMDb</h3>
+        <button type="button" onclick="closeModal('metadataRefreshModal')" class="min-h-11 min-w-11 rounded-lg text-slate-300" aria-label="Chiudi">✕</button>
+      </div>
+      <p id="metadataRefreshTitle" class="text-sm text-slate-300"></p>
+      <p id="metadataRefreshStatus" class="text-sm text-slate-300" role="status" aria-live="polite"></p>
+      <div id="metadataRefreshChanges" class="space-y-2"></div>
+      <div class="flex flex-wrap justify-end gap-2">
+        <button id="metadataRefreshRetry" type="button" class="hidden min-h-11 rounded-lg border border-slate-600 px-4 text-sm text-slate-200">Aggiorna anteprima</button>
+        <button id="metadataRefreshCancel" type="button" onclick="closeModal('metadataRefreshModal')" class="min-h-11 rounded-lg bg-slate-800 px-4 text-sm text-slate-200">Annulla</button>
+        <button id="metadataRefreshApply" type="button" class="hidden min-h-11 rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white">Applica aggiornamenti</button>
       </div>
     </div>
   </div>
@@ -734,9 +781,32 @@
   <!-- MODALE DETTAGLIO FILM (step3 phase9/9.1/9.2) -->
   <div id="detailModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div id="detailPanel" class="glass-panel relative rounded-2xl overflow-hidden w-full max-w-lg max-h-[85vh] overflow-y-auto border border-slate-800">
+      <div class="detail-surface">
       <div id="detailAmbient" class="ambient-bg absolute inset-0" aria-hidden="true"></div>
       <div id="detailOverlay" class="ambient-overlay absolute inset-0" aria-hidden="true"></div>
       <div id="detailBody" class="relative p-6 space-y-4"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="togetherModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="together-popup glass-panel w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl border border-amber-400/30 p-5 sm:p-6">
+      <button id="togetherModalClose" type="button" onclick="closeModal('togetherModal')" class="together-popup-close" aria-label="Chiudi Insieme"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      <div id="togetherPopupBody"></div>
+    </div>
+  </div>
+
+  <div id="personalStatusModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="personal-status-popup glass-panel relative w-full max-w-sm max-h-[85vh] overflow-y-auto rounded-2xl border border-slate-700 p-5">
+      <button id="personalStatusClose" type="button" onclick="closeModal('personalStatusModal')" class="together-popup-close" aria-label="Chiudi il tuo Visto"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      <div id="personalStatusBody"></div>
+    </div>
+  </div>
+
+  <div id="otherJudgmentModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="personal-judgment-readonly glass-panel w-full max-w-sm max-h-[85vh] overflow-y-auto rounded-2xl border border-slate-700 p-5">
+      <button id="otherJudgmentClose" type="button" onclick="closeModal('otherJudgmentModal')" class="together-popup-close" aria-label="Chiudi giudizio"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      <div id="otherJudgmentBody"></div>
     </div>
   </div>
 

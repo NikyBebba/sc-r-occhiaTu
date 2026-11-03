@@ -24,7 +24,7 @@ function canTransitionMovieDetail(source) {
     && (!window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches));
 }
 
-function openMovieDetail(id, sourceCard, context = null) {
+function openMovieDetail(id, sourceCard, context = null, nightId = null, openNights = false) {
   if (!context && typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.detail(id, sourceCard);
   if (detailTransitionActive) return;
   const m = context ? context.movies.find(x => x.id === id) : movies.find(x => x.id === id);
@@ -32,6 +32,7 @@ function openMovieDetail(id, sourceCard, context = null) {
   renderMovieDetail(m, context);
   detailReturnFocus = context && sourceCard ? (sourceCard.matches?.('button,a,[tabindex]') ? sourceCard : sourceCard.querySelector?.('h3 button') || sourceCard) : sourceCard || document.activeElement;
   const panel = document.getElementById('detailPanel');
+  const revealNight = () => { if (context && (nightId || openNights)) context.openDetailNights(nightId); };
   if (panel && canTransitionMovieDetail(sourceCard) && !detailTransitionActive) {
     detailTransitionActive = true;
     detailTransitionSource = sourceCard;
@@ -42,6 +43,8 @@ function openMovieDetail(id, sourceCard, context = null) {
         if(context && !context.current()) return;
         sourceCard.style.viewTransitionName = '';
         openModal('detailModal');
+        revealNight();
+        syncDetailStoryOverflow();
         panel.style.viewTransitionName = 'movie-detail';
       });
     } catch (error) {
@@ -49,6 +52,8 @@ function openMovieDetail(id, sourceCard, context = null) {
       detailTransitionActive = false;
       detailTransitionSource = null;
       openModal('detailModal');
+      revealNight();
+      syncDetailStoryOverflow();
       transition = null;
     }
     if (transition) {
@@ -63,6 +68,8 @@ function openMovieDetail(id, sourceCard, context = null) {
   } else {
     detailTransitionSource = null;
     openModal('detailModal');
+    revealNight();
+    syncDetailStoryOverflow();
   }
   if (!context && m.tmdb_id) fetchOscarWins(m.tmdb_id).then(wins => renderOscarWins(m.id, wins));
 }
@@ -112,12 +119,33 @@ function renderOscarWins(movieId, wins) {
     : '';
 }
 
+// The story control reflects actual line clamping at the current panel width.
+// The modal is measured only after it becomes visible; resize rechecks it.
+function syncDetailStoryOverflow() {
+  const modal=document.getElementById('detailModal');
+  if(!modal||modal.classList.contains('hidden'))return;
+  const section=modal.querySelector('[data-detail-story]');
+  const copy=section?.querySelector('.detail-story-copy');
+  const button=section?.querySelector('[data-story-toggle]');
+  if(!copy||!button)return;
+  const expanded=section.classList.contains('is-expanded');
+  if(expanded)section.classList.remove('is-expanded');
+  const clipped=copy.clientHeight>0&&copy.scrollHeight>copy.clientHeight+1;
+  if(expanded&&clipped)section.classList.add('is-expanded');
+  button.hidden=!clipped;
+  button.textContent=expanded&&clipped?'Mostra meno':'Leggi tutto';
+  button.setAttribute('aria-expanded',String(expanded&&clipped));
+}
+if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('resize',syncDetailStoryOverflow);
+
 function renderMovieDetail(m, context = null) {
   const body = document.getElementById('detailBody');
   if (!body) return;
 
   const sameMovie=body.dataset.movieId===String(m.id);
   const openDisclosures=context&&sameMovie?[...body.querySelectorAll('details[open]')].map(node=>node.dataset.nightId||node.dataset.detailDisclosure||(node.hasAttribute('data-detail-nights')?'nights':'more')):[];
+  const expandedStory=context&&sameMovie&&body.querySelector('[data-detail-story]')?.classList.contains('is-expanded');
+  const expandedCast=context&&sameMovie&&body.querySelector('[data-detail-cast]')?.classList.contains('is-expanded');
   const focused=context&&sameMovie&&body.contains?.(document.activeElement)?{text:document.activeElement.textContent,tag:document.activeElement.tagName}:null;
   const panelScroll=sameMovie?document.getElementById('detailPanel')?.scrollTop:0;
   body.classList.toggle('target-film-detail',!!context);
@@ -128,19 +156,17 @@ function renderMovieDetail(m, context = null) {
   if (m.duration) metaParts.push(m.duration);
 
   const genreChipsHtml = genreChips(m);
-  const ratingsHtml = (m.imdb_rating || m.rt_rating || m.metacritic_rating) ? `
-    <div class="rating-holo flex gap-2 px-2 py-1 rounded text-[10px] text-slate-400">
-      ${m.imdb_rating ? `<span><i class="fa-solid fa-star text-amber-400"></i> IMDb ${escapeHtml(m.imdb_rating)}</span>` : ''}
-      ${m.rt_rating ? `<span class="text-rose-400">RT ${escapeHtml(m.rt_rating)}</span>` : ''}
-      ${m.metacritic_rating ? `<span class="text-emerald-400">MC ${escapeHtml(m.metacritic_rating)}</span>` : ''}
-    </div>
-  ` : '';
-  const overviewHtml = m.overview
-    ? `<p class="text-sm text-slate-300 leading-relaxed">${escapeHtml(m.overview)}</p>`
+  const ratingsHtml = externalRatingsHtml(m,!!context);
+  const overviewText=typeof m.overview==='string'?m.overview.trim():'';
+  const castNames=Array.isArray(m.cast_names)?m.cast_names.filter(name=>typeof name==='string'&&name.trim()):[];
+  const overviewHtml = overviewText
+    ? `<p class="text-sm text-slate-300 leading-relaxed">${escapeHtml(overviewText)}</p>`
     : '';
-  const castHtml = (m.cast_names && m.cast_names.length)
-    ? `<p class="text-xs text-slate-400 leading-relaxed"><i class="fa-solid fa-masks-theater text-indigo-400 mr-1"></i>${m.cast_names.map(escapeHtml).join(', ')}</p>`
+  const castHtml = castNames.length
+    ? `<p class="text-xs text-slate-400 leading-relaxed"><i class="fa-solid fa-masks-theater text-indigo-400 mr-1"></i>${castNames.map(escapeHtml).join(', ')}</p>`
     : '';
+  const storySection=context&&overviewText?`<section class="detail-story" data-detail-story><h4>La storia</h4><p id="detailStoryCopy" class="detail-story-copy is-clamped">${escapeHtml(overviewText)}</p><button type="button" class="detail-content-toggle" data-story-toggle aria-controls="detailStoryCopy" aria-expanded="false" hidden>Leggi tutto</button></section>`:'';
+  const castSection=context&&castNames.length?`<section class="detail-cast" data-detail-cast><h4>Cast</h4><ul id="detailCastList">${castNames.map(name=>`<li>${escapeHtml(name)}</li>`).join('')}</ul>${castNames.length>6?'<button type="button" class="detail-content-toggle" data-cast-toggle aria-controls="detailCastList" aria-expanded="false">Vedi tutto il cast</button>':''}</section>`:'';
   const trailerHtml = m.trailer_url
     ? `<a href="${escapeHtml(m.trailer_url)}" target="_blank" rel="noopener" class="detail-trailer"><i class="fa-solid fa-play" aria-hidden="true"></i> Guarda il trailer <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>`
     : '';
@@ -152,19 +178,20 @@ function renderMovieDetail(m, context = null) {
         <div class="detail-head-top"><span class="dashboard-eyebrow">SCHEDA FILM</span><button onclick="closeModal('detailModal')" class="detail-close" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
         <h3 id="detailModalTitle" class="detail-title">${escapeHtml(m.title)}</h3>
         <p class="detail-meta">${metaParts.map(escapeHtml).join(' • ')}</p>
-        ${m.director?`<p class="detail-meta">Regia di ${escapeHtml(m.director)}</p>`:''}
-        <div class="detail-genres">${genreChipsHtml}</div>
+        ${m.director?`<p class="detail-meta card-director">Regia di ${escapeHtml(m.director)}</p>`:''}
+        ${genreChipsHtml?`<div class="detail-genres card-genres">${genreChipsHtml}</div>`:''}
+        ${context?ratingsHtml:''}
       </div>
+      ${context||trailerHtml?`<div class="detail-header-actions">${context?`<div class="detail-token-row">${context.viewingStatusHtml(m)}</div>`:''}${trailerHtml}</div>`:''}
     </div>
-    ${m.cinema_watchlist ? '<span class="badge bg-amber-600/80">🎬 Al cinema / prossimamente</span>' : ''}
-    ${context ? `${trailerHtml}${ratingsHtml}<p id="detailFeedback" role="status" class="detail-feedback">${context.feedbackZone?'':escapeHtml(context.feedback||'')}</p>${context.detailActions(m)}
-    ${(overviewHtml||castHtml)?`<details class="detail-information" data-detail-disclosure="information"><summary>La storia e il cast</summary>${overviewHtml}${castHtml}</details>`:''}` : `
+    ${!context&&m.cinema_watchlist ? '<span class="badge bg-amber-600/80">🎬 Al cinema / prossimamente</span>' : ''}
+    ${context ? `${storySection}${castSection}<p id="detailFeedback" role="status" class="detail-feedback"></p>${context.detailActions(m)}` : `
     ${overviewHtml ? `<section class="detail-section"><h4>La storia</h4>${overviewHtml}</section>` : ''}
     ${castHtml ? `<section class="detail-section"><h4>Nel cast</h4>${castHtml}</section>` : ''}
-    ${trailerHtml}${ratingsHtml}
+    ${ratingsHtml}
     <div id="detailAwards" aria-live="polite"></div>
     <div class="detail-viewing">${viewingStatusHtml(m)}</div>${reviewCardsHtml(m)}`}
-    ${(context ? context.sagaButtonHtml : sagaButtonHtml)(m)}
+    ${context ? '' : sagaButtonHtml(m)}
     ${context ? '' : `
 ${nightIsDue(activeNightForMovie(m.id)) || togetherSeen(m) ? sharedVoteButtonHtml(m) : ''}
     ${personalWatchButtonHtml(m)}
@@ -182,12 +209,23 @@ ${nightIsDue(activeNightForMovie(m.id)) || togetherSeen(m) ? sharedVoteButtonHtm
   body.dataset.movieId = String(m.id);
   if (context) {
     context.bind(body);
+    for(const [selector,toggleSelector,expanded,openLabel,closedLabel] of [
+      ['[data-detail-story]','[data-story-toggle]',expandedStory,'Mostra meno','Leggi tutto'],
+      ['[data-detail-cast]','[data-cast-toggle]',expandedCast,'Mostra meno','Vedi tutto il cast']]){
+      const section=body.querySelector(selector),button=section?.querySelector(toggleSelector);
+      if(!section||!button)continue;
+      if(expanded)section.classList.add('is-expanded');
+      button.textContent=expanded?openLabel:closedLabel;
+      button.setAttribute('aria-expanded',String(!!expanded));
+      button.onclick=()=>{const open=section.classList.toggle('is-expanded');button.textContent=open?openLabel:closedLabel;button.setAttribute('aria-expanded',String(open));};
+    }
     body.querySelectorAll('details').forEach(node=>{
       const key=node.dataset.nightId||node.dataset.detailDisclosure||(node.hasAttribute('data-detail-nights')?'nights':'more');
       if(openDisclosures.includes(key))node.open=true;
     });
     if(focused){const replacement=[...body.querySelectorAll('button,summary,a')].find(node=>node.tagName===focused.tag&&node.textContent===focused.text)||body.querySelector('[data-detail-primary]');replacement?.focus({preventScroll:true});}
     document.getElementById('detailPanel').scrollTop=panelScroll||0;
+    syncDetailStoryOverflow();
   }
 
   // Step3 phase9.1 — ambient (poster sfocato come sfondo del modale).

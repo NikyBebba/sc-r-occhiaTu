@@ -153,12 +153,12 @@ const RecommendationConsumer = (() => {
 function calculateRecommendations() {
   if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('recommendations'); RecommendationConsumer.calculate(); }
 function refreshRecommendations() {
-  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('recommendations');
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.refreshRecommendations();
   calculateRecommendations();
   renderRecommendationView(true);
 }
 function showMoreRecommendations() {
-  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.navigate('recommendations');
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.showMoreRecommendations();
   RecommendationConsumer.showMore();
   renderRecommendationView(true);
 }

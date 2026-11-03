@@ -87,10 +87,13 @@ const ProtocolSession = (() => {
       if (flight) return flight;
       if (poll !== null) cancel(poll); poll = null;
       const identity = uid, ticket = ++serial;
-      let deadline;
+      let deadline, transientFailure = false;
       const request = Promise.race([
-        Promise.resolve().then(() => readProtocol(identity)),
-        new Promise((_, reject) => { deadline = schedule(timeoutMs, () => reject(new Error('PROTOCOL_TIMEOUT'))); })
+        Promise.resolve().then(() => readProtocol(identity)).catch(error => {
+          if (error?.category === 'AUTH_INVALIDATING') throw error;
+          throw Object.assign(new Error('PROTOCOL_READ_FAILED'), { category: 'TRANSIENT_PROTOCOL_READ' });
+        }),
+        new Promise((_, reject) => { deadline = schedule(timeoutMs, () => reject(Object.assign(new Error('PROTOCOL_TIMEOUT'), { category: 'TRANSIENT_PROTOCOL_READ' }))); })
       ]);
       const work = request.then(async value => {
         if (disposed || ticket !== serial || uid !== identity) return;
@@ -102,11 +105,12 @@ const ProtocolSession = (() => {
         else { setProof(observation); publish(); }
       }).catch(async error => {
         if (disposed || ticket !== serial || uid !== identity) return;
+        transientFailure = error?.category === 'TRANSIENT_PROTOCOL_READ';
         reason = frozen({ code: error?.category === 'AUTH_INVALIDATING' ? 'PROTOCOL_AUTH_INVALID' : 'PROTOCOL_UNAVAILABLE' }); await retire('UNAVAILABLE');
       }).finally(() => {
         cancel(deadline);
         if (flight === work) flight = null;
-        if (!disposed && ticket === serial && uid === identity) poll = schedule(pollMs, () => { poll = null; refresh(); });
+        if (!disposed && ticket === serial && uid === identity) poll = schedule(transientFailure ? Math.min(pollMs, 1000) : pollMs, () => { poll = null; refresh(); });
       }).then(getState);
       flight = work; return work;
     }

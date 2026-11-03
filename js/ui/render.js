@@ -4,6 +4,7 @@
 function renderVetoInfo() {
   const el = document.getElementById('vetoInfo');
   if (!el) return;
+  el.hidden = false;
   const used = vetoUsedThisWeek(currentUser);
   const vetoedTitles = vetoedMovieIdsThisWeek()
     .map(id => movies.find(m => m.id === id)?.title)

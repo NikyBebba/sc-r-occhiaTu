@@ -25,7 +25,8 @@ function resetModalPresentation() {
 function openModal(id) {
   const el = document.getElementById(id);
   if (!el) return;
-  if (el.classList.contains('hidden')) modalReturnFocus.set(id, document.activeElement);
+  const wasHidden = el.classList.contains('hidden');
+  if (wasHidden) modalReturnFocus.set(id, document.activeElement);
   if (!modalStack.length && document.body?.style) { modalBodyOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden'; }
   if (id === 'statsModal' && el.classList.contains('hidden')) {
     memoriesReturnFocus = document.activeElement;
@@ -46,8 +47,9 @@ function openModal(id) {
   if (typeof syncDestinationNavigation === 'function') syncDestinationNavigation();
   const app = document.getElementById('appRoot');
   if (app) app.inert = true;
-  if (id === 'detailModal' || id === 'sagaModal') el.querySelector('button')?.focus();
+  if (id === 'detailModal' || id === 'sagaModal' || id === 'togetherModal' || id === 'otherJudgmentModal' || id === 'personalStatusModal') el.querySelector('button')?.focus();
   if (id === 'statsModal') el.querySelector('.memories-header button')?.focus();
+  if (wasHidden && typeof TargetShell !== 'undefined') TargetShell.modalChanged(id,'open');
 }
 
 function closeModal(id) {
@@ -58,6 +60,7 @@ function closeModal(id) {
 
 function closeModalNow(id) {
   const el = document.getElementById(id);
+  const wasOpen = el && !el.classList.contains('hidden');
   if (el) el.classList.add('hidden');
   modalStack = modalStack.filter(x => x !== id);
   if(el)el.style.zIndex='';
@@ -93,6 +96,7 @@ function closeModalNow(id) {
   if (id === 'scheduleModal' && typeof matchScheduleModalClosed === 'function') {
     matchScheduleModalClosed();
   }
+  if (wasOpen && typeof TargetShell !== 'undefined') TargetShell.modalChanged(id,'close');
 }
 
 function modalStackTop() {
@@ -186,7 +190,7 @@ function showConfirmModal(title, message, choices = null) {
 
 // Focus tastiera confinato a Ricordi e conferma; Esc usa lo stack esistente.
 document.addEventListener('keydown', event => {
-  if (event.key !== 'Tab' || !['statsModal', 'confirmModal', 'seenModal', 'reviewModal', 'addSeenModal', 'listCandidateModal', 'detailModal', 'scheduleModal', 'sagaModal', 'addModal', 'pickerModal'].includes(modalStackTop())) return;
+  if (event.key !== 'Tab' || !['statsModal', 'confirmModal', 'seenModal', 'reviewModal', 'addSeenModal', 'listCandidateModal', 'detailModal', 'togetherModal', 'otherJudgmentModal', 'personalStatusModal', 'scheduleModal', 'sagaModal', 'addModal', 'pickerModal'].includes(modalStackTop())) return;
   const items = [...document.getElementById(modalStackTop()).querySelectorAll('button, summary, a[href], input, select, textarea, [tabindex="0"]')]
     .filter(element => !element.disabled && element.getClientRects().length);
   const first = items[0], last = items[items.length - 1];
