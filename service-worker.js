@@ -5,7 +5,7 @@
 // Aggiornamento: niente skipWaiting (prompt "nuova versione" lato client).
 // ============================================
 
-const CACHE_REV = 'scorochiatu-shell-v68';
+const CACHE_REV = 'scorochiatu-shell-v69';
 const CACHE_PREFIX = 'scorochiatu-shell-';
 
 const PRECACHE = [
@@ -71,6 +71,8 @@ const PRECACHE = [
   '/js/ui/target-shell.js',
   '/js/main.js',
   '/manifest.json',
+  '/icons/favicon.ico',
+  '/icons/favicon-32.png',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/icon-maskable-512.png',
