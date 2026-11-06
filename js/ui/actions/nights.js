@@ -19,6 +19,7 @@ function openProjectionForm(id, mode, origin = 'manual') {
   document.getElementById('scheduleDate').value = localDateKey(new Date());
   document.getElementById('scheduleTime').value = '21:30';
   document.getElementById('scheduleLocation').value = '';
+  document.getElementById('scheduleSnack').value = '';
   document.getElementById('scheduleCustomSnack').value = '';
   document.getElementById('scheduleSnackError').classList.add('hidden');
   document.getElementById('scheduleSaveError').classList.add('hidden');
@@ -30,8 +31,7 @@ function openProjectionForm(id, mode, origin = 'manual') {
   document.getElementById('scheduleConfirm').disabled = false;
   syncSnackOptions();
   if (mode === 'scheduled') randomizeSnack();
-  else document.getElementById('scheduleSnack').value = '';
-  toggleCustomSnack(false);
+  bindNightHistoryAutocomplete();
   openModal('scheduleModal');
 }
 
@@ -87,7 +87,13 @@ function toggleCustomSnack(shouldFocus = true) {
 function randomizeSnack() {
   const choices = snackChoices();
   document.getElementById('scheduleSnack').value = choices[Math.floor(Math.random() * choices.length)];
-  toggleCustomSnack(false);
+}
+
+function bindNightHistoryAutocomplete() {
+  if (typeof HistoryAutocomplete === 'undefined') return;
+  const nights = () => Array.isArray(movieNights) ? movieNights : [];
+  HistoryAutocomplete.bind(document.getElementById('scheduleCustomSnack'), document.getElementById('scheduleSnackSuggestions'), 'snack', nights);
+  HistoryAutocomplete.bind(document.getElementById('scheduleLocation'), document.getElementById('scheduleLocationSuggestions'), 'location', nights);
 }
 
 // Salva la proiezione o i suoi dettagli, con errori visibili e conferma dal Match solo dopo insert riuscito.
@@ -99,9 +105,7 @@ async function confirmSchedule() {
   const time = document.getElementById('scheduleTime').value;
   if (scheduleMode === 'scheduled' && !date) return;
   const selectedSnack = document.getElementById('scheduleSnack').value;
-  const snack = selectedSnack === CUSTOM_SNACK
-    ? document.getElementById('scheduleCustomSnack').value.trim()
-    : selectedSnack;
+  const snack = selectedSnack === CUSTOM_SNACK ? document.getElementById('scheduleCustomSnack').value.trim() : selectedSnack;
   if (selectedSnack === CUSTOM_SNACK && (!snack || snack.length > 80)) {
     const error = document.getElementById('scheduleSnackError');
     error.textContent = snack ? 'Lo snack può avere al massimo 80 caratteri.' : 'Scrivi uno snack oppure scegli “Nessuno snack”.';

@@ -78,7 +78,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png">
 </head>
-<body data-client-build="protocol-v1-v72" class="min-h-screen pb-12">
+<body data-client-build="protocol-v1-v73" class="min-h-screen pb-12">
 
   <!-- Livello per l'effetto confetti al reveal della ruota -->
   <div id="confettiLayer"></div>
@@ -541,23 +541,18 @@
         <label for="scheduleSnack" class="block text-xs font-medium text-slate-400 mb-1">Snack · facoltativo</label>
         <div class="flex gap-2">
           <select id="scheduleSnack" onchange="toggleCustomSnack()" class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:border-indigo-500">
-            <option value="🍿 Popcorn dolce">🍿 Popcorn dolce</option>
-            <option value="🍿 Popcorn salato">🍿 Popcorn salato</option>
-            <option value="🍫 Cioccolato">🍫 Cioccolato</option>
-            <option value="🍕 Pizza">🍕 Pizza</option>
-            <option value="🍦 Gelato">🍦 Gelato</option>
-            <option value="🍟 Patatine">🍟 Patatine</option>
-            <option value="__custom_snack__">＋ Aggiungi uno snack…</option>
+            <option value="🍿 Popcorn dolce">🍿 Popcorn dolce</option><option value="🍿 Popcorn salato">🍿 Popcorn salato</option><option value="🍫 Cioccolato">🍫 Cioccolato</option><option value="🍕 Pizza">🍕 Pizza</option><option value="🍦 Gelato">🍦 Gelato</option><option value="🍟 Patatine">🍟 Patatine</option><option value="__custom_snack__">＋ Aggiungi uno snack…</option>
           </select>
           <button type="button" onclick="randomizeSnack()" class="min-w-11 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg" aria-label="Scegli uno snack a caso" title="Scegli a caso"><i class="fa-solid fa-shuffle"></i></button>
         </div>
-        <label for="scheduleCustomSnack" class="sr-only">Nuovo snack</label>
-        <input id="scheduleCustomSnack" type="text" maxlength="80" autocomplete="off" placeholder="Scrivi il tuo snack…" class="hidden field w-full mt-2" oninput="document.getElementById('scheduleSnackError').classList.add('hidden')">
+        <input id="scheduleCustomSnack" type="text" maxlength="80" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="scheduleSnackSuggestions" placeholder="Scrivi il tuo snack…" class="hidden field w-full mt-2" oninput="document.getElementById('scheduleSnackError').classList.add('hidden')">
+        <div id="scheduleSnackSuggestions" class="cap1-suggestions shared-history-suggestions hidden" role="listbox" aria-label="Snack già usati"></div>
         <p id="scheduleSnackError" class="hidden text-xs text-rose-300 mt-1" role="alert">Scrivi uno snack prima di confermare.</p>
       </div>
       <div>
         <label for="scheduleLocation" class="block text-xs font-medium text-slate-400 mb-1">Luogo · facoltativo</label>
-        <input id="scheduleLocation" type="text" maxlength="120" autocomplete="off" class="field w-full" placeholder="Es. divano, cinema, casa di amici…">
+        <input id="scheduleLocation" type="text" maxlength="120" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="scheduleLocationSuggestions" class="field w-full" placeholder="Es. divano, cinema, casa di amici…">
+        <div id="scheduleLocationSuggestions" class="cap1-suggestions shared-history-suggestions hidden" role="listbox" aria-label="Luoghi già usati"></div>
         <p class="text-xs text-slate-400 mt-1">Snack e luogo si possono cambiare anche dopo.</p>
       </div>
       <p id="scheduleSaveError" class="hidden text-sm text-rose-300" role="alert"></p>
@@ -621,10 +616,12 @@
           <select id="reviewNightSelect" onchange="selectReviewNight()" class="field w-full"></select>
         </div>
         <label for="reviewLocation" class="block text-sm font-medium text-slate-200 mb-1">Dove l’avete visto? <span class="text-slate-400 font-normal">(facoltativo)</span></label>
-        <input id="reviewLocation" type="text" maxlength="120" autocomplete="off" class="field w-full" placeholder="Es. Sul divano, al cinema, in terrazza…">
+        <input id="reviewLocation" type="text" maxlength="120" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="reviewLocationSuggestions" class="field w-full" placeholder="Es. Sul divano, al cinema, in terrazza…">
+        <div id="reviewLocationSuggestions" class="cap1-suggestions shared-history-suggestions hidden" role="listbox" aria-label="Luoghi già usati"></div>
         <p class="text-xs text-slate-400 mt-1">Il luogo appartiene a questa serata, anche se rivedrete il film.</p>
         <label for="reviewSnack" class="block text-sm font-medium text-slate-200 mt-3 mb-1">Snack <span class="text-slate-400 font-normal">(facoltativo)</span></label>
-        <input id="reviewSnack" type="text" maxlength="80" autocomplete="off" class="field w-full min-h-11" placeholder="Es. popcorn, pizza…">
+        <input id="reviewSnack" type="text" maxlength="80" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="reviewSnackSuggestions" class="field w-full min-h-11" placeholder="Es. popcorn, pizza…">
+        <div id="reviewSnackSuggestions" class="cap1-suggestions shared-history-suggestions hidden" role="listbox" aria-label="Snack già usati"></div>
         <p class="text-xs text-slate-400 mt-1">Svuota il campo per togliere lo snack da questa serata.</p>
       </div>
       <p id="reviewHelp" class="text-xs text-slate-400"></p>
@@ -878,6 +875,7 @@
   <script src="js/ui/modals.js"></script>
   <script src="js/ui/navigation.js"></script>
   <script src="js/ui/actions.js"></script>
+  <script src="js/ui/history-autocomplete.js"></script>
   <script src="js/ui/actions/nights.js"></script>
   <script src="js/ui/actions/viewing.js"></script>
   <script src="js/ui/actions/choices.js"></script>

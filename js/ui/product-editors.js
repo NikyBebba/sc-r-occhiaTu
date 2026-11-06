@@ -1,11 +1,18 @@
 'use strict';
 // Binds the existing product dialogs to captured TARGET callbacks only.
 const ProductEditors = (() => {
-  let refreshReview = null, editorSerial = 0;
+  let refreshReview = null, refreshNightSuggestions = null, editorSerial = 0;
+  function bindNightSuggestions(el, getNights) {
+    if(typeof HistoryAutocomplete==='undefined')return;
+    HistoryAutocomplete.bind(el('scheduleCustomSnack'),el('scheduleSnackSuggestions'),'snack',getNights);
+    HistoryAutocomplete.bind(el('scheduleLocation'),el('scheduleLocationSuggestions'),'location',getNights);
+    HistoryAutocomplete.bind(el('reviewSnack'),el('reviewSnackSuggestions'),'snack',getNights);
+    HistoryAutocomplete.bind(el('reviewLocation'),el('reviewLocationSuggestions'),'location',getNights);
+  }
   function open({action,id,initial={},context,perform,session,onMatchScheduled}) {
     const serial=++editorSerial, el=id=>document.getElementById(id);
     const current=()=>context.current()&&serial===editorSerial;
-    refreshReview = null;
+    refreshReview = null; refreshNightSuggestions=null;
     const isEvaluation=['setMyEvaluation','setGroupEvaluation'].includes(action);
     const modal=isEvaluation?'reviewModal':'scheduleModal';
     const error=el(isEvaluation?'reviewError':'scheduleSaveError');error.classList.add('hidden');
@@ -58,6 +65,7 @@ const ProductEditors = (() => {
       const snacks=el('scheduleSnack');if(![...snacks.options].some(o=>o.value===''))snacks.add(new Option('Nessuno snack',''),0);
       if(initial.snack&&![...snacks.options].some(o=>o.value===initial.snack))snacks.add(new Option(initial.snack,initial.snack),snacks.options.length-1);
       snacks.value=initial.snack??'';el('scheduleCustomSnack').value='';el('scheduleCustomSnack').classList.add('hidden');el('scheduleLocation').value=initial.location??'';
+      bindNightSuggestions(el,()=>context.nights);refreshNightSuggestions=latest=>bindNightSuggestions(el,()=>latest.nights);
       el('targetParticipants')?.remove();
       if(completed){const fieldset=document.createElement('fieldset');fieldset.id='targetParticipants';fieldset.innerHTML='<legend class="text-sm text-slate-200">Partecipanti</legend>';
         for(const p of context.view.getRecommendationInput().input.users){const identity=context.view.getIdentity(p.id),label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=p.id;input.className='mr-2';label.className='inline-flex items-center min-h-11 mr-4 text-sm';label.append(input,document.createTextNode(identity.label||'Partecipante'));fieldset.appendChild(label);}submit.parentElement.before(fieldset);}
@@ -353,5 +361,5 @@ const ProductEditors = (() => {
     };
     openModal('addModal');el('addTitle').focus();
   }
-  return Object.freeze({open,catalog,addCatalog,refreshMetadata,refresh:context=>refreshReview?.(context)});
+  return Object.freeze({open,catalog,addCatalog,refreshMetadata,refresh:context=>{refreshNightSuggestions?.(context);refreshReview?.(context);}});
 })();

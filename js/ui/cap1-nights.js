@@ -1,12 +1,9 @@
 'use strict';
 // CAP-1 presentation. All writes go through the online TARGET action surface.
 const Cap1Nights = (() => {
+  const historyAutocomplete=typeof HistoryAutocomplete!=='undefined'?HistoryAutocomplete:(typeof require==='function'?require('./history-autocomplete.js'):null);
   const esc = value => escapeHtml(String(value ?? ''));
-  function rankHistorySuggestions(nights,field,query){
-    const term=String(query||'').trim().toLocaleLowerCase('it');if(term.length<2)return [];
-    const found=new Map();for(const n of nights){const value=String(n[field]||'').trim();if(!value)continue;const key=value.toLocaleLowerCase('it'),item=found.get(key)||{value,count:0,latest:''};item.count++;const stamp=n.date&&/^\d{4}-\d{2}-\d{2}$/.test(n.date)?n.date:String(n.created_at||'').slice(0,10);if(stamp>=item.latest){item.latest=stamp;item.value=value;}found.set(key,item);}
-    return [...found.values()].filter(x=>x.value.toLocaleLowerCase('it').includes(term)).sort((a,b)=>b.count-a.count||b.latest.localeCompare(a.latest)||a.value.localeCompare(b.value,'it')).slice(0,5).map(x=>x.value);
-  }
+  const rankHistorySuggestions=(nights,field,query)=>historyAutocomplete.rank(nights,field,query);
   function create({root=document,session,context,perform,waitFor}) {
     const el=id=>root.getElementById(id);
     let selectedMovieId=null, detailNightId=null, pending=false, formEpoch=0;
@@ -17,11 +14,7 @@ const Cap1Nights = (() => {
     const personIds=()=>context().view.getRecommendationInput().input.users.map(p=>p.id);
     const movie=id=>context().getMovie(id);
     const completed=id=>context().nights.filter(n=>n.movie_id===id&&n.status==='completed');
-    function bindAutocomplete(prefix,field){const input=el(prefix+field[0].toUpperCase()+field.slice(1)),list=el(prefix+field[0].toUpperCase()+field.slice(1)+'Suggestions');let active=-1;
-      const close=()=>{list.classList.add('hidden');list.replaceChildren();input.setAttribute('aria-expanded','false');input.removeAttribute('aria-activedescendant');active=-1;};
-      const render=()=>{list.replaceChildren();active=-1;const hits=rankHistorySuggestions(context().nights,field,input.value);if(!hits.length){close();return;}hits.forEach((value,i)=>{const b=root.createElement('button');b.type='button';b.id=list.id+'-'+i;b.setAttribute('role','option');b.setAttribute('aria-selected','false');b.textContent=value;b.onmousedown=e=>e.preventDefault();b.onclick=()=>{input.value=value;close();input.focus();};list.appendChild(b);});list.classList.remove('hidden');input.setAttribute('aria-expanded','true');};
-      input.oninput=render;input.onkeydown=e=>{const opts=[...list.querySelectorAll('[role=option]')];if(e.key==='Escape'){close();return;}if(!opts.length)return;if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();active=e.key==='ArrowDown'?(active+1)%opts.length:(active<0?opts.length-1:(active-1+opts.length)%opts.length);opts.forEach((o,i)=>o.setAttribute('aria-selected',String(i===active)));input.setAttribute('aria-activedescendant',opts[active].id);}else if(e.key==='Enter'&&active>=0){e.preventDefault();opts[active].click();}};input.onblur=()=>setTimeout(()=>{if(!list.contains(root.activeElement))close();},120);
-    }
+    function bindAutocomplete(prefix,field){const name=field[0].toUpperCase()+field.slice(1);historyAutocomplete.bind(el(prefix+name),el(prefix+name+'Suggestions'),field,()=>context().nights);}
     function dateLabel(raw) {
       if(!raw)return null;
       const [year,month,day]=raw.split('-').map(Number);
@@ -182,6 +175,7 @@ const Cap1Nights = (() => {
       closeModal('pastNightEditModal');await session.requestRefresh();if(session.current(token))renderDetail();
     }
     function refresh() {
+      historyAutocomplete.refreshAll();
       const entry=el('addPastNight');entry.classList.toggle('hidden',!ready());entry.onclick=()=>openRegistration();
       if(!ready())for(const id of ['pastNightModal','pastNightEditModal'])if(!el(id).classList.contains('hidden'))closeModal(id);
       renderDetail();if(!el('pastNightModal').classList.contains('hidden')&&selectedMovieId)duplicates();

@@ -68,6 +68,7 @@ function renderDashboardHome() {
 }
 
 function render() {
+  if (typeof HistoryAutocomplete !== 'undefined') HistoryAutocomplete.refreshAll();
   if (typeof ProductionSession !== 'undefined' && ProductionSession.renderProtocolGate?.()) return;
   if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.render();
   if (typeof syncReviewEditor === 'function') syncReviewEditor();

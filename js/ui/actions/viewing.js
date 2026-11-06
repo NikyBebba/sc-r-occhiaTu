@@ -47,6 +47,11 @@ function openReviewFor(id, by, trigger) {
   document.getElementById('reviewLocation').value = reviewNight?.location || '';
   document.getElementById('reviewSnack').value = reviewNight?.snack || '';
   document.getElementById('reviewLocationWrap').classList.toggle('hidden', by !== 'both');
+  if(by==='both'&&typeof HistoryAutocomplete!=='undefined'){
+    const nights=()=>Array.isArray(movieNights)?movieNights:[];
+    HistoryAutocomplete.bind(document.getElementById('reviewLocation'),document.getElementById('reviewLocationSuggestions'),'location',nights);
+    HistoryAutocomplete.bind(document.getElementById('reviewSnack'),document.getElementById('reviewSnackSuggestions'),'snack',nights);
+  }
   const nightSelect = document.getElementById('reviewNightSelect');
   nightSelect.innerHTML = completedNights.length > 1 ? completedNights.map(n =>
     `<option value="${escapeHtml(String(n.id))}">${escapeHtml(completedNightLabel({ night: n, timelineDate: nightTimelineDate(n) }))}</option>`
