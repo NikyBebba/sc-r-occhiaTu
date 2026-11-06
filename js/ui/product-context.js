@@ -93,7 +93,8 @@ const ProductContext = (() => {
       return viewingStatusHtml(m,{},ctx);
     }
     const scheduleInitial = m => view.getCard(m.id).group.candidacy.effectiveCandidacy ? {selectCandidate:true,selectionView:view} : {};
-    const scheduleActions = (m, list = false) => action(list?'<i class="fa-solid fa-ticket" aria-hidden="true"></i> Guardiamolo':'Oggi',()=>edit('quickNight',m.id,scheduleInitial(m)),list?'movie-list-primary':'flex-1 min-h-11 px-3 py-2 bg-indigo-600/20 text-indigo-300 rounded')+action(list?'<i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Pianifica':'Programma',()=>edit('scheduleNight',m.id,scheduleInitial(m)),list?'movie-list-secondary':'flex-1 min-h-11 px-3 py-2 bg-slate-800 rounded text-slate-300');
+    const choiceLabel = m => completedNights(m).length ? 'Ri-guardiamolo' : 'Guardiamolo';
+    const scheduleActions = (m, list = false) => action(list?'<i class="fa-solid fa-ticket" aria-hidden="true"></i> '+choiceLabel(m):'Oggi',()=>edit('quickNight',m.id,scheduleInitial(m)),list?'movie-list-primary':'flex-1 min-h-11 px-3 py-2 bg-indigo-600/20 text-indigo-300 rounded')+action(list?'<i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Pianifica':'Programma',()=>edit('scheduleNight',m.id,scheduleInitial(m)),list?'movie-list-secondary':'flex-1 min-h-11 px-3 py-2 bg-slate-800 rounded text-slate-300');
     function cardOperationsHtml(m) {
       if(hidden(m))return '';
       const saga=sagaButtonHtml(m,'card');
@@ -220,16 +221,15 @@ const ProductContext = (() => {
     function detailActions(m) {
       if(hidden(m))return '';
       const s=state(m,callerLabel),g=view.getCard(m.id).group,available=s.kind==='AVAILABLE';
-      const visibleEvents=g.events.filter(item=>item.event.status!=='cancelled');
       const open=g.events.filter(x=>['proposed','confirmed'].includes(x.event.status));
       const status=zone=>'<p class="detail-feedback" data-action-feedback="'+zone+'" role="status">'+(feedbackZone===zone?esc(feedback):'')+'</p>';
       let primary=null,secondary='';
-      if(open.length>1)primary={text:'Scegli la serata',fn:()=>openDetailNights(),kind:'nights'};
+      if(open.length>1)primary={text:'Apri In programma',fn:()=>setTab('tonight'),kind:'nights'};
       else if(open.length===1){
         const n=nights.find(n=>n.id===open[0].event.night_id);
-        primary=n.status==='confirmed'&&n.date&&due(n)?{text:'Concludi questa serata',fn:()=>edit('completeScheduled',n.id,n),kind:'complete'}:{text:'Apri la serata',fn:()=>openDetailNights(n.id),kind:'nights'};
+        primary=n.status==='confirmed'&&n.date&&due(n)?{text:'Concludi questa serata',fn:()=>edit('completeScheduled',n.id,n),kind:'complete'}:{text:'Apri la serata',fn:()=>openNight(n.id),kind:'nights'};
       }else if(g.candidacy.effectiveCandidacy){
-        primary={text:'Guardiamolo',fn:()=>edit('quickNight',m.id,scheduleInitial(m)),kind:'choose'};
+        primary={text:choiceLabel(m),fn:()=>edit('quickNight',m.id,scheduleInitial(m)),kind:'choose'};
         secondary+=action('<i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Pianifica',()=>edit('scheduleNight',m.id,scheduleInitial(m)),'movie-list-secondary');
       }
       let filmControls=sagaButtonHtml(m,'detail');
@@ -240,7 +240,7 @@ const ProductContext = (() => {
       let extraControls='';
       if(veto?.person_id===view.context.caller.personId)extraControls+=action('Togli il mio veto',()=>perform('removeVeto',m.id,veto.veto_id),'detail-text-action');
       if(m.surprise_by_person_id===view.context.caller.personId)extraControls+=action('Annulla la mia sorpresa',()=>perform('setSurprise',m.id,false),'detail-text-action');
-      const main=primary?action(primary.kind==='choose'?'<i class="fa-solid fa-ticket" aria-hidden="true"></i> Guardiamolo':esc(primary.text),async node=>{if(node.disabled)return;const pending=primary.fn();if(!pending?.then)return;node.disabled=true;try{await pending;}finally{if(current()&&node.isConnected)node.disabled=false;}},primary.kind==='choose'?'movie-list-primary':'movie-list-primary detail-primary',{'data-detail-primary':primary.kind,'data-return-focus-key':'detail-primary'}):'';
+      const main=primary?action(primary.kind==='choose'?'<i class="fa-solid fa-ticket" aria-hidden="true"></i> '+esc(primary.text):esc(primary.text),async node=>{if(node.disabled)return;const pending=primary.fn();if(!pending?.then)return;node.disabled=true;try{await pending;}finally{if(current()&&node.isConnected)node.disabled=false;}},primary.kind==='choose'?'movie-list-primary':'movie-list-primary detail-primary',{'data-detail-primary':primary.kind,'data-return-focus-key':'detail-primary'}):'';
       const personalSection=available?'<section class="detail-intent detail-intent-personal" data-feedback-zone="personal-actions"><h4>Per me</h4>'+
         (s.list.active?'<p>Nei tuoi Da vedere</p>'+action('Togli dai miei Da vedere',node=>confirmListRemoval(m,'removeFromMyList','tuoi Da vedere',node),'detail-intent-remove',{'data-list-removal':'true'})
           :intentAction('personal',s.seen,()=>perform('addToMyList',m.id),'detail-intent-action'))+status('personal-actions')+'</section>':'';
@@ -251,7 +251,6 @@ const ProductContext = (() => {
         (main?'<div class="detail-next-action">'+(primary.kind==='choose'?'<div class="movie-list-actions detail-choice-actions">'+main+secondary+'</div>':main)+'</div>':'')+
         groupAction+status('group-actions')+'</section>';
       return groupSection+personalSection+
-        (visibleEvents.length?'<details class="detail-nights'+(g.hasTogetherHistory?' detail-nights-deeplink':'')+'" data-detail-nights><summary>Le serate · '+visibleEvents.length+'</summary>'+eventHistory(m,visibleEvents)+'</details>':'')+
         '<details class="detail-more" data-detail-disclosure="more"><summary>Altre azioni</summary><div class="detail-menu-controls" data-feedback-zone="film-actions">'+filmControls+danger+extraControls+status('film-actions')+status('danger')+'</div></details>';
 
     }

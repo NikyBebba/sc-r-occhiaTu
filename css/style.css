@@ -640,15 +640,17 @@ body {
 button.person-token { cursor:pointer; }
 button.person-token:hover .person-token-face { filter:brightness(1.18); }
 button.person-token:focus-visible,.together-star:focus-visible { outline:2px solid var(--color-dettaglio); outline-offset:2px; border-radius:999px; }
-.together-cluster { gap:2px; padding:2px 5px; border:1px solid #bd9040; border-radius:999px; background:linear-gradient(105deg,#e8bf67,#f3d489); color:#30230d; }
-.together-cluster .person-token { margin-block:-5px; color:inherit; font-weight:800; }
+.together-cluster { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); align-items:center; gap:2px; width:100%; padding:2px 5px; border:1px solid #bd9040; border-radius:999px; background:linear-gradient(105deg,#e8bf67,#f3d489); color:#30230d; }
+.together-cluster .person-token { width:100%; min-width:0; max-width:none; margin-block:-5px; color:inherit; font-weight:800; }
+.together-cluster .person-token-face { max-width:100%; min-width:0; }
+.together-cluster .person-token-value { min-width:0; }
 .together-cluster .person-token-face,.together-cluster .person-token.is-seen .person-token-face { min-height:28px; padding:2px 6px; border:0; background:transparent; color:inherit; }
 .together-cluster .person-token.is-outline .person-token-face { opacity:.67; }
-.together-star { display:inline-flex; align-items:center; justify-content:center; gap:4px; min-width:44px; min-height:44px; margin-block:-5px; padding:0 5px; border:0; background:transparent; color:inherit; font-size:12px; font-weight:900; }
+.together-star { display:inline-flex; flex-wrap:nowrap; align-items:center; justify-content:center; gap:4px; width:100%; min-width:0; min-height:44px; margin-block:-5px; padding:0 5px; border:0; background:transparent; color:inherit; font-size:12px; font-weight:900; }
 .together-rating { display:inline-flex; align-items:center; gap:3px; }
 .together-star:hover { text-decoration:underline; text-underline-offset:3px; }
 .together-cluster button.person-token:focus-visible,.together-cluster .together-star:focus-visible { outline-color:#30230d; outline-offset:-3px; }
-@media(max-width:360px){ .together-cluster { max-width:100%; justify-content:center; } }
+@media(max-width:360px){ .together-cluster { max-width:100%; } .together-star { gap:2px; padding-inline:2px; font-size:11px; } }
 .viewing-score-together { flex-basis:100%; border-top:1px solid var(--color-bordo-forte); padding-top:6px; }
 .judgment-identity { display:inline; color:inherit; }
 .judgment-value { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
@@ -1720,6 +1722,17 @@ textarea.cap1-input { min-height: 100px; resize: vertical; }
 .cap1-night-facts { display: grid; gap: 12px; margin: 18px 0; }
 .cap1-night-facts dt { color: var(--color-testo-3); font-size: 12px; }
 .cap1-night-facts dd { margin: 2px 0 0; color: var(--color-testo-1); font-size: 14px; overflow-wrap: anywhere; }
+.cap1-accordion { border:1px solid var(--color-bordo); border-radius:var(--radius-lg); overflow:visible; }
+.cap1-accordion>summary { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:48px; padding:10px 12px; color:var(--color-testo-1); cursor:pointer; font-size:14px; font-weight:700; list-style:none; }
+.cap1-accordion>summary::-webkit-details-marker { display:none; }
+.cap1-accordion>summary:focus-visible { outline:2px solid var(--color-dettaglio); outline-offset:2px; border-radius:var(--radius-lg); }
+.cap1-accordion-state { color:var(--color-testo-3); font-size:11px; font-weight:500; text-align:right; }
+.cap1-accordion-content { padding:0 12px 12px; }
+.cap1-accordion-content fieldset.cap1-fields { min-width:0; margin:0; padding:0; border:0; }
+.cap1-suggestions { position:relative; z-index:5; max-height:200px; overflow:auto; margin-top:4px; padding:4px; border:1px solid var(--color-bordo); border-radius:var(--radius-lg); background:var(--color-sala); box-shadow:var(--shadow-card); }
+.cap1-suggestions button { display:flex; align-items:center; width:100%; min-height:44px; padding:8px 10px; border-radius:var(--radius-lg); color:var(--color-testo-1); text-align:left; }
+.cap1-suggestions button[aria-selected="true"],.cap1-suggestions button:hover { background:var(--color-chip); }
+.cap1-suggestions button:focus-visible { outline:2px solid var(--color-dettaglio); outline-offset:-2px; }
 @media (max-width: 359px) { .cap1-panel { padding: 16px; } .cap1-actions > button { width: 100%; } }
 .memories-content { padding: 20px; }
 .memory-section { border: 1px solid var(--color-bordo); border-radius: 12px; }

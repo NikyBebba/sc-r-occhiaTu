@@ -32,7 +32,6 @@ function openMovieDetail(id, sourceCard, context = null, nightId = null, openNig
   renderMovieDetail(m, context);
   detailReturnFocus = context && sourceCard ? (sourceCard.matches?.('button,a,[tabindex]') ? sourceCard : sourceCard.querySelector?.('h3 button') || sourceCard) : sourceCard || document.activeElement;
   const panel = document.getElementById('detailPanel');
-  const revealNight = () => { if (context && (nightId || openNights)) context.openDetailNights(nightId); };
   if (panel && canTransitionMovieDetail(sourceCard) && !detailTransitionActive) {
     detailTransitionActive = true;
     detailTransitionSource = sourceCard;
@@ -43,7 +42,6 @@ function openMovieDetail(id, sourceCard, context = null, nightId = null, openNig
         if(context && !context.current()) return;
         sourceCard.style.viewTransitionName = '';
         openModal('detailModal');
-        revealNight();
         syncDetailStoryOverflow();
         panel.style.viewTransitionName = 'movie-detail';
       });
@@ -52,7 +50,6 @@ function openMovieDetail(id, sourceCard, context = null, nightId = null, openNig
       detailTransitionActive = false;
       detailTransitionSource = null;
       openModal('detailModal');
-      revealNight();
       syncDetailStoryOverflow();
       transition = null;
     }
@@ -68,7 +65,6 @@ function openMovieDetail(id, sourceCard, context = null, nightId = null, openNig
   } else {
     detailTransitionSource = null;
     openModal('detailModal');
-    revealNight();
     syncDetailStoryOverflow();
   }
   if (!context && m.tmdb_id) fetchOscarWins(m.tmdb_id).then(wins => renderOscarWins(m.id, wins));

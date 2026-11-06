@@ -127,6 +127,8 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
         nid=uid(++nightSerial);w.nights.push({night_id:nid,movie_id:id,status:'completed',date:p.date,time:null,snack:p.snack??null,location:p.location??null,
           proposed_by_person_id:caller,created_at:data.at,confirmed_at:null,cancelled_at:null,completed_at:data.at,retrospective:true,night_memory:p.night_memory??null});
         for(const person_id of p.participants)w.participants.push({night_id:nid,person_id});
+        if(p.evaluation){let judgment=w.group.judgments.find(j=>j.movie_id===id);if(!judgment){judgment={movie_id:id,rating:null,review:null};w.group.judgments.push(judgment);}
+          for(const key of ['rating','review'])if(Object.hasOwn(p.evaluation,key))judgment[key]=p.evaluation[key];}
         affected.push(bump('night',groupId,nid),bump('group_film',groupId,id));
       }
       else if(intent==='EDIT_PAST_TOGETHER'){
@@ -653,12 +655,37 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     check(!html.includes('Vieta questa settimana')&&!html.includes('>Sorpresa<'),'no residual creation');
     check(html.includes('detail-menu-controls')&&html.includes('Rimuovi film')&&!html.includes('detail-danger-area'),'delete shares management grid');
     check(!html.includes('detail-token-row'),'tokens are in shared film header');
-    for(const n of raw.nights)check(html.includes('data-night-id="'+n.night_id+'"'),'each event retains identity');
+    check(!html.includes('data-detail-nights')&&!html.includes('Le serate'),'Movie Detail omits event archive');
     eq(h.commands.length,0,'render never writes');
   },{raw});
+  await test('v72 quick choice label follows completed nights only',async h=>{
+    await h.boot();Shell.navigate('groupList');const context=Shell.presentation(),movie=context.getMovie(data.M);
+    check(context.cardOperationsHtml(movie).includes('Ri-guardiamolo'),'completed event changes card label');
+    check(context.detailActions(movie).includes('Ri-guardiamolo'),'completed event changes detail label');
+    check(!context.detailActions(movie).includes('data-detail-nights'),'Movie Detail has no event block');
+    eq(h.commands.length,0,'labels cause no writes');
+  },{raw:(()=>{const wire=copy(data.detailCases.find(x=>x[0]==='again')[1]);Object.assign(wire.group.states[0],{effective_candidacy:true,list_visible:true,eligibility:{match_base:true,ruota_base:true}});return finish(wire);})()});
+  await test('v72 cancelled event does not change quick choice label',async h=>{
+    await h.boot();const context=Shell.presentation(),movie=context.getMovie(data.M);
+    check(context.detailActions(movie).includes('Guardiamolo')&&!context.detailActions(movie).includes('Ri-guardiamolo'),'cancelled event ignored');
+  },{raw:(()=>{const wire=copy(data.detailCases.find(x=>x[0]==='shared')[1]);wire.nights.push(...copy(data.cancelledOnly.nights));wire.versions.entries.push(...copy(data.cancelledOnly.versions.entries.filter(x=>x.scope_kind==='night')));wire.personal[0].states[0].seen=true;wire.personal[1].states[0].seen=true;wire.group.judgments.push({movie_id:data.M,rating:8.9,review:null});return finish(wire);})()});
+  await test('v72 unknown-date retrospective completion changes quick choice label',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();Shell.navigate('groupList');const context=Shell.presentation(),movie=context.getMovie(data.M);
+    check(context.completedNights(movie).length===1&&context.completedNights(movie)[0].night.date===null,'completed retroactive night has no declared date');
+    check(context.cardOperationsHtml(movie).includes('Ri-guardiamolo')&&context.detailActions(movie).includes('Ri-guardiamolo'),'unknown date still counts as completed');
+  },{raw:(()=>{const wire=copy(data.detailCases.find(x=>x[0]==='again')[1]);Object.assign(wire.nights[0],{date:null,time:null,retrospective:true,night_memory:null});Object.assign(wire.group.states[0],{effective_candidacy:true,list_visible:true,eligibility:{match_base:true,ruota_base:true}});return finish(wire);})()});
+  await test('v72 quick choice label updates after accepted snapshot',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();Shell.navigate('groupList');
+    let context=Shell.presentation(),movie=context.getMovie(data.M);
+    check(context.cardOperationsHtml(movie).includes('Guardiamolo')&&context.detailActions(movie).includes('Guardiamolo'),'initial label');
+    eq((await Shell.perform('recordPastTogether',data.M,{date:null,location:null,snack:null,nightMemory:null,participants:[data.N,data.V]})).outcome,'SUCCESS','retroactive command');await h.pump();
+    context=Shell.presentation();movie=context.getMovie(data.M);
+    check(context.cardOperationsHtml(movie).includes('Ri-guardiamolo')&&context.detailActions(movie).includes('Ri-guardiamolo'),'accepted snapshot updates both labels');
+    eq(h.commands.length,1,'no extra write from rendering');
+  },{raw:data.detailCases.find(x=>x[0]==='shared')[1]});
   await test('UX5 multiple open events require explicit selection',async h=>{
     await h.boot();const context=Shell.presentation(),html=context.detailActions(context.getMovie(data.M));
-    check(html.includes('Scegli la serata'),'no arbitrary first event');check(!html.includes('data-detail-primary="complete"'),'no accidental completion');
+    check(html.includes('Apri In programma')&&!html.includes('data-detail-primary="complete"'),'multiple events remain reachable without picking an arbitrary night');
   },{raw:(()=>{const wire=JSON.parse(JSON.stringify(data.detailCases.find(x=>x[0]==='due')[1]));const n={...wire.nights[0],night_id:'00000000-0000-4000-8000-000000020010'};wire.nights.push(n);wire.versions.entries.push({scope_kind:'night',scope_id:data.G,entity_id:n.night_id,version:'1',tombstone:false});wire.group.states[0].active_night_ids.push(n.night_id);wire.group.collections.scheduled_night_ids.push(n.night_id);wire.coverage.counts.nights++;wire.coverage.counts.version_entries++;return wire;})()});
   await test('UX5 nested editor stays above film detail and returns to it',async h=>{
     await h.boot();Shell.detail(data.M);Shell.edit('setMyEvaluation',data.M);
@@ -706,7 +733,7 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     body.querySelector=selector=>selector==='[data-detail-nights]'?list:null;
     detailTransitionActive=false;
     Shell.detail(data.M,null,selectedId);
-    check(list.open&&row.open&&focused===selectedId,'selected night expanded and focused: '+[list.open,row.open,focused,body.innerHTML.includes('SCHEDA FILM'),Shell.presentation().current()].join(','));
+    check(!list.open&&!row.open&&body.innerHTML.includes('SCHEDA FILM')&&!body.innerHTML.includes('data-detail-nights'),'film reached from night without embedded event block');
     eq(h.commands.length,0,'opening detail does not write');
   },{raw:data.agenda});
   await test('UX7 one completed night has a single film archive access',async h=>{
@@ -720,9 +747,9 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   await test('UX7 rewatch count and detail order exclude open event',async h=>{
     await h.boot();Shell.navigate('together');const context=Shell.presentation(),movie=context.getMovie(data.M),completed=context.completedNights(movie);
     eq(completed.length,2,'only completed nights counted');check(!html().includes('2 serate')&&context.togetherPopupHtml(movie).includes('Le nostre visioni · 2'),'count moved into popup');
-    const detail=context.detailActions(movie),first=detail.indexOf('data-night-id="'+completed[0].night.id+'"'),second=detail.indexOf('data-night-id="'+completed[1].night.id+'"');
-    check(first>=0&&second>first,'completed nights ordered newest first');
-    check(detail.indexOf('Altre serate')>second,'open event separated after completed');
+    const detail=context.detailActions(movie);
+    check(!detail.includes('data-night-id')&&!detail.includes('Le serate'),'Movie Detail omits completed event rows');
+    check(context.togetherPopupHtml(movie).includes('Le nostre visioni · 2'),'completed events remain in Together');
     check(completed.every(entry=>entry.night.status==='completed'),'status remains event specific');
     eq(h.commands.length,0,'no event or judgment changes');
   },{raw:(()=>{const wire=JSON.parse(JSON.stringify(data.multiple));const completed=wire.nights.filter(n=>n.status==='completed');completed[0].date='2027-01-02';completed[1].date='2027-01-03';return wire;})()});
@@ -732,7 +759,7 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     const list={open:false,querySelectorAll:()=>[],querySelector:()=>summary};
     body.querySelector=selector=>selector==='[data-detail-nights]'?list:null;
     detailTransitionActive=false;Shell.detail(data.M,null,null,true);
-    check(list.open&&focused,'completed list expanded and reachable');eq(h.commands.length,0,'detail access is read only');
+    check(!list.open&&!focused&&!body.innerHTML.includes('data-detail-nights'),'Movie Detail omits event list even on deep link');eq(h.commands.length,0,'detail access is read only');
   },{raw:data.multiple});
   for(const [name,wire,visible,completed,open] of [
     ['only cancelled',data.cancelledOnly,0,0,0],
@@ -741,11 +768,8 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   ])await test('cancelled film nights hidden: '+name,async h=>{
     await h.boot();const rawBefore=copy(h.controls.wire.nights),context=Shell.presentation(),markup=context.detailActions(context.getMovie(data.M));
     const rows=[...markup.matchAll(/data-night-id="([^"]+)"/g)].map(match=>match[1]);
-    eq(rows.length,visible,'visible row count');check(!markup.includes('Serata annullata'),'cancelled label absent');
-    if(visible){check(markup.includes('Le serate · '+visible),'summary count');check(!markup.includes('Le serate · '+(visible+1)),'cancelled excluded from count');}
-    else check(!markup.includes('data-detail-nights')&&!markup.includes('Le serate')&&!markup.includes('Altre serate'),'empty nights section absent');
-    if(completed)check(markup.includes('Serate concluse · '+completed),'completed group retained');
-    if(open)check(markup.includes('Altre serate'),'open group retained');
+    eq(rows.length,0,'Movie Detail has no event rows');check(!markup.includes('Serata annullata'),'cancelled label absent');
+    check(!markup.includes('data-detail-nights')&&!markup.includes('Le serate')&&!markup.includes('Altre serate'),'event block absent');
     deep(h.controls.wire.nights,rawBefore,'persistent cancelled event untouched');eq(h.commands.length,0,'presentation read only');
   },{raw:wire});
   await test('cancelled selected night cannot reopen after Snapshot reconciliation',async h=>{
@@ -754,11 +778,11 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     const row={dataset:{nightId:selected},open:false,querySelector:()=>summary};
     const list={open:false,querySelectorAll:()=>[row],querySelector:()=>summary};
     body.querySelector=selector=>selector==='[data-detail-nights]'?list:null;
-    detailTransitionActive=false;Shell.detail(data.M,null,selected);check(list.open&&row.open,'selected open event initially reached');
+    detailTransitionActive=false;Shell.detail(data.M,null,selected);check(!list.open&&!row.open,'Movie Detail does not expand selected event');
     await Shell.perform('cancelNight',selected);await h.pump();
     list.open=false;row.open=false;const context=Shell.presentation(),markup=context.detailActions(context.getMovie(data.M));
     check(!markup.includes('data-night-id="'+selected+'"'),'cancelled row removed after resync');
-    check(markup.includes('Le serate · 1'),'remaining completed count');
+    check(!markup.includes('Le serate'),'completed event block remains absent');
     context.openDetailNights(selected);check(!list.open&&!row.open,'stale nightId cannot reopen cancelled event');
     eq(h.state.view.getEvent(selected).event.event.status,'cancelled','domain record retained');
   },{raw:data.cancelledMixed});
@@ -824,7 +848,7 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
       if(options.vRating!=null)check(markup.includes(String(options.vRating).replace('.',',')),'V rating visible');
       if(options.vPreference!=null)check(markup.includes(options.vPreference?'fa-thumbs-up':'fa-thumbs-down'),'V preference visible');
       if(options.groupRating!=null)check(markup.includes(String(options.groupRating).replace('.',',')),'Together rating is own value');
-      if(together)check(markup.includes('fa-users')&&markup.includes('together-star'),'group icon opens Together');
+      if(together)check(markup.includes('class="fa-solid fa-users"')&&markup.includes('together-star'),'group icon opens Together');
       if(together)eq(markup.includes('together-rating'),options.groupRating!=null,'group star only accompanies numeric rating');
       check(markup.includes('aria-label="Apri il tuo Visto e giudizio'),'one caller context label');
       eq((markup.match(/class="person-token person-token-n/g)||[]).length,1,'one caller token');
@@ -924,7 +948,7 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   await test('UX12 320px cluster uses wrap without a fixed card height',async h=>{
     await h.boot();const css=modules.css;
     check(css.includes('.personal-tokens { display:flex; align-items:center; flex-wrap:wrap'),'token wrapping');
-    check(css.includes('@media(max-width:360px){ .together-cluster { max-width:100%; justify-content:center'),'narrow cluster rule');
+    check(css.includes('.together-cluster { display:grid; grid-template-columns:repeat(3,minmax(0,1fr))')&&css.includes('width:100%')&&css.includes('@media(max-width:360px){ .together-cluster { max-width:100%; }'),'full-width three-column cluster rule');
     check(css.includes('.together-cluster .person-token-face,.together-cluster .person-token.is-seen .person-token-face { min-height:28px; padding:2px 6px; border:0; background:transparent'),'no nested pills');
     check(css.includes('.together-star { display:inline-flex;')&&css.includes('background:transparent; color:inherit'),'star shares one gold surface');
     check(!css.includes('.movie-ticket { height:'),'no fixed whole-card height');
@@ -1044,9 +1068,9 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   },{raw:(()=>{const wire=copy(data.absent);wire.catalog[0].trailer_url='https://example.test/trailer';wire.catalog[0].overview='Una storia.';return finish(wire);})()});
   await test('UX12 Together detail uses star without parallel completed-night CTAs',async h=>{
     await h.boot();Shell.navigate('together');Shell.detail(data.M);const markup=document.getElementById('detailBody').innerHTML;
-    check(markup.includes('together-star')&&markup.includes('detail-nights-deeplink'),'star and deep-link night list coexist');
+    check(markup.includes('together-star')&&!markup.includes('detail-nights-deeplink'),'Together star remains without Movie Detail event list');
     check(!markup.includes('Apri la serata')&&!markup.includes('Visti insieme ·'),'duplicate completed access removed');
-    check(modules.css.includes('.target-film-detail .detail-nights-deeplink:not([open]) { display:none; }'),'completed list only appears for explicit night selection');
+    check(!markup.includes('data-detail-nights'),'no empty event container');
     check(Shell.presentation().togetherPopupHtml(Shell.presentation().getMovie(data.M)).includes('Le nostre visioni'),'completed access retained in popup');
   },{raw:data.cancelledCompleted});
   await test('UX12 outline identity records only caller Seen',async h=>{
@@ -1355,6 +1379,8 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     document.getElementById('addPastNight').onclick();const search=document.getElementById('pastNightSearch');
     search.value=data.raw.catalog[0].title;search.oninput();document.getElementById('pastNightResults')._children[0].onclick();
     check(!document.getElementById('pastNightDuplicates').classList.contains('hidden'),'prior Together is informative');
+    const togetherRatingInput=document.getElementById('pastNightTogetherRating'),togetherReviewInput=document.getElementById('pastNightTogetherReview');
+    togetherRatingInput.value='8,9';togetherRatingInput.oninput();togetherReviewInput.value='Una recensione Together';togetherReviewInput.oninput();
     const unknown=document.getElementById('pastNightUnknown');unknown.checked=true;unknown.onchange();
     document.getElementById('pastNightMemory').value='Una serata\nmemorabile';document.getElementById('pastNightMemory').oninput();
     eq(document.getElementById('pastNightCount').textContent,'21/1000','memory counter');
@@ -1362,7 +1388,9 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     let done=false;submitting.then(()=>{done=true;});for(let i=0;i<20&&!done;i++)await h.pump();const decoded=Core.decodeSnapshotEnvelope(h.wire(2),{callerId:data.N,groupId:data.G,contractVersion:2,contextEpoch:1});check(done,'submit settles after authoritative resync '+h.commands.length+'/'+h.snapshots.length+'/'+h.state.view.kind+'/'+h.state.phase+'/'+JSON.stringify(decoded));await submitting;
     eq(h.commands.length,1,'one authoritative write '+document.getElementById('pastNightError').textContent+' / '+document.getElementById('targetFeedbackMessage').textContent);eq(h.commands[0].body.intent,'RECORD_PAST_TOGETHER','dedicated intent');
     eq(h.commands[0].body.parameters.date,null,'unknown date stays null');
+    deep(h.commands[0].body.parameters.evaluation,{rating:8.9,review:'Una recensione Together'},'one command carries both judgment changes');
     eq(h.controls.wire.nights.filter(n=>n.status==='completed').length,2,'same film completed twice');
+    eq(h.state.view.group.getJudgment(data.M).judgment.rating,8.9,'accepted snapshot includes Together rating');
     eq(modalStackTop(),'nightDetailModal','created night opens by id');
     check(document.getElementById('nightDetailBody').innerHTML.includes('Data della visione non ricordata'),'unknown date display');
     check(document.getElementById('targetFeedbackMessage').textContent.includes('Visione insieme registrata'),'existing toast '+document.getElementById('targetFeedbackMessage').textContent);

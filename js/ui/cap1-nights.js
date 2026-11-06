@@ -2,15 +2,26 @@
 // CAP-1 presentation. All writes go through the online TARGET action surface.
 const Cap1Nights = (() => {
   const esc = value => escapeHtml(String(value ?? ''));
+  function rankHistorySuggestions(nights,field,query){
+    const term=String(query||'').trim().toLocaleLowerCase('it');if(term.length<2)return [];
+    const found=new Map();for(const n of nights){const value=String(n[field]||'').trim();if(!value)continue;const key=value.toLocaleLowerCase('it'),item=found.get(key)||{value,count:0,latest:''};item.count++;const stamp=n.date&&/^\d{4}-\d{2}-\d{2}$/.test(n.date)?n.date:String(n.created_at||'').slice(0,10);if(stamp>=item.latest){item.latest=stamp;item.value=value;}found.set(key,item);}
+    return [...found.values()].filter(x=>x.value.toLocaleLowerCase('it').includes(term)).sort((a,b)=>b.count-a.count||b.latest.localeCompare(a.latest)||a.value.localeCompare(b.value,'it')).slice(0,5).map(x=>x.value);
+  }
   function create({root=document,session,context,perform,waitFor}) {
     const el=id=>root.getElementById(id);
     let selectedMovieId=null, detailNightId=null, pending=false, formEpoch=0;
+    let ratingTouched=false,reviewTouched=false,selectedReview='';
     const state=()=>session.getState();
     const ready=()=>{const s=state();return s.phase==='READY'&&s.view.kind==='AVAILABLE'&&
       s.view.context.contractVersion===2&&s.view.freshness.source==='ONLINE'&&s.runtime?.source==='ONLINE';};
     const personIds=()=>context().view.getRecommendationInput().input.users.map(p=>p.id);
     const movie=id=>context().getMovie(id);
     const completed=id=>context().nights.filter(n=>n.movie_id===id&&n.status==='completed');
+    function bindAutocomplete(prefix,field){const input=el(prefix+field[0].toUpperCase()+field.slice(1)),list=el(prefix+field[0].toUpperCase()+field.slice(1)+'Suggestions');let active=-1;
+      const close=()=>{list.classList.add('hidden');list.replaceChildren();input.setAttribute('aria-expanded','false');input.removeAttribute('aria-activedescendant');active=-1;};
+      const render=()=>{list.replaceChildren();active=-1;const hits=rankHistorySuggestions(context().nights,field,input.value);if(!hits.length){close();return;}hits.forEach((value,i)=>{const b=root.createElement('button');b.type='button';b.id=list.id+'-'+i;b.setAttribute('role','option');b.setAttribute('aria-selected','false');b.textContent=value;b.onmousedown=e=>e.preventDefault();b.onclick=()=>{input.value=value;close();input.focus();};list.appendChild(b);});list.classList.remove('hidden');input.setAttribute('aria-expanded','true');};
+      input.oninput=render;input.onkeydown=e=>{const opts=[...list.querySelectorAll('[role=option]')];if(e.key==='Escape'){close();return;}if(!opts.length)return;if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();active=e.key==='ArrowDown'?(active+1)%opts.length:(active<0?opts.length-1:(active-1+opts.length)%opts.length);opts.forEach((o,i)=>o.setAttribute('aria-selected',String(i===active)));input.setAttribute('aria-activedescendant',opts[active].id);}else if(e.key==='Enter'&&active>=0){e.preventDefault();opts[active].click();}};input.onblur=()=>setTimeout(()=>{if(!list.contains(root.activeElement))close();},120);
+    }
     function dateLabel(raw) {
       if(!raw)return null;
       const [year,month,day]=raw.split('-').map(Number);
@@ -56,25 +67,42 @@ const Cap1Nights = (() => {
       const hits=context().movies.filter(m=>!context().hidden(m)&&[m.title,m.release_year].join(' ').toLocaleLowerCase('it').includes(term)).slice(0,20);
       if(!hits.length){box.textContent='Nessun film trovato nel catalogo.';return;}
       for(const m of hits){const button=root.createElement('button');button.type='button';button.setAttribute('role','option');button.setAttribute('aria-selected',String(m.id===selectedMovieId));
-        button.innerHTML=filmPreview(m);button.onclick=()=>{selectedMovieId=m.id;el('pastNightSelected').innerHTML=filmPreview(m);el('pastNightSelected').classList.remove('hidden');box.replaceChildren();el('pastNightSearch').value='';duplicates();el('pastNightDate').focus();};box.appendChild(button);}
+        button.innerHTML=filmPreview(m);button.onclick=()=>{selectedMovieId=m.id;el('pastNightSelected').innerHTML=filmPreview(m);el('pastNightSelected').classList.remove('hidden');box.replaceChildren();el('pastNightSearch').value='';duplicates();renderEvaluation();el('pastNightDate').focus();};box.appendChild(button);}
     }
     function openRegistration() {
       if(!ready())return;
       formEpoch++;selectedMovieId=null;pending=false;
+      el('pastNightEvaluation').open=false;el('pastNightDetails').open=true;
       for(const id of ['pastNightSearch','pastNightDate','pastNightLocation','pastNightSnack','pastNightMemory'])el(id).value='';
       el('pastNightUnknown').checked=false;setUnknown('pastNight');count('pastNight');clearError('pastNightError');
       el('pastNightDate').max=context().view.context.temporal.local_date;
       el('pastNightSelected').classList.add('hidden');el('pastNightDuplicates').classList.add('hidden');
       el('pastNightPeople').textContent=personIds().map(id=>context().view.getIdentity(id).label).join(' e ')+' · partecipano entrambi';
       el('pastNightSearch').oninput=renderSearch;el('pastNightUnknown').onchange=()=>setUnknown('pastNight');
+      el('pastNightTogetherRating').oninput=()=>{ratingTouched=true;};
+      el('pastNightTogetherReview').oninput=()=>{reviewTouched=true;};
+      bindAutocomplete('pastNight','location');bindAutocomplete('pastNight','snack');
       el('pastNightMemory').oninput=()=>count('pastNight');el('pastNightSave').onclick=()=>saveRegistration();
+      renderEvaluation();
       el('pastNightSave').disabled=false;renderSearch();openModal('pastNightModal');el('pastNightSearch').focus();
     }
     async function saveRegistration(retryHandle=null) {
       if(pending||!ready()||!selectedMovieId)return;
       const epoch=formEpoch,token=session.capture(),save=el('pastNightSave');
       let input;
-      try{input=fields('pastNight');input.participants=personIds();clearError('pastNightError');}
+      try{
+        input=fields('pastNight');input.participants=personIds();
+        const evaluation={};
+        if(ratingTouched){const raw=el('pastNightTogetherRating').value.trim();const rating=raw===''?null:parseMovieRating(raw);
+          if(raw!==''&&rating===null)throw Error('Inserisci un voto da 0 a 10, con un decimale.');
+          evaluation.rating=rating;
+        }
+        if(reviewTouched){const review=el('pastNightTogetherReview').value;
+          evaluation.review=review===''&&selectedReview!==''?null:review;
+        }
+        if(Object.keys(evaluation).length)input.evaluation=evaluation;
+        clearError('pastNightError');
+      }
       catch(error){showError('pastNightError',error.message);return;}
       pending=true;save.disabled=true;
       let result;
@@ -129,8 +157,14 @@ const Cap1Nights = (() => {
       el('pastEditDate').max=context().view.context.temporal.local_date;
       el('pastEditLocation').value=n.location||'';el('pastEditSnack').value=n.snack||'';el('pastEditMemory').value=n.night_memory||'';
       count('pastEdit');clearError('pastEditError');el('pastEditSave').disabled=false;
+      bindAutocomplete('pastEdit','location');bindAutocomplete('pastEdit','snack');
       el('pastEditUnknown').onchange=()=>setUnknown('pastEdit');el('pastEditMemory').oninput=()=>count('pastEdit');
       el('pastEditSave').onclick=()=>saveEdit(id);openModal('pastNightEditModal');el('pastEditDate').focus();
+    }
+    function renderEvaluation(){const m=selectedMovieId&&movie(selectedMovieId),ctx=m&&context(),rating=m?ctx.togetherRating(m):null;
+      ratingTouched=false;reviewTouched=false;selectedReview=m?ctx.reviewTextFor(m,'both'):'';
+      el('pastNightTogetherRating').value=rating==null?'':formatMovieRating(rating);
+      el('pastNightTogetherReview').value=selectedReview;
     }
     async function saveEdit(id,retryHandle=null) {
       if(pending||!ready())return;
@@ -155,6 +189,6 @@ const Cap1Nights = (() => {
     function dispose(){formEpoch++;pending=false;detailNightId=null;selectedMovieId=null;for(const id of ['pastNightEditModal','pastNightModal','nightDetailModal'])if(!el(id).classList.contains('hidden'))closeModal(id);}
     return Object.freeze({ready,refresh,openRegistration,openNight,dispose});
   }
-  return Object.freeze({create});
+  return Object.freeze({create,rankHistorySuggestions});
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports=Cap1Nights;

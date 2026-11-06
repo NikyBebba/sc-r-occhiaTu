@@ -188,13 +188,14 @@ const ActionAdapter = (() => {
         state.controllerState.view?.root?.snapshot.contract_version===2;
     }
     function pastFields(input, creating) {
-      fields(input, creating?['date','nightMemory','location','snack','participants']:['date','nightMemory','location','snack'],creating?['date','participants']:[]);
+      fields(input, creating?['date','nightMemory','location','snack','participants','evaluation']:['date','nightMemory','location','snack'],creating?['date','participants']:[]);
       const p=nightDetails(Object.fromEntries(Object.entries(input).filter(([k])=>['date','location','snack'].includes(k))),['date','location','snack']);
       if(Object.hasOwn(input,'nightMemory')) {
         if(input.nightMemory!==null && (typeof input.nightMemory!=='string'||[...input.nightMemory].length>1000)) fail('INVALID_NIGHT_MEMORY');
         p.night_memory=input.nightMemory;
       }
       if(creating)p.participants=participants(input.participants);
+      if(creating&&Object.hasOwn(input,'evaluation'))p.evaluation=evaluation(input.evaluation,true);
       return p;
     }
     return frozen({ captureContext,

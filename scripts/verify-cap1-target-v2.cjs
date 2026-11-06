@@ -23,6 +23,7 @@ async function main(){
   await e.exec("UPDATE app_protocol_state SET mode='target',minimum_client_protocol=1");
   const existing=(await e.q('SELECT id,date,status,completed_at FROM movie_nights ORDER BY id'));
   await e.exec(read('database/supabase-migration-cap1-target-v2.sql'));
+  await e.exec(read('database/supabase-migration-cap1-atomic-evaluation.sql'));
   const login=async person=>e.q("SELECT set_config('request.jwt.claim.sub',$1,false)",[person]);
   const send=async body=>(await e.q('SELECT public.execute_app_command($1::jsonb) r',[JSON.stringify(body)]))[0].r;
   const snapshot=async version=>(await e.q('SELECT public.get_person_group_snapshot($1,$2) s',[G,version]))[0].s;
@@ -104,6 +105,59 @@ async function main(){
     assert(pair.every(x=>x.outcome==='SUCCESS'));assert.equal(pair[0].result.night_id,pair[1].result.night_id);
     assert.equal((await e.q('SELECT count(*)::int n FROM movie_nights WHERE creation_request_id=$1',[parallel.request_id]))[0].n,1);
   });
+  await check('v72 atomic Together judgment creates night and changes only movie judgment',async()=>{
+    const before=(await e.q('SELECT to_jsonb(m) v FROM movies m WHERE id=$1',[m]))[0].v;
+    const body=request('RECORD_PAST_TOGETHER',m,null,{date:'2020-03-14',participants:[N,V],evaluation:{rating:8.9,review:'Una serata'}},await version('group_film',m));
+    const first=await send(body);assert.equal(first.outcome,'SUCCESS');
+    const after=(await e.q('SELECT to_jsonb(m) v FROM movies m WHERE id=$1',[m]))[0].v;
+    assert.equal(after.seen_rating_together,8.9);assert.equal(after.review_text_together,'Una serata');
+    delete before.seen_rating_together;delete before.review_text_together;delete after.seen_rating_together;delete after.review_text_together;
+    // The preexisting movies trigger refreshes the operational status from the
+    // already-open fixture night whenever a film judgment is updated.
+    delete before.status;delete after.status;
+    assert.deepEqual(after,before,'no personal or catalog side effect');
+    assert.equal((await e.q('SELECT count(*)::int n FROM movie_nights WHERE creation_request_id=$1',[body.request_id]))[0].n,1);
+    const v1=(await snapshot(1)).group.judgments.find(x=>x.movie_id===m);
+    const v2=(await snapshot(2)).group.judgments.find(x=>x.movie_id===m);
+    assert.equal(v1.rating,8.9);assert.equal(v2.review,'Una serata');
+    const revision=await version('group_film',m),replay=await send(body);
+    assert.equal(replay.replayed,true);assert.equal(replay.result.night_id,first.result.night_id);assert.equal(await version('group_film',m),revision);
+    assert.equal((await e.q('SELECT count(*)::int n FROM movie_nights WHERE creation_request_id=$1',[body.request_id]))[0].n,1);
+  });
+  await check('v72 partial changes, empty review, explicit deletion and legacy payload',async()=>{
+    const ratingOnly=await send(request('RECORD_PAST_TOGETHER',m,null,{date:null,participants:[N,V],evaluation:{rating:7.5}},await version('group_film',m)));
+    assert.equal(ratingOnly.outcome,'SUCCESS');
+    let judgment=(await e.q('SELECT seen_rating_together rating,review_text_together review FROM movies WHERE id=$1',[m]))[0];
+    assert.equal(Number(judgment.rating),7.5);assert.equal(judgment.review,'Una serata');
+    const unchanged=await send(request('RECORD_PAST_TOGETHER',m,null,{date:null,participants:[N,V]},await version('group_film',m)));
+    assert.equal(unchanged.outcome,'SUCCESS');
+    judgment=(await e.q('SELECT seen_rating_together rating,review_text_together review FROM movies WHERE id=$1',[m]))[0];
+    assert.equal(Number(judgment.rating),7.5);assert.equal(judgment.review,'Una serata','omitted evaluation preserves both values');
+    const empty=await send(request('RECORD_PAST_TOGETHER',m,null,{date:null,participants:[N,V],evaluation:{review:''}},await version('group_film',m)));
+    assert.equal(empty.outcome,'SUCCESS');
+    judgment=(await e.q('SELECT seen_rating_together rating,review_text_together review FROM movies WHERE id=$1',[m]))[0];
+    assert.equal(Number(judgment.rating),7.5);assert.equal(judgment.review,'');
+    const clear=await send(request('RECORD_PAST_TOGETHER',m,null,{date:null,participants:[N,V],evaluation:{rating:null,review:null}},await version('group_film',m)));
+    assert.equal(clear.outcome,'SUCCESS');
+    judgment=(await e.q('SELECT seen_rating_together rating,review_text_together review FROM movies WHERE id=$1',[m]))[0];
+    assert.equal(judgment.rating,null);assert.equal(judgment.review,null);
+    const old=await send(request('RECORD_PAST_TOGETHER',m,null,{date:null,participants:[N,V]},await version('group_film',m)));
+    assert.equal(old.outcome,'SUCCESS');
+    judgment=(await e.q('SELECT seen_rating_together rating,review_text_together review FROM movies WHERE id=$1',[m]))[0];
+    assert.equal(judgment.rating,null);assert.equal(judgment.review,null);
+  });
+  await check('v72 stale CAS and rejected evaluation roll back event, versions and receipt',async()=>{
+    const staleBody=request('RECORD_PAST_TOGETHER',m,null,{date:null,participants:[N,V],evaluation:{rating:9}},0);
+    const beforeCount=(await e.q('SELECT count(*)::int n FROM movie_nights WHERE movie_id=$1',[m]))[0].n;
+    assert.equal((await send(staleBody)).outcome,'STALE');
+    for(const evaluation of [{rating:10.1},{rating:8.88},{review:12},null]){
+      const body=request('RECORD_PAST_TOGETHER',m,null,{date:null,participants:[N,V],evaluation},await version('group_film',m));
+      assert.equal((await send(body)).outcome,'ERROR');
+      assert.equal((await e.q('SELECT count(*)::int n FROM domain_command_receipts WHERE request_id=$1',[body.request_id]))[0].n,0);
+    }
+    assert.equal((await e.q('SELECT count(*)::int n FROM movie_nights WHERE movie_id=$1',[m]))[0].n,beforeCount);
+    assert.equal((await e.q('SELECT seen_rating_together FROM movies WHERE id=$1',[m]))[0].seen_rating_together,null);
+  });
   const unknown=await send(request('RECORD_PAST_TOGETHER',m,null,{date:null,participants:[N,V]},await version('group_film',m)));
   await check('unknown date v1 is exact and never displays registration day',async()=>{
     assert.equal(unknown.outcome,'SUCCESS');const s=await snapshot(1),n=s.nights.find(x=>x.night_id===unknown.result.night_id);
@@ -184,6 +238,12 @@ async function main(){
     const one=make(1),h1=one.adapter.captureContext();assert.equal((await one.adapter.recordPastTogether(h1,m,{date:null,participants:[N,V]})).outcome,'NOT_READY');
     const two=make(2),h2=two.adapter.captureContext();await two.adapter.recordPastTogether(h2,m,{date:null,participants:[N,V]});
     assert.equal(two.commands[0].intent,'RECORD_PAST_TOGETHER');assert.equal(two.commands[0].parameters.client_snapshot_contract_version,2);assert.equal(two.commands[0].expectedVersions.length,1);
+    assert.equal(Object.hasOwn(two.commands[0].parameters,'evaluation'),false,'v71 payload unchanged');
+    await two.adapter.recordPastTogether(h2,m,{date:null,participants:[N,V],evaluation:{rating:0,review:''}});
+    assert.deepEqual(two.commands[1].parameters.evaluation,{rating:0,review:''});
+    await two.adapter.recordPastTogether(h2,m,{date:null,participants:[N,V],evaluation:{rating:null,review:null}});
+    assert.deepEqual(two.commands[2].parameters.evaluation,{rating:null,review:null});
+    assert.equal((await two.adapter.recordPastTogether(h2,m,{date:null,participants:[N,V],evaluation:{rating:8.88}})).outcome,'INVALID_INPUT');
     two.state.controllerState.view.source='CACHE';assert.equal((await two.adapter.recordPastTogether(h2,m,{date:null,participants:[N,V]})).outcome,'NOT_READY');
   });
   console.log('CAP1_TARGET_V2_PASS '+count);
