@@ -522,7 +522,8 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   await test('unavailable Realtime blocks target without fallback',async h=>{h.targetDependencies.runtime.subscribeInvalidation=()=>{throw Error('Synthetic source unavailable');};await h.boot();eq(h.state.phase,'BLOCKED','blocked');eq(h.legacyEvents.length,0,'no fallback');});
   await test('Recommendation consumes target and CTA shares actions',async h=>{await h.boot();const input=h.state.view.getRecommendationInput();eq(input.kind,'AVAILABLE','target input');const rows=Engine.recommend(input.input);check(Array.isArray(rows),'real engine');await Shell.perform('proposeToGroup',data.M);eq(h.commands.at(-1).body.intent,'PROPOSE_TO_GROUP','same writer');});
   await test('UX10 shortlist follows Core order and shows evidence',async h=>{
-    await h.boot();Shell.navigate('recommendations');check(document.getElementById('recommendationSection').getAttribute('aria-busy')==='true','loading');await h.pump();
+    await h.boot();Shell.navigate('recommendations');check(document.getElementById('recommendationSection').getAttribute('aria-busy')==='true','loading');check(document.getElementById('recommendationMore').disabled,'footer action disabled while loading');await h.pump();
+    check(document.getElementById('recommendationMore').disabled===false,'single footer action enabled when ready');
     const input=h.state.view.getRecommendationInput({constraints:{context:'all'}}).input;
     const expected=Engine.rerank(Engine.recommend(input),5).map(row=>row.movieId);
     const markup=document.getElementById('recommendationResults').innerHTML;
@@ -534,13 +535,15 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     check(markup.includes('2000')&&markup.includes('110 min'),'essential metadata');eq(h.commands.length,0,'read-only ranking');
   },{raw:data.recommendationSet});
   await test('UX10 next batch replaces results without duplicates and exhausts',async h=>{
-    await h.boot();Shell.navigate('recommendations');await h.pump();
+    await h.boot();Shell.navigate('recommendations');check(document.getElementById('recommendationMore').disabled,'footer disabled while loading');await h.pump();
     const rows=()=>[...document.getElementById('recommendationResults').innerHTML.matchAll(/data-recommendation-id="([^"]+)"/g)].map(match=>match[1]);
     const seen=new Set(rows());eq(seen.size,5,'first batch');
-    Shell.showMoreRecommendations();const second=rows();eq(second.length,5,'second batch replaces first');check(second.every(id=>!seen.has(id)),'no duplicate');second.forEach(id=>seen.add(id));
-    Shell.showMoreRecommendations();const third=rows();eq(third.length,2,'short final batch');check(third.every(id=>!seen.has(id)),'no duplicate final');
-    check(document.getElementById('recommendationMore').classList.contains('hidden'),'no more button after exhaustion');
+    Shell.advanceRecommendations();const second=rows();eq(second.length,5,'second batch replaces first');check(second.every(id=>!seen.has(id)),'no duplicate');second.forEach(id=>seen.add(id));
+    Shell.advanceRecommendations();deep(rows(),second,'repeat click is coalesced');
+    modules.advanceTime(180);Shell.advanceRecommendations();const third=rows();eq(third.length,2,'short final batch');check(third.every(id=>!seen.has(id)),'no duplicate final');
+    check(document.getElementById('recommendationMore').disabled,'footer action disabled after alternatives exhausted');
     check(document.getElementById('recommendationStatus').textContent.includes('tutti i suggerimenti'),'explicit exhaustion');
+    modules.advanceTime(180);
   },{raw:data.recommendationSet});
   await test('UX10 stale keeps batch until explicit refresh',async h=>{
     await h.boot();Shell.navigate('recommendations');await h.pump();
@@ -548,9 +551,10 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     for(const row of h.controls.wire.catalog)row.title='Updated proposal '+row.movie_id.slice(-4);
     await h.refresh();
     eq(results.innerHTML,before,'stable shortlist and copy');check(!document.getElementById('recommendationStale').classList.contains('hidden'),'stale visible');
-    Shell.refreshRecommendations();check(document.getElementById('recommendationSection').getAttribute('aria-busy')==='true','refresh loading');await h.pump();
+    Shell.advanceRecommendations();check(document.getElementById('recommendationSection').getAttribute('aria-busy')==='true','unified footer refresh loading');await h.pump();
     check(document.getElementById('recommendationStale').classList.contains('hidden'),'refresh clears stale');
     check(results.innerHTML.includes('Updated proposal'),'current TARGET snapshot used');
+    modules.advanceTime(180);
     Shell.detail(data.M);check(document.getElementById('detailBody').innerHTML.includes('SCHEDA FILM'),'existing detail opens');
   },{raw:data.recommendationSet});
   await test('UX10 empty and unavailable inputs are distinct',async h=>{
@@ -565,7 +569,8 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   await test('UX10 unavailable Recommendation input shows recoverable error',async h=>{
     await h.boot();Shell.navigate('recommendations');await h.pump();
     check(!document.getElementById('recommendationError').classList.contains('hidden'),'error panel visible');
-    check(!!document.getElementById('recommendationRefresh'),'explicit retry control');
+    check(!document.getElementById('recommendationMore').disabled,'single footer retry control');
+    Shell.advanceRecommendations();check(document.getElementById('recommendationSection').getAttribute('aria-busy')==='true','footer retry enters loading');await h.pump();modules.advanceTime(180);
   },{raw:data.unavailable});
   await test('Ruota pool never invokes legacy eligibility',async h=>{await h.boot();const ids=wheelPool().map(c=>c.movie_id);deep(ids,h.state.view.ruota.eligibleMovieIds,'approved target pool');await Shell.perform('quickNight',ids[0]);eq(h.commands.at(-1).body.target.movie_id,ids[0],'stable UUID');});
   await test('UX9 empty TARGET wheel points to the Lista',async h=>{await h.boot();resetWheelFilters();Shell.navigate('wheel');eq(wheelBasePool().length,0,'no authoritative candidates');check(document.getElementById('wheelSpinBtn').disabled,'spin disabled');check(document.getElementById('wheelEmptyMessage').textContent.includes('Nessun film disponibile'),'empty explanation');check(!document.getElementById('wheelListAction').classList.contains('hidden'),'Lista access');check(document.getElementById('wheelResetAction').classList.contains('hidden'),'no false filter reset');openWheelList();eq(Shell.getDestination(),'groupList','TARGET Lista route');},{raw:data.absent});

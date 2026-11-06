@@ -96,6 +96,13 @@ function matchConnectingHtml() {
     </div>`;
 }
 
+function matchCandidatesLoadingHtml() {
+  return `<div class="match-panel col-span-full text-center text-slate-400 text-sm" role="status" aria-live="polite">
+      <div class="text-2xl mb-2" aria-hidden="true"><i class="fa-solid fa-spinner fa-pulse"></i></div>
+      <p>Prepariamo il mazzo…</p>
+    </div>`;
+}
+
 // Dopo la creazione: messaggio di conferma, poi esce da sola al tab precedente.
 function matchNightCreatedHtml(context = null) {
   if (!context && !matchExitTimer) {

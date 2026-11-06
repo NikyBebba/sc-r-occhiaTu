@@ -2,7 +2,7 @@
 // Semantic TARGET renderer. No legacy rows, store arrays or legacy selectors.
 const TargetShell = (() => {
   function createShell({ session, root = document, lookup = fetchMovieDetails, detailsById = fetchTmdbDetailsById }) {
-    let destination = 'home', query = '', genre = '', duration = '', sort = 'added', sortDir = 'desc', platform = '', proposer = '', availability = 'streaming', page = 0, feedback = '', operation = null, matchOperation = null, revealedKey = null, recommendation = null;
+    let destination = 'home', query = '', genre = '', duration = '', sort = 'added', sortDir = 'desc', platform = '', proposer = '', availability = 'streaming', page = 0, feedback = '', operation = null, matchOperation = null, revealedKey = null, recommendation = null, recommendationActionPending = false, recommendationActionTimer = null;
     let shared = null, match = null, generation = null, uiEpoch = 0, closingMatchTicket = null, createdTitle = null, matchExit = null, scheduledMatchTitle = null, revealInterrupted = false, cap1 = null;
     const el = id => root.getElementById(id);
     const bindings = new Map();
@@ -32,11 +32,12 @@ const TargetShell = (() => {
     function syncLayout(value) {
       if (typeof syncTargetNavigation === 'function') syncTargetNavigation(destination);
       const home = destination === 'home', wheel = destination === 'wheel', proposals = destination === 'recommendations';
-      const personal = personalDestination(), group = ['groupList','rewatch','scheduled'].includes(destination);
+      const personal = personalDestination(), group = ['groupList','rewatch','scheduled','together'].includes(destination);
       const titles = {groupList:'Da vedere insieme',rewatch:'Rewatch',scheduled:'In programma',personalList:'Il mio cinema',personalSeen:'Il mio cinema',together:'Visti insieme',memories:'Ricordi',calendar:'Calendario',search:'Cerca nel catalogo',bulk:'Aggiungi film'};
       show('appRoot',true); show('sceltaCta',home); show('dashboardSidebar',wheel); show('recommendationSection',proposals);
       show('librarySection',!home && !wheel && !proposals); show('nextMovieHero',false); show('scheduledPanel',false);
-      show('libraryHeader',destination!=='match'); show('matchViewHeader',destination==='match'); show('libraryBack',destination!=='match');
+      show('libraryHeader',destination!=='match'); show('matchViewHeader',destination==='match');
+      show('libraryBack',destination!=='match');
       for (const id of ['segControl','libraryViewSelect']) el(id)?.classList.toggle('!hidden',!group);
       el('tabAll')?.classList.add('!hidden');
       const all = el('libraryViewSelect')?.querySelector?.('option[value="all"]'); if (all) { all.hidden = true; all.disabled = true; }
@@ -76,7 +77,7 @@ const TargetShell = (() => {
       bind('sortKeySelect','onchange',()=>{sort=el('sortKeySelect').value;page=0;render();});
       bind('sortDirBtn','onclick',()=>{sortDir=sortDir==='asc'?'desc':'asc';render();});
       for(const [id,key] of [['availabilityStreaming','streaming'],['availabilityCinema','cinema']]) {el(id)?.setAttribute('aria-pressed',String(availability===key));bind(id,'onclick',()=>{availability=key;page=0;render();});}
-      for(const [id,count]of [['pillCountWatchlist',value.counts.groupListFilms],['pillCountTonight',value.counts.scheduledEvents],['pillCountRewatch',value.counts.rewatchFilms]])text(id,count);
+      for(const [id,count]of [['pillCountWatchlist',value.counts.groupListFilms],['pillCountTonight',value.counts.scheduledEvents],['pillCountRewatch',value.counts.rewatchFilms],['pillCountWatched',value.counts.togetherFilms]])text(id,count);
       text('homeWatchlistCount',value.counts.groupListFilms+' film in attesa del ciak.');
       text('homeWatchedCount',value.counts.togetherFilms+' film visti.');
       const greeting=el('sceltaTitle');if(greeting)greeting.textContent=value.context.caller.label?'Ciao, '+value.context.caller.label+'.':'Benvenuti in sala.';
@@ -260,7 +261,9 @@ const TargetShell = (() => {
       const status = el('recommendationStatus'), empty = el('recommendationEmpty'), error = el('recommendationError'),
         stale = el('recommendationStale'), more = el('recommendationMore');
       section?.setAttribute('aria-busy',String(state.status === 'loading'));
-      empty?.classList.add('hidden'); error?.classList.add('hidden'); stale?.classList.add('hidden'); more?.classList.add('hidden');
+      empty?.classList.add('hidden'); error?.classList.add('hidden'); stale?.classList.add('hidden');
+      const recommendationBusy=state.status==='loading'||recommendationActionPending;
+      if(more){more.classList.remove('hidden');more.disabled=recommendationBusy;more.setAttribute('aria-busy',String(recommendationBusy));more.querySelector('i')?.classList.toggle('fa-spin',recommendationBusy);}
       if (state.status !== 'ready') {
         if (results) results.innerHTML='';
         if (status) status.textContent=state.status==='loading'?'Stiamo preparando le proposte…':'';
@@ -268,7 +271,7 @@ const TargetShell = (() => {
         return;
       }
       if (status) status.textContent = !state.batch.length ? '' : state.hasMore
-        ? state.batch.length+' propost'+(state.batch.length===1?'a':'e')+' · altre disponibili.' : 'Questi sono tutti i suggerimenti disponibili. Aggiorna per ricominciare.';
+        ? state.batch.length+' propost'+(state.batch.length===1?'a':'e')+' · altre disponibili.' : 'Hai visto tutti i suggerimenti disponibili.';
       if (!state.batch.length) {
         if (empty) { empty.textContent=state.hadSharedCandidates
           ? 'Nessun film della Lista condivisa è ora candidabile. Controlla le serate già aperte.'
@@ -292,9 +295,11 @@ const TargetShell = (() => {
           if (current.kind==='AVAILABLE' && current.catalog.getContent(id).kind==='AVAILABLE') openDetail(id,row); };
         row.onclick=open; row.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open();}};
       });
-      try { const current=recommendationInput(value);stale?.classList.toggle('hidden',current.kind==='AVAILABLE'&&recommendationSignature(current.input)===state.signature); }
-      catch (_) { stale?.classList.remove('hidden'); }
-      if (state.hasMore) more?.classList.remove('hidden');
+      let isStale=false;
+      try { const current=recommendationInput(value);isStale=current.kind!=='AVAILABLE'||recommendationSignature(current.input)!==state.signature; }
+      catch (_) { isStale=true; }
+      stale?.classList.toggle('hidden',!isStale);
+      if(more)more.disabled=recommendationActionPending||(!state.hasMore&&!isStale);
     }
     function refreshRecommendations() { if (destination!=='recommendations') return; recommendation=null;render(); }
     function showMoreRecommendations() {
@@ -304,17 +309,32 @@ const TargetShell = (() => {
       recommendation.hasMore=nextRecommendationBatch(recommendation.ranked,recommendation.shown).length>0;
       render();
     }
+    function advanceRecommendations() {
+      if(destination!=='recommendations'||recommendation?.status==='loading'||recommendationActionPending)return;
+      recommendationActionPending=true;
+      if(recommendation?.status==='error'){recommendation=null;render();}
+      else {
+      if(recommendation?.status!=='ready'){recommendationActionPending=false;return;}
+      let stale=false;
+      try { const current=recommendationInput(view());stale=current.kind!=='AVAILABLE'||recommendationSignature(current.input)!==recommendation.signature; }
+      catch (_) { stale=true; }
+      if(stale)recommendation=null;else showMoreRecommendations();
+      if(stale)render();
+      }
+      recommendationActionTimer=setTimeout(()=>{recommendationActionTimer=null;recommendationActionPending=false;if(destination==='recommendations')render();},160);
+    }
     function navigate(next, source = null) {
       if (!['home','personalList','personalSeen','groupList','rewatch','scheduled','together','memories','calendar','match','wheel','recommendations','search','bulk'].includes(next)) return;
       const previous = destination;
       const origin = source ?? root.activeElement;
+      if(previous==='recommendations'&&next!=='recommendations'){if(recommendationActionTimer)clearTimeout(recommendationActionTimer);recommendationActionTimer=null;recommendationActionPending=false;}
       if (previous === 'home' && origin?.closest?.('#sceltaCta, #scheduledPanel')) homeTrigger = origin;
       uiEpoch++; if(matchExit)clearTimeout(matchExit); matchExit=null; createdTitle=null;
       if(!el('confirmModal')?.classList.contains('hidden'))cancelConfirmModal();
       for(const id of ['metadataRefreshModal','personalStatusModal','otherJudgmentModal','togetherModal','detailModal','nightDetailModal','pastNightEditModal','pastNightModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id);
       if(previous==='wheel'&&next!=='wheel')closeWheelWinner();
       if(previous==='match'&&next!=='match'){revealedKey=null;revealInterrupted=false;el('matchReveal')?.classList.add('hidden');}
-      const scope = route => ['groupList','rewatch','scheduled'].includes(route) ? 'list'
+      const scope = route => ['groupList','rewatch','scheduled','together'].includes(route) ? 'list'
         : ['personalList','personalSeen'].includes(route) ? 'personal' : route;
       if(scope(previous)!==scope(next)){query='';genre='';duration='';platform='';proposer='';availability='streaming';sort='added';sortDir='desc';}
       destination = next; page = 0;
@@ -426,6 +446,11 @@ const TargetShell = (() => {
       }
       if(state.phase!=='READY'){
         parent.innerHTML=matchConnectingHtml();
+        el('matchReveal')?.classList.add('hidden');
+        return;
+      }
+      if(derived?.view==='WAITING_CANDIDATES'){
+        parent.innerHTML=matchCandidatesLoadingHtml();
         el('matchReveal')?.classList.add('hidden');
         return;
       }
@@ -588,7 +613,7 @@ const TargetShell = (() => {
       return contents.filter(c=>((!query||[c.title,c.director,...(c.genres||[])].join(' ').toLocaleLowerCase('it').includes(query.toLocaleLowerCase('it')))&&(!genre||c.genres?.includes(genre))&&(!platform||c.platform===platform)&&(!proposer||(c.added_by_person_id?context.getIdentity(c.added_by_person_id).label:null)===proposer)&&(personalDestination()||(availability==='cinema'?c.cinema_watchlist:!c.cinema_watchlist))&&(!duration||(parseDurationMinutes(c.duration)!==null&&parseDurationMinutes(c.duration)<=Number(duration)))))
         .slice().sort((a,b)=>{const x=metric(a),y=metric(b);if(x==null||y==null)return x==null?(y==null?0:1):-1;return sign*(typeof x==='number'&&typeof y==='number'?x-y:String(x).localeCompare(String(y),'it'))||a.movie_id.localeCompare(b.movie_id);});
     }
-    return Object.freeze({ render, navigate, modalChanged, refreshRecommendations, showMoreRecommendations, getDestination:()=>destination, changePage(delta){page=Math.max(0,page+delta);render();}, perform, performMatch, waitFor, saveContent, bulk,
+    return Object.freeze({ render, navigate, modalChanged, refreshRecommendations, showMoreRecommendations, advanceRecommendations, getDestination:()=>destination, changePage(delta){page=Math.max(0,page+delta);render();}, perform, performMatch, waitFor, saveContent, bulk,
       setFilters(input) { query = input.query ?? query; genre = input.genre ?? genre; duration = input.duration ?? duration; sort = input.sort ?? sort; page = 0; render(); },
       detail:openDetail, night:id=>cap1.openNight(id), together:openTogether, edit,
       presentation:product,
@@ -599,5 +624,5 @@ const TargetShell = (() => {
   }
   let instance = null;
   const current = () => instance || (instance = createShell({ session: ProductionSession }));
-  return Object.freeze({ createShell, modalChanged:(id,phase)=>instance?.modalChanged(id,phase), render: () => current().render(), getDestination:()=>current().getDestination(), refreshRecommendations:()=>current().refreshRecommendations(), showMoreRecommendations:()=>current().showMoreRecommendations(), changePage:delta=>current().changePage(delta), publication: state => current().publication(state), saveContent: (...args) => current().saveContent(...args), bulk: (...args) => current().bulk(...args), setFilters: input => current().setFilters(input), navigate: (destination,source) => current().navigate(destination,source), detail: (id,source,nightId,openNights) => current().detail(id,source,nightId,openNights), night: id=>current().night(id), together: (id,source) => current().together(id,source), edit: (...args) => current().edit(...args), presentation:()=>current().presentation(), refreshCalendar:()=>current().refreshCalendar(), refreshMemories:()=>current().refreshMemories(), perform: (...args) => current().perform(...args), performMatch: (...args) => current().performMatch(...args), dispose() { instance?.dispose(); instance = null; } });
+  return Object.freeze({ createShell, modalChanged:(id,phase)=>instance?.modalChanged(id,phase), render: () => current().render(), getDestination:()=>current().getDestination(), refreshRecommendations:()=>current().refreshRecommendations(), showMoreRecommendations:()=>current().showMoreRecommendations(), advanceRecommendations:()=>current().advanceRecommendations(), changePage:delta=>current().changePage(delta), publication: state => current().publication(state), saveContent: (...args) => current().saveContent(...args), bulk: (...args) => current().bulk(...args), setFilters: input => current().setFilters(input), navigate: (destination,source) => current().navigate(destination,source), detail: (id,source,nightId,openNights) => current().detail(id,source,nightId,openNights), night: id=>current().night(id), together: (id,source) => current().together(id,source), edit: (...args) => current().edit(...args), presentation:()=>current().presentation(), refreshCalendar:()=>current().refreshCalendar(), refreshMemories:()=>current().refreshMemories(), perform: (...args) => current().perform(...args), performMatch: (...args) => current().performMatch(...args), dispose() { instance?.dispose(); instance = null; } });
 })();

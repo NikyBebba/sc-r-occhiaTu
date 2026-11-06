@@ -152,6 +152,19 @@ async function runChecks(modules, data, onCase = () => {}) {
   await test('burst before read coalesces', async h => { await h.enter(); const n = h.reads.length; for (let i = 0; i < 100; i++) h.rt[0].onChange({ forged: true }); await h.pump(); eq(h.reads.length - n, 1, 'one read'); });
   await test('one dirty follow-up and physical single-flight', async h => { await h.enter(); const n = h.reads.length, first = await h.heldRead(); for (let i = 0; i < 25; i++) h.rt[0].onChange(); await h.pump(); eq(h.reads.length - n, 1, 'single physical read'); first.finish(); await h.pump(); eq(h.reads.length - n, 2, 'one follow-up'); for (let i = 0; i < 25; i++) h.rt[0].onChange(); h.reads.at(-1).finish(); await h.pump(); eq(h.reads.length - n, 2, 'bounded even second read dirty'); eq(h.stats().peakReads, 1, 'physical peak one'); });
   await test('exhaustion reconciles server done', async h => { h.host.serverSession.deck = [data.M]; h.add('N', data.M, false); h.add('V', data.M, false); await h.enter(); check(h.calls.some(x => x.request.p_action === 'reconcile-done'), 'actual server reconcile'); });
+  await test('empty preliminary candidate projection waits, then resumes deck', async h => {
+    await h.enter();
+    const bundle=Facade.createConsumerBundle(h.runtime.getState()),input=bundle.getMatchInput();
+    h.host.bundleOverride=Object.freeze({...bundle,freshness:Object.freeze({...bundle.freshness,source:'CACHE'}),getMatchInput:()=>({...input,matchBaseIds:[]})});
+    await h.sync();
+    eq(h.state.derived.view,'WAITING_CANDIDATES','empty cached projection is loading');
+    eq(h.state.derived.exhausted,false,'cache cannot confirm exhaustion');
+    check(!h.calls.some(x=>x.request.p_action==='reconcile-done'),'no premature server completion');
+    h.host.bundleOverride=null;h.notify();await h.pump();
+    eq(h.state.derived.view,'SWIPE','authoritative candidates resume existing deck');
+    eq(h.state.derived.currentCard.movie_id,data.M,'same frozen deck card');
+    check(!h.calls.some(x=>x.request.p_action==='reconcile-done'),'no completion after candidates arrive');
+  });
   await test('pending prevents reconcile-done', async h => { h.host.serverSession.deck = [data.M]; h.add('N'); h.add('V'); await h.enter(); eq(h.calls.length, 0, 'pending remains open'); eq(h.state.derived.view, 'MATCH_PENDING', 'pending'); });
   await test('raw realtime rows never authority', async h => { await h.enter(); const before = stable(h.state.authoritative); h.rt[0].onChange({ new: { status: 'closed', deck: [] } }); eq(stable(h.state.authoritative), before, 'no patch'); await h.pump(); eq(h.state.authoritative.session.status, 'open', 'server wins'); });
   for (const mode of ['join', 'leave', 'sync', 'duplicates', 'unknown', 'disconnect']) await test('presence ' + mode, async h => { await h.enter(); const p = h.pr[0]; p.onSync([data.N, data.V]); if (mode === 'join') { p.onSync([data.N]); p.onJoin(data.V); } if (mode === 'leave') p.onLeave(data.V); if (mode === 'duplicates') p.onSync([data.N, data.N, data.V]); if (mode === 'unknown') p.onSync(['N', data.other, data.N]); if (mode === 'disconnect') p.onDisconnected(); const expected = mode === 'disconnect' ? [] : ['leave', 'unknown'].includes(mode) ? [data.N] : [data.N, data.V]; deep(h.state.presence, expected, 'UUID set'); eq(h.calls.length, 0, 'no domain transition'); });

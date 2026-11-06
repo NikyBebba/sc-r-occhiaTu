@@ -84,6 +84,9 @@ const MatchAdapter = (() => {
       const matched = id => resolved(id) && [...answers.get(id).values()].every(Boolean);
       const ids = session.deck.filter(id => eligible.has(id) && content.has(id));
       const index = session.deck.findIndex(id => ids.includes(id) && !resolved(id));
+      // A cached/bootstrapping projection can temporarily contain no candidates.
+      // Only the validated online snapshot can confirm an empty deck.
+      const exhausted = (ids.length > 0 || t.online) && index < 0;
       const last = [...ids].reverse().find(matched) ?? null;
       const pending = last !== session.matched_movie_id ? last : null;
       let total = 0, agreed = 0, matches = 0;
@@ -93,10 +96,10 @@ const MatchAdapter = (() => {
         total++; const values = [...a.values()]; if (values.every(v => v === values[0])) agreed++; if (values.every(Boolean)) matches++;
       }
       const enabled = activeSession(session), current = enabled && pending === null && index >= 0 ? session.deck[index] : null;
-      return Object.freeze({ view: !enabled ? (session.status === 'closed' ? 'CLOSED' : 'DONE') : pending ? 'MATCH_PENDING' : index < 0 ? 'DONE' : 'SWIPE',
+      return Object.freeze({ view: !enabled ? (session.status === 'closed' ? 'CLOSED' : 'DONE') : pending ? 'MATCH_PENDING' : !ids.length && !t.online ? 'WAITING_CANDIDATES' : exhausted ? 'DONE' : 'SWIPE',
         currentCard: current ? observed('card', { session_id: session.id, movie_id: current }) : null,
         pendingMatch: enabled && pending ? observed('match', { session_id: session.id, matched_movie_id: pending }) : null,
-        exhausted: index < 0, actionableMovieIds: copy(ids), agreement: copy({ agreed, total, pct: total ? Math.round(agreed / total * 100) : null }), matches });
+        exhausted, actionableMovieIds: copy(ids), agreement: copy({ agreed, total, pct: total ? Math.round(agreed / total * 100) : null }), matches });
     }
     function getState() {
       if (scope) valid();

@@ -1,5 +1,6 @@
 // Consumer Cosa Guardiamo?: usa solo lo Store già caricato e il Core stabile.
 // La vista conserva il proprio snapshot durante Realtime; l'utente decide quando aggiornarlo.
+let recommendationActionPending = false, recommendationActionTimer = null;
 const RecommendationConsumer = (() => {
   const pageSize = RecommendationConfig.diversity.defaultShortlistSize;
   let snapshot = null;
@@ -119,8 +120,14 @@ const RecommendationConsumer = (() => {
     if (!section || !status || !results) return;
     if (snapshot?.status === 'loading' && !(typeof storeReady !== 'undefined' && !storeReady)) calculate();
     if (snapshot?.status === 'ready' && snapshot.signature !== sourceSignature()) snapshot.stale = true;
+    const loading = !snapshot || snapshot.status === 'loading';
     results.innerHTML = ''; empty?.classList.add('hidden'); error?.classList.add('hidden');
-    more?.classList.add('hidden'); stale?.classList.toggle('hidden', !snapshot?.stale);
+    stale?.classList.toggle('hidden', !snapshot?.stale);
+    if (more) {
+      const busy=loading||recommendationActionPending;
+      more.classList.remove('hidden'); more.disabled = busy || (snapshot?.status === 'ready' && !snapshot.hasMore && !snapshot.stale);
+      more.setAttribute('aria-busy',String(busy)); more.querySelector('i')?.classList.toggle('fa-spin',busy);
+    }
     if (!snapshot || snapshot.status === 'loading') {
       section.setAttribute('aria-busy', 'true'); status.textContent = 'Stiamo preparando le proposte…'; return;
     }
@@ -128,7 +135,9 @@ const RecommendationConsumer = (() => {
     if (snapshot.status === 'error') {
       status.textContent = ''; error?.classList.remove('hidden'); return;
     }
-    status.textContent = snapshot.pages.flat().length ? 'Le proposte seguono i giudizi disponibili e possono includere film già visti separatamente.' : '';
+    status.textContent = snapshot.pages.flat().length
+      ? 'Le proposte seguono i giudizi disponibili e possono includere film già visti separatamente.' + (!snapshot.hasMore && !snapshot.stale ? ' Hai visto tutti i suggerimenti disponibili.' : '')
+      : '';
     const pageRows = snapshot.pages.flat();
     results.innerHTML = pageRows.map(cardHtml).join('');
     if (snapshot && !snapshot.renderMeasured) {
@@ -143,7 +152,6 @@ const RecommendationConsumer = (() => {
         : 'La lista condivisa è vuota. Aggiungi un film per ricevere proposte.';
       empty.classList.remove('hidden');
     }
-    if (snapshot.hasMore) more?.classList.remove('hidden');
   }
 
   return Object.freeze({ calculate, showMore, render, run, reasonCopy, evidenceCopy,
@@ -161,5 +169,16 @@ function showMoreRecommendations() {
   if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.showMoreRecommendations();
   RecommendationConsumer.showMore();
   renderRecommendationView(true);
+}
+function advanceRecommendations() {
+  if (typeof targetSessionActive === 'function' && targetSessionActive()) return TargetShell.advanceRecommendations();
+  if (recommendationActionPending || (recommendationActionTimer && RecommendationConsumer.getSnapshot()?.status==='loading')) return;
+  const state = RecommendationConsumer.getSnapshot();
+  if (!state || state.status === 'loading') return;
+  if (state.status==='ready'&&!state.hasMore&&!state.stale) return;
+  recommendationActionPending=true;
+  if (state.status === 'error' || state.stale) refreshRecommendations();
+  else if (state.hasMore) showMoreRecommendations();
+  recommendationActionTimer=setTimeout(()=>{recommendationActionTimer=null;recommendationActionPending=false;renderRecommendationView(true);},160);
 }
 function renderRecommendationView(active) { RecommendationConsumer.render(active); }

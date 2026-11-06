@@ -8,7 +8,7 @@ let dashboardView = 'home'; // 'home' | 'wheel' | 'library' | 'history' | 'recom
 let matchPrevTab = 'watchlist';
 
 const TAB_KEYS = ['all', 'watchlist', 'rewatch', 'history_n', 'history_v', 'tonight', 'watched', 'calendar', 'match'];
-const LIBRARY_TABS = ['all', 'watchlist', 'rewatch', 'tonight'];
+const LIBRARY_TABS = ['all', 'watchlist', 'rewatch', 'tonight', 'watched'];
 const TAB_ID = k => k === 'history_n' ? 'tabHistoryN' : k === 'history_v' ? 'tabHistoryV' : 'tab' + k[0].toUpperCase() + k.slice(1);
 
 function syncLibraryNavigation() {
@@ -157,13 +157,13 @@ function activeDestination() {
   if (dashboardView === 'home') return 'home';
   if (dashboardView === 'wheel') return 'wheel';
   if (dashboardView === 'history') return 'history';
-  if (dashboardView === 'recommendations') return null;
+  if (dashboardView === 'recommendations') return 'home';
   return currentTab === 'calendar' ? null : 'library';
 }
 
 function targetNavigationDestination(destination) {
   if (['home','match','wheel','memories'].includes(destination)) return destination;
-  return ['personalList','personalSeen'].includes(destination) ? 'history' : destination === 'recommendations' ? null : 'library';
+  return ['personalList','personalSeen'].includes(destination) ? 'history' : destination === 'recommendations' ? 'home' : 'library';
 }
 
 // TARGET supplies data and commands; these are the existing app route variables.
@@ -202,7 +202,8 @@ function activateDestination(destination, source = null) {
     return TargetShell.navigate(({library:'groupList',history:'personalList'})[destination] || destination, source);
   }
   if (destination === 'match' && dbMode !== 'supabase') return;
-  if (destination === activeDestination()) {
+  const returnsFromRecommendation = destination === 'home' && dashboardView === 'recommendations';
+  if (destination === activeDestination() && !returnsFromRecommendation) {
     const scroll = destination === 'memories' ? document.getElementById('memoriesScroll') : window;
     scroll.scrollTo?.({ top: 0, behavior: 'smooth' });
     return;

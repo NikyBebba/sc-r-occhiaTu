@@ -13,6 +13,10 @@ for (const [index,person] of data.raw.personal.entries()) {
   person.states[index].list={active:true,generation:person.person_id===data.N?'1':null};
 }
 for(const c of data.raw.catalog)c.poster='/fixture-poster.svg';
+// The current shell explicitly requests TARGET snapshot v2. Keep this browser
+// fixture aligned with the production contract instead of exercising the v1 path.
+data.raw.contract_version=2;
+for(const night of data.raw.nights){night.retrospective=!!night.retrospective;night.night_memory??=null;}
 F.finish(data.raw);
 function installFixture(data,delay){
  const at=data.at, session={access_token:'synthetic-target-session',user:{id:data.N},expires_at:Math.floor(Date.now()/1000)+3600};
@@ -22,7 +26,7 @@ function installFixture(data,delay){
  getSession:async()=>({data:{session:JSON.parse(localStorage.getItem('ui-fixture-session'))},error:null}),
  getUser:async()=>{window.fixtureAuthChecks++;return {data:{user:session.user},error:null};}},realtime:{setAuth:async()=>{}},
  async rpc(name){window.fixtureCalls.push(name);if(name==='read_app_protocol')return envelope({protocol_read_contract_version:1,outcome:'OK',mode:'TARGET',minimum_client_protocol:1,authority_epoch:'a'.repeat(64)});
- if(name==='get_app_runtime_context'){await new Promise(r=>setTimeout(r,delay));return envelope({bootstrap_contract_version:1,outcome:'OK',caller:{person_id:data.N,legacy_person:'N'},selected_group:{group_id:data.G},protocol:{client_protocol:1,supported_protocol:1,minimum_client_protocol:1,snapshot_contract_version:1},runtime:{mode:'target',activation_allowed:true}});}
+ if(name==='get_app_runtime_context'){await new Promise(r=>setTimeout(r,delay));return envelope({bootstrap_contract_version:1,outcome:'OK',caller:{person_id:data.N,legacy_person:'N'},selected_group:{group_id:data.G},protocol:{client_protocol:1,supported_protocol:1,minimum_client_protocol:1,snapshot_contract_version:2},runtime:{mode:'target',activation_allowed:true}});}
  if(name==='get_person_group_snapshot')return envelope(data.raw);throw Error('Unexpected writer RPC '+name);},
  from(table){const q={select(){return q;},eq(){return q;},order(){return q;},limit(){return q;},maybeSingle:async()=>({data:{user_id:data.N,person:'N'},error:null}),then(resolve,reject){return Promise.resolve({data:[],error:null}).then(resolve,reject);}};return q;},
  channel(){const c={on(){return c;},subscribe(){return c;},presenceState:()=>({}),track:async()=>{},untrack:async()=>{}};return c;},removeChannel:async()=>{}};
@@ -48,25 +52,39 @@ const server=http.createServer((req,res)=>{const u=new URL(req.url,'http://local
 (async()=>{let browser,checks=0;const results=[];const check=(ok,label)=>{assert(ok,label);checks++;results.push(label);};
  try{await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
  browser=await chromium.launch({headless:true,...(arg('executable')?{executablePath:arg('executable')}:{})});
- for(const viewport of [{width:1440,height:1000},{width:390,height:844}])for(const delay of [0,450]){
+ for(const viewport of [{width:1280,height:900},{width:390,height:844},{width:320,height:568}])for(const delay of [0,450]){
   const context=await browser.newContext({viewport,serviceWorkers:'block'});await context.route('**/*',r=>r.request().url().startsWith(origin+'/')?r.continue():r.abort());const page=await context.newPage(),errors=[];
   page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
-  const ready=async()=>{await page.waitForFunction(()=>ProductionSession.getState().phase==='READY'&&ProductionSession.getState().view.kind==='AVAILABLE'&&ProductionSession.getState().runtime.source==='ONLINE');await page.waitForTimeout(250);};
-  const inspect=()=>page.evaluate(()=>{const visible=id=>{const el=document.getElementById(id);return !!el&&getComputedStyle(el).display!=='none'&&!!el.getClientRects().length;};return {route:TargetShell.getDestination?.() || (dashboardView==='home'?'home':currentTab==='match'?'match':'groupList'),active:[...document.querySelectorAll('#destinationNav [aria-current="page"]')].map(e=>e.dataset.destination),navs:document.querySelectorAll('#movieGrid nav').length,topNav:visible('destinationNav'),loader:visible('initialLoadingBanner'),pending:initialLoadingPending,busy:document.getElementById('librarySection').getAttribute('aria-busy'),home:visible('sceltaCta'),library:visible('librarySection'),wheel:visible('dashboardSidebar'),title:document.getElementById('libraryPageTitle').textContent,personal:visible('targetPersonalCollections'),group:visible('libraryViewSelect')||visible('segControl'),technical:/Verificato online|Osserva N|Osserva V|Mia Lista \d/.test(document.getElementById('movieGrid').textContent),cards:document.querySelectorAll('#movieGrid .movie-ticket').length,overflow:document.documentElement.scrollWidth>innerWidth};});
+  const ready=async()=>{try{await page.waitForFunction(()=>ProductionSession.getState().phase==='READY'&&ProductionSession.getState().view.kind==='AVAILABLE'&&ProductionSession.getState().runtime.source==='ONLINE',null,{timeout:8000});await page.waitForTimeout(250);}catch(error){const state=await page.evaluate(()=>{try{const s=ProductionSession.getState();return {phase:s.phase,view:s.view?.kind,source:s.runtime?.source,gate:document.getElementById('protocolGate')?.textContent?.trim()};}catch(e){return {unavailable:String(e)};}});throw new Error('TARGET fixture startup did not reach READY: '+JSON.stringify({state,errors})+'; '+error.message);}};
+  const inspect=()=>page.evaluate(()=>{const visible=id=>{const el=document.getElementById(id);return !!el&&getComputedStyle(el).display!=='none'&&!!el.getClientRects().length;};return {route:TargetShell.getDestination?.() || (dashboardView==='home'?'home':currentTab==='match'?'match':'groupList'),active:[...document.querySelectorAll('#destinationNav [aria-current="page"]')].map(e=>e.dataset.destination),navs:document.querySelectorAll('#movieGrid nav').length,topNav:visible('destinationNav'),loader:visible('initialLoadingBanner'),pending:initialLoadingPending,busy:document.getElementById('librarySection').getAttribute('aria-busy'),home:visible('sceltaCta'),library:visible('librarySection'),wheel:visible('dashboardSidebar'),title:document.getElementById('libraryPageTitle').textContent,personal:visible('targetPersonalCollections'),group:visible('libraryViewSelect')||visible('segControl'),groupCalendar:visible('groupCalendarLink'),listView:document.getElementById('libraryViewSelect').value,backVisible:visible('libraryBack'),technical:/Verificato online|Osserva N|Osserva V|Mia Lista \d/.test(document.getElementById('movieGrid').textContent),cards:document.querySelectorAll('#movieGrid .movie-ticket').length,overflow:document.documentElement.scrollWidth>innerWidth};});
   await page.goto(origin+'/?delay='+delay);await ready();let s=await inspect();
   check(s.route==='home'&&s.home&&!s.library,'Home panel only '+viewport.width+'/'+delay);
+  check(await page.evaluate(()=>{const el=document.querySelector('#sceltaCta .home-mode-primary'),p=el?.getBoundingClientRect(),s=document.querySelector('#sceltaCta .home-mode-secondary')?.getBoundingClientRect(),icon=el?.querySelector('.home-mode-icon').getBoundingClientRect(),copy=el?.querySelector('.home-mode-copy').getBoundingClientRect(),n=ProductionSession.getState().view.counts.groupListFilms;return !!p&&!!s&&p.top<=s.top&&p.height>s.height&&p.height<180&&p.width>=s.width&&el===document.querySelector('#sceltaCta .dashboard-choice-actions > :first-child')&&el.classList.contains('home-mode-list')&&getComputedStyle(el).textAlign==='center'&&getComputedStyle(el.querySelector('.home-mode-copy')).alignItems==='center'&&Math.round(icon.left+icon.width/2)===Math.round(p.left+p.width/2)&&Math.round(copy.left+copy.width/2)===Math.round(p.left+p.width/2)&&el.querySelector('.home-mode-cue').textContent.trim()==='Esplora i film'&&document.getElementById('homeWatchlistCount').textContent===n+' film in attesa del ciak.';}),'Home CTA is centered, compact and backed by the live count '+viewport.width+'/'+delay);
   check(!s.loader&&!s.pending&&s.busy==='false','startup loader dismissed, including timer race '+viewport.width+'/'+delay);
-  for(let cycle=0;cycle<2;cycle++)for(const [route,top,title] of [['groupList','library','Libreria'],['personalList','','Lista personale'],['personalSeen','','Visti personali'],['memories','memories','Ricordi'],['match','match',''],['wheel','wheel',''],['home','home','']]){
-   if(await page.locator('#statsModal').isVisible())await page.locator('#statsModal .memories-header button').click();
-   if(route==='groupList'){if((await inspect()).route==='home')await page.locator('#sceltaCta [onclick="setTab(\'watchlist\')"]').click();else await page.locator('#destinationNav [data-destination="library"]').click();}
+  for(let cycle=0;cycle<2;cycle++)for(const [route,top,title] of [['groupList','library','Da vedere insieme'],['scheduled','library','In programma'],['rewatch','library','Rewatch'],['together','library','Visti insieme'],['calendar','library','Calendario'],['personalList','','Il mio cinema'],['personalSeen','','Il mio cinema'],['memories','memories','Ricordi'],['match','match',''],['wheel','wheel',''],['recommendations','home',''],['home','home','']]){
+   if(await page.locator('#statsModal').isVisible())await page.locator('#statsModal .memories-header button[aria-label="Chiudi"]').click();
+   if(route==='groupList'){await page.locator('#destinationNav [data-destination="library"]').click();}
+   else if(['scheduled','rewatch','together'].includes(route)){
+    await page.locator('#destinationNav [data-destination="library"]').click();
+    if(viewport.width<768)await page.locator('#libraryViewSelect').selectOption(route==='scheduled'?'tonight':route==='rewatch'?'rewatch':'watched');
+    else await page.locator('#tab'+(route==='scheduled'?'Tonight':route==='rewatch'?'Rewatch':'Watched')).click();
+   }
+   else if(route==='calendar'){
+    await page.locator('#destinationNav [data-destination="home"]').click();await page.locator('#homeCalendar').click();
+   }
    else if(route==='personalList'){await page.evaluate(()=>activateDestination('history'));await page.locator('#targetPersonalList').click();}
    else if(route==='personalSeen')await page.locator('#targetPersonalSeen').click();
+   else if(route==='recommendations'){await page.locator('#destinationNav [data-destination="home"]').click();await page.locator('.home-mode-recommendation').click();}
    else await page.locator('#destinationNav [data-destination="'+top+'"]').click();
    s=await inspect();const label=viewport.width+'/'+delay+'/'+cycle+'/'+route;
    check(s.route===route&&s.active.join()===top,'route and navbar selection '+label);
-   check(s.topNav===(viewport.width>=768||route!=='home')&&s.navs===0&&!s.technical,'single app navigation and no technical surface '+label);
+   check(s.topNav&&s.navs===0&&!s.technical,'persistent app navigation and no technical surface '+label);
    check(!s.loader&&!s.pending&&!s.overflow,'no loader or horizontal overflow '+label);
    if(title&&route!=='memories')check(s.title===title&&s.library,'matching collection title/container '+label);
+   if(['groupList','scheduled','rewatch','together'].includes(route))check(s.group&&!s.groupCalendar&&s.listView===({groupList:'watchlist',scheduled:'tonight',rewatch:'rewatch',together:'watched'})[route],'four group views synchronize without a Calendar header button '+label);
+   if(['groupList','scheduled','rewatch','together','personalList','personalSeen','calendar'].includes(route))check(s.backVisible,'contextual Home back remains available '+label);
+   if(route==='calendar')check(!s.groupCalendar,'calendar remains a separate view '+label);
+   if(route==='recommendations')check(s.active.join()==='home','recommendation uses Home as parent destination '+label);
    if(route==='memories')check(await page.locator('#statsModal').isVisible(),'product memories dialog '+label);
    check(s.personal===['personalList','personalSeen'].includes(route),'contextual personal controls '+label);
    if(cycle===0&&delay===450)await page.screenshot({path:path.join(out,route+'-'+viewport.width+'.png'),fullPage:true});

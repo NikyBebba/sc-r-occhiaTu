@@ -40,7 +40,7 @@ let checks=0;
   },{mode,emails:runtimeEmails});
   for(const f of scripts)await page.addScriptTag({content:read(f)});
   await require('./install-legacy-ui-fixture.cjs')(page);
-  await page.evaluate(()=>checkLoginState());
+  await page.evaluate(()=>{renderAppVersion();checkLoginState();});
  };
  const check=async(name,fn)=>{await fn();checks++;console.log('PASS '+name);};
  await load();
@@ -87,14 +87,46 @@ let checks=0;
   });
   await check('Home and wheel destinations '+width,async()=>{
    await page.locator('[data-destination="home"]').click();assert.equal(await page.evaluate(()=>dashboardView),'home');
-   assert.equal(await page.locator('#destinationNav').isVisible(),width>=768);
-   assert.equal(await page.locator('#appRoot').evaluate(el=>getComputedStyle(el).paddingBottom),'0px');
+   assert(await page.locator('#destinationNav').isVisible());
+   assert.equal(await page.locator('#appRoot').evaluate(el=>parseFloat(getComputedStyle(el).paddingBottom)>0),width<768);
+   assert.equal(await page.locator('[data-destination="home"]').getAttribute('aria-current'),'page');
+   const primary=await page.locator('#sceltaCta .home-mode-primary').boundingBox(),secondary=await page.locator('#sceltaCta .home-mode-secondary').first().boundingBox();
+   assert(primary&&secondary&&primary.y<=secondary.y&&primary.height>secondary.height&&primary.height<180&&primary.width>=secondary.width);
+   assert.deepEqual(await page.locator('#sceltaCta .home-mode-primary').evaluate(el=>{const r=el.getBoundingClientRect(),i=el.querySelector('.home-mode-icon').getBoundingClientRect(),c=el.querySelector('.home-mode-copy').getBoundingClientRect();return {textAlign:getComputedStyle(el).textAlign,copyAlign:getComputedStyle(el.querySelector('.home-mode-copy')).alignItems,iconCenter:Math.round(i.left+i.width/2),cardCenter:Math.round(r.left+r.width/2),copyCenter:Math.round(c.left+c.width/2),cue:el.querySelector('.home-mode-cue').textContent.trim()};}),{textAlign:'center',copyAlign:'center',iconCenter:Math.round(primary.x+primary.width/2),cardCenter:Math.round(primary.x+primary.width/2),copyCenter:Math.round(primary.x+primary.width/2),cue:'Esplora i film'});
+   const decorationThemes=await page.evaluate(()=>{
+    const list=document.querySelector('#sceltaCta .home-mode-list'),original=currentTheme,wrap=list.querySelector('.home-list-decorations');
+    const rows=THEME_OPTIONS.map(({id})=>{
+     setTheme(id);const plain=getComputedStyle(list).backgroundImage,icons=[...wrap.querySelectorAll('.home-list-decoration')],visible=icons.filter(icon=>getComputedStyle(icon).display!=='none');
+     const content=[list.querySelector('.home-mode-icon'),list.querySelector('.home-mode-copy'),list.querySelector('.home-mode-cue')].map(el=>el.getBoundingClientRect()),box=list.getBoundingClientRect(),height=list.offsetHeight;
+     wrap.style.display='none';const heightWithout=list.offsetHeight;wrap.style.display='';
+     const positions=visible.map(icon=>{const r=icon.getBoundingClientRect(),cs=getComputedStyle(icon),glyph=getComputedStyle(icon,'::before');return {inside:r.left>=box.left&&r.right<=box.right&&r.top>=box.top&&r.bottom<=box.bottom,clear:content.every(c=>r.right<=c.left||r.left>=c.right||r.bottom<=c.top||r.top>=c.bottom),opacity:parseFloat(cs.opacity),pointer:cs.pointerEvents,fontLoaded:cs.fontFamily.includes('Font Awesome')&&glyph.content!=='none'&&glyph.content!=='normal'&&glyph.content!=='""'};});
+     const modes=['.home-mode-recommendation','.home-mode-wheel','.home-mode-match'].map(q=>getComputedStyle(document.querySelector(q)).backgroundImage);
+     return {id,expectedCount:visible.length===(innerWidth<768?6:innerWidth<900?8:12),wrapperHidden:wrap.getAttribute('aria-hidden')==='true'&&getComputedStyle(wrap).pointerEvents==='none',absolute:getComputedStyle(wrap).position==='absolute'&&visible.every(icon=>getComputedStyle(icon).position==='absolute'),noPoster:getComputedStyle(list,'::before').content==='none'&&getComputedStyle(list,'::after').content==='none',distinct:modes.every(bg=>bg!==plain),contentAbove:Number(getComputedStyle(list.querySelector('.home-mode-copy')).zIndex)>0,textVisible:getComputedStyle(list.querySelector('strong')).color!=='transparent',heightUnchanged:height===heightWithout,positionsClear:positions.every(p=>p.inside&&p.clear&&p.opacity<=.15&&p.pointer==='none'&&p.fontLoaded),overflow:document.documentElement.scrollWidth>innerWidth};
+    });setTheme(original);return rows;
+   });
+   assert.equal(decorationThemes.length,8);assert(decorationThemes.every(row=>Object.entries(row).filter(([k])=>!['id']).every(([,v])=>v===true)),JSON.stringify(decorationThemes));
+   assert(await page.evaluate(()=>{const n=movies.filter(m=>normalListEligible(m)).length;return document.getElementById('homeWatchlistCount').textContent===(n?`${n} film in attesa del ciak.`:'La lista aspetta il primo titolo.');}));
+   assert.equal(await page.locator('#sceltaCta .dashboard-choice-actions > :first-child').getAttribute('aria-label'),'Sfoglia la lista dei film');
+   if(screenshots)await page.screenshot({path:path.join(screenshots,'ux-home-cta-'+width+'.png'),animations:'disabled'});
    await page.locator('.home-mode-wheel').click();assert.equal(await page.evaluate(()=>dashboardView),'wheel');
    assert(await page.locator('#destinationNav').isVisible());
    assert.equal(await page.locator('[data-destination="wheel"]').getAttribute('aria-current'),'page');
    await page.locator('[data-destination="library"]').click();assert(await page.locator('#destinationNav').isVisible());
+   assert.equal(await page.locator('#groupCalendarLink').count(),0);
+   assert(await page.locator('#libraryBack').isVisible());
+   if(width<1024){await page.locator('#libraryViewSelect').selectOption('watched');assert.equal(await page.evaluate(()=>currentTab),'watched');assert.equal(await page.locator('#libraryViewSelect').inputValue(),'watched');}
+   else{await page.locator('#tabWatched').click();assert.equal(await page.evaluate(()=>currentTab),'watched');assert.equal(await page.locator('#tabWatched').getAttribute('aria-selected'),'true');}
+   await page.locator('[data-destination="home"]').click();
+   await page.locator('#homeCalendar').click();assert.equal(await page.evaluate(()=>currentTab),'calendar');assert(await page.locator('#libraryBack').isVisible());
    await page.locator('[data-destination="home"]').click();
    await page.locator('.home-mode-list').click();assert.equal(await page.evaluate(()=>dashboardView),'library');assert(await page.locator('#destinationNav').isVisible());
+   await page.locator('[data-destination="home"]').click();
+   await page.locator('.home-mode-recommendation').click();assert.equal(await page.evaluate(()=>dashboardView),'recommendations');assert.equal(await page.locator('[data-destination="home"]').getAttribute('aria-current'),'page');
+   assert.equal(await page.locator('#recommendationRefresh').count(),0);
+   assert.equal(await page.locator('#recommendationMore').count(),1);
+   assert.equal((await page.locator('#recommendationMore').innerText()).trim(),'Altri suggerimenti');
+   assert(await page.locator('#recommendationMore i.fa-arrows-rotate').count());
+   assert((await page.locator('#recommendationMore').boundingBox()).height>=44);
    await page.locator('[data-destination="home"]').click();
    await page.locator('#tabMatch').click();await page.waitForFunction(()=>matchChannelStatus==='subscribed');
    assert(await page.locator('#destinationNav').isVisible());
@@ -107,14 +139,23 @@ let checks=0;
    assert(matchTitle.y>=matchBack.y+matchBack.height||matchTitle.x>=matchBack.x+matchBack.width);
    assert(await page.locator('#matchViewHeader').evaluate(el=>el.firstElementChild.classList.contains('dashboard-back')));
    await page.locator('#matchViewHeader .dashboard-back').click();
-   assert.equal(await page.evaluate(()=>dashboardView),'home');assert.equal(await page.locator('#destinationNav').isVisible(),width>=768);
+   assert.equal(await page.evaluate(()=>dashboardView),'home');assert(await page.locator('#destinationNav').isVisible());
+   if(width<768){await page.evaluate(()=>window.scrollTo(0,document.body.scrollHeight));await page.waitForTimeout(30);const navBox=await page.locator('#destinationNav').boundingBox(),lastShortcut=await page.locator('#homeMemories').boundingBox();assert(lastShortcut.y+lastShortcut.height<=navBox.y+1);}
+  });
+  await check('footer version visible above mobile navigation '+width,async()=>{
+   const footer=page.locator('#appRoot > footer[data-app-version]');
+   assert.equal((await footer.innerText()).trim(),'v74');
+   await footer.scrollIntoViewIfNeeded();
+   const box=await footer.boundingBox(),nav=await page.locator('#destinationNav').boundingBox();
+   assert(box.y>=0&&box.y+box.height<=page.viewportSize().height+1,'version footer is visible after scrolling');
+   if(width<768)assert(box.y+box.height<=nav.y+1,'version footer is not covered by bottom navigation');
   });
   await check('Home memories preserves underlying geometry and focus '+width,async()=>{
    await page.locator('#homeMemories').focus();
    const before=await page.evaluate(()=>({height:document.getElementById('appRoot').getBoundingClientRect().height,scroll:scrollY,padding:getComputedStyle(document.getElementById('appRoot')).paddingBottom}));
    await page.locator('#homeMemories').click();
    assert(await page.locator('#statsModal').isVisible());
-   assert.equal(await page.locator('#destinationNav').isVisible(),width>=768);
+   assert(await page.locator('#destinationNav').isVisible());
    await page.keyboard.press('Escape');
    const after=await page.evaluate(()=>({height:document.getElementById('appRoot').getBoundingClientRect().height,scroll:scrollY,padding:getComputedStyle(document.getElementById('appRoot')).paddingBottom}));
    assert.deepEqual(after,before);assert.equal(await page.evaluate(()=>document.activeElement.id),'homeMemories');
@@ -128,9 +169,9 @@ let checks=0;
    const panel=await page.locator('#memoriesScroll').boundingBox(),header=await page.locator('.memories-header').boundingBox();
    assert(Math.abs(header.y-panel.y)<3);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
    if(screenshots)await page.screenshot({path:path.join(screenshots,'ux-memories-'+width+'.png'),animations:'disabled'});
-   await page.locator('.memories-header button').click();assert(!(await page.evaluate(()=>document.getElementById('appRoot').inert)));
+   await page.locator('.memories-header button[aria-label="Chiudi"]').click();assert(!(await page.evaluate(()=>document.getElementById('appRoot').inert)));
    assert.equal(await page.evaluate(()=>document.activeElement.id),'homeMemories');
-   assert.equal(await page.locator('#destinationNav').isVisible(),width>=768);
+   assert(await page.locator('#destinationNav').isVisible());
   });
  }
  await page.evaluate(()=>resetMemoriesState());await page.locator('[data-destination="memories"]').click();
@@ -158,14 +199,14 @@ let checks=0;
   await page.locator('#nightHistorySection > summary').click();await page.locator('#nightHistorySection > summary').click();await page.evaluate(()=>render());assert(!(await page.locator('#nightHistorySection').evaluate(el=>el.open)));
  });
  await check('close/reopen closes every disclosure and preserves Show more limit',async()=>{
-  await page.locator('.memories-header button').click();await page.locator('[data-destination="memories"]').click();
+  await page.locator('.memories-header button[aria-label="Chiudi"]').click();await page.locator('[data-destination="memories"]').click();
   assert(!(await page.locator('#nightHistorySection').evaluate(el=>el.open)));
   assert(!(await page.locator('#reviewSection').evaluate(el=>el.open)));assert.equal(await page.locator('#reviewTimeline .review-item').count(),20);
   assert(!(await page.locator('#reviewItem-m1').evaluate(el=>el.open)));assert.equal(await page.locator('#statsModal details[open]').count(),0);
  });
  await check('keyboard focus trap and Escape restores opener',async()=>{
-  await page.locator('.memories-header button').focus();await page.keyboard.press('Shift+Tab');assert.equal(await page.evaluate(()=>document.activeElement.textContent.trim()),'Chiudi');
-  await page.keyboard.press('Tab');assert(await page.locator('.memories-header button').evaluate(el=>el===document.activeElement));
+  await page.locator('.memories-header button[aria-label="Chiudi"]').focus();await page.keyboard.press('Shift+Tab');assert.equal(await page.evaluate(()=>document.activeElement.textContent.trim()),'Chiudi');
+  await page.keyboard.press('Tab');assert(await page.locator('.memories-header button[aria-label="Chiudi"]').evaluate(el=>el===document.activeElement));
   await page.keyboard.press('Escape');assert(!(await page.locator('#statsModal').isVisible()));assert.equal(await page.evaluate(()=>document.activeElement.dataset.destination),'memories');
  });
  await check('offline Match disabled, calendar still accessible from Home',async()=>{
