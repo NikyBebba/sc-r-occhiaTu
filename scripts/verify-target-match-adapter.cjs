@@ -22,7 +22,8 @@ function fixtureData() {
     }
     changes[reason] = F.finish(next);
   }
-  return { raw, changes, N: F.N, V: F.V, G: F.G, M: F.M, Q: F.Q, R: F.uid(3), sid: F.uid(600), other: F.uid(601), observer: F.uid(990001), at: F.AT };
+  const rawV2 = JSON.parse(JSON.stringify(raw)); rawV2.contract_version = 2; F.finish(rawV2);
+  return { raw, rawV2, changes, N: F.N, V: F.V, G: F.G, M: F.M, Q: F.Q, R: F.uid(3), sid: F.uid(600), other: F.uid(601), observer: F.uid(990001), at: F.AT };
 }
 async function runChecks(modules, data, onCase = () => {}) {
   const { Adapter, Runtime, Facade, Action } = modules;
@@ -38,15 +39,16 @@ async function runChecks(modules, data, onCase = () => {}) {
   async function make(options = {}) {
     const jobs = [], calls = [], reads = [], rt = [], pr = [], runtimeListeners = new Set(), timers = new Map();
     let timer = 0, currentReads = 0, peakReads = 0, seq = 100, tracks = 0, untracks = 0, detaches = 0;
-    let wire = clone(data.raw); if (options.caller) wire.caller.person_id = options.caller;
+    let wire = clone(options.snapshotVersion === 2 ? data.rawV2 : data.raw); if (options.caller) wire.caller.person_id = options.caller;
+    const snapshotVersion = options.snapshotVersion ?? 1;
     const host = { now: data.at, readHold: false, commandHold: false, readFailure: null, malformed: null, overrideResponse: null, uncertain: null, uncertainBefore: null, authNotifications: 0,
       serverSession: options.empty ? null : session(), serverSwipes: [], phase: null, generation: null, bundleOverride: null };
     const runtime = Runtime.createTargetRuntime({ auth: { async getVerifiedIdentity() { return { callerId: wire.caller.person_id }; } },
       rpc: async name => {
-        if (name === 'get_app_runtime_context') return { data: { bootstrap_contract_version: 1, outcome: 'OK', caller: { person_id: wire.caller.person_id, legacy_person: wire.caller.person_id === data.N ? 'N' : 'V' }, selected_group: { group_id: wire.selected_group.group_id }, protocol: { client_protocol: 1, supported_protocol: 1, minimum_client_protocol: 1, snapshot_contract_version: 1 }, runtime: { mode: 'target', activation_allowed: true } }, error: null };
+        if (name === 'get_app_runtime_context') return { data: { bootstrap_contract_version: 1, outcome: 'OK', caller: { person_id: wire.caller.person_id, legacy_person: wire.caller.person_id === data.N ? 'N' : 'V' }, selected_group: { group_id: wire.selected_group.group_id }, protocol: { client_protocol: 1, supported_protocol: 1, minimum_client_protocol: 1, snapshot_contract_version: snapshotVersion }, runtime: { mode: 'target', activation_allowed: true } }, error: null };
         if (name === 'get_person_group_snapshot') return { data: wire, error: null };
         throw Error('Unexpected shared-domain RPC ' + name);
-      }, clock: { nowInstant: () => wire.temporal.as_of }, scheduler: { scheduleAt(at, fn) { timers.set(++timer, fn); return timer; }, cancel: id => timers.delete(id) }, subscribeInvalidation: () => () => {}, enqueue: f => jobs.push(f), observerRequestId: data.observer });
+      }, clock: { nowInstant: () => wire.temporal.as_of }, scheduler: { scheduleAt(at, fn) { timers.set(++timer, fn); return timer; }, cancel: id => timers.delete(id) }, subscribeInvalidation: () => () => {}, enqueue: f => jobs.push(f), observerRequestId: data.observer, snapshotContractVersion: snapshotVersion });
     const pump = async () => { for (let i = 0; i < 20; i++) { await tick(); if (!jobs.length) break; for (const f of jobs.splice(0)) f(); } await tick(); };
     await runtime.start(); await pump();
     const caller = () => wire.caller.person_id === data.N ? 'N' : 'V';
@@ -121,6 +123,7 @@ async function runChecks(modules, data, onCase = () => {}) {
   async function test(name, fn, options) { const h = await make(options); try { await fn(h); cases++; onCase(name); } finally { h.shutdown(); } }
   for (const caller of [data.N, data.V]) await test('caller UUID ' + caller, async h => { await h.enter(); eq(h.state.context.callerId, caller, 'caller'); eq(h.state.context.groupId, data.G, 'group'); await h.swipe(); const p = h.calls.at(-1).request.p_parameters; deep(Object.keys(p).sort(), ['liked', 'movie_id', 'session_id'], 'server actor only'); }, { caller });
   await test('unknown mapping rejected', async h => { const b = Facade.createConsumerBundle(h.runtime.getState()); h.host.bundleOverride = Object.freeze({ ...b, people: { identities: b.people.identities.map(p => ({ ...p, legacyLabel: null })) } }); eq((await h.enter()).category, 'INVALID_INPUT', 'mapping'); eq(h.calls.length, 0, 'no writes'); });
+  await test('snapshot v2 Match entry reaches READY without creating a session', async h => { eq(h.state.phase, 'UNINITIALIZED', 'initial state'); const r = await h.enter(); eq(h.state.phase, 'READY', 'v2 Match initialized ('+r.category+'/'+r.code+'/'+h.state.lastError+')'); eq(r.code, 'RESUMED', 'existing session read'); eq(h.calls.length, 0, 'no session mutation'); }, { snapshotVersion: 2 });
   await test('ambiguous mapping rejected', async h => { const b = Facade.createConsumerBundle(h.runtime.getState()); h.host.bundleOverride = Object.freeze({ ...b, people: { identities: b.people.identities.map(p => ({ ...p, legacyLabel: 'N' })) } }); eq((await h.enter()).category, 'INVALID_INPUT', 'ambiguous'); });
   await test('new start', async h => { const r = await h.enter(); eq(r.outcome, 'SUCCESS', 'start'); eq(h.calls[0].request.p_action, 'start', 'actual action'); eq(h.state.authoritative.session.created_by, data.N, 'UUID attribution'); }, { empty: true });
   await test('duplicate start joins frozen deck', async h => { await h.enter(); const before = h.state.authoritative.session; const r = await h.adapter.start(); eq(r.outcome, 'ALREADY_IN_TARGET_STATE', 'join'); deep(h.state.authoritative.session.deck, before.deck, 'frozen order'); });

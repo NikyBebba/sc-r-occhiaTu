@@ -22,7 +22,7 @@ assert.match(source('js/ui/actions/nights.js'),/HistoryAutocomplete\.bind\(docum
 assert.match(source('js/ui/actions/viewing.js'),/HistoryAutocomplete\.bind\(document\.getElementById\('reviewSnack'\)/);
 assert.match(source('js/ui/product-editors.js'),/bindNightSuggestions\(el,\(\)=>context\.nights\)/);
 assert.match(source('js/ui/cap1-nights.js'),/historyAutocomplete\.bind\(el\(prefix\+name\)/);
-assert.match(html,/data-client-build="protocol-v1-v73"/);assert.match(sw,/scorochiatu-shell-v73/);assert.match(sw,/\/js\/ui\/history-autocomplete\.js/);
+assert.match(html,/data-client-build="protocol-v1-v73(?:\.1)?"/);assert.match(sw,/scorochiatu-shell-v73(?:\.1)?/);assert.match(sw,/\/js\/ui\/history-autocomplete\.js/);
 console.log('V73_AUTOCOMPLETE_STATIC_PASS: ranking, form coverage, providers and PWA shell');
 if(process.argv.includes('--browser'))(async()=>{
   const {chromium}=require('/private/tmp/sc-playwright-driver/node_modules/playwright-core');

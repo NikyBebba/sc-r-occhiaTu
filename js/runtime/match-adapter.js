@@ -42,7 +42,10 @@ const MatchAdapter = (() => {
       if (!r || !['READY', 'BOOTSTRAPPING'].includes(r.phase) || r.bootstrap?.runtime.mode !== 'target' || r.bootstrap?.runtime.activation_allowed !== true || b?.kind !== 'AVAILABLE' || !Object.isFrozen(b)) fail('TARGET_UNAVAILABLE');
       const i = b.getMatchInput(), c = i.context;
       uuid(c.callerId); uuid(c.groupId);
-      if (c.contractVersion !== 1 || !Number.isSafeInteger(c.contextEpoch) || !Number.isSafeInteger(r.generation) ||
+      // Snapshot contract versions describe the TARGET projection, not the
+      // Match command protocol. Match inputs are normalized by ConsumerFacade
+      // for both supported snapshot contracts.
+      if (![1, 2].includes(c.contractVersion) || !Number.isSafeInteger(c.contextEpoch) || !Number.isSafeInteger(r.generation) ||
         b.context.caller.personId !== c.callerId || b.context.groupId !== c.groupId || b.context.contextEpoch !== c.contextEpoch ||
         !same({ ...r.controllerState.context, generation: r.generation }, { ...c, generation: r.generation })) fail('CONTEXT_MISMATCH');
       const labels = new Map(), people = new Set();

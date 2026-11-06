@@ -108,7 +108,7 @@ function fire(url, mode) {
   const repo = path.resolve(__dirname, '..');
   const precache = vm.runInContext('PRECACHE', swCtx);
   const html = fs.readFileSync(path.join(repo, 'index.html'), 'utf8');
-  const buildVersion = html.match(/data-client-build="protocol-v1-(v\d+)"/)[1];
+  const buildVersion = html.match(/data-client-build="protocol-v1-([^"]+)"/)[1];
   const expectedCache = 'scorochiatu-shell-' + buildVersion;
   const scripts = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)]
     .map(m => m[1]).filter(src => !/^https?:\/\//.test(src));
