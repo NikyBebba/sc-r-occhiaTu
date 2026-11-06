@@ -3,7 +3,7 @@
 // Store: the captured TARGET view is the only source, callbacks the only writer.
 const ProductContext = (() => {
   const esc = value => escapeHtml(String(value ?? ''));
-  function create({ view, session, destination, perform, performInline = perform, edit, detail, openTogether, openPersonalStatus, openOtherJudgment, openSaga, ticket, feedback = '', feedbackZone = null, onActionSource = () => {}, isCurrent = () => true }) {
+  function create({ view, session, destination, perform, performInline = perform, edit, detail, openNight, openTogether, openPersonalStatus, openOtherJudgment, openSaga, ticket, feedback = '', feedbackZone = null, onActionSource = () => {}, isCurrent = () => true }) {
     if (view.kind !== 'AVAILABLE') throw new TypeError('Committed TARGET view required');
     const token = session.capture(), current=()=>session.current(token)&&isCurrent(), identities = view.getRecommendationInput();
     const people = identities.kind === 'AVAILABLE' ? identities.input.users.map(p => view.getIdentity(p.id)) : [];
@@ -168,7 +168,7 @@ const ProductContext = (() => {
         const info=[n.location,n.snack?'🍿 '+n.snack:null].filter(Boolean).map(esc).join(' · ');
         const content='<div class="together-night-content">'+(info?'<p class="together-night-context">'+info+'</p>':'')+
           (names?'<p class="together-night-people">Con '+esc(names)+'</p>':'')+
-          '<div class="together-night-actions">'+action('Modifica serata',()=>edit('editNight',n.id,n),'together-popup-text-action',{'data-return-focus-key':'night-'+n.id})+
+          '<div class="together-night-actions">'+action('Apri serata',()=>openNight(n.id),'together-popup-text-action',{'data-return-focus-key':'night-'+n.id})+
           (fromDetail?'':action('Apri dettaglio film',()=>{closeModal('togetherModal');detail(m.id,null,n.id,true);},'together-popup-text-action'))+'</div></div>';
         return completed.length===1?'<article class="together-night" data-night-id="'+esc(n.id)+'"><h5>'+esc(date)+'</h5>'+content+'</article>'
           :'<details class="together-night" data-night-id="'+esc(n.id)+'"><summary>'+esc(date)+'<i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary>'+content+'</details>';
@@ -274,7 +274,7 @@ const ProductContext = (() => {
       personalRating:rating,personalPreference:preference,personalState:state,togetherSeen:together,togetherRating,reviewTextFor:review,edit,openTogether,openPersonalStatus,openOtherJudgment,personalStatusHtml,viewingStatusHtml:(m,o)=>personalCollection&&!hidden(m)?personalStatus(m):viewingStatusHtml(m,o,ctx),
       participated:(m,code)=>view.getCard(m.id).group.events.some(x=>x.event.status==='completed'&&x.participants.some(p=>p.person_id===person(code)?.personId)),
       cardReviewsHtml:()=>'',reviewCardsHtml:m=>reviewCardsHtml(m,ctx),sagaButtonHtml,cardOperationsHtml,detailActions,togetherPopupHtml,otherJudgmentHtml,movieProjection,completedNights,togetherArchive:destination==='together',
-      detail,bind,action,eventActions,active,due,hidden,session,token,current,scheduleInitial,activeNights,tonightPick,homeNightPick,
+      detail,openNight,bind,action,eventActions,active,due,hidden,session,token,current,scheduleInitial,activeNights,tonightPick,homeNightPick,
       openDetailNights,
       bindHistory(parent){
         parent.querySelectorAll('[data-history-movie], [data-projection-movie]').forEach(node=>{
@@ -284,7 +284,7 @@ const ProductContext = (() => {
           node.onclick=e=>{if(!e.target.closest('button,a,input,select,textarea,details,summary'))open(heading?.querySelector('button')||node);};
         });
       },
-      bindCalendar(parent){parent.querySelectorAll('[data-calendar-movie]').forEach(node=>{if(!byId.has(node.dataset.calendarMovie))return;node.tabIndex=0;node.setAttribute('role','button');const open=()=>{if(current())detail(node.dataset.calendarMovie,node,node.dataset.nightId||null);};node.onclick=open;node.onkeydown=e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();open();}};});},
+      bindCalendar(parent){parent.querySelectorAll('[data-calendar-movie]').forEach(node=>{if(!node.dataset.nightId)return;node.tabIndex=0;node.setAttribute('role','button');node.setAttribute('aria-haspopup','dialog');const open=()=>{if(current())openNight(node.dataset.nightId);};node.onclick=open;node.onkeydown=e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();open();}};});},
       ticket:id=>ticket(id),getMovie:id=>byId.get(id),
       matchContext(match) {
         const swipes=match.authoritative?.swipes||[], sessionRow=match.authoritative?.session;

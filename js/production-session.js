@@ -97,7 +97,7 @@ let ProductionSession = (() => {
       client.removeChannel(entry.channel);
     }
     return {
-      runtime: { auth: { async getVerifiedIdentity() { await validateCurrentAuth(); return { callerId: authIdentity.uid }; } }, rpc: runtimeRpc,
+      runtime: { auth: { async getVerifiedIdentity() { await validateCurrentAuth(); return { callerId: authIdentity.uid }; } }, rpc: runtimeRpc, snapshotContractVersion: 2,
         clock: { nowInstant: instant }, scheduler: { scheduleAt(at, fn) { return setTimeout(fn, Math.max(0, Date.parse(at) - Date.now())); }, cancel: id => clearTimeout(id) },
         storage: { getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value), removeItem: key => localStorage.removeItem(key) },
         subscribeInvalidation: h => changes('domain_versions', 'scorochiatu-db-changes', h), enqueue, observerRequestId: crypto.randomUUID() },

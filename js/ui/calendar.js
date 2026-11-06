@@ -86,7 +86,7 @@ function nightsByDayKey(movieNightsList, moviesList, year, month) {
     if (n.status === 'cancelled' || n.status === 'skipped') return;
     const movie = moviesList.find(m => m.id === n.movie_id) || null;
     const entry = { night: n, movie };
-    const completed = n.status === 'completed' && n.completed_at ? new Date(n.completed_at) : null;
+    const completed = n.status === 'completed' && !n.retrospective && n.completed_at ? new Date(n.completed_at) : null;
     const completionKey = completed && Number.isFinite(completed.getTime())
       ? dayKey(completed.getFullYear(), completed.getMonth() + 1, completed.getDate()) : null;
     const key = n.date && /^\d{4}-\d{2}-\d{2}$/.test(n.date) ? n.date : completionKey;

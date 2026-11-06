@@ -149,7 +149,7 @@ function renderScheduled(now = new Date(), context = null, mount = null, entries
       <div class="upcoming-projection-copy"><p class="dashboard-eyebrow">${quick ? 'FILM SCELTO' : m.proposed_by && !m.night_confirmed ? 'PROPOSTA' : (context ? context.due : nightIsDue)(night, now) ? 'DA CONCLUDERE' : 'PROSSIMA PROIEZIONE'}</p><h3>${escapeHtml(title)}</h3>
       <p>${quick ? 'Da vedere insieme' : escapeHtml(formatNightDate(m.scheduled_date, m.scheduled_time))}${!hidden && (m.cinema_watchlist || m.platform) ? ' · ' + escapeHtml(m.cinema_watchlist ? 'Al cinema' : m.platform) : ''}${m.snack ? ' · ' + escapeHtml(m.snack) : ''}</p>
       ${m.location ? `<p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${escapeHtml(m.location)}</p>` : ''}</div>
-      <div class="projection-actions">${context ? context.eventActions(night) : projectionActionsHtml(actionPick, now)}${!context && m.nightId ? `<button onclick="editNightDetailsUI('${jsAttrEscape(m.id)}', '${jsAttrEscape(m.nightId)}')">Snack e luogo</button>` : ''}</div>
+      <div class="projection-actions">${context && m.nightId ? context.action('Apri serata', () => context.openNight(m.nightId), 'next-movie-action next-movie-secondary', {'aria-haspopup':'dialog'}) : ''}${context ? context.eventActions(night) : projectionActionsHtml(actionPick, now)}${!context && m.nightId ? `<button onclick="editNightDetailsUI('${jsAttrEscape(m.id)}', '${jsAttrEscape(m.nightId)}')">Snack e luogo</button>` : ''}</div>
     </article>`;
   };
   if (context && mount) {

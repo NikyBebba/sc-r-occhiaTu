@@ -15,7 +15,7 @@ const TargetRuntime = (() => {
   const frozen = Object.freeze;
   const result = (category, code) => frozen({ category, code });
   const same = (a, b) => a && b && ['callerId', 'groupId', 'contractVersion', 'contextEpoch'].every(k => a[k] === b[k]);
-  function createTargetRuntime({ auth, rpc, clock, scheduler, storage = null, subscribeInvalidation, enqueue, observerRequestId }) {
+  function createTargetRuntime({ auth, rpc, clock, scheduler, storage = null, subscribeInvalidation, enqueue, observerRequestId, snapshotContractVersion = 1 }) {
     if (typeof auth?.getVerifiedIdentity !== 'function' || typeof rpc !== 'function' || typeof subscribeInvalidation !== 'function' ||
       typeof enqueue !== 'function' || !Core.validateUUID(observerRequestId).ok) throw new TypeError('Explicit target dependencies required');
     let phase = 'UNINITIALIZED', generation = 0, current = null, disposed = false, notifying = false, inControllerPublication = false, lastError = null;
@@ -105,7 +105,7 @@ const TargetRuntime = (() => {
         if (!active(scope)) throw new TypeError('Obsolete RPC context');
         return rpc(name, args);
       } });
-      const bootstrap = await scope.transport.bootstrap({ callerId: descriptor.value });
+      const bootstrap = await scope.transport.bootstrap({ callerId: descriptor.value, snapshotContractVersion });
       if (!active(scope)) return result('OBSOLETE', 'CONTEXT_CHANGED');
       if (bootstrap.category !== 'BOOTSTRAP_RESULT') {
         lose(scope, bootstrap.category === 'AUTH_INVALIDATING' ? 'AUTH_INVALIDATING' : 'BLOCKED', bootstrap.code);

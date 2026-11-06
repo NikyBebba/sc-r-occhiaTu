@@ -134,7 +134,7 @@ const SnapshotCore = (() => {
   function context(x, p = '') {
     object(x, ['callerId', 'groupId', 'contractVersion', 'contextEpoch'], p);
     uuid(x.callerId, ptr(p, 'callerId')); uuid(x.groupId, ptr(p, 'groupId'));
-    literal(x.contractVersion, 1, ptr(p, 'contractVersion')); integer(x.contextEpoch, ptr(p, 'contextEpoch'));
+    ensure([1, 2].includes(x.contractVersion), 'CONTRACT_VERSION', ptr(p, 'contractVersion')); integer(x.contextEpoch, ptr(p, 'contextEpoch'));
   }
   const sameIdentity = (a, b) => a.callerId === b.callerId && a.groupId === b.groupId && a.contractVersion === b.contractVersion;
   const sameContext = (a, b) => sameIdentity(a, b) && a.contextEpoch === b.contextEpoch;
@@ -194,12 +194,19 @@ const SnapshotCore = (() => {
     for (const k of Object.keys(s.group.collections)) ids(s.group.collections[k], '/group/collections/' + k);
     array(s.group.judgments, '/group/judgments', (x, p) => { judgment(x, p, false); ensure(x.rating !== null || x.review !== null, 'EMPTY_GROUP_JUDGMENT', p); }); ordered(s.group.judgments, x => x.movie_id, '/group/judgments');
     array(s.nights, '/nights', (x, p) => {
-      object(x, ['night_id', 'movie_id', 'status', 'date', 'time', 'snack', 'location', 'proposed_by_person_id', 'created_at', 'confirmed_at', 'cancelled_at', 'completed_at'], p);
+      object(x, ['night_id', 'movie_id', 'status', 'date', 'time', 'snack', 'location', 'proposed_by_person_id', 'created_at', 'confirmed_at', 'cancelled_at', 'completed_at',
+        ...(s.contract_version === 2 ? ['retrospective', 'night_memory'] : [])], p);
       uuid(x.night_id, ptr(p, 'night_id')); uuid(x.movie_id, ptr(p, 'movie_id')); nullable(uuid, x.proposed_by_person_id, ptr(p, 'proposed_by_person_id'));
       ensure(['proposed', 'confirmed', 'cancelled', 'completed', 'skipped'].includes(x.status), 'NIGHT_STATUS', ptr(p, 'status'));
       // Legacy calendar strings are opaque here: no conversion or normalization.
       for (const k of ['date', 'time', 'snack', 'location']) nullable(str, x[k], ptr(p, k));
       for (const k of ['created_at', 'confirmed_at', 'cancelled_at', 'completed_at']) nullable(instant, x[k], ptr(p, k));
+      if (s.contract_version === 2) {
+        bool(x.retrospective, ptr(p, 'retrospective')); nullable(str, x.night_memory, ptr(p, 'night_memory'));
+        ensure(x.night_memory === null || [...x.night_memory].length <= 1000, 'NIGHT_MEMORY_LENGTH', ptr(p, 'night_memory'));
+        ensure(!x.retrospective || (x.status === 'completed' && x.time === null && (x.date === null || x.date <= s.temporal.local_date)), 'RETROSPECTIVE_NIGHT', p);
+        ensure(x.retrospective || x.night_memory === null, 'ORDINARY_NIGHT_MEMORY', p);
+      }
     }); ordered(s.nights, x => x.night_id, '/nights');
     array(s.participants, '/participants', (x, p) => { object(x, ['night_id', 'person_id'], p); uuid(x.night_id, ptr(p, 'night_id')); uuid(x.person_id, ptr(p, 'person_id')); }); ordered(s.participants, x => x.night_id + '|' + x.person_id, '/participants');
     array(s.exposure, '/exposure', (x, p) => {
@@ -317,7 +324,7 @@ const SnapshotCore = (() => {
       const outcome = Object.getOwnPropertyDescriptor(raw, 'outcome');
       ensure(outcome && Object.hasOwn(outcome, 'value'), 'OUTCOME_REQUIRED', '/outcome');
       object(raw, outcome.value === 'ERROR' ? ['contract_version', 'outcome', 'error'] : ROOT, '');
-      const s = ownedJSON(raw); literal(s.contract_version, 1, '/contract_version');
+      const s = ownedJSON(raw); literal(s.contract_version, expectedContext.contractVersion, '/contract_version');
       if (s.outcome === 'ERROR') {
         object(s.error, ['code'], '/error'); ensure(ERRORS.includes(s.error.code), 'SERVER_ERROR_CODE', '/error/code');
         return frozen({ kind: 'SERVER_ERROR', code: s.error.code });

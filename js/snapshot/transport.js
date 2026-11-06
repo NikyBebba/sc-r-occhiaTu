@@ -67,7 +67,7 @@ const SnapshotTransport = (() => {
       else exactFields(item);
     }
   }
-  function decodeBootstrapEnvelope(raw, expectedCallerId) {
+  function decodeBootstrapEnvelope(raw, expectedCallerId, expectedSnapshotContract = 1) {
     try {
       uuid(expectedCallerId); const b=own(raw);
       requireValue(b.bootstrap_contract_version===1,'Bootstrap version');
@@ -82,7 +82,7 @@ const SnapshotTransport = (() => {
       requireValue([null,'N','V'].includes(b.caller.legacy_person),'Legacy display label');shape(b.selected_group,['group_id']);uuid(b.selected_group.group_id);
       shape(b.protocol,['client_protocol','supported_protocol','minimum_client_protocol','snapshot_contract_version']);
       for(const value of Object.values(b.protocol)) requireValue(Number.isSafeInteger(value)&&value>=0&&value<=2147483647,'Protocol integer');
-      requireValue(b.protocol.client_protocol===1&&b.protocol.supported_protocol===1&&b.protocol.snapshot_contract_version===1&&b.protocol.minimum_client_protocol<=1,'Protocol compatibility');
+      requireValue(b.protocol.client_protocol===1&&b.protocol.supported_protocol===1&&b.protocol.snapshot_contract_version===expectedSnapshotContract&&b.protocol.minimum_client_protocol<=1,'Protocol compatibility');
       shape(b.runtime,['mode','activation_allowed']);requireValue(['legacy','read_only','target'].includes(b.runtime.mode),'Runtime mode');
       requireValue(typeof b.runtime.activation_allowed==='boolean'&&b.runtime.activation_allowed===(b.runtime.mode==='target'),'Activation mismatch');
       requireValue(b.runtime.mode!=='read_only','Maintenance must be error envelope');
@@ -142,9 +142,10 @@ const SnapshotTransport = (() => {
       return reply.data;
     }
     return Object.freeze({
-      async bootstrap({callerId,clientProtocol=1}) {
-        uuid(callerId);requireValue(clientProtocol===1,'Supported client protocol required');
-        try { return decodeBootstrapEnvelope(await invoke('get_app_runtime_context',freeze({p_client_protocol:clientProtocol})),callerId); }
+      async bootstrap({callerId,clientProtocol=1,snapshotContractVersion=1}) {
+        uuid(callerId);requireValue(clientProtocol===1&&[1,2].includes(snapshotContractVersion),'Supported contract required');
+        const args=snapshotContractVersion===1?{p_client_protocol:clientProtocol}:{p_client_protocol:clientProtocol,p_snapshot_contract_version:2};
+        try { return decodeBootstrapEnvelope(await invoke('get_app_runtime_context',freeze(args)),callerId,snapshotContractVersion); }
         catch(e) { return freeze({category:e instanceof RPCFailure?e.category:'SERVER_CONTRACT_ERROR',code:'RPC_FAILURE'}); }
       },
       createSnapshotProvider(decodedBootstrap) {
@@ -155,7 +156,8 @@ const SnapshotTransport = (() => {
           // Validate request context only; SnapshotCore alone decodes domain payload.
           const m=own(metadata);shape(m,['callerId','groupId','contractVersion','contextEpoch','requestSequence','reason']);
           const ctx=context({callerId:m.callerId,groupId:m.groupId,contractVersion:m.contractVersion,contextEpoch:m.contextEpoch});
-          requireValue(ctx.callerId===b.caller.person_id&&ctx.groupId===b.selected_group.group_id,'Provider context mismatch');
+          requireValue(ctx.callerId===b.caller.person_id&&ctx.groupId===b.selected_group.group_id&&
+            ctx.contractVersion===b.protocol.snapshot_contract_version,'Provider context mismatch');
           requireValue(Number.isSafeInteger(m.requestSequence)&&m.requestSequence>0&&typeof m.reason==='string','Provider request metadata');
           return invoke('get_person_group_snapshot',freeze({p_group_id:ctx.groupId,p_contract_version:ctx.contractVersion}));
         }});

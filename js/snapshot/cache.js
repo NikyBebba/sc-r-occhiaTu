@@ -21,7 +21,7 @@ function createCacheAdapter(storage) {
   const key = context => {
     const checked = Core.createContext(context);
     if (!checked.ok) throw new TypeError('Invalid cache context');
-    return 'scorochiatu_snapshot_v1:' + context.callerId + ':' + context.groupId;
+    return 'scorochiatu_snapshot_v' + context.contractVersion + ':' + context.callerId + ':' + context.groupId;
   };
   return Object.freeze({
     load(context) {

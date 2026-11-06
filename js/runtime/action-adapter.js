@@ -181,6 +181,22 @@ const ActionAdapter = (() => {
         return cmd;
       });
     }
+    function cap1Ready(handle) {
+      const record=captures.get(handle), state=runtime.getState();
+      return !!record && !lifecycle(record) && record.context.contractVersion===2 &&
+        state.phase==='READY' && state.controllerState.view?.source==='ONLINE' &&
+        state.controllerState.view?.root?.snapshot.contract_version===2;
+    }
+    function pastFields(input, creating) {
+      fields(input, creating?['date','nightMemory','location','snack','participants']:['date','nightMemory','location','snack'],creating?['date','participants']:[]);
+      const p=nightDetails(Object.fromEntries(Object.entries(input).filter(([k])=>['date','location','snack'].includes(k))),['date','location','snack']);
+      if(Object.hasOwn(input,'nightMemory')) {
+        if(input.nightMemory!==null && (typeof input.nightMemory!=='string'||[...input.nightMemory].length>1000)) fail('INVALID_NIGHT_MEMORY');
+        p.night_memory=input.nightMemory;
+      }
+      if(creating)p.participants=participants(input.participants);
+      return p;
+    }
     return frozen({ captureContext,
       addToMyList: (h, id) => personal('ADD_PERSONAL_LIST', h, id),
       removeFromMyList: (h, id) => personal('REMOVE_PERSONAL_LIST', h, id),
@@ -212,6 +228,17 @@ const ActionAdapter = (() => {
       confirmNight: (h, id) => night('CONFIRM_NIGHT', h, id), cancelNight: (h, id) => night('CANCEL_NIGHT', h, id),
       editNight: (h, id, input) => night('EDIT_NIGHT', h, id, input),
       completeScheduled: (h, id, input) => complete(h, id, input, false), completeNow: (h, id, input) => complete(h, id, input, true),
+      recordPastTogether: (h, id, input) => !cap1Ready(h)?Promise.resolve(outcome('NOT_READY','ONLINE_SNAPSHOT_V2_REQUIRED')):run(h,r=>{
+        const parameters=pastFields(input,true);parameters.client_snapshot_contract_version=2;
+        const cmd=command(r,'RECORD_PAST_TOGETHER',id,parameters,'new_night');
+        cmd.expectedVersions.push(revision(r,'group_film',id));return cmd;
+      }),
+      editPastTogether: (h, nightId, input) => !cap1Ready(h)?Promise.resolve(outcome('NOT_READY','ONLINE_SNAPSHOT_V2_REQUIRED')):run(h,r=>{
+        uuid(nightId);const event=Core.getNight(r.root,nightId);if(!event)fail('NIGHT_NOT_COVERED');
+        if(!event.retrospective||event.status!=='completed')fail('RETROSPECTIVE_NIGHT_REQUIRED');
+        const parameters=pastFields(input,false);parameters.client_snapshot_contract_version=2;
+        return command(r,'EDIT_PAST_TOGETHER',event.movie_id,parameters,'night',nightId);
+      }),
       createContent: (h, input) => run(h, r => command(r, 'CONTENT_CREATE', null, contentParameters(input, true), 'new_content')),
       updateMetadata: (h, id, input) => run(h, r => command(r, 'CONTENT_UPDATE_METADATA', id, contentParameters(input, false), 'content')),
       deleteContent: (h, id) => run(h, r => command(r, 'CONTENT_DELETE', id, {}, 'content')),

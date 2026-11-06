@@ -37,9 +37,10 @@ function nightTimelineDate(night) {
     const [year, month, day] = raw.split('-').map(Number);
     const date = new Date(year, month - 1, day);
     if (date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day) {
-      return { key: raw, source: 'scheduled' };
+      return { key: raw, source: night.retrospective ? 'retrospective' : 'scheduled' };
     }
   }
+  if (night.retrospective) return null;
   const completed = night.completed_at ? new Date(night.completed_at) : null;
   if (completed && Number.isFinite(completed.getTime())) {
     return { key: localDateKey(completed), source: 'registered' };
@@ -120,6 +121,7 @@ function renderNightHistory(context = null) {
         ${night.snack ? `<p>🍿 ${escapeHtml(night.snack)}</p>` : ''}
         ${night.location && !hidden ? `<p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ${escapeHtml(night.location)}</p>` : ''}
         ${movie && !hidden && (context ? context.togetherRating : togetherRating)(movie) !== null ? `<p class="history-shared-score">${escapeHtml(sharedPeopleLabel())} <i class="fa-solid fa-star" aria-hidden="true"></i> ${formatMovieRating((context ? context.togetherRating : togetherRating)(movie))}/10</p>` : ''}
+        ${context ? context.action('Apri serata', () => context.openNight(night.id), 'cap1-secondary mt-2', {'aria-haspopup':'dialog'}) : ''}
       </div>
     </article>`;
     }).join('');
@@ -137,7 +139,7 @@ function renderNightHistory(context = null) {
   container.innerHTML = [...years].map(([year, group]) => memoryDetails('year:' + year,
     year, group.count, `<div class="memory-body space-y-3">${group.months.join('')}</div>`)).join('')
     + months.join('');
-  if (context) context.bindHistory(container);
+  if (context) { context.bindHistory(container); context.bind(container); }
 }
 
 // ---- Il Nostro Cinema — statistiche + recensioni senza data ----

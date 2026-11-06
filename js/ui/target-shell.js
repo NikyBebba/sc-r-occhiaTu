@@ -3,7 +3,7 @@
 const TargetShell = (() => {
   function createShell({ session, root = document, lookup = fetchMovieDetails, detailsById = fetchTmdbDetailsById }) {
     let destination = 'home', query = '', genre = '', duration = '', sort = 'added', sortDir = 'desc', platform = '', proposer = '', availability = 'streaming', page = 0, feedback = '', operation = null, matchOperation = null, revealedKey = null, recommendation = null;
-    let shared = null, match = null, generation = null, uiEpoch = 0, closingMatchTicket = null, createdTitle = null, matchExit = null, scheduledMatchTitle = null, revealInterrupted = false;
+    let shared = null, match = null, generation = null, uiEpoch = 0, closingMatchTicket = null, createdTitle = null, matchExit = null, scheduledMatchTitle = null, revealInterrupted = false, cap1 = null;
     const el = id => root.getElementById(id);
     const bindings = new Map();
     let homeTrigger = null; // DOM keyboard return only; never viewing/session state.
@@ -16,6 +16,7 @@ const TargetShell = (() => {
       setMyEvaluation:'Giudizio personale aggiornato.',setMyRating:'Voto personale aggiornato.',setMyPreference:'Gradimento aggiornato.',setMyReview:'Recensione personale aggiornata.',
       setGroupEvaluation:'Giudizio N+V aggiornato.',setGroupRating:'Voto N+V aggiornato.',setGroupReview:'Recensione N+V aggiornata.',
       confirmNight:'Proposta accettata.',cancelNight:'Serata annullata.',editNight:'Dettagli della serata aggiornati.',completeScheduled:'Serata conclusa.',completeNow:'Visione insieme registrata.',
+      recordPastTogether:'Visione insieme registrata.',editPastTogether:'Serata aggiornata.',
       createContent:'Film aggiunto al catalogo.',updateMetadata:'Informazioni del film aggiornate.',deleteContent:'Film rimosso dal catalogo.',
       setCinema:'Collocazione del film aggiornata.',setSurprise:'Sorpresa aggiornata.',removeVeto:'Veto rimosso.',addVeto:'Veto aggiunto.',recordPersonalViewing:'Visione personale registrata.'
     }[name] || 'Operazione completata.');
@@ -110,6 +111,7 @@ const TargetShell = (() => {
       if(feedbackKind!=='success')return;
       // The editor closes after a successful save; the toast must remain readable.
       if(phase==='close'&&id===retainOnClose){retainOnClose=null;return;}
+      if(phase==='open'&&id==='nightDetailModal'&&lastAction==='recordPastTogether')return;
       clearFeedback();
     }
     async function runAction(name, args, inlinePending = false, suppressSuccess = false) {
@@ -129,6 +131,8 @@ const TargetShell = (() => {
       feedbackKind=['SUCCESS','ALREADY_IN_TARGET_STATE'].includes(result.outcome)?'success':'error';
       if(feedbackKind==='success'&&!el('reviewModal')?.classList.contains('hidden'))retainOnClose='reviewModal';
       if(feedbackKind==='success'&&!el('pickerModal')?.classList.contains('hidden'))retainOnClose='pickerModal';
+      if(feedbackKind==='success'&&!el('pastNightModal')?.classList.contains('hidden'))retainOnClose='pastNightModal';
+      if(feedbackKind==='success'&&!el('pastNightEditModal')?.classList.contains('hidden'))retainOnClose='pastNightEditModal';
       if(suppressSuccess&&result.outcome==='SUCCESS'){feedback='';feedbackKind=null;}
       if(inlinePending&&!['SUCCESS','ALREADY_IN_TARGET_STATE'].includes(result.outcome)&&!result.retryHandle)feedback+=' Riprova dal controllo di rimozione.';
       notice(); // Feedback only; retry controls reuse the unchanged committed view.
@@ -307,7 +311,7 @@ const TargetShell = (() => {
       if (previous === 'home' && origin?.closest?.('#sceltaCta, #scheduledPanel')) homeTrigger = origin;
       uiEpoch++; if(matchExit)clearTimeout(matchExit); matchExit=null; createdTitle=null;
       if(!el('confirmModal')?.classList.contains('hidden'))cancelConfirmModal();
-      for(const id of ['metadataRefreshModal','personalStatusModal','otherJudgmentModal','togetherModal','detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id);
+      for(const id of ['metadataRefreshModal','personalStatusModal','otherJudgmentModal','togetherModal','detailModal','nightDetailModal','pastNightEditModal','pastNightModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id);
       if(previous==='wheel'&&next!=='wheel')closeWheelWinner();
       if(previous==='match'&&next!=='match'){revealedKey=null;revealInterrupted=false;el('matchReveal')?.classList.add('hidden');}
       const scope = route => ['groupList','rewatch','scheduled'].includes(route) ? 'list'
@@ -348,9 +352,10 @@ const TargetShell = (() => {
     function product() {
       const epoch=uiEpoch,observed=view().context.observedPerson.personId;
       return ProductContext.create({view:view(),session,destination,perform,performInline,edit,feedback,feedbackZone,onActionSource:node=>{const removing=node.dataset.listRemoval==='true',intention=node.dataset.intentionAction==='true';clearFeedback();feedbackZone=removing||intention?null:node.closest?.('[data-feedback-zone]')?.dataset.feedbackZone||null;if(removing){operation=null;el('targetFeedback')?.querySelectorAll('button').forEach(button=>button.remove());}},isCurrent:()=>epoch===uiEpoch&&view().kind==='AVAILABLE'&&view().context.observedPerson.personId===observed,
-        detail:openDetail,openTogether,openPersonalStatus,openOtherJudgment,openSaga,
+        detail:openDetail,openNight:id=>cap1?.openNight(id),openTogether,openPersonalStatus,openOtherJudgment,openSaga,
         ticket:id=>downloadTargetTicket(id,destination==='match'?'match':'wheel',session)});
     }
+    cap1=Cap1Nights.create({root,session,context:product,perform,waitFor});
     function openDetail(id,source,nightId=null,openNights=false){clearFeedback();openMovieDetail(id,source,product(),nightId,openNights);}
     function renderTogetherPopup() {
       const body=el('togetherPopupBody'),context=product(),movie=context.getMovie(body?.dataset.movieId);
@@ -480,6 +485,7 @@ const TargetShell = (() => {
       // Reuse the existing app chrome; there is no second navigation in the grid.
       if (value.kind === 'AVAILABLE') {
         syncLayout(value);
+        cap1.refresh();
         if(!el('detailModal')?.classList.contains('hidden')){
           const context=product(),movie=context.getMovie(el('detailBody').dataset.movieId);
           if(!movie||context.hidden(movie))closeModal('detailModal');else renderMovieDetail(movie,context);
@@ -489,7 +495,7 @@ const TargetShell = (() => {
         if(!el('otherJudgmentModal')?.classList.contains('hidden'))renderOtherJudgment();
       }
       const status=el('targetFeedback');status?.querySelectorAll('button').forEach(node=>node.remove());notice();
-      if (value.kind !== 'AVAILABLE') { if(feedbackKind==='success')clearFeedback();for(const id of ['metadataRefreshModal','personalStatusModal','otherJudgmentModal','togetherModal','detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id); text('targetFeedbackMessage',state.phase === 'BLOCKED' ? 'Servizio momentaneamente non disponibile.' : 'Caricamento…'); button('Riprova',()=>state.phase==='BLOCKED'?session.retryStartup():session.requestRefresh(),status);status.hidden=false;return; }
+      if (value.kind !== 'AVAILABLE') { if(feedbackKind==='success')clearFeedback();cap1.dispose();for(const id of ['metadataRefreshModal','personalStatusModal','otherJudgmentModal','togetherModal','detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id); text('targetFeedbackMessage',state.phase === 'BLOCKED' ? 'Servizio momentaneamente non disponibile.' : 'Caricamento…'); button('Riprova',()=>state.phase==='BLOCKED'?session.retryStartup():session.requestRefresh(),status);status.hidden=false;return; }
       if(value.freshness.source==='CACHE') {text('targetFeedbackMessage','Dati salvati: attendi la verifica online.');text('syncNotice','Stai vedendo i dati salvati. Attendi la verifica online per modificare.');show('syncNotice',true);}
       if (operation?.retryHandle) { const handle=operation.retryHandle; button('Riprova la stessa operazione',()=>perform('retry',handle),status);status.hidden=false; }
 
@@ -584,14 +590,14 @@ const TargetShell = (() => {
     }
     return Object.freeze({ render, navigate, modalChanged, refreshRecommendations, showMoreRecommendations, getDestination:()=>destination, changePage(delta){page=Math.max(0,page+delta);render();}, perform, performMatch, waitFor, saveContent, bulk,
       setFilters(input) { query = input.query ?? query; genre = input.genre ?? genre; duration = input.duration ?? duration; sort = input.sort ?? sort; page = 0; render(); },
-      detail:openDetail, together:openTogether, edit,
+      detail:openDetail, night:id=>cap1.openNight(id), together:openTogether, edit,
       presentation:product,
       refreshCalendar(){renderCalendar(product());}, refreshMemories(){renderStats(product());},
       publication(state) { if(generation!==null&&generation!==state.generation)this.dispose();generation=state.generation; if (['AUTH_INVALIDATING','STOPPED','DISPOSED'].includes(state.phase)) { el('movieGrid').innerHTML = ''; this.dispose(); return; } if (state.view !== shared) { shared = state.view; if(state.view.kind==='AVAILABLE'&&!el('reviewModal')?.classList.contains('hidden'))ProductEditors.refresh(product()); if(operation?.closeTicket)finishScheduledMatch(); render(); } else if (state.match !== match && destination === 'match') render(); match = state.match; },
-      dispose() { uiEpoch++;if(feedbackTimer)clearTimeout(feedbackTimer);feedbackTimer=null;if(!el('confirmModal')?.classList.contains('hidden'))cancelConfirmModal();if(matchExit)clearTimeout(matchExit);matchExit=null;createdTitle=null;closingMatchTicket=null; for(const id of ['metadataRefreshModal','personalStatusModal','otherJudgmentModal','togetherModal','detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id); for(const id of ['nextMovieBox','recommendationResults'])if(el(id))el(id).innerHTML='';for(const [node,properties]of bindings)for(const [key,handler]of properties)node[key]=handler;bindings.clear();el('tabAll')?.classList.remove('!hidden');const all=el('libraryViewSelect')?.querySelector?.('option[value="all"]');if(all){all.hidden=false;all.disabled=false;}show('targetPersonalCollections',false); el('matchReveal')?.classList.add('hidden'); for(const id of ['sceltaCta','dashboardSidebar','recommendationSection','segControl','libraryTools','historySwitch','listFiltersBlock','syncNotice']) el(id)?.classList.remove('!hidden'); generation = null; query = ''; genre=''; duration=''; sort='added'; sortDir='desc'; platform=''; proposer=''; availability='streaming'; page = 0; destination = 'home'; revealedKey = null; operation = null; matchOperation = null; recommendation = null; shared = null; match = null; }
+      dispose() { uiEpoch++;if(feedbackTimer)clearTimeout(feedbackTimer);feedbackTimer=null;if(!el('confirmModal')?.classList.contains('hidden'))cancelConfirmModal();if(matchExit)clearTimeout(matchExit);matchExit=null;createdTitle=null;closingMatchTicket=null;cap1.dispose();for(const id of ['metadataRefreshModal','personalStatusModal','otherJudgmentModal','togetherModal','detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id); for(const id of ['nextMovieBox','recommendationResults'])if(el(id))el(id).innerHTML='';for(const [node,properties]of bindings)for(const [key,handler]of properties)node[key]=handler;bindings.clear();el('tabAll')?.classList.remove('!hidden');const all=el('libraryViewSelect')?.querySelector?.('option[value="all"]');if(all){all.hidden=false;all.disabled=false;}show('targetPersonalCollections',false); el('matchReveal')?.classList.add('hidden'); for(const id of ['sceltaCta','dashboardSidebar','recommendationSection','segControl','libraryTools','historySwitch','listFiltersBlock','syncNotice']) el(id)?.classList.remove('!hidden'); generation = null; query = ''; genre=''; duration=''; sort='added'; sortDir='desc'; platform=''; proposer=''; availability='streaming'; page = 0; destination = 'home'; revealedKey = null; operation = null; matchOperation = null; recommendation = null; shared = null; match = null; }
     });
   }
   let instance = null;
   const current = () => instance || (instance = createShell({ session: ProductionSession }));
-  return Object.freeze({ createShell, modalChanged:(id,phase)=>instance?.modalChanged(id,phase), render: () => current().render(), getDestination:()=>current().getDestination(), refreshRecommendations:()=>current().refreshRecommendations(), showMoreRecommendations:()=>current().showMoreRecommendations(), changePage:delta=>current().changePage(delta), publication: state => current().publication(state), saveContent: (...args) => current().saveContent(...args), bulk: (...args) => current().bulk(...args), setFilters: input => current().setFilters(input), navigate: (destination,source) => current().navigate(destination,source), detail: (id,source,nightId,openNights) => current().detail(id,source,nightId,openNights), together: (id,source) => current().together(id,source), edit: (...args) => current().edit(...args), presentation:()=>current().presentation(), refreshCalendar:()=>current().refreshCalendar(), refreshMemories:()=>current().refreshMemories(), perform: (...args) => current().perform(...args), performMatch: (...args) => current().performMatch(...args), dispose() { instance?.dispose(); instance = null; } });
+  return Object.freeze({ createShell, modalChanged:(id,phase)=>instance?.modalChanged(id,phase), render: () => current().render(), getDestination:()=>current().getDestination(), refreshRecommendations:()=>current().refreshRecommendations(), showMoreRecommendations:()=>current().showMoreRecommendations(), changePage:delta=>current().changePage(delta), publication: state => current().publication(state), saveContent: (...args) => current().saveContent(...args), bulk: (...args) => current().bulk(...args), setFilters: input => current().setFilters(input), navigate: (destination,source) => current().navigate(destination,source), detail: (id,source,nightId,openNights) => current().detail(id,source,nightId,openNights), night: id=>current().night(id), together: (id,source) => current().together(id,source), edit: (...args) => current().edit(...args), presentation:()=>current().presentation(), refreshCalendar:()=>current().refreshCalendar(), refreshMemories:()=>current().refreshMemories(), perform: (...args) => current().perform(...args), performMatch: (...args) => current().performMatch(...args), dispose() { instance?.dispose(); instance = null; } });
 })();

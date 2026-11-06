@@ -20,7 +20,7 @@ const TargetIntegrationHost = (() => {
   const methods = ['addToMyList', 'removeFromMyList', 'recordSeen', 'removeSeen', 'recordPersonalViewing',
     'setMyEvaluation', 'setMyRating', 'setMyPreference', 'setMyReview', 'proposeToGroup', 'withdrawGroupCandidacy',
     'setGroupEvaluation', 'setGroupRating', 'setGroupReview', 'scheduleNight', 'quickNight', 'confirmNight', 'cancelNight',
-    'editNight', 'completeScheduled', 'completeNow', 'createContent', 'updateMetadata', 'deleteContent', 'setCinema', 'setSurprise', 'addVeto', 'removeVeto'];
+    'editNight', 'completeScheduled', 'completeNow', 'recordPastTogether', 'editPastTogether', 'createContent', 'updateMetadata', 'deleteContent', 'setCinema', 'setSurprise', 'addVeto', 'removeVeto'];
   function createTargetIntegrationHost({ runtime: runtimeDependencies, match: matchDependencies, newRequestId, enqueue }) {
     if (!runtimeDependencies || !matchDependencies || typeof newRequestId !== 'function' || typeof enqueue !== 'function') throw new TypeError('Explicit integration dependencies required');
     for (const k of ['executeMatchAction', 'readLatestMatchState', 'subscribeRealtime', 'subscribePresence', 'newSeed', 'nowInstant'])

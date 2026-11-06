@@ -78,7 +78,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png">
 </head>
-<body data-client-build="protocol-v1-v69" class="min-h-screen pb-12">
+<body data-client-build="protocol-v1-v71" class="min-h-screen pb-12">
 
   <!-- Livello per l'effetto confetti al reveal della ruota -->
   <div id="confettiLayer"></div>
@@ -738,9 +738,12 @@
   <!-- MODALE RICORDI (serate, statistiche e recensioni) -->
   <div id="statsModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
     <div id="memoriesScroll" class="glass-panel memories-panel rounded-2xl max-w-2xl w-full border border-slate-800">
-      <div class="memories-header flex items-center justify-between gap-2">
-        <h3 id="statsModalTitle" class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-indigo-400"></i> Titoli di coda</h3>
-        <button onclick="closeModal('statsModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
+      <div class="memories-header">
+        <div class="flex items-center justify-between gap-2">
+          <h3 id="statsModalTitle" class="text-lg font-bold text-slate-100 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-indigo-400"></i> Titoli di coda</h3>
+          <button onclick="closeModal('statsModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="flex justify-end"><button id="addPastNight" type="button" class="intent-action cap1-entry hidden"><i class="fa-solid fa-calendar-plus" aria-hidden="true"></i><span>Aggiungi ricordo</span></button></div>
       </div>
       <div class="memories-content space-y-5">
       <details id="numbersSection" data-memory-key="numbers" class="memory-section" ontoggle="rememberMemorySection('numbers', this.open, this)">
@@ -763,6 +766,35 @@
       </div>
       </div>
     </div>
+  </div>
+
+  <div id="pastNightModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass-panel cap1-panel rounded-2xl border border-slate-800 p-5 sm:p-6">
+      <div class="flex items-start justify-between gap-3"><div><h3 class="text-lg font-bold text-slate-100">Aggiungi una visione passata</h3><p class="mt-1 text-sm text-slate-300">Recupera una serata che avete già vissuto.</p></div><button type="button" onclick="closeModal('pastNightModal')" class="cap1-close" aria-label="Chiudi"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+      <div class="cap1-fields">
+        <div><label for="pastNightSearch" class="cap1-label">Film nel catalogo</label><input id="pastNightSearch" type="search" autocomplete="off" class="cap1-input" placeholder="Cerca titolo o anno"><div id="pastNightResults" class="cap1-results" role="listbox" aria-label="Film trovati"></div><div id="pastNightSelected" class="cap1-selected hidden"></div><p id="pastNightDuplicates" class="cap1-hint hidden"></p></div>
+        <div><label for="pastNightDate" class="cap1-label">Quando lo abbiamo visto?</label><input id="pastNightDate" type="date" class="cap1-input"><label class="cap1-check"><input id="pastNightUnknown" type="checkbox"><span>Non ricordo la data</span></label></div>
+        <div><span class="cap1-label">Partecipanti</span><p id="pastNightPeople" class="cap1-hint"></p></div>
+        <div><label for="pastNightLocation" class="cap1-label">Luogo <span class="font-normal">· facoltativo</span></label><input id="pastNightLocation" type="text" maxlength="120" class="cap1-input"></div>
+        <div><label for="pastNightSnack" class="cap1-label">Snack <span class="font-normal">· facoltativo</span></label><input id="pastNightSnack" type="text" maxlength="80" class="cap1-input"></div>
+        <div><label for="pastNightMemory" class="cap1-label">Ricordo della serata <span class="font-normal">· facoltativo</span></label><textarea id="pastNightMemory" maxlength="1000" rows="4" class="cap1-input"></textarea><p id="pastNightCount" class="cap1-counter">0/1000</p></div>
+        <p id="pastNightError" class="cap1-error hidden" role="alert"></p>
+        <div class="cap1-actions"><button type="button" onclick="closeModal('pastNightModal')" class="cap1-secondary">Annulla</button><button id="pastNightSave" type="button" class="cap1-primary">Registra visione insieme</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="nightDetailModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass-panel cap1-panel rounded-2xl border border-slate-800 p-5 sm:p-6"><div class="flex items-center justify-between gap-3"><h3 id="nightDetailTitle" class="text-lg font-bold text-slate-100">La serata</h3><button type="button" onclick="closeModal('nightDetailModal')" class="cap1-close" aria-label="Chiudi"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div><div id="nightDetailBody" class="mt-4"></div></div>
+  </div>
+
+  <div id="pastNightEditModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="glass-panel cap1-panel rounded-2xl border border-slate-800 p-5 sm:p-6"><div class="flex items-center justify-between gap-3"><h3 class="text-lg font-bold text-slate-100">Modifica serata</h3><button type="button" onclick="closeModal('pastNightEditModal')" class="cap1-close" aria-label="Chiudi"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div><div class="cap1-fields">
+      <div><label for="pastEditDate" class="cap1-label">Quando lo abbiamo visto?</label><input id="pastEditDate" type="date" class="cap1-input"><label class="cap1-check"><input id="pastEditUnknown" type="checkbox"><span>Non ricordo la data</span></label></div>
+      <div><label for="pastEditLocation" class="cap1-label">Luogo</label><input id="pastEditLocation" type="text" maxlength="120" class="cap1-input"></div><div><label for="pastEditSnack" class="cap1-label">Snack</label><input id="pastEditSnack" type="text" maxlength="80" class="cap1-input"></div>
+      <div><label for="pastEditMemory" class="cap1-label">Ricordo della serata</label><textarea id="pastEditMemory" maxlength="1000" rows="4" class="cap1-input"></textarea><p id="pastEditCount" class="cap1-counter">0/1000</p></div>
+      <p id="pastEditError" class="cap1-error hidden" role="alert"></p><div class="cap1-actions"><button type="button" onclick="closeModal('pastNightEditModal')" class="cap1-secondary">Annulla</button><button id="pastEditSave" type="button" class="cap1-primary">Salva modifiche</button></div>
+    </div></div>
   </div>
 
   <!-- MODALE SCELTA A SORPRESA -->
@@ -876,6 +908,7 @@
   <script src="js/production-session.js"></script>
   <script src="js/ui/product-context.js"></script>
   <script src="js/ui/product-editors.js"></script>
+  <script src="js/ui/cap1-nights.js"></script>
   <script src="js/ui/target-shell.js"></script>
   <script src="js/main.js"></script>
 

@@ -92,13 +92,16 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   }
   async function make(options = {}) {
     const jobs = [], snapshots = [], commands = [], invalidation = [], matchCalls = [], matchReads = [], rt = [], presence = [], publications = [], timers = new Map(), records = new Map(), receipts = new Map();
-    let serial = 0, request = 998100, contentSerial = 95000, nightSerial = 20000, swipeSerial = 70000, matchSerial = 60000;
+    let serial = 0, request = 998100, contentSerial = 95000, nightSerial = 40000, swipeSerial = 70000, matchSerial = 60000;
     const controls = { wire: copy(options.raw ?? data.raw), caller: options.caller ?? data.N, group: data.G, holdSnapshot: !!options.cached, holdCommand: false, commandOutcome: null, uncertain: false, snapshotError: null, matchUncertain: null, matchBefore: null, matchHold: false, matchReadUnavailable: false, matchCloseOutcome: null, satisfyOnComplete: false };
     const matchServer = { session: null, swipes: [] };
-    function wire() {
+    function wire(version=1) {
       const w = copy(controls.wire); w.caller.person_id = controls.caller; w.selected_group.group_id = controls.group; w.coverage.group_id = controls.group;
       for (const v of w.versions.entries) if (['group_film', 'night'].includes(v.scope_kind)) v.scope_id = controls.group;
       for (const p of w.personal) if (p.person_id !== controls.caller) for (const s of p.states) s.list.generation = null;
+      w.contract_version=version;
+      for(const n of w.nights)if(version===2){n.retrospective=!!n.retrospective;n.night_memory??=null;}
+      else{if(n.retrospective&&n.date===null)n.completed_at=null;delete n.retrospective;delete n.night_memory;}
       return finish(w);
     }
     function bump(kind, scope, id) {
@@ -120,6 +123,16 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
       if (['ADD_PERSONAL_LIST', 'REMOVE_PERSONAL_LIST'].includes(intent)) { personal.list = { active: intent === 'ADD_PERSONAL_LIST', generation: '1' }; affected.push(bump('person_film', caller, id)); }
       else if (['RETROSPECTIVE_SEEN', 'REMOVE_PERSONAL_SEEN'].includes(intent)) { personal.seen = intent === 'RETROSPECTIVE_SEEN'; affected.push(bump('person_film', caller, id)); }
       else if (intent === 'SET_PERSONAL_EVALUATION') { Object.assign(personal.judgment, p); affected.push(bump('person_film', caller, id)); }
+      else if(intent==='RECORD_PAST_TOGETHER'){
+        nid=uid(++nightSerial);w.nights.push({night_id:nid,movie_id:id,status:'completed',date:p.date,time:null,snack:p.snack??null,location:p.location??null,
+          proposed_by_person_id:caller,created_at:data.at,confirmed_at:null,cancelled_at:null,completed_at:data.at,retrospective:true,night_memory:p.night_memory??null});
+        for(const person_id of p.participants)w.participants.push({night_id:nid,person_id});
+        affected.push(bump('night',groupId,nid),bump('group_film',groupId,id));
+      }
+      else if(intent==='EDIT_PAST_TOGETHER'){
+        const n=w.nights.find(n=>n.night_id===nid);for(const k of ['date','night_memory','location','snack'])if(Object.hasOwn(p,k))n[k]=p[k];
+        affected.push(bump('night',groupId,nid));
+      }
       else if (['PROPOSE_TO_GROUP', 'WITHDRAW_GROUP_CANDIDACY'].includes(intent)) { group.effective_candidacy = intent === 'PROPOSE_TO_GROUP'; group.list_visible = group.effective_candidacy && !group.active_night_ids.length; group.eligibility = { match_base: group.list_visible && !group.completed_night_ids.length, ruota_base: group.list_visible && !group.completed_night_ids.length }; affected.push(bump('group_film', groupId, id)); }
       else if (['SCHEDULE_NIGHT', 'QUICK_NIGHT', 'COMPLETE_NOW', 'COMPLETE_NOW_WITH_CONTEXT'].includes(intent)) {
         nid = uid(++nightSerial); const complete = intent.startsWith('COMPLETE_NOW');
@@ -189,8 +202,8 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
       auth: { async getVerifiedIdentity() { return { callerId: controls.caller }; } },
       rpc(name, args) {
         if (name === 'get_app_runtime_context' && controls.bootstrapError) return Promise.resolve({data:{bootstrap_contract_version:1,outcome:'ERROR',error:{code:controls.bootstrapError}},error:null});
-        if (name === 'get_app_runtime_context') return Promise.resolve({ data: { bootstrap_contract_version: 1, outcome: 'OK', caller: { person_id: controls.caller, legacy_person: controls.caller === data.N ? 'N' : 'V' }, selected_group: { group_id: controls.group }, protocol: { client_protocol: 1, supported_protocol: 1, minimum_client_protocol: 1, snapshot_contract_version: 1 }, runtime: { mode: 'target', activation_allowed: true } }, error: null });
-        if (name === 'get_person_group_snapshot') return new Promise(resolve => { const captured = wire(), row = { args, resolve: raw => resolve({ data: controls.snapshotError ? null : raw ?? captured, error: controls.snapshotError }) }; snapshots.push(row); if (!controls.holdSnapshot) row.resolve(); });
+        if (name === 'get_app_runtime_context') return Promise.resolve({ data: { bootstrap_contract_version: 1, outcome: 'OK', caller: { person_id: controls.caller, legacy_person: controls.caller === data.N ? 'N' : 'V' }, selected_group: { group_id: controls.group }, protocol: { client_protocol: 1, supported_protocol: 1, minimum_client_protocol: 1, snapshot_contract_version: args.p_snapshot_contract_version === 2 ? 2 : 1 }, runtime: { mode: 'target', activation_allowed: true } }, error: null });
+        if (name === 'get_person_group_snapshot') return new Promise(resolve => { const captured = wire(args.p_contract_version); const row = { args, resolve: raw => resolve({ data: controls.snapshotError ? null : raw ?? captured, error: controls.snapshotError }) }; snapshots.push(row); if (!controls.holdSnapshot) row.resolve(); });
         if (name === 'execute_app_command') return new Promise((resolve, reject) => {
           const actor = controls.caller, groupId = controls.group; const row = { body: args.p_request, resolve() { const response = commandServer(args.p_request, actor, groupId); if (controls.uncertain) { controls.uncertain = false; reject(Error('Synthetic command response lost')); } else resolve({ data: response, error: null }); } }; commands.push(row); if (!controls.holdCommand) row.resolve();
         });
@@ -216,7 +229,7 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     host = Production.createProductionHost({ target: targetDependencies, legacy, enqueue: f => jobs.push(f), labels: { N: 'Nicholas', V: 'Valeria' } });
     const pump = async () => { for (let i = 0; i < 24; i++) { await tick(); if (!jobs.length) break; for (const f of jobs.splice(0)) f(); } await tick(); };
     host.subscribe(s => publications.push(s));
-    const h = { host, targetDependencies, legacyEvents, get legacyActive() { return legacyActive; }, controls, snapshots, commands, invalidation, matchCalls, matchReads, matchServer, rt, presence, publications, pump,
+    const h = { host, targetDependencies, legacyEvents, get legacyActive() { return legacyActive; }, controls, snapshots, commands, invalidation, matchCalls, matchReads, matchServer, rt, presence, publications, pump, wire,
       get state() { return host.getState(); },
       async boot() { await host.startTarget(); await pump(); },
       async action(name, ...args) { const r = await h.state.actions[name](...args); await pump(); return r; },
@@ -823,7 +836,7 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     check(markup.includes('Il nostro giudizio')&&markup.includes('Le nostre visioni'),'narrative sections');
     eq((markup.match(/data-night-id=/g)||[]).length,1,'only completed night');
     check(!markup.includes('Serata annullata')&&!markup.includes('Racconto della serata'),'no cancelled or fake memory');
-    check(markup.includes('Modifica serata')&&markup.includes('data-night-id="'+data.cancelledCompleted.nights[0].night_id+'"'),'existing night identity');
+    check(markup.includes('Apri serata')&&markup.includes('data-night-id="'+data.cancelledCompleted.nights[0].night_id+'"'),'existing night identity');
     Shell.together(data.M);eq(modalStackTop(),'togetherModal','star opens modal');closeModal('togetherModal');
   },{raw:data.cancelledCompleted});
   await test('UX12 Together popup multiple nights remain event scoped',async h=>{
@@ -844,7 +857,8 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   },{raw:(()=>{const wire=copy(data.cancelledCompleted);wire.group.judgments.push({movie_id:data.M,rating:8.8,review:'Una recensione del film'});wire.nights[0].location='Casa';wire.nights[0].snack='Poke';return finish(wire);})()});
   await test('UX12 completed night edit reuses its event editor without date mutation',async h=>{
     await h.boot();const context=Shell.presentation(),movie=context.getMovie(data.M),markup=context.togetherPopupHtml(movie);
-    await clickProduct(context,markup,'Modifica serata');
+    check(markup.includes('Apri serata'),'popup leads to event detail');
+    context.edit('editNight',data.cancelledCompleted.nights[0].night_id,context.nights.find(n=>n.id===data.cancelledCompleted.nights[0].night_id));
     eq(modalStackTop(),'scheduleModal','existing night editor');
     eq(document.getElementById('scheduleModalTitle').textContent,'Dettagli della serata','night editing context');
     check(document.getElementById('scheduleDateField').classList.contains('hidden'),'completed date stays protected');
@@ -1327,6 +1341,39 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     check(message.textContent.includes('I dati sono cambiati'),'error visible');
     modules.advanceTime(10000);check(message.textContent.includes('I dati sono cambiati'),'error not auto dismissed');
   });
+  await test('CAP1 Ricordi entry and catalog only picker on online v2',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();Shell.navigate('memories');
+    const entry=document.getElementById('addPastNight');check(!entry.classList.contains('hidden'),'v2 entry visible');
+    entry.onclick();eq(modalStackTop(),'pastNightModal','editor stacked over Ricordi');
+    const search=document.getElementById('pastNightSearch');search.value=data.raw.catalog[0].title;search.oninput();
+    const results=document.getElementById('pastNightResults');check(results._children.length>0,'catalog result');
+    results._children[0].onclick();check(document.getElementById('pastNightSelected').innerHTML.includes(data.raw.catalog[0].title),'poster title and year selected');
+    eq(h.commands.length,0,'picker never creates content');
+  });
+  await test('CAP1 record unknown date keeps Together and opens exact night',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();Shell.navigate('memories');
+    document.getElementById('addPastNight').onclick();const search=document.getElementById('pastNightSearch');
+    search.value=data.raw.catalog[0].title;search.oninput();document.getElementById('pastNightResults')._children[0].onclick();
+    check(!document.getElementById('pastNightDuplicates').classList.contains('hidden'),'prior Together is informative');
+    const unknown=document.getElementById('pastNightUnknown');unknown.checked=true;unknown.onchange();
+    document.getElementById('pastNightMemory').value='Una serata\nmemorabile';document.getElementById('pastNightMemory').oninput();
+    eq(document.getElementById('pastNightCount').textContent,'21/1000','memory counter');
+    const save=document.getElementById('pastNightSave');const submitting=save.onclick();check(save.disabled,'double submit blocked');
+    let done=false;submitting.then(()=>{done=true;});for(let i=0;i<20&&!done;i++)await h.pump();const decoded=Core.decodeSnapshotEnvelope(h.wire(2),{callerId:data.N,groupId:data.G,contractVersion:2,contextEpoch:1});check(done,'submit settles after authoritative resync '+h.commands.length+'/'+h.snapshots.length+'/'+h.state.view.kind+'/'+h.state.phase+'/'+JSON.stringify(decoded));await submitting;
+    eq(h.commands.length,1,'one authoritative write '+document.getElementById('pastNightError').textContent+' / '+document.getElementById('targetFeedbackMessage').textContent);eq(h.commands[0].body.intent,'RECORD_PAST_TOGETHER','dedicated intent');
+    eq(h.commands[0].body.parameters.date,null,'unknown date stays null');
+    eq(h.controls.wire.nights.filter(n=>n.status==='completed').length,2,'same film completed twice');
+    eq(modalStackTop(),'nightDetailModal','created night opens by id');
+    check(document.getElementById('nightDetailBody').innerHTML.includes('Data della visione non ricordata'),'unknown date display');
+    check(document.getElementById('targetFeedbackMessage').textContent.includes('Visione insieme registrata'),'existing toast '+document.getElementById('targetFeedbackMessage').textContent);
+    document.getElementById('nightDetailEdit').onclick();eq(modalStackTop(),'pastNightEditModal','retro edit stacked over night detail');
+    const date=document.getElementById('pastEditDate'),unknownEdit=document.getElementById('pastEditUnknown');unknownEdit.checked=false;unknownEdit.onchange();date.value='2020-03-12';
+    document.getElementById('pastEditLocation').value='Casa';document.getElementById('pastEditMemory').value='Ricordo corretto';
+    const editing=document.getElementById('pastEditSave').onclick();let edited=false;editing.then(()=>{edited=true;});for(let i=0;i<20&&!edited;i++)await h.pump();check(edited,'edit settles');await editing;
+    eq(h.commands.length,2,'one edit write');eq(h.commands[1].body.intent,'EDIT_PAST_TOGETHER','dedicated edit');
+    check(document.getElementById('nightDetailBody').innerHTML.includes('Visione del 12 marzo 2020'),'declared date displayed after edit');
+    eq(h.controls.wire.nights.filter(n=>n.status==='completed').length,2,'edit creates no new night');
+  },{raw:data.cancelledCompleted});
   return {cases,assertions};
 }
 module.exports={fixtureData,runChecks};

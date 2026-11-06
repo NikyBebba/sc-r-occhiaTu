@@ -12,7 +12,7 @@ const ProductionHost = (() => {
   const matchObsolete = () => frozen({ category: 'OBSOLETE', code: 'APPLICATION_SESSION_REPLACED' });
   const actions = ['addToMyList', 'removeFromMyList', 'recordSeen', 'removeSeen', 'recordPersonalViewing', 'setMyEvaluation', 'setMyRating', 'setMyPreference', 'setMyReview',
     'proposeToGroup', 'withdrawGroupCandidacy', 'setGroupEvaluation', 'setGroupRating', 'setGroupReview', 'scheduleNight', 'quickNight', 'confirmNight', 'cancelNight',
-    'editNight', 'completeScheduled', 'completeNow', 'createContent', 'updateMetadata', 'deleteContent', 'setCinema', 'setSurprise', 'addVeto', 'removeVeto', 'retry'];
+    'editNight', 'completeScheduled', 'completeNow', 'recordPastTogether', 'editPastTogether', 'createContent', 'updateMetadata', 'deleteContent', 'setCinema', 'setSurprise', 'addVeto', 'removeVeto', 'retry'];
   const matchMethods = ['enter', 'leave', 'start', 'swipe', 'acknowledge', 'reconcile', 'close', 'retry'];
   function createProductionHost({ legacy, target, enqueue, labels = {} }) {
     if (!legacy || !['start', 'stop', 'refresh'].every(k => typeof legacy[k] === 'function') || typeof enqueue !== 'function') throw new TypeError('Injected lifecycle and deferred enqueue required');
