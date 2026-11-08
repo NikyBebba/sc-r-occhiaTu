@@ -78,7 +78,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png">
 </head>
-<body data-client-build="protocol-v1-v74" class="min-h-screen pb-12">
+<body data-client-build="protocol-v1-v75" class="min-h-screen pb-12">
 
   <!-- Livello per l'effetto confetti al reveal della ruota -->
   <div id="confettiLayer"></div>
@@ -161,8 +161,11 @@
         <p class="auth-title gradient-text">sc(r)occhiaTu</p>
         <div class="protocol-entry-ticket">
           <div class="protocol-entry-symbol" aria-hidden="true">
-            <div id="protocolGateLoader" class="ciak-loader"><div class="ciak-clap"></div><div class="ciak-board"><i class="fa-solid fa-film"></i></div></div>
-            <i id="protocolGateIcon" class="hidden fa-solid fa-film"></i>
+            <div id="protocolGateLoader" class="protocol-entry-loader">
+              <i class="fa-solid fa-film protocol-entry-film"></i>
+              <span class="protocol-entry-dots"><i></i><i></i><i></i></span>
+            </div>
+            <i id="protocolGateIcon" class="hidden" aria-hidden="true"></i>
           </div>
           <div class="protocol-entry-copy" aria-live="polite" aria-atomic="true">
             <h1 id="protocolGateTitle" tabindex="-1">Prepariamo la sala…</h1>

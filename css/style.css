@@ -377,20 +377,30 @@ body {
 .app-version { margin: 12px 0; color: var(--color-testo-3); font-size: 10px; line-height: 1.4; text-align: center; }
 
 /* The protocol gate shares the opening scene; it never grants app access. */
-.protocol-entry { position: fixed; inset: 0; z-index: 110; overflow-y: auto; background: var(--color-sala); }
-.protocol-entry-content { width: min(100%, 430px); }
+.protocol-entry { position: fixed; inset: 0; z-index: 110; overflow-y: auto; overscroll-behavior: contain; background: var(--color-sala); }
+.protocol-entry .auth-scene { min-height: 100svh; min-height: 100dvh; }
+.protocol-entry-content { display: flex; flex-direction: column; align-items: center; width: min(100%, 430px); animation: none; }
 .protocol-entry-ticket {
-  margin-top: 28px; padding: 28px 20px 16px; border: 1px solid var(--color-bordo-forte);
-  border-radius: 22px; background: var(--color-vetro); box-shadow: var(--shadow-card);
+  display: flex; flex-direction: column; align-items: center; width: 100%;
+  margin-top: 24px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none;
 }
-.protocol-entry-symbol { display: flex; align-items: center; justify-content: center; height: 60px; color: var(--color-dettaglio); font-size: 34px; }
-.protocol-entry-copy { min-height: 160px; padding-top: 20px; overflow-wrap: anywhere; }
+.protocol-entry-symbol { display: grid; place-items: center; min-height: 42px; color: var(--color-dettaglio); font-size: 28px; }
+.protocol-entry-loader { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.protocol-entry-film { color: var(--color-dettaglio); }
+.protocol-entry-dots { display: inline-flex; align-items: center; justify-content: center; gap: 5px; height: 10px; }
+.protocol-entry-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--color-cielo); opacity: .45; animation: protocol-dot-pulse 1.15s ease-in-out infinite; }
+.protocol-entry-dots i:nth-child(2) { animation-delay: .16s; }
+.protocol-entry-dots i:nth-child(3) { animation-delay: .32s; }
+@keyframes protocol-dot-pulse { 0%, 60%, 100% { opacity: .38; transform: translateY(0); } 30% { opacity: .95; transform: translateY(-3px); } }
+.protocol-entry-copy { min-height: 0; padding-top: 16px; overflow-wrap: anywhere; }
 .protocol-entry-copy h1 { color: var(--color-testo-1); font-size: clamp(21px, 6vw, 27px); line-height: 1.25; font-weight: 800; }
 .protocol-entry-copy h1:focus { outline: none; }
-.protocol-entry-copy p { margin-top: 12px; color: var(--color-testo-2); font-size: var(--fs-sm); line-height: 1.6; }
-.protocol-entry-actions { display: flex; flex-direction: column; justify-content: flex-end; min-height: 114px; }
+.protocol-entry-copy p { margin-top: 8px; color: var(--color-testo-2); font-size: var(--fs-sm); line-height: 1.6; }
+.protocol-entry-copy p:empty { display: none; }
+.protocol-entry-actions { display: flex; flex-direction: column; justify-content: center; width: min(100%, 320px); margin-top: 20px; }
 .protocol-entry-actions .auth-enter-btn { width: 100%; }
 .protocol-entry-actions .auth-back-btn { margin-top: 4px; justify-content: center; }
+.protocol-entry .auth-footnote { margin-top: 22px; }
 
 /* Login gate */
 #loginGate, #recoveryGate {
