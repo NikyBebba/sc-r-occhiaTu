@@ -1577,6 +1577,11 @@ textarea:focus-visible {
 
 .dashboard-choice.is-home .home-mode-recommendation { --mode-color: var(--color-cielo); }
 .recommendation-results { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.discovery-controls { display:flex;flex-wrap:wrap;gap:8px;margin:16px 0; }
+ .discovery-controls button { min-height:44px;padding:10px 14px;border:1px solid var(--color-bordo-forte);border-radius:12px;background:var(--color-vetro);color:var(--color-testo-1);font:inherit;cursor:pointer; }
+.discovery-controls [aria-pressed="true"] { border-color:var(--color-accento);box-shadow:inset 0 -2px var(--color-accento); }
+.discovery-controls button:focus-visible { outline:2px solid var(--color-accento);outline-offset:3px; }
+#discoveryStatus { margin:12px 0;color:var(--color-testo-2); }
 .recommendation-card { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-width: 0; padding: 10px; border: 1px solid var(--color-bordo-forte); border-radius: 14px; background: color-mix(in srgb, var(--color-vetro) 88%, transparent); }
 .recommendation-card[role="button"] { cursor: pointer; }
 .recommendation-card[role="button"]:focus-visible { outline: 2px solid var(--color-accento); outline-offset: 2px; }
@@ -2024,7 +2029,8 @@ details[open] > .memory-summary::before { transform: rotate(90deg); }
 .detail-other-person .detail-judgment-readonly { padding-top:0; }
 .detail-next-action { display:flex; flex-direction:column; gap:8px; }
 .detail-primary { align-self:flex-start; width:auto; max-width:100%; }
-.detail-choice-actions { width:100%; max-width:360px; }
+.detail-choice-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; width:fit-content; max-width:100%; }
+.target-film-detail .detail-intent .detail-choice-actions > button { flex:0 1 auto; width:auto; max-width:100%; min-height:44px; padding:10px 8px; }
 .detail-secondary-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 .detail-secondary,.detail-text-action,.detail-danger { min-height:44px; padding:10px 12px; font-size:14px; border-radius:10px; text-align:left; }
 .detail-secondary { background:var(--color-chip); color:var(--color-testo-1); border:1px solid var(--color-bordo-forte); }

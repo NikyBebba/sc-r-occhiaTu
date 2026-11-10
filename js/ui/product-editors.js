@@ -2,6 +2,7 @@
 // Binds the existing product dialogs to captured TARGET callbacks only.
 const ProductEditors = (() => {
   let refreshReview = null, refreshNightSuggestions = null, editorSerial = 0;
+  const completionAttempts=new WeakMap();
   function bindNightSuggestions(el, getNights) {
     if(typeof HistoryAutocomplete==='undefined')return;
     HistoryAutocomplete.bind(el('scheduleCustomSnack'),el('scheduleSnackSuggestions'),'snack',getNights);
@@ -9,7 +10,7 @@ const ProductEditors = (() => {
     HistoryAutocomplete.bind(el('reviewSnack'),el('reviewSnackSuggestions'),'snack',getNights);
     HistoryAutocomplete.bind(el('reviewLocation'),el('reviewLocationSuggestions'),'location',getNights);
   }
-  function open({action,id,initial={},context,perform,session,onMatchScheduled}) {
+  function open({action,id,initial={},context,perform,session,onMatchScheduled,onCompleted=()=>{}}) {
     const serial=++editorSerial, el=id=>document.getElementById(id);
     const current=()=>context.current()&&serial===editorSerial;
     refreshReview = null; refreshNightSuggestions=null;
@@ -17,6 +18,9 @@ const ProductEditors = (() => {
     const modal=isEvaluation?'reviewModal':'scheduleModal';
     const error=el(isEvaluation?'reviewError':'scheduleSaveError');error.classList.add('hidden');
     const submit=el(isEvaluation?'reviewSaveButton':'scheduleConfirm');submit.disabled=false;
+    const isCompletion=['completeNow','completeScheduled'].includes(action);
+    let attempts=completionAttempts.get(session);if(!attempts){attempts=new Map();completionAttempts.set(session,attempts);}
+    const completionKey=action+':'+id;let completion=attempts.get(completionKey);if(completion&&!session.current(completion.token)){attempts.delete(completionKey);completion=null;}
     let save;
     if(isEvaluation) {
       const together=action==='setGroupEvaluation', before={rating:initial?.rating??null,review:initial?.review??null,preference:initial?.preference??null};
@@ -70,27 +74,38 @@ const ProductEditors = (() => {
       if(completed){const fieldset=document.createElement('fieldset');fieldset.id='targetParticipants';fieldset.innerHTML='<legend class="text-sm text-slate-200">Partecipanti</legend>';
         for(const p of context.view.getRecommendationInput().input.users){const identity=context.view.getIdentity(p.id),label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=p.id;input.className='mr-2';label.className='inline-flex items-center min-h-11 mr-4 text-sm';label.append(input,document.createTextNode(identity.label||'Partecipante'));fieldset.appendChild(label);}submit.parentElement.before(fieldset);}
       save=async()=>{
+        if(completed&&['SUCCESS','ALREADY_IN_TARGET_STATE'].includes(completion?.status))return {outcome:'ALREADY_IN_TARGET_STATE'};
+        if(completed&&completion?.status==='PENDING')return {outcome:'NOT_READY'};
+        if(completed&&completion?.status==='UNCERTAIN')return completion.retryHandle?perform('retry',completion.retryHandle):{outcome:'TRANSPORT_UNCERTAIN'};
+        if(action==='completeScheduled'&&session.getState().view.getEvent(id).event?.event.status==='completed')return {outcome:'ALREADY_IN_TARGET_STATE'};
         const snack=snacks.value==='__custom_snack__'?el('scheduleCustomSnack').value.trim():snacks.value;
         if(snacks.value==='__custom_snack__'&&!snack)throw Error('Scrivi lo snack oppure scegli Nessuno snack.');
         const params={snack:snack||null,location:el('scheduleLocation').value.trim()||null};
         if(initial.selectCandidate){if(initial.selectionView!==session.getState().view)throw Error('La Lista è cambiata. Riapri la programmazione.');params.selectCandidate=true;}
         if(scheduled){if(!el('scheduleDate').value)throw Error('Scegli la data della proiezione.');params.date=el('scheduleDate').value;params.time=el('scheduleTime').value||null;}
-        if(action==='editNight')for(const key of Object.keys(params))if((params[key]??null)===(key==='time'?initial.time?.slice(0,5)??null:initial[key]??null))delete params[key];
+        if(action==='editNight'||completed)for(const key of Object.keys(params))if((params[key]??null)===(key==='time'?initial.time?.slice(0,5)??null:initial[key]??null))delete params[key];
         if(completed){params.participants=[...el('targetParticipants').querySelectorAll('input:checked')].map(x=>x.value);if(!params.participants.length)throw Error('Indica almeno un partecipante.');}
         if(action==='scheduleMatch'||action==='quickMatch'){
           const result=await session.scheduleMatchedMovie(id,params,action==='quickMatch'?'quick':'schedule');
           if(current())onMatchScheduled(result);return result.actionResult;
+        }
+        if(completed){
+          if(completion?.status==='PENDING')return {outcome:'NOT_READY'};
+          if(completion?.status==='UNCERTAIN')return completion.retryHandle?perform('retry',completion.retryHandle):{outcome:'TRANSPORT_UNCERTAIN'};
+          completion={token:session.capture(),status:'PENDING',retryHandle:null};attempts.set(completionKey,completion);
         }
         return perform(action,id,params);
       };
     }
     submit.onclick=async()=>{
       if(!current()||submit.disabled)return;submit.disabled=true;
-      try{const result=await save();if(!current())return;
-        if(['SUCCESS','ALREADY_IN_TARGET_STATE'].includes(result?.outcome))closeModal(modal);
+      try{const result=await save();
+        if(isCompletion&&completion){if(result?.outcome==='TRANSPORT_UNCERTAIN'||result?.outcome==='ERROR'&&!result.error){completion.status='UNCERTAIN';completion.retryHandle=result.retryHandle||null;}else if(result?.outcome!=='NOT_READY'){completion.status=result?.outcome;attempts.delete(completionKey);completion=null;}}
+        if(!current())return;
+        if(['SUCCESS','ALREADY_IN_TARGET_STATE'].includes(result?.outcome)){const visible=!el(modal).classList.contains('hidden');closeModal(modal);if(isCompletion&&result.outcome==='SUCCESS'&&visible)await onCompleted(result);}
         else {error.textContent='Operazione non completata. Attendi il riallineamento prima di riprovare.';error.classList.remove('hidden');}
       }catch(e){if(current()){error.textContent=e.message;error.classList.remove('hidden');}}
-      finally{if(current())submit.disabled=false;}
+      finally{if(current())submit.disabled=isCompletion&&completion?.status==='UNCERTAIN'&&!completion.retryHandle;}
     };
     openModal(modal);el(isEvaluation?'reviewRating':'scheduleSnack').focus();
   }

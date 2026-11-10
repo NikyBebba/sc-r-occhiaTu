@@ -9,6 +9,7 @@ const Core=require('../js/snapshot/core');
 const Transport=require('../js/snapshot/transport');
 const Cache=require('../js/snapshot/cache');
 const Adapter=require('../js/runtime/action-adapter');
+const unified=process.argv.includes('--completed-memory');
 let count=0;
 const check=(name,fn)=>Promise.resolve().then(fn).then(()=>{count++;console.log('PASS '+name);});
 const request=(intent,m,n,parameters,version,id=crypto.randomUUID())=>({protocol_version:1,request_id:id,intent,
@@ -24,6 +25,14 @@ async function main(){
   const existing=(await e.q('SELECT id,date,status,completed_at FROM movie_nights ORDER BY id'));
   await e.exec(read('database/supabase-migration-cap1-target-v2.sql'));
   await e.exec(read('database/supabase-migration-cap1-atomic-evaluation.sql'));
+  // Synthetic legacy fixture predates TARGET initialization of existing night versions.
+  if(unified)await e.exec("INSERT INTO domain_versions(scope_kind,scope_id,entity_id,version) SELECT 'night',group_id,id,1 FROM movie_nights ON CONFLICT DO NOTHING");
+  if(unified){const before=(await e.q('SELECT jsonb_agg(to_jsonb(n) ORDER BY n.id) rows FROM movie_nights n'))[0].rows;
+    await e.exec("UPDATE app_protocol_state SET mode='read_only'");
+    await e.exec(read('database/20261110012012_completed_nights_memory.sql'));
+    assert.equal((await e.q('SELECT mode FROM app_protocol_state'))[0].mode,'read_only','migration never reopens writes');
+    await e.exec("UPDATE app_protocol_state SET mode='target'");
+    assert.deepEqual((await e.q('SELECT jsonb_agg(to_jsonb(n) ORDER BY n.id) rows FROM movie_nights n'))[0].rows,before,'migration changes no rows');}
   const login=async person=>e.q("SELECT set_config('request.jwt.claim.sub',$1,false)",[person]);
   const send=async body=>(await e.q('SELECT public.execute_app_command($1::jsonb) r',[JSON.stringify(body)]))[0].r;
   const snapshot=async version=>(await e.q('SELECT public.get_person_group_snapshot($1,$2) s',[G,version]))[0].s;
@@ -219,8 +228,57 @@ async function main(){
     await e.q('UPDATE group_memberships SET active=true WHERE group_id=$1 AND person_id=$2',[G,V]);
     const ordinary=(await e.q("SELECT id,movie_id FROM movie_nights WHERE status='completed' AND NOT retrospective ORDER BY id LIMIT 1"))[0];
     if(ordinary){const ordinaryVersion=await version('night',ordinary.id);
-      assert.equal((await send(request('EDIT_PAST_TOGETHER',ordinary.movie_id,ordinary.id,{location:'No'},ordinaryVersion))).outcome,'ERROR','ordinary completed night remains immutable');}
+      const ordinaryResult=await send(request('EDIT_PAST_TOGETHER',ordinary.movie_id,ordinary.id,{location:'No'},ordinaryVersion));assert.equal(ordinaryResult.outcome,unified?'SUCCESS':'ERROR',JSON.stringify(ordinaryResult));}
   });
+  if(unified){
+   const ordinary=(await e.q("SELECT id,movie_id FROM movie_nights WHERE status='completed' AND NOT retrospective ORDER BY id LIMIT 1"))[0];
+   const id=ordinary.id,film=ordinary.movie_id;
+   assert.equal((await send(request('RECORD_PAST_TOGETHER',film,null,{date:null,participants:[N,V],night_memory:'Other viewing memory'},await version('group_film',film)))).outcome,'SUCCESS');
+   const othersBefore=await e.q('SELECT id,night_memory FROM movie_nights WHERE movie_id=$1 AND id<>$2 ORDER BY id',[film,id]);
+   const row=async()=>(await e.q('SELECT to_jsonb(n) value FROM movie_nights n WHERE id=$1',[id]))[0].value;
+   const baseline=await row(),participants=(await e.q('SELECT * FROM movie_night_participants WHERE night_id=$1 ORDER BY person_id',[id]));
+   const moviesBefore=(await e.q('SELECT jsonb_agg(to_jsonb(m) ORDER BY m.id) value FROM movies m'))[0].value;
+   const nightsBefore=(await e.q('SELECT count(*) n FROM movie_nights'))[0].n;
+   await check('unified ordinary memory add, edit, omission, explicit clear and no-op',async()=>{
+    for(const text of ['First ordinary memory','Updated ordinary memory',null]){const r=await send(request('EDIT_PAST_TOGETHER',film,id,{night_memory:text},await version('night',id)));assert.equal(r.outcome,'SUCCESS');assert(r.affected_versions.every(v=>v.scope_kind==='night'&&v.entity_id===id));assert.equal((await row()).night_memory,text);}
+    const rev=await version('night',id);const noop=await send(request('EDIT_PAST_TOGETHER',film,id,{night_memory:null},rev));assert.equal(noop.outcome,'ALREADY_IN_TARGET_STATE');assert.equal(await version('night',id),rev);
+    await send(request('EDIT_PAST_TOGETHER',film,id,{night_memory:'Preserved memory'},rev));
+    assert.equal((await send(request('EDIT_PAST_TOGETHER',film,id,{snack:'Popcorn',location:'Casa'},await version('night',id)))).outcome,'SUCCESS');assert.equal((await row()).night_memory,'Preserved memory');
+   });
+   await check('unified request replay and changed request-id reuse',async()=>{
+    const body=request('EDIT_PAST_TOGETHER',film,id,{night_memory:'Receipt memory'},await version('night',id));assert.equal((await send(body)).outcome,'SUCCESS');const rev=await version('night',id);
+    const receipt=await send(body);assert.equal(receipt.replayed,true);assert.equal(await version('night',id),rev);
+    body.parameters.night_memory='Different payload';const reused=await send(body);assert.equal(reused.outcome,'REQUEST_ID_REUSE');assert.equal((await row()).night_memory,'Receipt memory');
+   });
+   await check('unified simultaneous stale writers cannot overwrite',async()=>{
+    const rev=await version('night',id),a=request('EDIT_PAST_TOGETHER',film,id,{night_memory:'Writer one'},rev),b=request('EDIT_PAST_TOGETHER',film,id,{night_memory:'Writer two'},rev);
+    const results=await Promise.all([send(a),send(b)]);assert.deepEqual(results.map(r=>r.outcome).sort(),['STALE','SUCCESS']);assert.equal(Number(await version('night',id)),Number(rev)+1);
+   });
+   await check('unified ordinary date even unchanged, participants, time and evaluation forbidden',async()=>{
+    const saved=await row();for(const patch of [{date:baseline.date},{date:null},{participants:[N,V]},{time:null},{evaluation:{rating:9}},{status:'completed'},{night_memory:5},{night_memory:'x'.repeat(1001)}])assert.equal((await send(request('EDIT_PAST_TOGETHER',film,id,patch,await version('night',id)))).outcome,'ERROR');assert.deepEqual(await row(),saved);
+   });
+   await check('unified only completed events accept memories and Unicode length is preserved',async()=>{
+    assert.equal((await send(request('EDIT_PAST_TOGETHER',m,activeId,{night_memory:'Pending memory'},await version('night',activeId)))).outcome,'ERROR');
+    const cancelled=(await e.q("SELECT id,movie_id FROM movie_nights WHERE status='cancelled' LIMIT 1"))[0];assert.equal((await send(request('EDIT_PAST_TOGETHER',cancelled.movie_id,cancelled.id,{night_memory:'Cancelled'},await version('night',cancelled.id)))).outcome,'ERROR');
+    assert.equal((await send(request('EDIT_PAST_TOGETHER',film,id,{night_memory:'🎬'.repeat(1000)},await version('night',id)))).outcome,'SUCCESS');assert.equal((await send(request('EDIT_PAST_TOGETHER',film,id,{night_memory:'🎬'.repeat(1001)},await version('night',id)))).outcome,'ERROR');
+    await assert.rejects(e.q('UPDATE movie_nights SET night_memory=$1 WHERE id=$2',['Invalid',activeId]));
+   });
+   await check('unified membership authority and exact event scope',async()=>{
+    await login(X);assert.equal((await send(request('EDIT_PAST_TOGETHER',film,id,{night_memory:'Wrong caller'},await version('night',id)))).outcome,'ERROR');await login(N);
+    const wrong=request('EDIT_PAST_TOGETHER',film,id,{night_memory:'Wrong group'},await version('night',id));wrong.target.group_id=uid(3002);wrong.expected_versions[0].scope_id=uid(3002);assert.equal((await send(wrong)).outcome,'ERROR');
+   });
+   await check('unified edits preserve history identities participants and all film judgments',async()=>{
+    const after=await row();for(const key of Object.keys(baseline).filter(k=>!['night_memory','snack','location'].includes(k)))assert.deepEqual(after[key],baseline[key],key);
+    assert.deepEqual(await e.q('SELECT * FROM movie_night_participants WHERE night_id=$1 ORDER BY person_id',[id]),participants);
+    assert.deepEqual((await e.q('SELECT jsonb_agg(to_jsonb(m) ORDER BY m.id) value FROM movies m'))[0].value,moviesBefore);assert.equal((await e.q('SELECT count(*) n FROM movie_nights'))[0].n,nightsBefore);
+    assert.deepEqual(await e.q('SELECT id,night_memory FROM movie_nights WHERE movie_id=$1 AND id<>$2 ORDER BY id',[film,id]),othersBefore);
+   });
+   await check('unified snapshot2 decodes stored ordinary memory; legacy null cache remains valid',async()=>{
+    const current=await snapshot(2),ctx={callerId:N,groupId:G,contractVersion:2,contextEpoch:1};assert.equal(Core.decodeSnapshotEnvelope(current,ctx).kind,'DECODED_SNAPSHOT');
+    const old=structuredClone(current);for(const n of old.nights)if(!n.retrospective)n.night_memory=null;assert.equal(Core.decodeSnapshotEnvelope(old,ctx).kind,'DECODED_SNAPSHOT');
+    const bad=structuredClone(current);const n=bad.nights.find(n=>n.status!=='completed');n.night_memory='Invalid';assert.equal(Core.decodeSnapshotEnvelope(bad,ctx).error.code,'COMPLETED_NIGHT_MEMORY');
+   });
+  }
   await check('v1/v2 cache keys isolated and accepted snapshots decode',async()=>{
     const data=new Map(),storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)};
     const cache=Cache.createCacheAdapter(storage),saved_at='2026-11-03T21:00:00.000000Z';
@@ -246,7 +304,7 @@ async function main(){
     assert.equal((await two.adapter.recordPastTogether(h2,m,{date:null,participants:[N,V],evaluation:{rating:8.88}})).outcome,'INVALID_INPUT');
     two.state.controllerState.view.source='CACHE';assert.equal((await two.adapter.recordPastTogether(h2,m,{date:null,participants:[N,V]})).outcome,'NOT_READY');
   });
-  console.log('CAP1_TARGET_V2_PASS '+count);
+  console.log((unified?'COMPLETED_MEMORY_V2_PASS ':'CAP1_TARGET_V2_PASS ')+count);
  } finally {await e.db.close();}
 }
 main().catch(error=>{console.error(error.stack||error);process.exitCode=1;});

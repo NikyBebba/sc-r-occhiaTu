@@ -1,0 +1,414 @@
+{
+  "baseline": "b1c3f5103bcd5129006afa8db1732c66b799e8fa",
+  "scope": "Local v76 candidate; no staging, commit or publication",
+  "files": [
+    {
+      "path": "css/style.css",
+      "status": "modified",
+      "sha256": "0863250ef565c53c05be0ae901b24170bd9e181d046f3f53a335cb5ce7b56c19"
+    },
+    {
+      "path": "database/20261110012012_completed_nights_memory.sql",
+      "status": "new",
+      "sha256": "5df19111dd0698f0ab34b7e329f877093eb4f410e553809d3ed1d7eeb90d1824"
+    },
+    {
+      "path": "docs/COMPLETED_NIGHTS_UNIFICATION.md",
+      "status": "new",
+      "sha256": "7253cc95a8fe2b064b12e64695e07d9a7ee15249eec08314e7ef7016971c83e8"
+    },
+    {
+      "path": "docs/DISCOVERY_FINAL_CORRECTIVE_PASS.md",
+      "status": "new",
+      "sha256": "a2366de18598f0496457b1f327f9011b1795be294bb48975f7d543e1ebd6b04f"
+    },
+    {
+      "path": "docs/DISCOVERY_FIRST_UX.md",
+      "status": "new",
+      "sha256": "e42f94aea562fae770468a397a00378910fcb4e49c64c1be69a524e8950876da"
+    },
+    {
+      "path": "docs/DISCOVERY_NATIVE_ACTIONS_QUALITY.md",
+      "status": "new",
+      "sha256": "d1c073ff6ec0731389f0d1fecf71a556b9452606cf580324922c9ec9ca351190"
+    },
+    {
+      "path": "docs/DISCOVERY_NATIVE_DIAGNOSTICS.json",
+      "status": "new",
+      "sha256": "e2ad92816bdb39346883e64d81a7f43f4680d65847eeab2983f6c7a6cee46141"
+    },
+    {
+      "path": "docs/DISCOVERY_NATIVE_METADATA_INTEGRATION.md",
+      "status": "new",
+      "sha256": "308e73b054ed6f3bd7fe84a6a51fc8033b8f124269d7b661df7b6812236fec45"
+    },
+    {
+      "path": "docs/DISCOVERY_NATIVE_REFINEMENT.md",
+      "status": "new",
+      "sha256": "9e72613bf40bf70894e754d28538091da6ae305f856c0c51cbf8d0a10984f567"
+    },
+    {
+      "path": "docs/DISCOVERY_RETRIEVAL_V2.md",
+      "status": "new",
+      "sha256": "b53bc17fad74f44924167ef441a4928934968d42f041d942ab6059b92b020940"
+    },
+    {
+      "path": "docs/DISCOVERY_RETRIEVAL_V2_FIXTURES.json",
+      "status": "new",
+      "sha256": "5b16866a9077c187e0c69d9197c00756ce2761a26ec251fb74d205bd5936baed"
+    },
+    {
+      "path": "docs/DISCOVERY_SIX_FRESHNESS.md",
+      "status": "new",
+      "sha256": "8df0763f3b2f260837bf14a667b795b96b23026f44ddc1d2f68f0ea131747f17"
+    },
+    {
+      "path": "docs/DISCOVERY_SIX_FRESHNESS_FIXTURES.json",
+      "status": "new",
+      "sha256": "e681074ff5d6fd770c8d6f455e5011e98b6a36b670a7953df00e8185db86fce2"
+    },
+    {
+      "path": "docs/RATINGS_CONSISTENCY_NATIVE_LAYOUT.md",
+      "status": "new",
+      "sha256": "5872ef137e13edae28aae8daa3f67c0e762ca66109742c80f2eeadbd44a12b58"
+    },
+    {
+      "path": "docs/RECOMMENDATION_CORE_V2.md",
+      "status": "new",
+      "sha256": "08bce2d797d04714ffe4d91a2443aca5de1aedc2439ee70d99db3d73898bbae2"
+    },
+    {
+      "path": "docs/RECOMMENDATION_CORE_V2_BENCHMARK.json",
+      "status": "new",
+      "sha256": "9327496779f54b5132c2be9cc6ba2d477d08a8ebd30e8f62b6595bed039c6569"
+    },
+    {
+      "path": "docs/RECOMMENDATION_DIVERSITY_VALIDATION.json",
+      "status": "new",
+      "sha256": "14824e91c792af90e1ff840407443fb7ce84cc977482dc92a284f37ac9061e74"
+    },
+    {
+      "path": "docs/RECOMMENDATION_DIVERSITY_VALIDATION.md",
+      "status": "new",
+      "sha256": "ad6d616d86cbfffdd7fe1ded4b9332dc598ab96f03c5562d0f27a48e6538d23c"
+    },
+    {
+      "path": "docs/TASTE_PROFILES_V1.md",
+      "status": "new",
+      "sha256": "426d8d9468046de269353c25dbc6bc6b32b58e4c8ed418a7229e61d2dde83816"
+    },
+    {
+      "path": "docs/TMDB_DISCOVERY_RETRIEVAL.md",
+      "status": "new",
+      "sha256": "40723acd00e6fa6f8d4305a3a0fda8c043b57b26811c347d97987b46fc3dffe9"
+    },
+    {
+      "path": "docs/V76_FINAL_INTEGRATION_GATE.md",
+      "status": "new",
+      "sha256": "2b7f76eb9a914c99ffa0803f3f8f1a88a5761bcf61cf513c700c5e1a3cc2daa2"
+    },
+    {
+      "path": "docs/V76_LIVE_PREFLIGHT.sql",
+      "status": "new",
+      "sha256": "ea703ae1dc1dd421ae889e4a48aacead861ce3f8eba10358a495c9bb688405c3"
+    },
+    {
+      "path": "index.html",
+      "status": "modified",
+      "sha256": "529fff592307647fceaa7a5068c41b3981067ca64a8cf64a5659fd2fb48125bf"
+    },
+    {
+      "path": "js/api/omdb.js",
+      "status": "modified",
+      "sha256": "748fe71f77bceb93d28c8bc8f15adb8030c978633af12dacbe3ec943dda109ae"
+    },
+    {
+      "path": "js/api/tmdb.js",
+      "status": "modified",
+      "sha256": "360af1b143d04bf375e0793ff2b7bb746d1c05f0ab7acb78196db26249b23b40"
+    },
+    {
+      "path": "js/recommendation/cinematic-quality.js",
+      "status": "new",
+      "sha256": "8d257b064dfb797df724880a210a99ab1688d0834a143c6f73035e9eec0795b3"
+    },
+    {
+      "path": "js/recommendation/discovery-catalog.js",
+      "status": "new",
+      "sha256": "410d016f5da3794af1e394037fca4b8e75992e8a7479365e143ae4dfd3955b19"
+    },
+    {
+      "path": "js/recommendation/discovery-pipeline.js",
+      "status": "new",
+      "sha256": "cd9155817185d2f7bc62026cfacaac9356ecd8ec0fb9f90cf1ed736a93197ee4"
+    },
+    {
+      "path": "js/recommendation/discovery-tmdb.js",
+      "status": "new",
+      "sha256": "f966adf38934f30a5ec519a6ca474313639573efeee5e8c23d31d9f9d52b364b"
+    },
+    {
+      "path": "js/recommendation/profiles.js",
+      "status": "new",
+      "sha256": "5dd98468a5cf3344e15fd8562801d35f1d8de315142c9851270b52774fc67ff2"
+    },
+    {
+      "path": "js/recommendation/ranking-v2-input.js",
+      "status": "new",
+      "sha256": "740c9ffef3ac1f4e2b0a692f0db567b0b7b9eed1e3069b48d5bd6102c0be9f5a"
+    },
+    {
+      "path": "js/recommendation/ranking-v2.js",
+      "status": "new",
+      "sha256": "f15a00eb6709774dfb473e7a937ae1d4ea0c1a1b5a62b7057f06544d8bfee037"
+    },
+    {
+      "path": "js/runtime/action-adapter.js",
+      "status": "modified",
+      "sha256": "1cf164ace77223bad0c07d73cb748bd752ec8fb8a1b27e7f2f23774bcc29c5e4"
+    },
+    {
+      "path": "js/snapshot/core.js",
+      "status": "modified",
+      "sha256": "dbdc60b0f4f7858754cc913f52b852da2083c2d9f43773f508ce5050a4753051"
+    },
+    {
+      "path": "js/ui/cap1-nights.js",
+      "status": "modified",
+      "sha256": "6390b4814b5500daa37db4346f1223dda07ec97846d7a8215599f45778c48973"
+    },
+    {
+      "path": "js/ui/discovery-copy.js",
+      "status": "new",
+      "sha256": "e6814202b8829d8b5b6fa9687f3223a47fd7f1102a606a94f8ee5fbe86a1c186"
+    },
+    {
+      "path": "js/ui/discovery-exposures.js",
+      "status": "new",
+      "sha256": "41465736781c20bf5a5e3b13a1b529bae4a973f2c26d141b80ed016820cbb291"
+    },
+    {
+      "path": "js/ui/discovery-save.js",
+      "status": "new",
+      "sha256": "73bd2014984f7c7e02ca91b32d9213845fca937fd689544b814fa6ef1b24b477"
+    },
+    {
+      "path": "js/ui/discovery-view.js",
+      "status": "new",
+      "sha256": "9abb2333a05a2444cd9061489756987f6341339f73726f026f19a5384fbe38da"
+    },
+    {
+      "path": "js/ui/product-context.js",
+      "status": "modified",
+      "sha256": "09f97bb73b6c93b1c32cdf331504636b584aff4eebbf636b2830a02369d2d441"
+    },
+    {
+      "path": "js/ui/product-editors.js",
+      "status": "modified",
+      "sha256": "8a1a0c4d4f2931680203f81a9e4edee69116b1922e692fdfa6cea9562ad07c97"
+    },
+    {
+      "path": "js/ui/recommendations.js",
+      "status": "modified",
+      "sha256": "026069a72396c33589ff9059e8d6d21dd1c6c49b551c7c95191fca3b2820d23a"
+    },
+    {
+      "path": "js/ui/render/cards.js",
+      "status": "modified",
+      "sha256": "fc8c39fd3d5814f29451c968d8250ebe7ac814e65499b3bb95d4691fd9eaeac0"
+    },
+    {
+      "path": "js/ui/render/detail.js",
+      "status": "modified",
+      "sha256": "370dac4d95d53704dfdb873bdfbdcc0d904185a271703596ed9849bd6666e1ed"
+    },
+    {
+      "path": "js/ui/target-shell.js",
+      "status": "modified",
+      "sha256": "1ee1f24f710de3be719f56990bc93ddb9012781dcb89e5bf13085b41e38030bf"
+    },
+    {
+      "path": "scripts/benchmark-recommendation-ranking-v2.cjs",
+      "status": "new",
+      "sha256": "a484c7b7f8e55e2bcdb94b2b20a24c173a679c104ba18aecba2c88d0e775ea91"
+    },
+    {
+      "path": "scripts/compare-discovery-retrieval.cjs",
+      "status": "new",
+      "sha256": "e2087de963fa1ca0286bb473d7efa7c95070d7cb4f64277605e930289ea2dc45"
+    },
+    {
+      "path": "scripts/compare-discovery-six.cjs",
+      "status": "new",
+      "sha256": "216dfbc63420d9030d85fb05c399a73343cfdc88e4fdd0094ecd7dea6edc4235"
+    },
+    {
+      "path": "scripts/diagnose-discovery-native.cjs",
+      "status": "new",
+      "sha256": "8c8c853d387ca187304a7588119e89b8ea62b3ead175f501277c38f34550b0c3"
+    },
+    {
+      "path": "scripts/fixtures/discovery-live-findings.cjs",
+      "status": "new",
+      "sha256": "c9a8e28e2742557767c20b307b2dff32053c16bb8090a1ad6374f0bf0490d89a"
+    },
+    {
+      "path": "scripts/fixtures/discovery-retrieval-before.cjs",
+      "status": "new",
+      "sha256": "618179452eb9ea5d5fd608c8cdb7747c77f81b979d93499c963a53ddb7be7686"
+    },
+    {
+      "path": "scripts/local-postgres-fixture.cjs",
+      "status": "new",
+      "sha256": "faec90f966b15ce126ce30b43e5cb4b90127c8fd5538b5af02b423c04e112235"
+    },
+    {
+      "path": "scripts/person-group-command-test-support.cjs",
+      "status": "modified",
+      "sha256": "bd9f31c2947b5a0dfe9421f36e57da89ca03d84b9747242fba1fdd5ce67ae85a"
+    },
+    {
+      "path": "scripts/validate-recommendation-diversity.cjs",
+      "status": "new",
+      "sha256": "42060200be9a7ef5f12b4be59267ba4af0beb5ec771191a368cedd8d322c30d9"
+    },
+    {
+      "path": "scripts/verify-cap1-target-v2.cjs",
+      "status": "modified",
+      "sha256": "b617baff6f8878bc061176f975faf22035365e4ad785afabc5d37e4a50b70264"
+    },
+    {
+      "path": "scripts/verify-completed-snack.js",
+      "status": "modified",
+      "sha256": "e475bd6153766466cd5c6a522baf86f1630326d651d3395eacbcc95ef6b997ed"
+    },
+    {
+      "path": "scripts/verify-completed-unified-browser.cjs",
+      "status": "new",
+      "sha256": "f080b470ef45a319853b2d660b474c25a60dfff3ec8c95c31680b9a3a7e81594"
+    },
+    {
+      "path": "scripts/verify-discovery-live-corrections.cjs",
+      "status": "new",
+      "sha256": "b301281eaea027ff4b484c22b53aadadbefd4b5b1a3d4fdd8e6a1d6fbc41cfa1"
+    },
+    {
+      "path": "scripts/verify-discovery-native-diagnostics.cjs",
+      "status": "new",
+      "sha256": "ebd91d6533e1b41a2b64c6c4b705c75d8778ecfa477c9ce52f3370309c1b2ff2"
+    },
+    {
+      "path": "scripts/verify-discovery-native-metadata.cjs",
+      "status": "new",
+      "sha256": "de32f789750736b4adbf50e3d486a73a0d5168c4c8b2cd57becc8250017d95c7"
+    },
+    {
+      "path": "scripts/verify-discovery-refinement.cjs",
+      "status": "new",
+      "sha256": "8556f2cf2a759a2c2de98ce8b8aa8b0955ba040a769b98ad5193c9b88b48c902"
+    },
+    {
+      "path": "scripts/verify-discovery-save.cjs",
+      "status": "new",
+      "sha256": "a54daaf8b7b099c8e4d00c22ee6683506803180b5f41bb3b5e70fc0972906f05"
+    },
+    {
+      "path": "scripts/verify-discovery-six-fresh.cjs",
+      "status": "new",
+      "sha256": "226182976859a1760b32cbc690b7465d76f61655db4b19ad99115ee993801339"
+    },
+    {
+      "path": "scripts/verify-discovery-tmdb.cjs",
+      "status": "new",
+      "sha256": "ab1f4b42d284182461518fe8804adffd1f0106929b7f4fc1dcd71978bbcada4a"
+    },
+    {
+      "path": "scripts/verify-discovery-view-browser.cjs",
+      "status": "new",
+      "sha256": "71f0d14cd16cf37caa44e38fc24769950e4b3d117eb7fb868f27948b2bc1dbf1"
+    },
+    {
+      "path": "scripts/verify-evaluation-removal.js",
+      "status": "modified",
+      "sha256": "b0dddb50da973af2d7dd19fdd96064e3acd6643c9db51313eee0807c458058cc"
+    },
+    {
+      "path": "scripts/verify-personal-watch-together.js",
+      "status": "modified",
+      "sha256": "73295ea5d365db7f5673298758c42c6c6c626d3c4185734b8f7f1b1dc0951dba"
+    },
+    {
+      "path": "scripts/verify-production-protocol.cjs",
+      "status": "modified",
+      "sha256": "c9801469e75c4d8e83935b967469c130617885b6fa89909dda8019f4e194a6a0"
+    },
+    {
+      "path": "scripts/verify-production-shell-pwa.cjs",
+      "status": "modified",
+      "sha256": "131cca8fefa87b48ca770310578d21c051a124a1fcc0e07b22b70579dacd2e36"
+    },
+    {
+      "path": "scripts/verify-production-shell.cjs",
+      "status": "modified",
+      "sha256": "bf335e3f0780b46f082ddfdab6636f2ed0f6b8bc1653b47e58003804b939763b"
+    },
+    {
+      "path": "scripts/verify-ratings-consistency.cjs",
+      "status": "new",
+      "sha256": "24183a61b93756d88d78b3f7c886064ad1bb8c84584bf14f6f08c97e44d49c4e"
+    },
+    {
+      "path": "scripts/verify-recommendation-consumer-browser.cjs",
+      "status": "modified",
+      "sha256": "93bc0bb814aed00ebd6039360c0667c9168a9fb109d66e9da69d3749bb087797"
+    },
+    {
+      "path": "scripts/verify-recommendation-diversity.cjs",
+      "status": "new",
+      "sha256": "ab0ad00347f3da4ef74d5d2afca2824d9090d763620d4d86a088c28513179954"
+    },
+    {
+      "path": "scripts/verify-recommendation-profiles.cjs",
+      "status": "new",
+      "sha256": "c335a22aaeb2eef4c859bc043d6c8cb4426b285beee62b38c158d859d0601f76"
+    },
+    {
+      "path": "scripts/verify-recommendation-ranking-v2.cjs",
+      "status": "new",
+      "sha256": "855cf68e47e3d013d945287489d49d30d3e0c109e16db7c20cad5dd9d155c522"
+    },
+    {
+      "path": "scripts/verify-v76-integrated-browser.cjs",
+      "status": "new",
+      "sha256": "3a6c5350ac6155e6f256072f6b10ae054499ef09b924176597ff7b8a9638cb40"
+    },
+    {
+      "path": "scripts/verify-v76-postgres-race.cjs",
+      "status": "new",
+      "sha256": "65bc6231c6b9623ea36138b1ca62432bed721d342089b2237da1e331adc09387"
+    },
+    {
+      "path": "scripts/verify-v76-release-inventory.cjs",
+      "status": "new",
+      "sha256": "de79384b0560576205aa06bfe2e0c9f0c4e21f641a1c9fbb16df8855103021f1"
+    },
+    {
+      "path": "service-worker.js",
+      "status": "modified",
+      "sha256": "21c26929615dc4b955702bd198c54de88095146ca7ade3922d3186c55238b625"
+    }
+  ],
+  "excludedUntrackedCount": 447,
+  "excludedCategories": [
+    "history N imports and private fixtures",
+    "icon & mascotte assets",
+    "Python cache and unrelated artefacts"
+  ],
+  "checks": {
+    "noStaging": true,
+    "configUnchanged": true,
+    "frozenFilesUnchanged": true,
+    "newSecretPatterns": 0
+  },
+  "self": "docs/V76_RELEASE_INVENTORY.json (generated inventory; no recursive hash)"
+}

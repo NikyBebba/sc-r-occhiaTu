@@ -1,0 +1,2624 @@
+{
+  "experimentVersion": "diversity-validation-v1",
+  "baselineReproduced": true,
+  "fixturesUnchanged": true,
+  "eligibilityAndScoringIdentical": true,
+  "window": 0.02,
+  "scenarios": [
+    {
+      "name": "balanced",
+      "candidateCount": 20,
+      "results": {
+        "withoutDiversity": {
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-00",
+              "relevancePosition": 1,
+              "score": 0.21687252141797594,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 2,
+              "id": "candidate-04",
+              "relevancePosition": 2,
+              "score": 0.21687252141797594,
+              "penalty": 0,
+              "finalPosition": 2,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 3,
+              "id": "candidate-08",
+              "relevancePosition": 3,
+              "score": 0.21687252141797594,
+              "penalty": 0,
+              "finalPosition": 3,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 4,
+              "id": "candidate-12",
+              "relevancePosition": 4,
+              "score": 0.2129223049677595,
+              "penalty": 0,
+              "finalPosition": 4,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30133000116766356,
+                "b": 0.2129223049677595
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 5,
+              "id": "candidate-16",
+              "relevancePosition": 5,
+              "score": 0.20908031362576815,
+              "penalty": 0,
+              "finalPosition": 5,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.29532350766117005,
+                "b": 0.20908031362576815
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            }
+          ],
+          "relevanceSum": 1.0726201828474555,
+          "top5UniqueCollections": 0
+        },
+        "current": {
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 3,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-00",
+              "relevancePosition": 1,
+              "score": 0.21687252141797594,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 2,
+              "id": "candidate-04",
+              "relevancePosition": 2,
+              "score": 0.21687252141797594,
+              "penalty": 0.06,
+              "finalPosition": 2,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 3,
+              "id": "candidate-08",
+              "relevancePosition": 3,
+              "score": 0.21687252141797594,
+              "penalty": 0.12,
+              "finalPosition": 3,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 4,
+              "id": "candidate-01",
+              "relevancePosition": 6,
+              "score": 0.08775164229709684,
+              "penalty": 0,
+              "finalPosition": 4,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": 0.08775164229709684
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 5,
+              "id": "candidate-07",
+              "relevancePosition": 7,
+              "score": 0.08775164229709684,
+              "penalty": 0,
+              "finalPosition": 5,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": 0.08775164229709684
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            }
+          ],
+          "relevanceSum": 0.8261208488481215,
+          "top5UniqueCollections": 0
+        },
+        "constrained": {
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-00",
+              "relevancePosition": 1,
+              "score": 0.21687252141797594,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": 0.21687252141797594,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 2,
+              "id": "candidate-04",
+              "relevancePosition": 2,
+              "score": 0.21687252141797594,
+              "penalty": 0.06,
+              "finalPosition": 2,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": 0.21687252141797594,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 3,
+              "id": "candidate-08",
+              "relevancePosition": 3,
+              "score": 0.21687252141797594,
+              "penalty": 0.12,
+              "finalPosition": 3,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": 0.21687252141797594,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 4,
+              "id": "candidate-12",
+              "relevancePosition": 4,
+              "score": 0.2129223049677595,
+              "penalty": 0.18,
+              "finalPosition": 4,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30133000116766356,
+                "b": 0.2129223049677595
+              },
+              "referenceScore": 0.2129223049677595,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 5,
+              "id": "candidate-16",
+              "relevancePosition": 5,
+              "score": 0.20908031362576815,
+              "penalty": 0.24,
+              "finalPosition": 5,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.29532350766117005,
+                "b": 0.20908031362576815
+              },
+              "referenceScore": 0.20908031362576815,
+              "relevanceLoss": 0
+            }
+          ],
+          "relevanceSum": 1.0726201828474555,
+          "top5UniqueCollections": 0
+        }
+      }
+    },
+    {
+      "name": "imbalanced",
+      "candidateCount": 20,
+      "results": {
+        "withoutDiversity": {
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-00",
+              "relevancePosition": 1,
+              "score": 0.06857142857142856,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.06857142857142856
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 2,
+              "id": "candidate-04",
+              "relevancePosition": 2,
+              "score": 0.06857142857142856,
+              "penalty": 0,
+              "finalPosition": 2,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.06857142857142856
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 3,
+              "id": "candidate-08",
+              "relevancePosition": 3,
+              "score": 0.06857142857142856,
+              "penalty": 0,
+              "finalPosition": 3,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.06857142857142856
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 4,
+              "id": "candidate-12",
+              "relevancePosition": 4,
+              "score": 0.06857142857142856,
+              "penalty": 0,
+              "finalPosition": 4,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30133000116766356,
+                "b": 0.06857142857142856
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 5,
+              "id": "candidate-16",
+              "relevancePosition": 5,
+              "score": 0.06857142857142856,
+              "penalty": 0,
+              "finalPosition": 5,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.29532350766117005,
+                "b": 0.06857142857142856
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            }
+          ],
+          "relevanceSum": 0.3428571428571428,
+          "top5UniqueCollections": 0
+        },
+        "current": {
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 3,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-00",
+              "relevancePosition": 1,
+              "score": 0.06857142857142856,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.06857142857142856
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 2,
+              "id": "candidate-04",
+              "relevancePosition": 2,
+              "score": 0.06857142857142856,
+              "penalty": 0.06,
+              "finalPosition": 2,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.06857142857142856
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 3,
+              "id": "candidate-01",
+              "relevancePosition": 6,
+              "score": 0,
+              "penalty": 0,
+              "finalPosition": 3,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": 0
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 4,
+              "id": "candidate-03",
+              "relevancePosition": 7,
+              "score": 0,
+              "penalty": 0,
+              "finalPosition": 4,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.08287167378076468,
+                "b": 0
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 5,
+              "id": "candidate-12",
+              "relevancePosition": 4,
+              "score": 0.06857142857142856,
+              "penalty": 0.12,
+              "finalPosition": 5,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30133000116766356,
+                "b": 0.06857142857142856
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            }
+          ],
+          "relevanceSum": 0.20571428571428568,
+          "top5UniqueCollections": 0
+        },
+        "constrained": {
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-00",
+              "relevancePosition": 1,
+              "score": 0.06857142857142856,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.06857142857142856
+              },
+              "referenceScore": 0.06857142857142856,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 2,
+              "id": "candidate-04",
+              "relevancePosition": 2,
+              "score": 0.06857142857142856,
+              "penalty": 0.06,
+              "finalPosition": 2,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.06857142857142856
+              },
+              "referenceScore": 0.06857142857142856,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 3,
+              "id": "candidate-08",
+              "relevancePosition": 3,
+              "score": 0.06857142857142856,
+              "penalty": 0.12,
+              "finalPosition": 3,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.06857142857142856
+              },
+              "referenceScore": 0.06857142857142856,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 4,
+              "id": "candidate-12",
+              "relevancePosition": 4,
+              "score": 0.06857142857142856,
+              "penalty": 0.18,
+              "finalPosition": 4,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30133000116766356,
+                "b": 0.06857142857142856
+              },
+              "referenceScore": 0.06857142857142856,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 5,
+              "id": "candidate-16",
+              "relevancePosition": 5,
+              "score": 0.06857142857142856,
+              "penalty": 0.24,
+              "finalPosition": 5,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.29532350766117005,
+                "b": 0.06857142857142856
+              },
+              "referenceScore": 0.06857142857142856,
+              "relevanceLoss": 0
+            }
+          ],
+          "relevanceSum": 0.3428571428571428,
+          "top5UniqueCollections": 0
+        }
+      }
+    },
+    {
+      "name": "opposed",
+      "candidateCount": 20,
+      "results": {
+        "withoutDiversity": {
+          "ndcg5": null,
+          "recall5": null,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 4,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-13",
+              "relevancePosition": 1,
+              "score": 0.012736127508854783,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 6,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.08141063481972573,
+                "b": 0.012736127508854783
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 2,
+              "id": "candidate-03",
+              "relevancePosition": 2,
+              "score": 0.011635838908566181,
+              "penalty": 0,
+              "finalPosition": 2,
+              "expectedRating": 6,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.08287167378076468,
+                "b": 0.011635838908566181
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 3,
+              "id": "candidate-09",
+              "relevancePosition": 3,
+              "score": 0.011635838908566181,
+              "penalty": 0,
+              "finalPosition": 3,
+              "expectedRating": 6,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.08287167378076468,
+                "b": 0.011635838908566181
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 4,
+              "id": "candidate-17",
+              "relevancePosition": 4,
+              "score": 0.011635838908566181,
+              "penalty": 0,
+              "finalPosition": 4,
+              "expectedRating": 6,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.08287167378076468,
+                "b": 0.011635838908566181
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 5,
+              "id": "candidate-05",
+              "relevancePosition": 5,
+              "score": 0.0038075560802833543,
+              "penalty": 0,
+              "finalPosition": 5,
+              "expectedRating": 6,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.08887816728725818,
+                "b": 0.0038075560802833543
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            }
+          ],
+          "relevanceSum": 0.05145120031483668,
+          "top5UniqueCollections": 0
+        },
+        "current": {
+          "ndcg5": null,
+          "recall5": null,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-13",
+              "relevancePosition": 1,
+              "score": 0.012736127508854783,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 6,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.08141063481972573,
+                "b": 0.012736127508854783
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 2,
+              "id": "candidate-19",
+              "relevancePosition": 6,
+              "score": 0.0038075560802833543,
+              "penalty": 0,
+              "finalPosition": 2,
+              "expectedRating": 6,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.08887816728725818,
+                "b": 0.0038075560802833543
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 3,
+              "id": "candidate-17",
+              "relevancePosition": 4,
+              "score": 0.011635838908566181,
+              "penalty": 0.06,
+              "finalPosition": 3,
+              "expectedRating": 6,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.08287167378076468,
+                "b": 0.011635838908566181
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 4,
+              "id": "candidate-11",
+              "relevancePosition": 9,
+              "score": -0.0033713760986488245,
+              "penalty": 0.06,
+              "finalPosition": 4,
+              "expectedRating": 6,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": -0.0033713760986488245
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 5,
+              "id": "candidate-05",
+              "relevancePosition": 5,
+              "score": 0.0038075560802833543,
+              "penalty": 0.12,
+              "finalPosition": 5,
+              "expectedRating": 6,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.08887816728725818,
+                "b": 0.0038075560802833543
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            }
+          ],
+          "relevanceSum": 0.02861570247933885,
+          "top5UniqueCollections": 0
+        },
+        "constrained": {
+          "ndcg5": null,
+          "recall5": null,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-13",
+              "relevancePosition": 1,
+              "score": 0.012736127508854783,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 6,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.08141063481972573,
+                "b": 0.012736127508854783
+              },
+              "referenceScore": 0.012736127508854783,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 2,
+              "id": "candidate-19",
+              "relevancePosition": 6,
+              "score": 0.0038075560802833543,
+              "penalty": 0,
+              "finalPosition": 2,
+              "expectedRating": 6,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.08887816728725818,
+                "b": 0.0038075560802833543
+              },
+              "referenceScore": 0.011635838908566181,
+              "relevanceLoss": 0.007828282828282827
+            },
+            {
+              "position": 3,
+              "id": "candidate-17",
+              "relevancePosition": 4,
+              "score": 0.011635838908566181,
+              "penalty": 0.06,
+              "finalPosition": 3,
+              "expectedRating": 6,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.08287167378076468,
+                "b": 0.011635838908566181
+              },
+              "referenceScore": 0.011635838908566181,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 4,
+              "id": "candidate-11",
+              "relevancePosition": 9,
+              "score": -0.0033713760986488245,
+              "penalty": 0.06,
+              "finalPosition": 4,
+              "expectedRating": 6,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": -0.0033713760986488245
+              },
+              "referenceScore": 0.011635838908566181,
+              "relevanceLoss": 0.015007215007215005
+            },
+            {
+              "position": 5,
+              "id": "candidate-05",
+              "relevancePosition": 5,
+              "score": 0.0038075560802833543,
+              "penalty": 0.12,
+              "finalPosition": 5,
+              "expectedRating": 6,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.08887816728725818,
+                "b": 0.0038075560802833543
+              },
+              "referenceScore": 0.011635838908566181,
+              "relevanceLoss": 0.007828282828282827
+            }
+          ],
+          "relevanceSum": 0.02861570247933885,
+          "top5UniqueCollections": 0
+        }
+      }
+    },
+    {
+      "name": "cold",
+      "candidateCount": 20,
+      "results": {
+        "withoutDiversity": {
+          "ndcg5": 0.830419897363192,
+          "recall5": 0.26666666666666666,
+          "top5UniqueGenres": 4,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-00",
+              "relevancePosition": 1,
+              "score": 0,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0,
+                "b": 0
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 2,
+              "id": "candidate-01",
+              "relevancePosition": 2,
+              "score": 0,
+              "penalty": 0,
+              "finalPosition": 2,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0,
+                "b": 0
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 3,
+              "id": "candidate-02",
+              "relevancePosition": 3,
+              "score": 0,
+              "penalty": 0,
+              "finalPosition": 3,
+              "expectedRating": 3,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0,
+                "b": 0
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 4,
+              "id": "candidate-03",
+              "relevancePosition": 4,
+              "score": 0,
+              "penalty": 0,
+              "finalPosition": 4,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0,
+                "b": 0
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 5,
+              "id": "candidate-04",
+              "relevancePosition": 5,
+              "score": 0,
+              "penalty": 0,
+              "finalPosition": 5,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0,
+                "b": 0
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            }
+          ],
+          "relevanceSum": 0,
+          "top5UniqueCollections": 0
+        },
+        "current": {
+          "ndcg5": 0.830419897363192,
+          "recall5": 0.26666666666666666,
+          "top5UniqueGenres": 4,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-00",
+              "relevancePosition": 1,
+              "score": 0,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0,
+                "b": 0
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 2,
+              "id": "candidate-01",
+              "relevancePosition": 2,
+              "score": 0,
+              "penalty": 0,
+              "finalPosition": 2,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0,
+                "b": 0
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 3,
+              "id": "candidate-02",
+              "relevancePosition": 3,
+              "score": 0,
+              "penalty": 0,
+              "finalPosition": 3,
+              "expectedRating": 3,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0,
+                "b": 0
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 4,
+              "id": "candidate-03",
+              "relevancePosition": 4,
+              "score": 0,
+              "penalty": 0,
+              "finalPosition": 4,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0,
+                "b": 0
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 5,
+              "id": "candidate-04",
+              "relevancePosition": 5,
+              "score": 0,
+              "penalty": 0.06,
+              "finalPosition": 5,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0,
+                "b": 0
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            }
+          ],
+          "relevanceSum": 0,
+          "top5UniqueCollections": 0
+        },
+        "constrained": {
+          "ndcg5": 0.830419897363192,
+          "recall5": 0.26666666666666666,
+          "top5UniqueGenres": 4,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-00",
+              "relevancePosition": 1,
+              "score": 0,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0,
+                "b": 0
+              },
+              "referenceScore": 0,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 2,
+              "id": "candidate-01",
+              "relevancePosition": 2,
+              "score": 0,
+              "penalty": 0,
+              "finalPosition": 2,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0,
+                "b": 0
+              },
+              "referenceScore": 0,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 3,
+              "id": "candidate-02",
+              "relevancePosition": 3,
+              "score": 0,
+              "penalty": 0,
+              "finalPosition": 3,
+              "expectedRating": 3,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0,
+                "b": 0
+              },
+              "referenceScore": 0,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 4,
+              "id": "candidate-03",
+              "relevancePosition": 4,
+              "score": 0,
+              "penalty": 0,
+              "finalPosition": 4,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0,
+                "b": 0
+              },
+              "referenceScore": 0,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 5,
+              "id": "candidate-04",
+              "relevancePosition": 5,
+              "score": 0,
+              "penalty": 0.06,
+              "finalPosition": 5,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0,
+                "b": 0
+              },
+              "referenceScore": 0,
+              "relevanceLoss": 0
+            }
+          ],
+          "relevanceSum": 0,
+          "top5UniqueCollections": 0
+        }
+      }
+    },
+    {
+      "name": "sparse",
+      "candidateCount": 20,
+      "results": {
+        "withoutDiversity": {
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 3,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-01",
+              "relevancePosition": 1,
+              "score": 0.08775164229709684,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": 0.08775164229709684
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 2,
+              "id": "candidate-07",
+              "relevancePosition": 2,
+              "score": 0.08775164229709684,
+              "penalty": 0,
+              "finalPosition": 2,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": 0.08775164229709684
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 3,
+              "id": "candidate-11",
+              "relevancePosition": 3,
+              "score": 0.08775164229709684,
+              "penalty": 0,
+              "finalPosition": 3,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": 0.08775164229709684
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 4,
+              "id": "candidate-15",
+              "relevancePosition": 4,
+              "score": 0.08775164229709684,
+              "penalty": 0,
+              "finalPosition": 4,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": 0.08775164229709684
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 5,
+              "id": "candidate-05",
+              "relevancePosition": 5,
+              "score": 0.08380142584688038,
+              "penalty": 0,
+              "finalPosition": 5,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.08887816728725818,
+                "b": 0.08380142584688038
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            }
+          ],
+          "relevanceSum": 0.43480799503526774,
+          "top5UniqueCollections": 0
+        },
+        "current": {
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 4,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-01",
+              "relevancePosition": 1,
+              "score": 0.08775164229709684,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": 0.08775164229709684
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 2,
+              "id": "candidate-07",
+              "relevancePosition": 2,
+              "score": 0.08775164229709684,
+              "penalty": 0,
+              "finalPosition": 2,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": 0.08775164229709684
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 3,
+              "id": "candidate-15",
+              "relevancePosition": 4,
+              "score": 0.08775164229709684,
+              "penalty": 0.06,
+              "finalPosition": 3,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": 0.08775164229709684
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 4,
+              "id": "candidate-09",
+              "relevancePosition": 8,
+              "score": 0.07995943450488904,
+              "penalty": 0.06,
+              "finalPosition": 4,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.08287167378076468,
+                "b": 0.07995943450488904
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 5,
+              "id": "candidate-00",
+              "relevancePosition": 11,
+              "score": 0,
+              "penalty": 0,
+              "finalPosition": 5,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0,
+                "b": 0
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            }
+          ],
+          "relevanceSum": 0.34321436139617956,
+          "top5UniqueCollections": 0
+        },
+        "constrained": {
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-01",
+              "relevancePosition": 1,
+              "score": 0.08775164229709684,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": 0.08775164229709684
+              },
+              "referenceScore": 0.08775164229709684,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 2,
+              "id": "candidate-07",
+              "relevancePosition": 2,
+              "score": 0.08775164229709684,
+              "penalty": 0,
+              "finalPosition": 2,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": 0.08775164229709684
+              },
+              "referenceScore": 0.08775164229709684,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 3,
+              "id": "candidate-15",
+              "relevancePosition": 4,
+              "score": 0.08775164229709684,
+              "penalty": 0.06,
+              "finalPosition": 3,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": 0.08775164229709684
+              },
+              "referenceScore": 0.08775164229709684,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 4,
+              "id": "candidate-09",
+              "relevancePosition": 8,
+              "score": 0.07995943450488904,
+              "penalty": 0.06,
+              "finalPosition": 4,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.08287167378076468,
+                "b": 0.07995943450488904
+              },
+              "referenceScore": 0.08775164229709684,
+              "relevanceLoss": 0.007792207792207795
+            },
+            {
+              "position": 5,
+              "id": "candidate-03",
+              "relevancePosition": 7,
+              "score": 0.07995943450488904,
+              "penalty": 0.12,
+              "finalPosition": 5,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.08287167378076468,
+                "b": 0.07995943450488904
+              },
+              "referenceScore": 0.08775164229709684,
+              "relevanceLoss": 0.007792207792207795
+            }
+          ],
+          "relevanceSum": 0.42317379590106863,
+          "top5UniqueCollections": 0
+        }
+      }
+    },
+    {
+      "name": "franchise",
+      "candidateCount": 20,
+      "results": {
+        "withoutDiversity": {
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-00",
+              "relevancePosition": 1,
+              "score": 0.22703627071216,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.3252501028051565,
+                "b": 0.22703627071216
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 2,
+              "id": "candidate-04",
+              "relevancePosition": 2,
+              "score": 0.22703627071216,
+              "penalty": 0,
+              "finalPosition": 2,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.3252501028051565,
+                "b": 0.22703627071216
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 3,
+              "id": "candidate-08",
+              "relevancePosition": 3,
+              "score": 0.22703627071216,
+              "penalty": 0,
+              "finalPosition": 3,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.3252501028051565,
+                "b": 0.22703627071216
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 4,
+              "id": "candidate-12",
+              "relevancePosition": 4,
+              "score": 0.22308605426194356,
+              "penalty": 0,
+              "finalPosition": 4,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.318269583324637,
+                "b": 0.22308605426194356
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 5,
+              "id": "candidate-16",
+              "relevancePosition": 5,
+              "score": 0.21924406291995222,
+              "penalty": 0,
+              "finalPosition": 5,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.3122630898181435,
+                "b": 0.21924406291995222
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            }
+          ],
+          "relevanceSum": 1.1234389293183757,
+          "top5UniqueCollections": 1
+        },
+        "current": {
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 3,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-00",
+              "relevancePosition": 1,
+              "score": 0.22703627071216,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.3252501028051565,
+                "b": 0.22703627071216
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 2,
+              "id": "candidate-04",
+              "relevancePosition": 2,
+              "score": 0.22703627071216,
+              "penalty": 0.12,
+              "finalPosition": 2,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.3252501028051565,
+                "b": 0.22703627071216
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 3,
+              "id": "candidate-01",
+              "relevancePosition": 6,
+              "score": 0.10638518266976764,
+              "penalty": 0,
+              "finalPosition": 3,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.11449222714044847,
+                "b": 0.10638518266976764
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 4,
+              "id": "candidate-07",
+              "relevancePosition": 7,
+              "score": 0.10638518266976764,
+              "penalty": 0.06,
+              "finalPosition": 4,
+              "expectedRating": 7,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.11449222714044847,
+                "b": 0.10638518266976764
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 5,
+              "id": "candidate-08",
+              "relevancePosition": 3,
+              "score": 0.22703627071216,
+              "penalty": 0.24,
+              "finalPosition": 5,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.3252501028051565,
+                "b": 0.22703627071216
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            }
+          ],
+          "relevanceSum": 0.8938791774760153,
+          "top5UniqueCollections": 2
+        },
+        "constrained": {
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-00",
+              "relevancePosition": 1,
+              "score": 0.22703627071216,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.3252501028051565,
+                "b": 0.22703627071216
+              },
+              "referenceScore": 0.22703627071216,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 2,
+              "id": "candidate-04",
+              "relevancePosition": 2,
+              "score": 0.22703627071216,
+              "penalty": 0.12,
+              "finalPosition": 2,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.3252501028051565,
+                "b": 0.22703627071216
+              },
+              "referenceScore": 0.22703627071216,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 3,
+              "id": "candidate-08",
+              "relevancePosition": 3,
+              "score": 0.22703627071216,
+              "penalty": 0.24,
+              "finalPosition": 3,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.3252501028051565,
+                "b": 0.22703627071216
+              },
+              "referenceScore": 0.22703627071216,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 4,
+              "id": "candidate-12",
+              "relevancePosition": 4,
+              "score": 0.22308605426194356,
+              "penalty": 0.36,
+              "finalPosition": 4,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.318269583324637,
+                "b": 0.22308605426194356
+              },
+              "referenceScore": 0.22308605426194356,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 5,
+              "id": "candidate-16",
+              "relevancePosition": 5,
+              "score": 0.21924406291995222,
+              "penalty": 0.48,
+              "finalPosition": 5,
+              "expectedRating": 8,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.3122630898181435,
+                "b": 0.21924406291995222
+              },
+              "referenceScore": 0.21924406291995222,
+              "relevanceLoss": 0
+            }
+          ],
+          "relevanceSum": 1.1234389293183757,
+          "top5UniqueCollections": 1
+        }
+      }
+    },
+    {
+      "name": "narrow",
+      "candidateCount": 20,
+      "results": {
+        "withoutDiversity": {
+          "ndcg5": 1,
+          "recall5": 1,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-00",
+              "relevancePosition": 1,
+              "score": 0.21687252141797594,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 9,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 2,
+              "id": "candidate-04",
+              "relevancePosition": 2,
+              "score": 0.21687252141797594,
+              "penalty": 0,
+              "finalPosition": 2,
+              "expectedRating": 9,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 3,
+              "id": "candidate-08",
+              "relevancePosition": 3,
+              "score": 0.21687252141797594,
+              "penalty": 0,
+              "finalPosition": 3,
+              "expectedRating": 9,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 4,
+              "id": "candidate-12",
+              "relevancePosition": 4,
+              "score": 0.2129223049677595,
+              "penalty": 0,
+              "finalPosition": 4,
+              "expectedRating": 9,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30133000116766356,
+                "b": 0.2129223049677595
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 5,
+              "id": "candidate-16",
+              "relevancePosition": 5,
+              "score": 0.20908031362576815,
+              "penalty": 0,
+              "finalPosition": 5,
+              "expectedRating": 9,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.29532350766117005,
+                "b": 0.20908031362576815
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            }
+          ],
+          "relevanceSum": 1.0726201828474555,
+          "top5UniqueCollections": 0
+        },
+        "current": {
+          "ndcg5": 0.7227265726449519,
+          "recall5": 0.6,
+          "top5UniqueGenres": 3,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-00",
+              "relevancePosition": 1,
+              "score": 0.21687252141797594,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 9,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 2,
+              "id": "candidate-04",
+              "relevancePosition": 2,
+              "score": 0.21687252141797594,
+              "penalty": 0.06,
+              "finalPosition": 2,
+              "expectedRating": 9,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 3,
+              "id": "candidate-08",
+              "relevancePosition": 3,
+              "score": 0.21687252141797594,
+              "penalty": 0.12,
+              "finalPosition": 3,
+              "expectedRating": 9,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 4,
+              "id": "candidate-01",
+              "relevancePosition": 6,
+              "score": 0.08775164229709684,
+              "penalty": 0,
+              "finalPosition": 4,
+              "expectedRating": 3,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": 0.08775164229709684
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            },
+            {
+              "position": 5,
+              "id": "candidate-07",
+              "relevancePosition": 7,
+              "score": 0.08775164229709684,
+              "penalty": 0,
+              "finalPosition": 5,
+              "expectedRating": 3,
+              "binaryRelevant": false,
+              "personal": {
+                "a": 0.09585868676777767,
+                "b": 0.08775164229709684
+              },
+              "referenceScore": null,
+              "relevanceLoss": null
+            }
+          ],
+          "relevanceSum": 0.8261208488481215,
+          "top5UniqueCollections": 0
+        },
+        "constrained": {
+          "ndcg5": 1,
+          "recall5": 1,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            {
+              "position": 1,
+              "id": "candidate-00",
+              "relevancePosition": 1,
+              "score": 0.21687252141797594,
+              "penalty": 0,
+              "finalPosition": 1,
+              "expectedRating": 9,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": 0.21687252141797594,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 2,
+              "id": "candidate-04",
+              "relevancePosition": 2,
+              "score": 0.21687252141797594,
+              "penalty": 0.06,
+              "finalPosition": 2,
+              "expectedRating": 9,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": 0.21687252141797594,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 3,
+              "id": "candidate-08",
+              "relevancePosition": 3,
+              "score": 0.21687252141797594,
+              "penalty": 0.12,
+              "finalPosition": 3,
+              "expectedRating": 9,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30831052064818304,
+                "b": 0.21687252141797594
+              },
+              "referenceScore": 0.21687252141797594,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 4,
+              "id": "candidate-12",
+              "relevancePosition": 4,
+              "score": 0.2129223049677595,
+              "penalty": 0.18,
+              "finalPosition": 4,
+              "expectedRating": 9,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.30133000116766356,
+                "b": 0.2129223049677595
+              },
+              "referenceScore": 0.2129223049677595,
+              "relevanceLoss": 0
+            },
+            {
+              "position": 5,
+              "id": "candidate-16",
+              "relevancePosition": 5,
+              "score": 0.20908031362576815,
+              "penalty": 0.24,
+              "finalPosition": 5,
+              "expectedRating": 9,
+              "binaryRelevant": true,
+              "personal": {
+                "a": 0.29532350766117005,
+                "b": 0.20908031362576815
+              },
+              "referenceScore": 0.20908031362576815,
+              "relevanceLoss": 0
+            }
+          ],
+          "relevanceSum": 1.0726201828474555,
+          "top5UniqueCollections": 0
+        }
+      }
+    }
+  ],
+  "sensitivity": [
+    {
+      "window": 0,
+      "scenarios": [
+        {
+          "name": "balanced",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        },
+        {
+          "name": "imbalanced",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        },
+        {
+          "name": "opposed",
+          "ndcg5": null,
+          "recall5": null,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 3,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-13",
+            "candidate-03",
+            "candidate-09",
+            "candidate-17",
+            "candidate-19"
+          ]
+        },
+        {
+          "name": "cold",
+          "ndcg5": 0.830419897363192,
+          "recall5": 0.26666666666666666,
+          "top5UniqueGenres": 4,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-01",
+            "candidate-02",
+            "candidate-03",
+            "candidate-04"
+          ]
+        },
+        {
+          "name": "sparse",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 3,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-01",
+            "candidate-07",
+            "candidate-15",
+            "candidate-11",
+            "candidate-05"
+          ]
+        },
+        {
+          "name": "franchise",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        },
+        {
+          "name": "narrow",
+          "ndcg5": 1,
+          "recall5": 1,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        }
+      ]
+    },
+    {
+      "window": 0.01,
+      "scenarios": [
+        {
+          "name": "balanced",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        },
+        {
+          "name": "imbalanced",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        },
+        {
+          "name": "opposed",
+          "ndcg5": null,
+          "recall5": null,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 4,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-13",
+            "candidate-19",
+            "candidate-17",
+            "candidate-03",
+            "candidate-05"
+          ]
+        },
+        {
+          "name": "cold",
+          "ndcg5": 0.830419897363192,
+          "recall5": 0.26666666666666666,
+          "top5UniqueGenres": 4,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-01",
+            "candidate-02",
+            "candidate-03",
+            "candidate-04"
+          ]
+        },
+        {
+          "name": "sparse",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-01",
+            "candidate-07",
+            "candidate-15",
+            "candidate-09",
+            "candidate-03"
+          ]
+        },
+        {
+          "name": "franchise",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        },
+        {
+          "name": "narrow",
+          "ndcg5": 1,
+          "recall5": 1,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        }
+      ]
+    },
+    {
+      "window": 0.02,
+      "scenarios": [
+        {
+          "name": "balanced",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        },
+        {
+          "name": "imbalanced",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        },
+        {
+          "name": "opposed",
+          "ndcg5": null,
+          "recall5": null,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-13",
+            "candidate-19",
+            "candidate-17",
+            "candidate-11",
+            "candidate-05"
+          ]
+        },
+        {
+          "name": "cold",
+          "ndcg5": 0.830419897363192,
+          "recall5": 0.26666666666666666,
+          "top5UniqueGenres": 4,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-01",
+            "candidate-02",
+            "candidate-03",
+            "candidate-04"
+          ]
+        },
+        {
+          "name": "sparse",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-01",
+            "candidate-07",
+            "candidate-15",
+            "candidate-09",
+            "candidate-03"
+          ]
+        },
+        {
+          "name": "franchise",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        },
+        {
+          "name": "narrow",
+          "ndcg5": 1,
+          "recall5": 1,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        }
+      ]
+    },
+    {
+      "window": 0.04,
+      "scenarios": [
+        {
+          "name": "balanced",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        },
+        {
+          "name": "imbalanced",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        },
+        {
+          "name": "opposed",
+          "ndcg5": null,
+          "recall5": null,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-13",
+            "candidate-19",
+            "candidate-17",
+            "candidate-11",
+            "candidate-05"
+          ]
+        },
+        {
+          "name": "cold",
+          "ndcg5": 0.830419897363192,
+          "recall5": 0.26666666666666666,
+          "top5UniqueGenres": 4,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-01",
+            "candidate-02",
+            "candidate-03",
+            "candidate-04"
+          ]
+        },
+        {
+          "name": "sparse",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-01",
+            "candidate-07",
+            "candidate-15",
+            "candidate-09",
+            "candidate-03"
+          ]
+        },
+        {
+          "name": "franchise",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        },
+        {
+          "name": "narrow",
+          "ndcg5": 1,
+          "recall5": 1,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        }
+      ]
+    },
+    {
+      "window": 0.08,
+      "scenarios": [
+        {
+          "name": "balanced",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        },
+        {
+          "name": "imbalanced",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 3,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-01",
+            "candidate-03",
+            "candidate-12"
+          ]
+        },
+        {
+          "name": "opposed",
+          "ndcg5": null,
+          "recall5": null,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-13",
+            "candidate-19",
+            "candidate-17",
+            "candidate-11",
+            "candidate-05"
+          ]
+        },
+        {
+          "name": "cold",
+          "ndcg5": 0.830419897363192,
+          "recall5": 0.26666666666666666,
+          "top5UniqueGenres": 4,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-01",
+            "candidate-02",
+            "candidate-03",
+            "candidate-04"
+          ]
+        },
+        {
+          "name": "sparse",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-01",
+            "candidate-07",
+            "candidate-15",
+            "candidate-09",
+            "candidate-03"
+          ]
+        },
+        {
+          "name": "franchise",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        },
+        {
+          "name": "narrow",
+          "ndcg5": 1,
+          "recall5": 1,
+          "top5UniqueGenres": 1,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-12",
+            "candidate-16"
+          ]
+        }
+      ]
+    },
+    {
+      "window": 0.15,
+      "scenarios": [
+        {
+          "name": "balanced",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 3,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-01",
+            "candidate-07"
+          ]
+        },
+        {
+          "name": "imbalanced",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 3,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-01",
+            "candidate-03",
+            "candidate-12"
+          ]
+        },
+        {
+          "name": "opposed",
+          "ndcg5": null,
+          "recall5": null,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-13",
+            "candidate-19",
+            "candidate-17",
+            "candidate-11",
+            "candidate-05"
+          ]
+        },
+        {
+          "name": "cold",
+          "ndcg5": 0.830419897363192,
+          "recall5": 0.26666666666666666,
+          "top5UniqueGenres": 4,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-01",
+            "candidate-02",
+            "candidate-03",
+            "candidate-04"
+          ]
+        },
+        {
+          "name": "sparse",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 2,
+          "top5UniqueDirectors": 4,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-01",
+            "candidate-07",
+            "candidate-15",
+            "candidate-09",
+            "candidate-00"
+          ]
+        },
+        {
+          "name": "franchise",
+          "ndcg5": 1,
+          "recall5": 0.3333333333333333,
+          "top5UniqueGenres": 3,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-01",
+            "candidate-07",
+            "candidate-08"
+          ]
+        },
+        {
+          "name": "narrow",
+          "ndcg5": 0.7227265726449519,
+          "recall5": 0.6,
+          "top5UniqueGenres": 3,
+          "top5UniqueDirectors": 5,
+          "repeatedAcrossBatches": 0,
+          "top5": [
+            "candidate-00",
+            "candidate-04",
+            "candidate-08",
+            "candidate-01",
+            "candidate-07"
+          ]
+        }
+      ]
+    }
+  ]
+}

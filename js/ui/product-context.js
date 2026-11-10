@@ -3,6 +3,15 @@
 // Store: the captured TARGET view is the only source, callbacks the only writer.
 const ProductContext = (() => {
   const esc = value => escapeHtml(String(value ?? ''));
+  function intentButton(action,kind,seen,fn,classes='',attributes={}) {
+    return action('<i class="fa-solid '+(kind==='shared'?'fa-users':'fa-user')+'" aria-hidden="true"></i> '+(kind==='shared'?'Vorrei vederlo insieme':seen?'Voglio rivederlo':'Voglio vederlo'),fn,'intent-action is-'+kind+(classes?' '+classes:''),{'data-intention-action':'true',...attributes});
+  }
+  function externalDetailActions({action,onAction}) {
+    return '<section class="detail-intent detail-intent-group"><h4>Per noi</h4>'+intentButton(action,'shared',false,()=>onAction('proposeToGroup'),'detail-intent-action detail-intent-propose',{'data-discovery-action':'proposeToGroup',id:'discoveryAdd'})+'</section>'+
+      '<section class="detail-intent detail-intent-personal"><h4>Per me</h4><div class="movie-list-actions detail-choice-actions">'+intentButton(action,'personal',false,()=>onAction('addToMyList'),'detail-intent-action movie-list-secondary',{'data-discovery-action':'addToMyList'})+
+      action('<i class="fa-solid fa-eye" aria-hidden="true"></i> L\'ho già visto',()=>onAction('recordSeen'),'intent-action is-personal detail-intent-action movie-list-secondary',{'data-discovery-action':'recordSeen'})+'</div></section>'+
+      '<p id="discoverySaveStatus" class="detail-feedback" role="status" aria-live="polite"></p><button id="discoveryVerify" type="button" class="detail-text-action" hidden>Verifica stato</button>';
+  }
   function create({ view, session, destination, perform, performInline = perform, edit, detail, openNight, openTogether, openPersonalStatus, openOtherJudgment, openSaga, ticket, feedback = '', feedbackZone = null, onActionSource = () => {}, isCurrent = () => true }) {
     if (view.kind !== 'AVAILABLE') throw new TypeError('Committed TARGET view required');
     const token = session.capture(), current=()=>session.current(token)&&isCurrent(), identities = view.getRecommendationInput();
@@ -63,9 +72,7 @@ const ProductContext = (() => {
       {'aria-label':variant==='card'?'Apri la saga di '+m.title:'Apri la saga '+(m.collection_name||'di '+m.title)}
     ):'';
     const intentIcon=kind=>kind==='shared'?'fa-users':'fa-user';
-    const intentAction=(kind,seen,fn,classes='')=>action(
-      '<i class="fa-solid '+intentIcon(kind)+'" aria-hidden="true"></i> '+(kind==='shared'?'Vorrei vederlo insieme':seen?'Voglio rivederlo':'Voglio vederlo'),
-      fn,'intent-action is-'+kind+(classes?' '+classes:''),{'data-intention-action':'true'});
+    const intentAction=(kind,seen,fn,classes='')=>intentButton(action,kind,seen,fn,classes);
     const personalCollection=['personalList','personalSeen'].includes(destination);
     async function confirmListRemoval(m, relation, listName, node) {
       if(node.disabled)return;
@@ -138,6 +145,7 @@ const ProductContext = (() => {
     // opening it never creates an event or selects another event for the film.
     const detailNightLabel = n => n.status==='completed'?'Visione insieme':n.status==='proposed'?'Proposta in attesa':n.status==='confirmed'?(n.date?'Serata aperta':'FILM SCELTO'):n.status==='cancelled'?'Serata annullata':'Serata non effettuata';
     function detailNightActions(n) {
+      if(n.status==='completed')return action('Apri serata',()=>openNight(n.id),'detail-text-action');
       let html='';
       if(n.status==='proposed'&&n.proposed_by_person_id!==view.context.caller.personId)html+=action('Accetta proposta',()=>perform('confirmNight',n.id),'detail-secondary');
       if(n.status==='confirmed'&&(!n.date||due(n)))html+=action('Concludi questa serata',()=>edit('completeScheduled',n.id,n),'detail-secondary');
@@ -243,7 +251,7 @@ const ProductContext = (() => {
       const main=primary?action(primary.kind==='choose'?'<i class="fa-solid fa-ticket" aria-hidden="true"></i> '+esc(primary.text):esc(primary.text),async node=>{if(node.disabled)return;const pending=primary.fn();if(!pending?.then)return;node.disabled=true;try{await pending;}finally{if(current()&&node.isConnected)node.disabled=false;}},primary.kind==='choose'?'movie-list-primary':'movie-list-primary detail-primary',{'data-detail-primary':primary.kind,'data-return-focus-key':'detail-primary'}):'';
       const personalSection=available?'<section class="detail-intent detail-intent-personal" data-feedback-zone="personal-actions"><h4>Per me</h4>'+
         (s.list.active?'<p>Nei tuoi Da vedere</p>'+action('Togli dai miei Da vedere',node=>confirmListRemoval(m,'removeFromMyList','tuoi Da vedere',node),'detail-intent-remove',{'data-list-removal':'true'})
-          :intentAction('personal',s.seen,()=>perform('addToMyList',m.id),'detail-intent-action'))+status('personal-actions')+'</section>':'';
+          :'<div class="movie-list-actions detail-choice-actions">'+intentAction('personal',s.seen,()=>perform('addToMyList',m.id),'detail-intent-action movie-list-secondary')+'</div>')+status('personal-actions')+'</section>':'';
       const groupState=open.length?'<p>'+(open.length===1?esc(detailNightLabel(open[0].event)):open.length+' serate aperte')+'</p>':'';
       const groupAction=g.candidacy.effectiveCandidacy?action('Togli dai Da vedere insieme',node=>confirmListRemoval(m,'withdrawGroupCandidacy','Da vedere insieme',node),'detail-intent-remove',{'data-list-removal':'true'})
         :open.length?'':intentAction('shared',false,()=>perform('proposeToGroup',m.id),'detail-intent-action detail-intent-propose');
@@ -257,6 +265,7 @@ const ProductContext = (() => {
     const movieProjection = (m, selectedNight = null) => {const n=selectedNight || active(m.id);return {...m,nightId:n?.id,scheduled_date:n?.date,scheduled_time:n?.time,snack:n?.snack,location:n?.location,night_confirmed:n?.status==='confirmed',proposed_by:n?.proposed_by};};
     const personBadge = code => code ? `<span class="badge badge-${esc(code.toLowerCase())}">${esc(label(code))}</span>`:'';
     function eventActions(n) {
+      if(n.status==='completed')return action('Modifica serata',()=>edit('editNight',n.id,n),'next-movie-action next-movie-secondary');
       const args=n.id;let html='';
       if(['proposed','confirmed'].includes(n.status)) {
         if(n.status==='proposed'&&n.proposed_by!==callerLabel)html+=action('Accetta proposta',()=>perform('confirmNight',args),'next-movie-action next-movie-primary');
@@ -294,5 +303,5 @@ const ProductContext = (() => {
       }};
     return Object.freeze(ctx);
   }
-  return Object.freeze({create});
+  return Object.freeze({create,externalDetailActions});
 })();

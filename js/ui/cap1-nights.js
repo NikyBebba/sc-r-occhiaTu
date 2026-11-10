@@ -7,7 +7,8 @@ const Cap1Nights = (() => {
   function create({root=document,session,context,perform,waitFor}) {
     const el=id=>root.getElementById(id);
     let selectedMovieId=null, detailNightId=null, pending=false, formEpoch=0;
-    let ratingTouched=false,reviewTouched=false,selectedReview='';
+    let ratingTouched=false,reviewTouched=false,selectedReview='',editState=null;
+    const postWatchShown=new Set(),editOperations=new Map();
     const state=()=>session.getState();
     const ready=()=>{const s=state();return s.phase==='READY'&&s.view.kind==='AVAILABLE'&&
       s.view.context.contractVersion===2&&s.view.freshness.source==='ONLINE'&&s.runtime?.source==='ONLINE';};
@@ -134,8 +135,8 @@ const Cap1Nights = (() => {
         '<dl class="cap1-night-facts"><div><dt>Stato</dt><dd>'+esc(status)+'</dd></div><div><dt>Quando</dt><dd>'+esc(timing(n))+'</dd></div>'+
         '<div><dt>Partecipanti</dt><dd><i class="fa-solid fa-users-round" aria-hidden="true"></i> '+esc(names||'Non indicati')+'</dd></div>'+
         (n.location?'<div><dt>Luogo</dt><dd>'+esc(n.location)+'</dd></div>':'')+(n.snack?'<div><dt>Snack</dt><dd>'+esc(n.snack)+'</dd></div>':'')+
-        (n.night_memory?'<div><dt>Ricordo della serata</dt><dd class="cap1-night-memory">'+esc(n.night_memory)+'</dd></div>':'')+'</dl>'+
-        (n.retrospective&&n.status==='completed'&&ready()?'<button id="nightDetailEdit" type="button" class="cap1-secondary">Modifica serata</button>':
+        (n.night_memory?'<div><dt>Ricordo della serata</dt><dd class="cap1-night-memory">'+esc(n.night_memory)+'</dd></div>':n.status==='completed'?'<div><dt>Ricordo della serata</dt><dd class="cap1-hint">'+'Aggiungi un ricordo da Modifica serata.'+'</dd></div>':'')+'</dl>'+
+        (n.status==='completed'&&ready()?'<button id="nightDetailEdit" type="button" class="cap1-secondary">Modifica serata</button>':
           !n.retrospective?'<div class="cap1-actions">'+ctx.eventActions(n)+'</div>':'');
       ctx.bind(body);
       const edit=el('nightDetailEdit');if(edit)edit.onclick=()=>openEdit(n.id);
@@ -144,35 +145,79 @@ const Cap1Nights = (() => {
       if(state().view.kind!=='AVAILABLE'||!night(id))return;
       detailNightId=id;openModal('nightDetailModal');renderDetail();el('nightDetailModal').querySelector('.cap1-close')?.focus({preventScroll:true});
     }
-    function openEdit(id) {
-      const n=night(id);if(!ready()||!n?.retrospective||n.status!=='completed')return;
-      formEpoch++;pending=false;el('pastEditDate').value=n.date||'';el('pastEditUnknown').checked=!n.date;setUnknown('pastEdit');
+    function openEdit(id,{postWatch=false}={}) {
+      const n=night(id);if(!ready()||n?.status!=='completed')return;
+      formEpoch++;const existing=editOperations.get(id);
+      const retained=existing&&['PENDING','UNCERTAIN'].includes(existing.status)?existing:null;if(!retained)editOperations.delete(id);
+      editState={nightId:id,initial:n,operation:retained};
+      el('pastEditTitle').textContent=postWatch?"Com’è andata?":'Modifica serata';el('pastEditCancel').textContent=postWatch?'Più tardi':'Annulla';
+      el('pastEditTiming').textContent=timing(n);
+      el('pastEditDate').value=n.date||'';el('pastEditUnknown').checked=!n.date;setUnknown('pastEdit');
+      el('pastEditDate').disabled=!n.retrospective||!n.date;el('pastEditUnknown').disabled=!n.retrospective;
       el('pastEditDate').max=context().view.context.temporal.local_date;
       el('pastEditLocation').value=n.location||'';el('pastEditSnack').value=n.snack||'';el('pastEditMemory').value=n.night_memory||'';
+      el('pastEditMemory').disabled=false;
+      el('pastEditMemoryHint').textContent='Il ricordo riguarda questa serata. Voto e recensione Together riguardano il film.';
+      for(const field of ['pastEditLocation','pastEditSnack','pastEditTogetherRating','pastEditTogetherReview'])el(field).disabled=false;
+      el('pastEditEvaluation').open=postWatch;
+      renderEvaluation('pastEdit',n.movie_id);
+      el('pastEditTogetherRating').oninput=()=>{ratingTouched=true;};el('pastEditTogetherReview').oninput=()=>{reviewTouched=true;};
       count('pastEdit');clearError('pastEditError');el('pastEditSave').disabled=false;
       bindAutocomplete('pastEdit','location');bindAutocomplete('pastEdit','snack');
       el('pastEditUnknown').onchange=()=>setUnknown('pastEdit');el('pastEditMemory').oninput=()=>count('pastEdit');
-      el('pastEditSave').onclick=()=>saveEdit(id);openModal('pastNightEditModal');el('pastEditDate').focus();
+      el('pastEditSave').onclick=()=>saveEdit(id);if(retained)paintEditOperation(retained);openModal('pastNightEditModal');if(postWatch){el('pastEditTitle').focus({preventScroll:true});el('pastNightEditModal').querySelector('.cap1-panel').scrollTop=0;}else el('pastEditLocation').focus();
     }
-    function renderEvaluation(){const m=selectedMovieId&&movie(selectedMovieId),ctx=m&&context(),rating=m?ctx.togetherRating(m):null;
+    function openPostWatch(id) {
+      if(!ready()||night(id)?.status!=='completed'||postWatchShown.has(id))return;
+      postWatchShown.add(id);openNight(id);openEdit(id,{postWatch:true});
+    }
+    function renderEvaluation(prefix='pastNight',id=selectedMovieId){const m=id&&movie(id),ctx=m&&context(),rating=m?ctx.togetherRating(m):null;
       ratingTouched=false;reviewTouched=false;selectedReview=m?ctx.reviewTextFor(m,'both'):'';
-      el('pastNightTogetherRating').value=rating==null?'':formatMovieRating(rating);
-      el('pastNightTogetherReview').value=selectedReview;
+      el(prefix+'TogetherRating').value=rating==null?'':formatMovieRating(rating);
+      el(prefix+'TogetherReview').value=selectedReview;
     }
-    async function saveEdit(id,retryHandle=null) {
-      if(pending||!ready())return;
-      const epoch=formEpoch,token=session.capture(),save=el('pastEditSave');let input;
-      try{input=fields('pastEdit');clearError('pastEditError');}catch(error){showError('pastEditError',error.message);return;}
-      pending=true;save.disabled=true;let result;
-      try{result=retryHandle?await perform('retry',retryHandle):await perform('editPastTogether',id,input);}
-      finally{if(epoch===formEpoch){pending=false;save.disabled=false;}}
-      if(epoch!==formEpoch||!session.current(token))return;
-      if(!['SUCCESS','ALREADY_IN_TARGET_STATE'].includes(result.outcome)){
-        showError('pastEditError',result.outcome==='STALE'?'La serata è cambiata. Riaprila e riprova.':
-          result.outcome==='TRANSPORT_UNCERTAIN'?'Esito da verificare. Riprova la stessa operazione.':'Non siamo riusciti a modificare la serata.',
-          result.retryHandle?()=>saveEdit(id,result.retryHandle):null);return;
-      }
-      closeModal('pastNightEditModal');await session.requestRefresh();if(session.current(token))renderDetail();
+    function paintEditOperation(op) {
+      if(editState?.operation!==op)return;
+      for(const field of ['pastEditDate','pastEditUnknown','pastEditLocation','pastEditSnack','pastEditMemory','pastEditTogetherRating','pastEditTogetherReview'])el(field).disabled=true;
+      el('pastEditSave').disabled=true;
+      if(op.status==='PENDING'){showError('pastEditError','Salvataggio in corso…');return;}
+      showError('pastEditError',op.status==='UNCERTAIN'?'Esito da verificare. Le operazioni già confermate non saranno ripetute.':op.status==='STALE'?'I dati sono cambiati. Riapri la serata prima di modificarli.':'Salvataggio non completato. Le modifiche già confermate restano salvate.',op.retryHandle?()=>saveEdit(op.nightId,true):null);
+    }
+    async function saveEdit(id,retry=false) {
+      if(!ready()||editState?.nightId!==id||editState.operation?.status==='PENDING')return;
+      const token=session.capture(),save=el('pastEditSave'),n=night(id);
+      if(n?.status!=='completed')return;
+      try {
+        if(!editState.operation){
+          const initial=editState.initial,patch={};
+          for(const field of ['location','snack']){const value=el('pastEdit'+field[0].toUpperCase()+field.slice(1)).value.trim()||null;if(value!==(initial[field]||null))patch[field]=value;}
+          const memory=el('pastEditMemory').value.trim()||null;
+          if(memory!==(initial.night_memory||null)){if([...(memory||'')].length>1000)throw Error('Il ricordo può contenere al massimo 1.000 caratteri.');patch.nightMemory=memory;}
+          if(n.retrospective){const date=validDate('pastEdit');if(date!==initial.date)patch.date=date;}
+          const evaluation={};
+          if(ratingTouched){const raw=el('pastEditTogetherRating').value.trim(),rating=raw===''?null:parseMovieRating(raw);if(raw!==''&&rating===null)throw Error('Inserisci un voto da 0 a 10, con un decimale.');evaluation.rating=rating;}
+          if(reviewTouched){const review=el('pastEditTogetherReview').value;evaluation.review=review===''&&selectedReview!==''?null:review;}
+          const steps=[];if(Object.keys(patch).length)steps.push({action:'editPastTogether',id,input:patch});
+          if(Object.keys(evaluation).length)steps.push({action:'setGroupEvaluation',id:n.movie_id,input:evaluation});
+          editState.operation={nightId:id,steps,index:0,retryHandle:null,status:'IDLE'};editOperations.set(id,editState.operation);
+        }
+        const op=editState.operation;
+        if(op.status==='UNCERTAIN'&&(!retry||!op.retryHandle))return;
+        clearError('pastEditError');op.status='PENDING';paintEditOperation(op);
+        while(op.index<op.steps.length){
+          const step=op.steps[op.index];let result;
+          try{result=op.retryHandle?await perform('retry',op.retryHandle):await perform(step.action,step.id,step.input);}catch(_){result={outcome:'TRANSPORT_UNCERTAIN'};}
+          if(!session.current(token))return;
+          if(!['SUCCESS','ALREADY_IN_TARGET_STATE'].includes(result.outcome)){
+            op.retryHandle=result.retryHandle||null;op.status=result.outcome==='TRANSPORT_UNCERTAIN'||result.outcome==='ERROR'&&!result.error?'UNCERTAIN':result.outcome;
+            paintEditOperation(op);return;
+          }
+          op.retryHandle=null;op.index++;
+        }
+        op.status='SUCCESS';editOperations.delete(id);
+        if(editState?.operation===op)closeModal('pastNightEditModal');
+        await session.requestRefresh();if(session.current(token))renderDetail();
+      }catch(error){showError('pastEditError',error.message);save.disabled=false;}
     }
     function refresh() {
       historyAutocomplete.refreshAll();
@@ -180,8 +225,8 @@ const Cap1Nights = (() => {
       if(!ready())for(const id of ['pastNightModal','pastNightEditModal'])if(!el(id).classList.contains('hidden'))closeModal(id);
       renderDetail();if(!el('pastNightModal').classList.contains('hidden')&&selectedMovieId)duplicates();
     }
-    function dispose(){formEpoch++;pending=false;detailNightId=null;selectedMovieId=null;for(const id of ['pastNightEditModal','pastNightModal','nightDetailModal'])if(!el(id).classList.contains('hidden'))closeModal(id);}
-    return Object.freeze({ready,refresh,openRegistration,openNight,dispose});
+    function dispose(){formEpoch++;pending=false;editOperations.clear();detailNightId=null;selectedMovieId=null;for(const id of ['pastNightEditModal','pastNightModal','nightDetailModal'])if(!el(id).classList.contains('hidden'))closeModal(id);}
+    return Object.freeze({ready,refresh,openRegistration,openNight,openEdit,openPostWatch,dispose});
   }
   return Object.freeze({create,rankHistorySuggestions});
 })();

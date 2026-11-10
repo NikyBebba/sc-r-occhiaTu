@@ -13,16 +13,22 @@ function genreChips(m) {
 }
 
 function externalRatingsHtml(m, showEmpty = false) {
+  const cached=typeof TmdbDetailCache!=='undefined'?TmdbDetailCache.read(m.tmdb_id):null;
+  if(cached?.ratingsChecked)m={...m,imdb_rating:cached.imdbRating||'',rt_rating:cached.rtRating||'',metacritic_rating:cached.metacriticRating||''};
+  const rating=m.tmdb_rating??cached?.tmdbRating;
+  const tmdb=typeof rating==='number'&&Number.isFinite(rating)&&rating>=0&&rating<=10?'<span>TMDb '+escapeHtml(rating.toFixed(1).replace('.',','))+'</span>':'';
   if (showEmpty) return `<div class="rating-holo flex gap-2 external-ratings mt-1 px-2 py-1 rounded text-[10px] text-slate-400">
     <span><i class="fa-solid fa-star text-amber-400" aria-hidden="true"></i> IMDb ${m.imdb_rating ? escapeHtml(m.imdb_rating) : 'n.d.'}</span>
     <span class="text-rose-400">RT ${m.rt_rating ? escapeHtml(m.rt_rating) : 'n.d.'}</span>
     <span class="text-emerald-400">MC ${m.metacritic_rating ? escapeHtml(m.metacritic_rating) : 'n.d.'}</span>
+    ${tmdb}
   </div>`;
-  if (!m.imdb_rating && !m.rt_rating && !m.metacritic_rating) return '';
+  if (!m.imdb_rating && !m.rt_rating && !m.metacritic_rating && !tmdb) return '';
   return `<div class="rating-holo flex gap-2 external-ratings mt-1 px-2 py-1 rounded text-[10px] text-slate-400">
     ${m.imdb_rating ? `<span><i class="fa-solid fa-star text-amber-400" aria-hidden="true"></i> IMDb ${escapeHtml(m.imdb_rating)}</span>` : ''}
     ${m.rt_rating ? `<span class="text-rose-400">RT ${escapeHtml(m.rt_rating)}</span>` : ''}
     ${m.metacritic_rating ? `<span class="text-emerald-400">MC ${escapeHtml(m.metacritic_rating)}</span>` : ''}
+    ${tmdb}
   </div>`;
 }
 

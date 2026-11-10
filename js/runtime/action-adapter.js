@@ -236,7 +236,8 @@ const ActionAdapter = (() => {
       }),
       editPastTogether: (h, nightId, input) => !cap1Ready(h)?Promise.resolve(outcome('NOT_READY','ONLINE_SNAPSHOT_V2_REQUIRED')):run(h,r=>{
         uuid(nightId);const event=Core.getNight(r.root,nightId);if(!event)fail('NIGHT_NOT_COVERED');
-        if(!event.retrospective||event.status!=='completed')fail('RETROSPECTIVE_NIGHT_REQUIRED');
+        if(event.status!=='completed')fail('COMPLETED_NIGHT_REQUIRED');
+        if(!event.retrospective&&Object.hasOwn(input,'date'))fail('COMPLETED_DATE_IMMUTABLE');
         const parameters=pastFields(input,false);parameters.client_snapshot_contract_version=2;
         return command(r,'EDIT_PAST_TOGETHER',event.movie_id,parameters,'night',nightId);
       }),

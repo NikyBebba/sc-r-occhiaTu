@@ -215,12 +215,12 @@ function fixture() {
       const consumer = source.match(/<button type="button" onclick="openDashboardHome\(\)" class="dashboard-back"[^>]*>[^<]*(?:<i[^>]*><\/i>[^<]*)?(?:<span[^>]*>[\s\S]*?<\/span>)?[\s\S]*?<\/button>/)?.[0];
       const canonical = source.match(/<button id="libraryBack"[^>]*class="dashboard-back"[^>]*>[\s\S]*?<\/button>/)?.[0];
       assert(consumer && canonical, 'real Home buttons found in index.html');
-      await page.setContent(`<!doctype html><html><head><style>${read('css/style.css')}</style></head><body tabindex="-1"><div>${consumer}${canonical}</div><script>window.homeHits=0;window.openDashboardHome=()=>window.homeHits++;</script></body></html>`);
-      const [home, peer] = [page.locator('button[aria-label="Torna alla home"]'), page.locator('#libraryBack')];
+      await page.setContent(`<!doctype html><html><head><style>${read('css/style.css')}</style></head><body tabindex="-1"><div id="recommendationBackFixture">${consumer}</div><div>${canonical}</div><script>window.homeHits=0;window.openDashboardHome=()=>window.homeHits++;</script></body></html>`);
+      const [home, peer] = [page.locator('#recommendationBackFixture button'), page.locator('#libraryBack')];
       for (const width of [320, 390, 768, 1280]) {
         await page.setViewportSize({ width, height: 844 });
         const state = await page.evaluate(() => {
-          const a=document.querySelector('button[aria-label="Torna alla home"]'),b=document.querySelector('#libraryBack');
+          const a=document.querySelector('#recommendationBackFixture button'),b=document.querySelector('#libraryBack');
           const pick=e=>{const s=getComputedStyle(e),r=e.getBoundingClientRect();return {height:r.height,minHeight:s.minHeight,padding:s.padding,borderRadius:s.borderRadius,border:s.border,background:s.backgroundColor,font:s.font,display:s.display,alignItems:s.alignItems,gap:s.gap,width:r.width,scrollWidth:document.documentElement.scrollWidth}};
           return {a:pick(a),b:pick(b),text:a.textContent.trim(),classA:a.className,classB:b.className};
         });
@@ -232,7 +232,7 @@ function fixture() {
       }
       assert.match(read('css/style.css'), /:focus-visible\s*\{[^}]*outline:\s*2px solid/);
       await home.focus();
-      assert.equal(await page.evaluate(()=>document.activeElement.getAttribute('aria-label')),'Torna alla home');
+      assert.equal(await page.evaluate(()=>document.activeElement.textContent.trim()),'Torna alla home');
       await page.keyboard.press('Enter');
       assert.equal(await page.evaluate(()=>homeHits),1,'keyboard activation preserves Home handler');
       await home.click();

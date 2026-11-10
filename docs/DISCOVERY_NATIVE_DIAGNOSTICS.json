@@ -1,0 +1,2179 @@
+{
+  "syntheticOnly": true,
+  "asOf": "2026-11-09",
+  "quality": [
+    {
+      "id": "pochi_voti_altissimi",
+      "votes": 8,
+      "average": 9.5,
+      "popularity": 1,
+      "date": "2025-01-01",
+      "language": "ja",
+      "before": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 5.5,
+        "nicheMin": 5,
+        "nicheAge": 0,
+        "nicheRecentMin": 5,
+        "eligible": true,
+        "category": "niche",
+        "released": true,
+        "score": 0.5004032518765317,
+        "confidence": 0.07407407407407407,
+        "adjustedRating": 6.2592592592592595,
+        "metadataCoverage": 1,
+        "code": "PUBLIC_SIGNALS",
+        "position": 6,
+        "batchPosition": null
+      },
+      "after": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 6,
+        "nicheMin": 10,
+        "nicheAge": 3,
+        "nicheRecentMin": 30,
+        "eligible": false,
+        "category": null,
+        "released": true,
+        "score": 0.5004032518765317,
+        "confidence": 0.07407407407407407,
+        "adjustedRating": 6.2592592592592595,
+        "metadataCoverage": 1,
+        "code": "INSUFFICIENT_PUBLIC_REPUTATION",
+        "position": null,
+        "batchPosition": null
+      }
+    },
+    {
+      "id": "recente_poco_consolidato",
+      "votes": 55,
+      "average": 8.7,
+      "popularity": 200,
+      "date": "2026-11-01",
+      "language": "en",
+      "before": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 5.5,
+        "nicheMin": 5,
+        "nicheAge": 0,
+        "nicheRecentMin": 5,
+        "eligible": true,
+        "category": "recent",
+        "released": true,
+        "score": 0.6652137079183383,
+        "confidence": 0.3548387096774194,
+        "adjustedRating": 6.958064516129032,
+        "metadataCoverage": 1,
+        "code": "PUBLIC_SIGNALS",
+        "position": 4,
+        "batchPosition": null
+      },
+      "after": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 6,
+        "nicheMin": 10,
+        "nicheAge": 3,
+        "nicheRecentMin": 30,
+        "eligible": true,
+        "category": "recent",
+        "released": true,
+        "score": 0.6652137079183383,
+        "confidence": 0.3548387096774194,
+        "adjustedRating": 6.958064516129032,
+        "metadataCoverage": 1,
+        "code": "PUBLIC_SIGNALS",
+        "position": 3,
+        "batchPosition": null
+      }
+    },
+    {
+      "id": "popolare_mediocre",
+      "votes": 6000,
+      "average": 5.6,
+      "popularity": 5000,
+      "date": "2024-01-01",
+      "language": "en",
+      "before": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 5.5,
+        "nicheMin": 5,
+        "nicheAge": 0,
+        "nicheRecentMin": 5,
+        "eligible": true,
+        "category": "established",
+        "released": true,
+        "score": 0.7331147540983605,
+        "confidence": 0.9836065573770492,
+        "adjustedRating": 5.60655737704918,
+        "metadataCoverage": 1,
+        "code": "PUBLIC_SIGNALS",
+        "position": 2,
+        "batchPosition": null
+      },
+      "after": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 6,
+        "nicheMin": 10,
+        "nicheAge": 3,
+        "nicheRecentMin": 30,
+        "eligible": false,
+        "category": null,
+        "released": true,
+        "score": 0.7331147540983605,
+        "confidence": 0.9836065573770492,
+        "adjustedRating": 5.60655737704918,
+        "metadataCoverage": 1,
+        "code": "INSUFFICIENT_PUBLIC_REPUTATION",
+        "position": null,
+        "batchPosition": null
+      }
+    },
+    {
+      "id": "classico_consolidato",
+      "votes": 1500,
+      "average": 8.2,
+      "popularity": 4,
+      "date": "1980-01-01",
+      "language": "it",
+      "before": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 5.5,
+        "nicheMin": 5,
+        "nicheAge": 0,
+        "nicheRecentMin": 5,
+        "eligible": true,
+        "category": "classic",
+        "released": true,
+        "score": 0.7945456294418314,
+        "confidence": 0.9375,
+        "adjustedRating": 8.062499999999998,
+        "metadataCoverage": 1,
+        "code": "PUBLIC_SIGNALS",
+        "position": 1,
+        "batchPosition": null
+      },
+      "after": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 6,
+        "nicheMin": 10,
+        "nicheAge": 3,
+        "nicheRecentMin": 30,
+        "eligible": true,
+        "category": "classic",
+        "released": true,
+        "score": 0.7945456294418314,
+        "confidence": 0.9375,
+        "adjustedRating": 8.062499999999998,
+        "metadataCoverage": 1,
+        "code": "PUBLIC_SIGNALS",
+        "position": 1,
+        "batchPosition": null
+      }
+    },
+    {
+      "id": "autore_poco_votato",
+      "votes": 35,
+      "average": 7.8,
+      "popularity": 0.1,
+      "date": "1990-01-01",
+      "language": "fr",
+      "before": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 5.5,
+        "nicheMin": 5,
+        "nicheAge": 0,
+        "nicheRecentMin": 5,
+        "eligible": true,
+        "category": "classic",
+        "released": true,
+        "score": 0.5412314084123147,
+        "confidence": 0.25925925925925924,
+        "adjustedRating": 6.466666666666667,
+        "metadataCoverage": 1,
+        "code": "PUBLIC_SIGNALS",
+        "position": 5,
+        "batchPosition": null
+      },
+      "after": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 6,
+        "nicheMin": 10,
+        "nicheAge": 3,
+        "nicheRecentMin": 30,
+        "eligible": true,
+        "category": "classic",
+        "released": true,
+        "score": 0.5412314084123147,
+        "confidence": 0.25925925925925924,
+        "adjustedRating": 6.466666666666667,
+        "metadataCoverage": 1,
+        "code": "PUBLIC_SIGNALS",
+        "position": 4,
+        "batchPosition": null
+      }
+    },
+    {
+      "id": "internazionale_nicchia",
+      "votes": 12,
+      "average": 8.1,
+      "popularity": 0.3,
+      "date": "2018-01-01",
+      "language": "ko",
+      "before": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 5.5,
+        "nicheMin": 5,
+        "nicheAge": 0,
+        "nicheRecentMin": 5,
+        "eligible": true,
+        "category": "niche",
+        "released": true,
+        "score": 0.4987261336933808,
+        "confidence": 0.10714285714285714,
+        "adjustedRating": 6.2250000000000005,
+        "metadataCoverage": 1,
+        "code": "PUBLIC_SIGNALS",
+        "position": 7,
+        "batchPosition": null
+      },
+      "after": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 6,
+        "nicheMin": 10,
+        "nicheAge": 3,
+        "nicheRecentMin": 30,
+        "eligible": true,
+        "category": "niche",
+        "released": true,
+        "score": 0.4987261336933808,
+        "confidence": 0.10714285714285714,
+        "adjustedRating": 6.2250000000000005,
+        "metadataCoverage": 1,
+        "code": "PUBLIC_SIGNALS",
+        "position": 5,
+        "batchPosition": null
+      }
+    },
+    {
+      "id": "senza_reputazione",
+      "votes": 0,
+      "average": 10,
+      "popularity": 10000,
+      "date": "2026-01-01",
+      "language": "en",
+      "before": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 5.5,
+        "nicheMin": 5,
+        "nicheAge": 0,
+        "nicheRecentMin": 5,
+        "eligible": false,
+        "category": null,
+        "released": true,
+        "score": 0.5599999999999999,
+        "confidence": 0,
+        "adjustedRating": 6,
+        "metadataCoverage": 1,
+        "code": "INSUFFICIENT_PUBLIC_REPUTATION",
+        "position": null,
+        "batchPosition": null
+      },
+      "after": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 6,
+        "nicheMin": 10,
+        "nicheAge": 3,
+        "nicheRecentMin": 30,
+        "eligible": false,
+        "category": null,
+        "released": true,
+        "score": 0.5599999999999999,
+        "confidence": 0,
+        "adjustedRating": 6,
+        "metadataCoverage": 1,
+        "code": "INSUFFICIENT_PUBLIC_REPUTATION",
+        "position": null,
+        "batchPosition": null
+      }
+    },
+    {
+      "id": "futuro",
+      "votes": 1000,
+      "average": 8,
+      "popularity": 200,
+      "date": "2027-01-01",
+      "language": "en",
+      "before": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 5.5,
+        "nicheMin": 5,
+        "nicheAge": 0,
+        "nicheRecentMin": 5,
+        "eligible": false,
+        "category": "established",
+        "released": false,
+        "score": 0.8276711859242034,
+        "confidence": 0.9090909090909091,
+        "adjustedRating": 7.818181818181818,
+        "metadataCoverage": 1,
+        "code": "UNRELEASED_OR_UNKNOWN_DATE",
+        "position": null,
+        "batchPosition": null
+      },
+      "after": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 6,
+        "nicheMin": 10,
+        "nicheAge": 3,
+        "nicheRecentMin": 30,
+        "eligible": false,
+        "category": "established",
+        "released": false,
+        "score": 0.8276711859242034,
+        "confidence": 0.9090909090909091,
+        "adjustedRating": 7.818181818181818,
+        "metadataCoverage": 1,
+        "code": "UNRELEASED_OR_UNKNOWN_DATE",
+        "position": null,
+        "batchPosition": null
+      }
+    },
+    {
+      "id": "medio_consolidato",
+      "votes": 400,
+      "average": 6.2,
+      "popularity": 20,
+      "date": "2010-01-01",
+      "language": "en",
+      "before": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 5.5,
+        "nicheMin": 5,
+        "nicheAge": 0,
+        "nicheRecentMin": 5,
+        "eligible": true,
+        "category": "established",
+        "released": true,
+        "score": 0.6736676002401868,
+        "confidence": 0.8,
+        "adjustedRating": 6.16,
+        "metadataCoverage": 1,
+        "code": "PUBLIC_SIGNALS",
+        "position": 3,
+        "batchPosition": null
+      },
+      "after": {
+        "policyVersion": "cinematic-quality-v1.2",
+        "establishedMin": 6,
+        "nicheMin": 10,
+        "nicheAge": 3,
+        "nicheRecentMin": 30,
+        "eligible": true,
+        "category": "established",
+        "released": true,
+        "score": 0.6736676002401868,
+        "confidence": 0.8,
+        "adjustedRating": 6.16,
+        "metadataCoverage": 1,
+        "code": "PUBLIC_SIGNALS",
+        "position": 2,
+        "batchPosition": null
+      }
+    }
+  ],
+  "reasons": [
+    {
+      "name": "balanced",
+      "coverage": {
+        "a": {
+          "observations": 8,
+          "featureFamilies": [
+            "genre"
+          ]
+        },
+        "b": {
+          "observations": 8,
+          "featureFamilies": [
+            "genre"
+          ]
+        }
+      },
+      "togetherObservations": 4,
+      "broad": {
+        "selectedCounts": {
+          "a": 0,
+          "b": 0,
+          "together": 0,
+          "fallback": 6
+        },
+        "details": [
+          {
+            "id": "external-0",
+            "score": 0.09350649350649348,
+            "personal": {
+              "a": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 1,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "together",
+                "strength": 0.07346938775510203,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-1",
+            "score": 0.09350649350649348,
+            "personal": {
+              "a": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 1,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "together",
+                "strength": 0.07346938775510203,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-2",
+            "score": 0.09350649350649348,
+            "personal": {
+              "a": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 1,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "together",
+                "strength": 0.07346938775510203,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-3",
+            "score": 0.09350649350649348,
+            "personal": {
+              "a": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 1,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "together",
+                "strength": 0.07346938775510203,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-4",
+            "score": 0.09350649350649348,
+            "personal": {
+              "a": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 1,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "together",
+                "strength": 0.07346938775510203,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-5",
+            "score": 0.09350649350649348,
+            "personal": {
+              "a": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 1,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "together",
+                "strength": 0.07346938775510203,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          }
+        ]
+      },
+      "retrievalShaped": {
+        "selectedCounts": {
+          "a": 0,
+          "b": 0,
+          "together": 0,
+          "fallback": 6
+        },
+        "details": [
+          {
+            "id": "external-0",
+            "score": 0.09350649350649348,
+            "personal": {
+              "a": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 1,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "together",
+                "strength": 0.07346938775510203,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-1",
+            "score": 0.09350649350649348,
+            "personal": {
+              "a": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 1,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "together",
+                "strength": 0.07346938775510203,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-2",
+            "score": 0.09350649350649348,
+            "personal": {
+              "a": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 1,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "together",
+                "strength": 0.07346938775510203,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-3",
+            "score": 0.09350649350649348,
+            "personal": {
+              "a": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 1,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "together",
+                "strength": 0.07346938775510203,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-4",
+            "score": 0.09350649350649348,
+            "personal": {
+              "a": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 1,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "together",
+                "strength": 0.07346938775510203,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-5",
+            "score": 0.09350649350649348,
+            "personal": {
+              "a": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 1,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "together",
+                "strength": 0.07346938775510203,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "coverage_asymmetric",
+      "coverage": {
+        "a": {
+          "observations": 20,
+          "featureFamilies": [
+            "genre"
+          ]
+        },
+        "b": {
+          "observations": 3,
+          "featureFamilies": [
+            "genre"
+          ]
+        }
+      },
+      "togetherObservations": 0,
+      "broad": {
+        "selectedCounts": {
+          "a": 0,
+          "b": 0,
+          "together": 0,
+          "fallback": 6
+        },
+        "details": [
+          {
+            "id": "external-0",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.06428571428571428,
+                "support": 3,
+                "confidence": 0.15,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.06428571428571428,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-1",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.06428571428571428,
+                "support": 3,
+                "confidence": 0.15,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.06428571428571428,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-2",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.06428571428571428,
+                "support": 3,
+                "confidence": 0.15,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.06428571428571428,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-3",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.06428571428571428,
+                "support": 3,
+                "confidence": 0.15,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.06428571428571428,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-4",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.06428571428571428,
+                "support": 3,
+                "confidence": 0.15,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.06428571428571428,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-5",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.06428571428571428,
+                "support": 3,
+                "confidence": 0.15,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.06428571428571428,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          }
+        ]
+      },
+      "retrievalShaped": {
+        "selectedCounts": {
+          "a": 0,
+          "b": 0,
+          "together": 0,
+          "fallback": 6
+        },
+        "details": [
+          {
+            "id": "external-0",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.06428571428571428,
+                "support": 3,
+                "confidence": 0.15,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.06428571428571428,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-1",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.06428571428571428,
+                "support": 3,
+                "confidence": 0.15,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.06428571428571428,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-2",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.06428571428571428,
+                "support": 3,
+                "confidence": 0.15,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.06428571428571428,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-3",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.06428571428571428,
+                "support": 3,
+                "confidence": 0.15,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.06428571428571428,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-4",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.06428571428571428,
+                "support": 3,
+                "confidence": 0.15,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.06428571428571428,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-5",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.06428571428571428,
+                "support": 3,
+                "confidence": 0.15,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.06428571428571428,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "metadata_family_gap",
+      "coverage": {
+        "a": {
+          "observations": 8,
+          "featureFamilies": [
+            "runtime"
+          ]
+        },
+        "b": {
+          "observations": 8,
+          "featureFamilies": [
+            "genre"
+          ]
+        }
+      },
+      "togetherObservations": 0,
+      "broad": {
+        "selectedCounts": {
+          "a": 0,
+          "b": 0,
+          "together": 0,
+          "fallback": 6
+        },
+        "details": [
+          {
+            "id": "external-0",
+            "score": 0.04675324675324674,
+            "personal": {
+              "a": {
+                "affinity": 0.04675324675324674,
+                "support": 8,
+                "confidence": 0.10909090909090909,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.04675324675324674,
+                "binding": true,
+                "family": "runtime"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-1",
+            "score": 0.04675324675324674,
+            "personal": {
+              "a": {
+                "affinity": 0.04675324675324674,
+                "support": 8,
+                "confidence": 0.10909090909090909,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.04675324675324674,
+                "binding": true,
+                "family": "runtime"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-2",
+            "score": 0.04675324675324674,
+            "personal": {
+              "a": {
+                "affinity": 0.04675324675324674,
+                "support": 8,
+                "confidence": 0.10909090909090909,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.04675324675324674,
+                "binding": true,
+                "family": "runtime"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-3",
+            "score": 0.04675324675324674,
+            "personal": {
+              "a": {
+                "affinity": 0.04675324675324674,
+                "support": 8,
+                "confidence": 0.10909090909090909,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.04675324675324674,
+                "binding": true,
+                "family": "runtime"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-4",
+            "score": 0.04675324675324674,
+            "personal": {
+              "a": {
+                "affinity": 0.04675324675324674,
+                "support": 8,
+                "confidence": 0.10909090909090909,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.04675324675324674,
+                "binding": true,
+                "family": "runtime"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-5",
+            "score": 0.04675324675324674,
+            "personal": {
+              "a": {
+                "affinity": 0.04675324675324674,
+                "support": 8,
+                "confidence": 0.10909090909090909,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.04675324675324674,
+                "binding": true,
+                "family": "runtime"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          }
+        ]
+      },
+      "retrievalShaped": {
+        "selectedCounts": {
+          "a": 0,
+          "b": 0,
+          "together": 0,
+          "fallback": 6
+        },
+        "details": [
+          {
+            "id": "external-0",
+            "score": 0.04675324675324674,
+            "personal": {
+              "a": {
+                "affinity": 0.04675324675324674,
+                "support": 8,
+                "confidence": 0.10909090909090909,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.04675324675324674,
+                "binding": true,
+                "family": "runtime"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-1",
+            "score": 0.04675324675324674,
+            "personal": {
+              "a": {
+                "affinity": 0.04675324675324674,
+                "support": 8,
+                "confidence": 0.10909090909090909,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.04675324675324674,
+                "binding": true,
+                "family": "runtime"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-2",
+            "score": 0.04675324675324674,
+            "personal": {
+              "a": {
+                "affinity": 0.04675324675324674,
+                "support": 8,
+                "confidence": 0.10909090909090909,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.04675324675324674,
+                "binding": true,
+                "family": "runtime"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-3",
+            "score": 0.04675324675324674,
+            "personal": {
+              "a": {
+                "affinity": 0.04675324675324674,
+                "support": 8,
+                "confidence": 0.10909090909090909,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.04675324675324674,
+                "binding": true,
+                "family": "runtime"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-4",
+            "score": 0.04675324675324674,
+            "personal": {
+              "a": {
+                "affinity": 0.04675324675324674,
+                "support": 8,
+                "confidence": 0.10909090909090909,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.04675324675324674,
+                "binding": true,
+                "family": "runtime"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-5",
+            "score": 0.04675324675324674,
+            "personal": {
+              "a": {
+                "affinity": 0.04675324675324674,
+                "support": 8,
+                "confidence": 0.10909090909090909,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              },
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.04675324675324674,
+                "binding": true,
+                "family": "runtime"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "retrieval_overlap",
+      "coverage": {
+        "a": {
+          "observations": 8,
+          "featureFamilies": [
+            "genre"
+          ]
+        },
+        "b": {
+          "observations": 8,
+          "featureFamilies": [
+            "genre"
+          ]
+        }
+      },
+      "togetherObservations": 0,
+      "broad": {
+        "selectedCounts": {
+          "a": 0,
+          "b": 0,
+          "together": 0,
+          "fallback": 6
+        },
+        "details": [
+          {
+            "id": "external-0",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-1",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-2",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-3",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-4",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              },
+              "b": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "a",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-5",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          }
+        ]
+      },
+      "retrievalShaped": {
+        "selectedCounts": {
+          "a": 0,
+          "b": 0,
+          "together": 0,
+          "fallback": 3
+        },
+        "details": [
+          {
+            "id": "external-1",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-3",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          },
+          {
+            "id": "external-5",
+            "score": 0,
+            "personal": {
+              "a": {
+                "affinity": 0,
+                "support": 0,
+                "confidence": 0,
+                "reasonCount": 0
+              },
+              "b": {
+                "affinity": 0.09350649350649348,
+                "support": 8,
+                "confidence": 0.21818181818181817,
+                "reasonCount": 1
+              }
+            },
+            "togetherReasonCount": 0,
+            "availableChannels": [
+              {
+                "scope": "personal",
+                "personId": "b",
+                "strength": 0.09350649350649348,
+                "binding": false,
+                "family": "genre"
+              }
+            ],
+            "selected": null,
+            "narrative": "Premessa del film, non prova di affinità.",
+            "affinity": ""
+          }
+        ]
+      }
+    }
+  ],
+  "limits": [
+    "No live N/V coverage or real retrieval distribution measured.",
+    "Sample names describe synthetic cases, not verified auteur/cult/critic status.",
+    "Public quality score also orders comparable Discovery candidates; it is not a predicted personal rating.",
+    "UI personal attributions removed: generic genre-only evidence deliberately produces narrative fallback."
+  ]
+}

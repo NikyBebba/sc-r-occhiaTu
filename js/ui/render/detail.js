@@ -11,11 +11,13 @@ let detailTransitionSource = null;
 let detailTransitionActive = false;
 
 function restoreMovieDetailFocus() {
+  const external=document.getElementById('detailBody')?.dataset.externalId;
   const id = document.getElementById('detailBody')?.dataset.movieId;
   const replacement = [...document.querySelectorAll('#movieGrid [data-movie-id], #statsModal [data-history-movie], [data-projection-movie]')]
     .find(node => (node.dataset.movieId || node.dataset.historyMovie || node.dataset.projectionMovie) === id)
     ?.querySelector('h3 button, h5 button');
-  const target = detailReturnFocus?.isConnected ? detailReturnFocus : replacement || document.getElementById('libraryBack');
+  const externalReplacement=external?[...document.querySelectorAll('[data-external-id]')].find(n=>n.dataset.externalId===external)||document.getElementById('recommendationMore'):null;
+  const target = detailReturnFocus?.isConnected ? detailReturnFocus : externalReplacement || replacement || document.getElementById('libraryBack');
   target?.focus?.({preventScroll:true});
 }
 
@@ -67,7 +69,19 @@ function openMovieDetail(id, sourceCard, context = null, nightId = null, openNig
     openModal('detailModal');
     syncDetailStoryOverflow();
   }
+  loadMovieDetailRatings(m,context);
   if (!context && m.tmdb_id) fetchOscarWins(m.tmdb_id).then(wins => renderOscarWins(m.id, wins));
+}
+
+// Only explicit openings fetch source ratings. Renders and snapshot publications stay read-only.
+function loadMovieDetailRatings(movie,context=null,load=typeof fetchTmdbDetailsById==='function'?fetchTmdbDetailsById:null) {
+  if(!movie.tmdb_id||!load)return Promise.resolve();
+  return Promise.resolve().then(()=>load(movie.tmdb_id)).then(details=>{
+    const body=document.getElementById('detailBody'),modal=document.getElementById('detailModal');
+    if(!details?.matched||!body||modal?.classList.contains('hidden')||body.dataset.externalId||body.dataset.movieId!==String(movie.id)||context?.current&&!context.current())return;
+    const markup=externalRatingsHtml(movie,!!context),node=body.querySelector('.external-ratings');
+    if(node)node.outerHTML=markup;else if(markup)body.querySelector('.detail-viewing')?.insertAdjacentHTML('beforebegin',markup);
+  }).catch(()=>{});
 }
 
 function closeMovieDetailWithTransition(closeNow) {
@@ -134,11 +148,12 @@ function syncDetailStoryOverflow() {
 }
 if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('resize',syncDetailStoryOverflow);
 
-function renderMovieDetail(m, context = null) {
+function renderMovieDetail(m, context = null, options = {}) {
   const body = document.getElementById('detailBody');
   if (!body) return;
 
-  const sameMovie=body.dataset.movieId===String(m.id);
+  const external=options.external===true;
+  const sameMovie=external?body.dataset.externalId===m.externalId:body.dataset.movieId===String(m.id);
   const openDisclosures=context&&sameMovie?[...body.querySelectorAll('details[open]')].map(node=>node.dataset.nightId||node.dataset.detailDisclosure||(node.hasAttribute('data-detail-nights')?'nights':'more')):[];
   const expandedStory=context&&sameMovie&&body.querySelector('[data-detail-story]')?.classList.contains('is-expanded');
   const expandedCast=context&&sameMovie&&body.querySelector('[data-detail-cast]')?.classList.contains('is-expanded');
@@ -202,7 +217,8 @@ ${nightIsDue(activeNightForMovie(m.id)) || togetherSeen(m) ? sharedVoteButtonHtm
       ${m.matched === false ? `<span class="badge bg-amber-700/90" title="Nessun riscontro trovato"><i class="fa-solid fa-triangle-exclamation"></i> verifica titolo</span>` : ''}
     </div>
   `;
-  body.dataset.movieId = String(m.id);
+  if(external){delete body.dataset.movieId;body.dataset.externalId=m.externalId;}
+  else{delete body.dataset.externalId;body.dataset.movieId=String(m.id);}
   if (context) {
     context.bind(body);
     for(const [selector,toggleSelector,expanded,openLabel,closedLabel] of [
@@ -228,6 +244,14 @@ ${nightIsDue(activeNightForMovie(m.id)) || togetherSeen(m) ? sharedVoteButtonHtm
   setDetailAmbient(m.poster);
   // Step3 phase9.2 — accento perimetrale dal colore dominante del poster.
   applyPosterAccent(m.poster);
+}
+
+// External metadata uses the very same presentational template and modal, without a persisted identity.
+function openExternalMovieDetail(model,source,context) {
+  detailTransitionSource=null;
+  detailReturnFocus=source||document.activeElement;
+  renderMovieDetail(model,context,{external:true});
+  openModal('detailModal');syncDetailStoryOverflow();
 }
 
 // Step3 phase9.1 — ambiente visivo del modale dettaglio: usa il poster come

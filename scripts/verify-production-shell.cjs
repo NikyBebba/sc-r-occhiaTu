@@ -141,23 +141,24 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
         w.nights.push({ night_id: nid, movie_id: id, status: complete ? 'completed' : intent === 'QUICK_NIGHT' ? 'confirmed' : 'proposed', date: p.date ?? null, time: p.time ?? null, snack: p.snack ?? null, location: p.location ?? null, proposed_by_person_id: caller, created_at: data.at, confirmed_at: intent === 'QUICK_NIGHT' ? data.at : null, cancelled_at: null, completed_at: complete ? data.at : null });
         if (complete) { for (const person_id of p.participants) w.participants.push({ night_id: nid, person_id }); group.effective_candidacy = false; affected.push(bump('group_film', groupId, id)); }
         group.list_visible = false; group.eligibility = { match_base: false, ruota_base: false }; affected.push(bump('night', groupId, nid));
-      } else if (['CONFIRM_NIGHT', 'CANCEL_NIGHT', 'EDIT_NIGHT', 'COMPLETE_NIGHT'].includes(intent)) {
+      } else if (['CONFIRM_NIGHT', 'CANCEL_NIGHT', 'EDIT_NIGHT', 'COMPLETE_NIGHT', 'COMPLETE_NIGHT_WITH_CONTEXT'].includes(intent)) {
         const n = w.nights.find(n => n.night_id === nid);
         if (intent === 'CONFIRM_NIGHT') { n.status = 'confirmed'; n.confirmed_at = data.at; }
         if (intent === 'CANCEL_NIGHT') { n.status = 'cancelled'; n.cancelled_at = data.at; }
         if (intent === 'EDIT_NIGHT') for (const k of ['date', 'time', 'snack', 'location']) if (Object.hasOwn(p, k)) n[k] = p[k];
-        if (intent === 'COMPLETE_NIGHT') {
+        if (intent === 'COMPLETE_NIGHT'||intent === 'COMPLETE_NIGHT_WITH_CONTEXT') {
+          for(const k of ['snack','location'])if(Object.hasOwn(p,k))n[k]=p[k];
           n.status = 'completed'; n.completed_at = data.at; for (const person_id of p.participants) w.participants.push({ night_id: nid, person_id });
           group.effective_candidacy = false; group.list_visible = false; group.eligibility = { match_base: false, ruota_base: false }; affected.push(bump('group_film', groupId, id));
           if (controls.satisfyOnComplete && personal.list.active) { personal.list.active = false; affected.push(bump('person_film', caller, id)); }
         }
         affected.push(bump('night', groupId, nid));
       } else if (intent === 'CONTENT_CREATE') {
-        const movie = copy(w.catalog[0]); movie.movie_id = createdId = uid(++contentSerial); movie.title = p.title; w.catalog.push(movie);
+        const movie = copy(w.catalog[0]); movie.movie_id = createdId = uid(++contentSerial); Object.assign(movie,p);if(Object.hasOwn(p,'matched')){movie.metadata_matched=p.matched;delete movie.matched;} w.catalog.push(movie);
         for (const person of w.personal) { const state = copy(person.states[0]); state.movie_id = movie.movie_id; state.seen = false; state.list = { active: false, generation: null }; state.judgment = { rating: null, preference: null, review: null }; person.states.push(state); }
         const state = copy(w.group.states[0]); Object.assign(state, { movie_id: movie.movie_id, effective_candidacy: false, list_visible: false, active_night_ids: [], completed_night_ids: [], rewatch_semantic: false, rewatch_visible: false, eligibility: { match_base: false, ruota_base: false } }); w.group.states.push(state);
         affected.push(bump('content', movie.movie_id, movie.movie_id));
-      } else if (intent === 'CONTENT_UPDATE_METADATA') { Object.assign(w.catalog.find(x => x.movie_id === id), p); affected.push(bump('content', id, id));
+      } else if (intent === 'CONTENT_UPDATE_METADATA') { const c=w.catalog.find(x => x.movie_id === id);Object.assign(c,p);if(Object.hasOwn(p,'matched')){c.metadata_matched=p.matched;delete c.matched;} affected.push(bump('content', id, id));
       } else if (intent === 'SET_TOGETHER_EVALUATION') {
         let j=w.group.judgments.find(j=>j.movie_id===id);if(!j){j={movie_id:id,rating:null,review:null};w.group.judgments.push(j);}Object.assign(j,p);if(j.rating===null&&j.review===null)w.group.judgments=w.group.judgments.filter(x=>x!==j);affected.push(bump('group_film',groupId,id));
       } else if (intent === 'CONTENT_SET_CINEMA' || intent === 'CONTENT_SET_SURPRISE') {
@@ -266,6 +267,13 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   for(const outcome of ['STALE','REQUEST_ID_REUSE'])await test('shell '+outcome+' does not retry',async h=>{await h.boot();h.controls.commandOutcome=outcome;eq((await Shell.perform('recordSeen',data.M)).outcome,outcome,'semantic result');await h.pump();eq(h.commands.length,1,'no retry');});
   await test('uncertain exact request retry',async h=>{await h.boot();h.controls.uncertain=true;const r=await Shell.perform('recordSeen',data.M);eq(r.outcome,'TRANSPORT_UNCERTAIN','uncertain');const before=copy(h.commands[0].body);await Shell.perform('retry',r.retryHandle);deep(h.commands.at(-1).body,before,'exact request');});
   await test('content creation and explicit relation separate',async h=>{await h.boot();const r=await Shell.saveContent({title:'Synthetic new'},'addToMyList');await h.pump();eq(r.content.outcome,'SUCCESS','create');eq(r.relation.outcome,'SUCCESS','relation');deep(h.commands.map(c=>c.body.intent),['CONTENT_CREATE','ADD_PERSONAL_LIST'],'separate');});
+  for(const caller of [data.N,data.V])for(const [relation,intent] of [['proposeToGroup','PROPOSE_TO_GROUP'],['addToMyList','ADD_PERSONAL_LIST'],['recordSeen','RETROSPECTIVE_SEEN']])await test('Discovery native acquisition '+relation+'/'+caller,async h=>{
+    await h.boot();h.host.setObservedPerson(caller===data.N?data.V:data.N);await h.pump();const r=await Shell.saveContent({title:'Synthetic external',tmdb_id:'991'},relation);await h.pump();
+    eq(r.relation.outcome,'SUCCESS','relation confirmed');deep(h.commands.map(c=>c.body.intent),['CONTENT_CREATE',intent],'only selected intent');
+    const p=h.state.view.personal.getState(caller,r.movieId),other=h.state.view.personal.getState(caller===data.N?data.V:data.N,r.movieId),g=h.state.view.getCard(r.movieId).group;
+    eq(p.list.active,relation==='addToMyList','personal list separate');eq(p.seen,relation==='recordSeen','personal seen separate');eq(g.candidacy.effectiveCandidacy,relation==='proposeToGroup','group separate');
+    eq(p.judgment.rating,null,'no invented rating');eq(p.judgment.preference,null,'no invented preference');eq(g.hasTogetherHistory,false,'no Together');eq(other.seen,false,'peer seen unchanged');eq(other.list.active,false,'peer list unchanged');
+  },{caller});
   for(const destination of ['personalList','personalSeen','groupList'])await test('UX11A contextual Add keeps destination and zero results read-only '+destination,async h=>{
     await h.boot();const ui=Shell.createShell({session:h.host,root:document});
     ui.navigate(destination);
@@ -529,8 +537,8 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     const markup=document.getElementById('recommendationResults').innerHTML;
     const shown=[...markup.matchAll(/data-recommendation-id="([^"]+)"/g)].map(match=>match[1]);
     deep(shown,expected,'Core shortlist order');check(shown.length<=5,'at most five');
-    check(markup.includes('recommendation-reason')&&markup.includes('voto positivo'),'real direct evidence visible');
-    check(markup.includes('Pochi giudizi disponibili'),'low evidence stays honest');
+    check(markup.includes('recommendation-reason')&&markup.includes('Una proposta dalla Lista'),'neutral structured fallback visible');
+    check(!markup.includes('è piaciuto')&&!markup.includes('voto positivo'),'neutral fallback does not invent evidence');
     check(!markup.includes('movie-ticket')&&markup.includes('recommendation-card'),'dedicated compact row');
     check(markup.includes('2000')&&markup.includes('110 min'),'essential metadata');eq(h.commands.length,0,'read-only ranking');
   },{raw:data.recommendationSet});
@@ -1407,6 +1415,128 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     check(document.getElementById('nightDetailBody').innerHTML.includes('Visione del 12 marzo 2020'),'declared date displayed after edit');
     eq(h.controls.wire.nights.filter(n=>n.status==='completed').length,2,'edit creates no new night');
   },{raw:data.cancelledCompleted});
+  const richDiscovery={tmdb_id:86501,title:'Synthetic cinematic film',release_year:1997,poster:'https://example.test/new-poster.jpg',genres:['Dramma','Mistero'],duration:'121 min',director:'Regista sintetico',cast_names:['Interprete sintetico'],overview:'Una trama sintetica completa e attendibile.',collection_id:722,collection_name:'Saga sintetica',platform:'Provider sintetico',trailerUrl:'https://www.youtube.com/watch?v=abcdefghijk',imdbRating:'8.1',rtRating:'90%',metacriticRating:'82',matched:true};
+  for(const relation of ['proposeToGroup','addToMyList','recordSeen'])await test('Discovery metadata acquisition snapshot and persisted detail '+relation,async h=>{
+    await h.boot();TmdbDetailCache.remember({...richDiscovery,tmdbRating:7.5});const result=await settleCompleted(h,Shell.saveContent(richDiscovery,relation,{fillMissingMetadata:true}));eq(result.relation.outcome,'SUCCESS','requested relation confirmed');
+    deep(h.commands.map(c=>c.body.intent),['CONTENT_CREATE',relation==='proposeToGroup'?'PROPOSE_TO_GROUP':relation==='addToMyList'?'ADD_PERSONAL_LIST':'RETROSPECTIVE_SEEN'],'no implicit additional states');
+    const content=h.state.view.catalog.getContent(result.movieId).content;
+    for(const [key,value] of Object.entries(h.commands[0].body.parameters))deep(content[key==='matched'?'metadata_matched':key],value,'authoritative '+key);
+    check(!Object.hasOwn(h.commands[0].body.parameters,'tmdb_rating'),'no unsupported DB field');
+    const card=h.state.view.getCard(result.movieId);eq(card.group.candidacy.effectiveCandidacy,relation==='proposeToGroup','personal action never proposes');
+    Shell.detail(result.movieId);const markup=document.getElementById('detailBody').innerHTML;for(const value of ['Regista sintetico','Interprete sintetico','Una trama sintetica','Provider sintetico','Guarda il trailer','abcdefghijk','TMDb 7,5'])check(markup.includes(value),'persisted detail '+value);
+  });
+  for(const relation of ['proposeToGroup','addToMyList','recordSeen'])await test('Discovery metadata fills missing existing fields without duplicate '+relation,async h=>{
+    await h.boot();const before=h.state.view.catalog.getContent(data.M).content;
+    const result=await settleCompleted(h,Shell.saveContent({...richDiscovery,tmdb_id:777},relation,{fillMissingMetadata:true}));eq(result.movieId,data.M,'existing identity');
+    check(!h.commands.some(c=>c.body.intent==='CONTENT_CREATE'),'never recreates content');const update=h.commands.find(c=>c.body.intent==='CONTENT_UPDATE_METADATA');check(!!update,'missing metadata filled');
+    check(!Object.hasOwn(update.body.parameters,'title')&&!Object.hasOwn(update.body.parameters,'overview')&&!Object.hasOwn(update.body.parameters,'platform'),'existing values preserved');
+    const after=h.state.view.catalog.getContent(data.M).content;eq(after.overview,before.overview,'no plot overwrite');eq(after.platform,before.platform,'no platform overwrite');eq(after.director,richDiscovery.director,'new director transferred');eq(after.trailer_url,richDiscovery.trailerUrl,'trailer transferred');
+    eq(h.commands.filter(c=>c.body.intent==='CONTENT_UPDATE_METADATA').length,1,'one metadata patch');
+  },{raw:data.metadata});
+  await test('Discovery metadata uncertain patch keeps native action separate',async h=>{
+    await h.boot();h.controls.uncertain=true;const result=await settleCompleted(h,Shell.saveContent({...richDiscovery,tmdb_id:777},'recordSeen',{fillMissingMetadata:true}));
+    eq(result.metadata.outcome,'TRANSPORT_UNCERTAIN','metadata not claimed confirmed');eq(result.relation,null,'personal state not falsely completed');eq(h.commands.length,1,'no automatic repeat or relation command');
+    await h.pump();const second=await settleCompleted(h,Shell.saveContent({...richDiscovery,tmdb_id:777},'recordSeen',{fillMissingMetadata:true}));check(['SUCCESS','ALREADY_IN_TARGET_STATE'].includes(second.relation.outcome),'explicit next action reconciles existing seen');
+    eq(h.commands.filter(c=>c.body.intent==='CONTENT_UPDATE_METADATA').length,1,'observed patch not rewritten');
+  },{raw:data.metadata});
+  await test('Discovery metadata replaces only generic Streaming fallback with verified provider',async h=>{
+    await h.boot();const result=await settleCompleted(h,Shell.saveContent({...richDiscovery,tmdb_id:777},'addToMyList',{fillMissingMetadata:true}));eq(result.movieId,data.M,'existing identity preserved');
+    eq(h.state.view.catalog.getContent(data.M).content.platform,richDiscovery.platform,'actual provider replaces fallback');eq(h.commands.find(c=>c.body.intent==='CONTENT_UPDATE_METADATA').body.parameters.platform,richDiscovery.platform,'provider in existing metadata command');
+  },{raw:(()=>{const w=JSON.parse(JSON.stringify(data.metadata));w.catalog[0].platform='Streaming';return w;})()});
+  async function settleCompleted(h,promise){let done=false,value,error;Promise.resolve(promise).then(v=>{value=v;done=true;},e=>{error=e;done=true;});for(let i=0;i<60&&!done;i++)await h.pump();check(done,'completed UI operation settles');if(error)throw error;return value;}
+  const selectCompletedPeople=()=>{const box=document.getElementById('targetParticipants');box.querySelectorAll=()=>[{value:data.N},{value:data.V}];};
+  await test('Completed unified normal confirmation opens post-watch once and preserves context',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();const id=h.state.view.events.scheduled[0].eventId,n=h.controls.wire.nights.find(n=>n.night_id===id);n.snack='Popcorn';n.location='Casa';await h.refresh();
+    Shell.edit('completeScheduled',id);selectCompletedPeople();await settleCompleted(h,document.getElementById('scheduleConfirm').onclick());
+    eq(h.commands.length,1,'one completion');eq(h.commands[0].body.intent,'COMPLETE_NIGHT','unchanged snack/location omitted');
+    eq(modalStackTop(),'pastNightEditModal','post-watch is existing CAP1 editor / '+document.getElementById('scheduleSaveError').textContent+' / '+h.state.view.context.contractVersion+'/'+h.state.runtime.source);eq(document.getElementById('pastEditTitle').textContent,'Com’è andata?','post-watch title');
+    eq(document.getElementById('pastEditSnack').value,'Popcorn','snack preserved');eq(document.getElementById('pastEditLocation').value,'Casa','location preserved');
+    check(!document.getElementById('pastEditMemory').disabled,'ordinary memory editable');check(document.getElementById('pastEditDate').disabled&&document.getElementById('pastEditUnknown').disabled,'ordinary date immutable');
+    closeModal('pastNightEditModal');Shell.night(id);eq(h.commands.length,1,'reopening only reads');check(document.getElementById('nightDetailBody').innerHTML.includes('Modifica serata'),'ordinary night gets unified editor');
+    eq(h.controls.wire.nights.length,1,'no duplicate night');
+  },{raw:data.quickCard});
+  await test('Completed unified post-watch ratings stay film scoped, optional and separate from night',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();const id=h.state.view.events.scheduled[0].eventId;Shell.edit('completeScheduled',id);selectCompletedPeople();await settleCompleted(h,document.getElementById('scheduleConfirm').onclick());
+    const rating=document.getElementById('pastEditTogetherRating'),review=document.getElementById('pastEditTogetherReview');rating.value='8,4';rating.oninput();review.value='Recensione del film';review.oninput();document.getElementById('pastEditMemory').value='Ricordo dopo conferma';
+    await settleCompleted(h,document.getElementById('pastEditSave').onclick());
+    deep(h.commands.map(c=>c.body.intent),['COMPLETE_NIGHT','EDIT_PAST_TOGETHER','SET_TOGETHER_EVALUATION'],'completion is never repeated');
+    deep(h.commands[2].body.parameters,{rating:8.4,review:'Recensione del film'},'shared judgment has no event fields');
+    check(h.controls.wire.personal.every(p=>p.states.every(s=>s.judgment.rating===null)),'personal ratings untouched');eq(h.controls.wire.nights.length,1,'one event');
+    Shell.edit('editNight',id);await settleCompleted(h,document.getElementById('pastEditSave').onclick());eq(h.commands.length,3,'empty edit does not write');
+  },{raw:data.quickCard});
+  await test('Completed unified ordinary metadata edit reuses CAP1 without date',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();const id=h.state.view.events.completed[0].eventId;Shell.night(id);document.getElementById('nightDetailEdit').onclick();
+    document.getElementById('pastEditSnack').value='Poke';document.getElementById('pastEditLocation').value='Salotto';
+    await settleCompleted(h,document.getElementById('pastEditSave').onclick());
+    eq(h.commands.length,1,'one metadata write');eq(h.commands[0].body.intent,'EDIT_PAST_TOGETHER','existing CAP1 command');deep(h.commands[0].body.parameters,{snack:'Poke',location:'Salotto',client_snapshot_contract_version:2},'no date/participants/memory');
+    eq(h.controls.wire.nights.length,2,'edit preserves completed and cancelled events');
+  },{raw:data.cancelledCompleted});
+  await test('Completed unified ordinary memory can be added changed and cleared',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();const id=h.state.view.events.completed[0].eventId;
+    for(const value of ['First event memory','Changed event memory','']){Shell.edit('editNight',id);document.getElementById('pastEditMemory').value=value;await settleCompleted(h,document.getElementById('pastEditSave').onclick());
+      eq(h.controls.wire.nights.find(n=>n.night_id===id).night_memory,value||null,'selected event value');}
+    eq(h.commands.length,3,'three explicit edits');check(h.commands.every(c=>c.body.intent==='EDIT_PAST_TOGETHER'),'shared event writer');eq(h.controls.wire.nights.length,2,'history unchanged');
+  },{raw:data.cancelledCompleted});
+  await test('Completed unified completion uncertainty cannot show post-watch or send a fresh completion',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();const id=h.state.view.events.scheduled[0].eventId;h.controls.uncertain=true;Shell.edit('completeScheduled',id);selectCompletedPeople();
+    await settleCompleted(h,document.getElementById('scheduleConfirm').onclick());check(document.getElementById('pastNightEditModal').classList.contains('hidden'),'uncertainty has no post-watch');
+    await settleCompleted(h,document.getElementById('scheduleConfirm').onclick());eq(h.commands.length,2,'only one exact retry');eq(h.commands[0].body.request_id,h.commands[1].body.request_id,'request identity preserved');
+    eq(h.controls.wire.nights.length,1,'receipt replay creates no event');eq(modalStackTop(),'pastNightEditModal','post-watch only after confirmation');
+  },{raw:data.quickCard});
+  await test('Completed unified held completion blocks double click and delayed publication',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();const id=h.state.view.events.scheduled[0].eventId;h.controls.holdCommand=true;Shell.edit('completeScheduled',id);selectCompletedPeople();
+    const first=document.getElementById('scheduleConfirm').onclick();await h.pump();await document.getElementById('scheduleConfirm').onclick();eq(h.commands.length,1,'double click blocked');
+    check(document.getElementById('pastNightEditModal').classList.contains('hidden'),'pending command has no post-watch');h.controls.holdCommand=false;h.commands[0].resolve();await settleCompleted(h,first);eq(modalStackTop(),'pastNightEditModal','opens after accepted snapshot');
+  },{raw:data.quickCard});
+  await test('Completed unified retrospective memory and Together review remain separate on repeated films',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();const ids=h.state.view.events.completed.map(n=>n.eventId);const n=h.controls.wire.nights.find(n=>n.night_id===ids[0]);n.retrospective=true;n.night_memory='Ricordo iniziale';n.date=null;n.time=null;await h.refresh();
+    Shell.night(ids[0]);document.getElementById('nightDetailEdit').onclick();document.getElementById('pastEditMemory').value='Ricordo di questa serata';
+    const r=document.getElementById('pastEditTogetherReview');r.value='Recensione condivisa del film';r.oninput();
+    await settleCompleted(h,document.getElementById('pastEditSave').onclick());deep(h.commands.map(c=>c.body.intent),['EDIT_PAST_TOGETHER','SET_TOGETHER_EVALUATION'],'separate scopes');
+    eq(h.commands[0].body.target.night_id,ids[0],'exact selected event');eq(h.controls.wire.nights.length,2,'two existing events preserved');check(h.controls.wire.nights.find(n=>n.night_id===ids[1]).night_memory==null,'other memory untouched');
+    Shell.night(ids[1]);check(!document.getElementById('nightDetailBody').innerHTML.includes('Ricordo di questa serata'),'memory never copied to another night');
+  },{raw:data.detailCases.find(x=>x[0]==='repeat')[1]});
+  await test('Completed unified partial save retries only its uncertain shared-judgment step',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();const id=h.state.view.events.completed[0].eventId;Shell.edit('editNight',id);document.getElementById('pastEditSnack').value='Snack nuovo';
+    const rating=document.getElementById('pastEditTogetherRating');rating.value='7,3';rating.oninput();h.controls.holdCommand=true;
+    const first=document.getElementById('pastEditSave').onclick();await h.pump();eq(h.commands.length,1,'metadata first');h.commands[0].resolve();await h.pump();eq(h.commands.length,2,'shared judgment next');
+    h.controls.uncertain=true;h.controls.holdCommand=false;h.commands[1].resolve();await settleCompleted(h,first);
+    const retry=document.getElementById('pastEditError')._children[0];check(!!retry,'owned retry offered');await settleCompleted(h,retry.onclick());
+    eq(h.commands.length,3,'exactly one retry');eq(h.commands[1].body.request_id,h.commands[2].body.request_id,'only uncertain step replayed');eq(h.commands.filter(c=>c.body.intent==='EDIT_PAST_TOGETHER').length,1,'confirmed metadata not repeated');eq(h.controls.wire.nights.length,2,'no duplicates');
+  },{raw:data.cancelledCompleted});
+  await test('Completed unified pending and uncertain edits survive closing and reopening',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();const id=h.state.view.events.completed[0].eventId;
+    Shell.edit('editNight',id);document.getElementById('pastEditSnack').value='Persisted snack';h.controls.holdCommand=true;
+    const saving=document.getElementById('pastEditSave').onclick();await h.pump();closeModal('pastNightEditModal');Shell.edit('editNight',id);
+    check(document.getElementById('pastEditSave').disabled,'reopened pending editor locked');await document.getElementById('pastEditSave').onclick();eq(h.commands.length,1,'no second edit');
+    h.controls.uncertain=true;h.controls.holdCommand=false;h.commands[0].resolve();await settleCompleted(h,saving);
+    closeModal('pastNightEditModal');Shell.edit('editNight',id);check(document.getElementById('pastEditSave').disabled,'uncertain edit cannot become a fresh save');
+    const retry=document.getElementById('pastEditError')._children[0];check(!!retry,'original retry survives reopen');await settleCompleted(h,retry.onclick());
+    eq(h.commands.length,2,'one replay');eq(h.commands[0].body.request_id,h.commands[1].body.request_id,'same operation receipt');eq(h.controls.wire.nights.length,2,'no new night');
+  },{raw:data.cancelledCompleted});
+  await test('Completed unified complete-now offers post-watch only for its committed event',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();Shell.edit('completeNow',data.M);selectCompletedPeople();
+    await settleCompleted(h,document.getElementById('scheduleConfirm').onclick());eq(h.commands.length,1,'one completion');eq(h.commands[0].body.intent,'COMPLETE_NOW','original immediate command');
+    eq(modalStackTop(),'pastNightEditModal','post-watch offered');eq(h.controls.wire.nights.length,1,'exactly one new completed event');
+    closeModal('pastNightEditModal');await h.refresh();eq(h.commands.length,1,'deferral has no write');
+  });
+  await test('Completed unified runtime keeps ordinary dates participants and EDIT_NIGHT restricted',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();const id=h.state.view.events.completed[0].eventId;
+    for(const patch of [{date:null},{date:'2020-01-01'},{participants:[data.N]},{time:null}])eq((await Shell.perform('editPastTogether',id,patch)).outcome,'INVALID_INPUT','forbidden event field');
+    eq((await Shell.perform('editNight',id,{nightMemory:'Wrong contract'})).outcome,'INVALID_INPUT','legacy editor unchanged');eq(h.commands.length,0,'no unsupported RPC');
+  },{raw:data.cancelledCompleted});
+  await test('Completed unified immediate completion cannot duplicate after pending close and reopen',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();h.controls.holdCommand=true;Shell.edit('completeNow',data.M);selectCompletedPeople();
+    const first=document.getElementById('scheduleConfirm').onclick();await h.pump();closeModal('scheduleModal');Shell.edit('completeNow',data.M);selectCompletedPeople();
+    h.controls.holdCommand=false;h.commands[0].resolve();await settleCompleted(h,first);
+    await settleCompleted(h,document.getElementById('scheduleConfirm').onclick());eq(h.commands.length,1,'reopened pending editor must not create a second event');eq(h.controls.wire.nights.length,1,'one viewing only');
+  });
+  await test('Completed unified missing retrospective memory may be added and cleared without creating a night',async h=>{
+    h.targetDependencies.runtime.snapshotContractVersion=2;await h.boot();const id=h.state.view.events.completed[0].eventId,n=h.controls.wire.nights.find(n=>n.night_id===id);n.retrospective=true;n.night_memory=null;n.date=null;n.time=null;await h.refresh();
+    Shell.night(id);check(document.getElementById('nightDetailBody').innerHTML.includes('Aggiungi un ricordo'),'discreet empty-memory invitation');Shell.edit('editNight',id);document.getElementById('pastEditMemory').value='Una serata da ricordare';await settleCompleted(h,document.getElementById('pastEditSave').onclick());
+    eq(n.night_memory,'Una serata da ricordare','memory added to selected event');Shell.edit('editNight',id);document.getElementById('pastEditMemory').value='';await settleCompleted(h,document.getElementById('pastEditSave').onclick());
+    eq(n.night_memory,null,'optional memory cleared');eq(h.commands.length,2,'two edits only');check(h.commands.every(c=>c.body.intent==='EDIT_PAST_TOGETHER'),'never creates event or judgment');eq(h.controls.wire.nights.length,2,'history intact');
+  },{raw:data.cancelledCompleted});
   return {cases,assertions};
 }
 module.exports={fixtureData,runChecks};
@@ -1419,13 +1549,14 @@ if(require.main===module){
  dom=dom.replace('id, _value:', "get parentElement() { return makeEl('parent'); }, add(c) { this._children.push(c); }, get options() { return this._children; }, before() {}, removeAttribute(k) { delete this[k]; }, id, _value:");
  dom=dom.replace('appendChild(c) {', 'replaceChildren(...items) { this._children=[];this._innerHTML="";for(const item of items)this.appendChild(item); }, appendChild(c) {');
  dom=dom.replace('appendChild(c) {', 'insertAdjacentHTML(position, html) { this._innerHTML += html; }, appendChild(c) {');
+ dom=dom.replace('appendChild(c) {','append(...items) { for(const c of items)this.appendChild(c); }, appendChild(c) {');
  const pendingTimers=new Map();let timerSerial=0,virtualTime=0;
  const advanceTime=ms=>{virtualTime+=ms;for(const [id,job] of [...pendingTimers])if(job.at<=virtualTime){pendingTimers.delete(id);job.fn();}};
  const clearTimers=()=>{pendingTimers.clear();virtualTime=0;};
  const context=vm.createContext({console,URL,URLSearchParams,AbortController,crypto:require('node:crypto').webcrypto,
    setTimeout:(fn,ms=0)=>{const id=++timerSerial;pendingTimers.set(id,{fn,at:virtualTime+Number(ms)});return id;},
    clearTimeout:id=>pendingTimers.delete(id),setInterval:()=>1,clearInterval(){}});
- vm.runInContext(dom+`const localStorage={getItem:()=>null,setItem(){},removeItem(){}};const sessionStorage=localStorage;const document=documentStub;const Option=function(text,value){const el=makeEl('option');el.textContent=text;el.value=value;return el;};const window={addEventListener(){},scrollTo(){}};const location={search:'',hash:'',href:'https://fixture.invalid/',reload(){}};const navigator={};const performance={now:()=>0};`,context);
+ vm.runInContext(dom+`const localStorage={getItem:()=>null,setItem(){},removeItem(){}};const sessionStorage=localStorage;const document=documentStub;const lookup=document.getElementById.bind(document);document.getElementById=id=>id==='discoveryPanel'?null:lookup(id);document.createTextNode=text=>{const n=makeEl('text');n.textContent=text;return n;};const Option=function(text,value){const el=makeEl('option');el.textContent=text;el.value=value;return el;};const window={addEventListener(){},scrollTo(){}};const location={search:'',hash:'',href:'https://fixture.invalid/',reload(){}};const navigator={};const performance={now:()=>0};`,context);
  for(const f of graph)vm.runInContext(f==='js/config.js'?`const CONFIG={SUPABASE_URL:'',SUPABASE_ANON_KEY:'',TMDB_API_KEY:'',OMDB_API_KEY:'',PEOPLE:{N:{label:'Nicholas',badgeClass:''},V:{label:'Valeria',badgeClass:''}},AUTH_EMAILS:{N:'n@example.test',V:'v@example.test'}};`:read(f),context,{filename:f});
  const code=`(${runChecks.toString()})({Core:SnapshotCore,Cache:SnapshotCache,Engine:RecommendationEngine,Shell:TargetShell,originalSession:ProductionSession,createCoordinator:ProductionSession.createCoordinator,productionDependencies:ProductionSession.productionDependencies,install: app=>{ProductionSession=app;TargetShell.dispose();},advanceTime,clearTimers,css:${JSON.stringify(read('css/style.css'))},indexSource:${JSON.stringify(read('index.html'))},wheelSource:${JSON.stringify(read('js/wheel.js'))},modalsSource:${JSON.stringify(read('js/ui/modals.js'))},html:()=>document.getElementById('movieGrid').innerHTML},${JSON.stringify(fixtureData())},name=>console.log('PASS '+name),name=>name.includes(${JSON.stringify(process.argv[2]||'')}))`;
  context.advanceTime=advanceTime;context.clearTimers=clearTimers;

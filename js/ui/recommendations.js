@@ -1,5 +1,17 @@
 // Consumer Cosa Guardiamo?: usa solo lo Store già caricato e il Core stabile.
 // La vista conserva il proprio snapshot durante Realtime; l'utente decide quando aggiornarlo.
+// Structured v75 evidence rendered without ranking diagnostics or personal attribution.
+function recommendationListReason(result,content={},hasEvidence=()=>false) {
+  const reasons=result.reasons||[];
+  const specific=reasons.find(r=>r.code==='FEATURE_AFFINITY'&&['director','cast','collection'].includes(r.family)&&r.polarity==='inferred_positive'&&r.token&&[...new Set(r.evidenceMovieIds||[])].filter(hasEvidence).length>=2);
+  if(specific){const norm=x=>String(x||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+    if(specific.family==='director'&&String(content.director||'').split(',').some(n=>norm(n)===norm(specific.token)))return 'La regia di '+content.director+' ricorre tra i titoli già apprezzati.';
+    if(specific.family==='cast'){const actor=content.cast_names?.find(n=>norm(n)===norm(specific.token));if(actor)return actor+' è nel cast di altri titoli già apprezzati.';}
+    if(specific.family==='collection'&&String(content.collection_id)===String(specific.token)&&content.collection_name)return 'Un altro capitolo di '+content.collection_name+'.';
+  }
+  if(reasons.some(r=>r.code==='TOGETHER_RATING'&&r.kind==='factual'&&r.evidence?.some(e=>e.absolutePolarity==='POSITIVE'&&e.evidenceMovieIds?.some(id=>id===result.movieId&&hasEvidence(id)))))return 'Un titolo già apprezzato in una valutazione condivisa.';
+  return 'Una proposta dalla Lista per la prossima visione.';
+}
 let recommendationActionPending = false, recommendationActionTimer = null;
 const RecommendationConsumer = (() => {
   const pageSize = RecommendationConfig.diversity.defaultShortlistSize;
@@ -68,21 +80,7 @@ const RecommendationConsumer = (() => {
     }
   }
 
-  function reasonCopy(result) {
-    const reasons = result.reasons || [];
-    const personName = id => id === 'N' ? (CONFIG.PEOPLE.N?.label || 'N') : (CONFIG.PEOPLE.V?.label || 'V');
-    for (const [personId, prediction] of Object.entries(result.personal || {})) {
-      if (prediction.provenance === 'EXPLICIT_LIKE') return `A ${personName(personId)} è piaciuto.`;
-      if (prediction.provenance === 'EXPLICIT_DISLIKE') return `A ${personName(personId)} non è piaciuto.`;
-      if (prediction.provenance === 'PERSONAL_RATING_POSITIVE') return `${personName(personId)} gli ha dato un voto positivo.`;
-      if (prediction.provenance === 'PERSONAL_RATING_NEUTRAL') return `${personName(personId)} gli ha dato un voto nella fascia neutra.`;
-      if (prediction.provenance === 'PERSONAL_RATING_NEGATIVE') return `Il voto di ${personName(personId)} è un segnale negativo.`;
-      if (prediction.provenance === 'FEATURE_AFFINITY') return 'Alcuni dettagli richiamano film valutati in precedenza.';
-    }
-    if (reasons.some(r => r.code === 'TOGETHER_RATING')) return 'Anche i voti condivisi contribuiscono alla proposta.';
-    if (reasons.some(r => r.code === 'NEGATIVE_PROTECTION')) return 'Un giudizio personale negativo pesa sulla posizione.';
-    return 'Non ci sono ancora abbastanza giudizi per descrivere questa proposta.';
-  }
+  function reasonCopy(result) {const content=typeof movies!=='undefined'?movies.find(m=>m.id===result.movieId):null;return recommendationListReason(result,content||{},id=>typeof movies!=='undefined'&&movies.some(m=>m.id===id));}
 
   function evidenceCopy(result) {
     const states = Object.values(result.personal || {}).map(p => p.state);

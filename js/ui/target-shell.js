@@ -6,6 +6,7 @@ const TargetShell = (() => {
     let shared = null, match = null, generation = null, uiEpoch = 0, closingMatchTicket = null, createdTitle = null, matchExit = null, scheduledMatchTitle = null, revealInterrupted = false, cap1 = null;
     const el = id => root.getElementById(id);
     const bindings = new Map();
+    let discoveryView = null;
     let homeTrigger = null; // DOM keyboard return only; never viewing/session state.
     let lastAction = null, feedbackZone = null, feedbackSerial = 0, feedbackTimer = null, feedbackKind = null, retainOnClose = null;
     const savedMessage = name => ({
@@ -177,7 +178,7 @@ const TargetShell = (() => {
       if (typeof details.cinema_watchlist === 'boolean') out.cinema_watchlist = details.cinema_watchlist;
       return out;
     }
-    async function saveContent(details, relation = null) {
+    async function saveContent(details, relation = null, {fillMissingMetadata=false}={}) {
       const token = session.capture(), before = view();
       if (before.kind !== 'AVAILABLE') return { outcome: 'NOT_READY' };
       let id = details.movie_id&&before.catalog.getContent(details.movie_id).kind==='AVAILABLE'?details.movie_id:before.catalog.contents.find(c => details.tmdb_id != null && c.tmdb_id === String(details.tmdb_id))?.movie_id;
@@ -191,6 +192,18 @@ const TargetShell = (() => {
         if (!await waitFor(token, v => v.catalog.getContent(id).kind === 'AVAILABLE')) return { content: created, relation: { outcome: 'OBSOLETE' } };
       }
       if(!session.current(token))return Object.freeze({movieId:id,relation:{outcome:'OBSOLETE'}});
+      if(fillMissingMetadata){
+        const incoming=metadata(details),present=v=>v!==null&&v!==undefined&&v!==''&&(!Array.isArray(v)||v.length>0);
+        const field=k=>k==='matched'?'metadata_matched':k;
+        const current=view().catalog.getContent(id).content,patch={};
+        for(const [key,value] of Object.entries(incoming))if(present(value)&&(!present(current[field(key)])||key==='platform'&&current.platform==='Streaming'&&value!=='Streaming'||key==='matched'&&current.metadata_matched===false&&value===true))patch[key]=value;
+        if(Object.keys(patch).length){const updated=await perform('updateMetadata',id,patch);
+          if(!success(updated))return Object.freeze({movieId:id,content:created,metadata:updated,metadataExpected:patch,relation:null});
+        }
+        const expected=created?.outcome==='SUCCESS'?Object.fromEntries(Object.entries(incoming).filter(([,v])=>present(v))):patch;
+        const matches=v=>{const c=v.catalog.getContent(id).content;return c&&Object.entries(expected).every(([k,val])=>JSON.stringify(c[field(k)])===JSON.stringify(val));};
+        if(!matches(view())){session.requestRefresh();if(!await waitFor(token,matches))return Object.freeze({movieId:id,content:created,relation:{outcome:'OBSOLETE'}});}
+      }
       const result = relation ? await perform(relation,id) : null;
       return Object.freeze({ movieId: id, content: created, relation: result });
     }
@@ -217,27 +230,7 @@ const TargetShell = (() => {
       const used = new Set(shown);
       return RecommendationEngine.rerank(ranked.filter(row => !used.has(row.movieId)), RecommendationConfig.diversity.defaultShortlistSize);
     }
-    function recommendationReason(result, value) {
-      const reasons = result.reasons || [], personal = Object.values(result.personal || {});
-      const name = reason => {
-        const id = reason.userIds?.[0];
-        const label = id ? value.getIdentity(id)?.legacyLabel : null;
-        return label ? CONFIG.PEOPLE[label]?.label || label : 'Una persona del gruppo';
-      };
-      const direct = reasons.find(reason => ['EXPLICIT_LIKE','EXPLICIT_DISLIKE','PERSONAL_RATING_POSITIVE','PERSONAL_RATING_NEUTRAL','PERSONAL_RATING_NEGATIVE'].includes(reason.code) && reason.userIds?.length);
-      if (direct) return ({ EXPLICIT_LIKE:`A ${name(direct)} è piaciuto.`, EXPLICIT_DISLIKE:`A ${name(direct)} non è piaciuto.`,
-        PERSONAL_RATING_POSITIVE:`${name(direct)} gli ha dato un voto positivo.`, PERSONAL_RATING_NEUTRAL:`${name(direct)} gli ha dato un voto nella fascia neutra.`,
-        PERSONAL_RATING_NEGATIVE:`Il voto di ${name(direct)} è un segnale negativo.` })[direct.code];
-      if (personal.length && personal.every(p => ['UNKNOWN','LOW_EVIDENCE'].includes(p.state)))
-        return 'Pochi giudizi disponibili per spiegare questa proposta.';
-      if (reasons.some(reason => reason.code === 'FEATURE_AFFINITY' && reason.evidenceMovieIds?.length))
-        return 'Alcuni elementi richiamano film già valutati.';
-      if (reasons.some(reason => reason.code === 'TOGETHER_RATING' && reason.evidenceMovieIds?.length))
-        return 'I giudizi condivisi contribuiscono alla proposta.';
-      if (reasons.some(reason => reason.code === 'NEGATIVE_PROTECTION'))
-        return 'Un giudizio negativo riduce la priorità di questo film.';
-      return 'Pochi giudizi disponibili per spiegare questa proposta.';
-    }
+    function recommendationReason(result,value) {const content=value.catalog.getContent(result.movieId).content||{};return recommendationListReason(result,content,id=>value.catalog.getContent(id).kind==='AVAILABLE');}
     function startRecommendations() {
       const token = session.capture(), epoch = uiEpoch, source = view();
       recommendation = { status:'loading' };
@@ -256,6 +249,10 @@ const TargetShell = (() => {
       });
     }
     function renderRecommendations(value) {
+      if(typeof DiscoveryView!=='undefined'&&el('discoveryPanel')) {
+        if(!discoveryView)discoveryView=DiscoveryView.create({root,getSource:()=>{const v=view(),r=recommendationInput(v);return {input:r.input,catalog:v.catalog.contents,identity:id=>v.getIdentity(id)?.label,relationState:(id,relation)=>{if(relation==='proposeToGroup')return v.getCard(id).group.candidacy.effectiveCandidacy;const p=v.personal.getState(v.context.caller.personId,id);return p.kind==='AVAILABLE'&&(relation==='addToMyList'?p.list.active:relation==='recordSeen'?p.seen===true:false);}};},save:(details,relation)=>saveContent(details,relation,{fillMissingMetadata:true}),requestRefresh:()=>session.requestRefresh(),openPersisted:id=>{const panel=el('detailPanel'),scroll=panel.scrollTop,expanded=[...el('detailBody').querySelectorAll('.is-expanded')].map(n=>n.hasAttribute('data-detail-story')?'[data-detail-story]':'[data-detail-cast]');openDetail(id,null);detailReturnFocus=el('recommendationMore');for(const selector of expanded){const n=el('detailBody').querySelector(selector);n?.classList.add('is-expanded');n?.querySelector('button')?.setAttribute('aria-expanded','true');}syncDetailStoryOverflow();panel.scrollTop=scroll;},onChange:render,onListRefresh:()=>{recommendation=null;render();},isCurrent:()=>destination==='recommendations'&&view().kind==='AVAILABLE'});
+        if(discoveryView.render())return;
+      }
       if (!recommendation) startRecommendations();
       const state = recommendation, section = el('recommendationSection'), results = el('recommendationResults');
       const status = el('recommendationStatus'), empty = el('recommendationEmpty'), error = el('recommendationError'),
@@ -280,12 +277,13 @@ const TargetShell = (() => {
       const markup = state.batch.map(result => {
         const content = state.contents.get(result.movieId);
         if (!content) return '';
-        const title = result.title || content.title, meta = [content.release_year,content.duration].filter(Boolean).join(' · ');
+        const title = result.title || content.title, meta = [content.release_year,content.duration,...(content.genres||[]).slice(0,3)].filter(Boolean).join(' · ');
         const poster = content.poster ? '<img class="recommendation-poster" src="'+escape(content.poster)+'" alt="" loading="lazy">'
           : '<div class="recommendation-poster" aria-hidden="true"><i class="fa-solid fa-film"></i></div>';
-        return '<article class="recommendation-card" role="button" tabindex="0" data-recommendation-id="'+escape(result.movieId)+'" aria-label="Apri la scheda di '+escape(title)+'">'
+        return '<article class="recommendation-card is-target-card" role="button" tabindex="0" data-recommendation-id="'+escape(result.movieId)+'" aria-label="Apri la scheda di '+escape(title)+'">'
           +poster+'<div class="min-w-0"><h3 class="recommendation-title">'+escape(title)+'</h3>'
           +(meta?'<p class="recommendation-meta">'+escape(meta)+'</p>':'')
+          +(content.director?'<p class="card-director">Regia di '+escape(content.director)+'</p>':'')+externalRatingsHtml(content,true)+'<p class="recommendation-meta">'+escape(content.platform||'Streaming')+'</p>'
           +'<p class="recommendation-reason">'+escape(recommendationReason(result,value))+'</p></div>'
           +'<i class="fa-solid fa-chevron-right text-slate-400" aria-hidden="true"></i></article>';
       }).join('');
@@ -301,8 +299,9 @@ const TargetShell = (() => {
       stale?.classList.toggle('hidden',!isStale);
       if(more)more.disabled=recommendationActionPending||(!state.hasMore&&!isStale);
     }
-    function refreshRecommendations() { if (destination!=='recommendations') return; recommendation=null;render(); }
+    function refreshRecommendations() { if (destination!=='recommendations') return; if(discoveryView?.getMode()==='discover')return discoveryView.refresh(); recommendation=null;render(); }
     function showMoreRecommendations() {
+      if(discoveryView?.getMode()==='discover')return discoveryView.advance();
       if(destination!=='recommendations'||recommendation?.status!=='ready'||!recommendation.hasMore)return;
       const batch=nextRecommendationBatch(recommendation.ranked,recommendation.shown);
       recommendation.batch=batch;recommendation.shown.push(...batch.map(row=>row.movieId));
@@ -310,6 +309,7 @@ const TargetShell = (() => {
       render();
     }
     function advanceRecommendations() {
+      if(discoveryView?.getMode()==='discover')return discoveryView.advance();
       if(destination!=='recommendations'||recommendation?.status==='loading'||recommendationActionPending)return;
       recommendationActionPending=true;
       if(recommendation?.status==='error'){recommendation=null;render();}
@@ -327,7 +327,7 @@ const TargetShell = (() => {
       if (!['home','personalList','personalSeen','groupList','rewatch','scheduled','together','memories','calendar','match','wheel','recommendations','search','bulk'].includes(next)) return;
       const previous = destination;
       const origin = source ?? root.activeElement;
-      if(previous==='recommendations'&&next!=='recommendations'){if(recommendationActionTimer)clearTimeout(recommendationActionTimer);recommendationActionTimer=null;recommendationActionPending=false;}
+      if(previous==='recommendations'&&next!=='recommendations'){discoveryView?.dispose();discoveryView=null;if(recommendationActionTimer)clearTimeout(recommendationActionTimer);recommendationActionTimer=null;recommendationActionPending=false;}
       if (previous === 'home' && origin?.closest?.('#sceltaCta, #scheduledPanel')) homeTrigger = origin;
       uiEpoch++; if(matchExit)clearTimeout(matchExit); matchExit=null; createdTitle=null;
       if(!el('confirmModal')?.classList.contains('hidden'))cancelConfirmModal();
@@ -351,13 +351,15 @@ const TargetShell = (() => {
       }
     }
     function edit(action, id, initial = {}) {
+      const editorEpoch=uiEpoch;
+      if(action==='editNight'&&cap1.ready()&&view().getEvent(id).event?.event.status==='completed')return cap1.openEdit(id);
       if(!initial||!Object.keys(initial).length){
         if(action==='setMyEvaluation')initial=view().getCard(id).personal.caller.judgment??{};
         else if(action==='setGroupEvaluation')initial=view().getCard(id).group.judgment.judgment??{};
         else if(action==='editNight'||action==='completeScheduled')initial=view().getEvent(id).event?.event??{};
       }
       if(['setMyEvaluation','setGroupEvaluation','scheduleNight','quickNight','editNight','completeNow','completeScheduled','scheduleMatch','quickMatch'].includes(action))
-        return ProductEditors.open({action,id,initial,context:product(),perform,session,onMatchScheduled:result=>{const movie=product().getMovie(id.matched_movie_id);scheduledMatchTitle=movie?(product().hidden(movie)?'Film a sorpresa':movie.title):'La serata';operation=result;if(result.closeTicket)finishScheduledMatch();}});
+        return ProductEditors.open({action,id,initial,context:product(),perform,session,onCompleted:async result=>{const nightId=result.result?.night_id||(action==='completeScheduled'?id:null);if(!nightId)return;const token=session.capture();await session.requestRefresh();if(await waitFor(token,v=>v.getEvent(nightId).event?.event.status==='completed')&&editorEpoch===uiEpoch)cap1.openPostWatch(nightId);},onMatchScheduled:result=>{const movie=product().getMovie(id.matched_movie_id);scheduledMatchTitle=movie?(product().hidden(movie)?'Film a sorpresa':movie.title):'La serata';operation=result;if(result.closeTicket)finishScheduledMatch();}});
       if(action==='createContent'){
         const context=product(),defaultDestination=initial?.entry==='global'?null:destination==='personalList'?'personalList':destination==='personalSeen'?'personalSeen':destination==='groupList'?'groupList':null;
         return ProductEditors.addCatalog({context,search:searchTmdbCandidates,detailsById,defaultDestination,
@@ -365,7 +367,7 @@ const TargetShell = (() => {
       }
       if(action==='refreshMetadata'){
         const context=product();
-        return ProductEditors.refreshMetadata({context,session,movieId:id,detailsById,perform});
+        return ProductEditors.refreshMetadata({context,session,movieId:id,detailsById:id=>detailsById(id,{force:true}),perform});
       }
       throw new TypeError('Unsupported product editor');
     }
@@ -511,7 +513,7 @@ const TargetShell = (() => {
       if (value.kind === 'AVAILABLE') {
         syncLayout(value);
         cap1.refresh();
-        if(!el('detailModal')?.classList.contains('hidden')){
+        if(!el('detailModal')?.classList.contains('hidden')&&!el('detailBody')?.dataset.externalId){
           const context=product(),movie=context.getMovie(el('detailBody').dataset.movieId);
           if(!movie||context.hidden(movie))closeModal('detailModal');else renderMovieDetail(movie,context);
         }
@@ -619,7 +621,7 @@ const TargetShell = (() => {
       presentation:product,
       refreshCalendar(){renderCalendar(product());}, refreshMemories(){renderStats(product());},
       publication(state) { if(generation!==null&&generation!==state.generation)this.dispose();generation=state.generation; if (['AUTH_INVALIDATING','STOPPED','DISPOSED'].includes(state.phase)) { el('movieGrid').innerHTML = ''; this.dispose(); return; } if (state.view !== shared) { shared = state.view; if(state.view.kind==='AVAILABLE'&&(!el('reviewModal')?.classList.contains('hidden')||!el('scheduleModal')?.classList.contains('hidden')))ProductEditors.refresh(product()); if(operation?.closeTicket)finishScheduledMatch(); render(); } else if (state.match !== match && destination === 'match') render(); match = state.match; },
-      dispose() { uiEpoch++;if(feedbackTimer)clearTimeout(feedbackTimer);feedbackTimer=null;if(!el('confirmModal')?.classList.contains('hidden'))cancelConfirmModal();if(matchExit)clearTimeout(matchExit);matchExit=null;createdTitle=null;closingMatchTicket=null;cap1.dispose();for(const id of ['metadataRefreshModal','personalStatusModal','otherJudgmentModal','togetherModal','detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id); for(const id of ['nextMovieBox','recommendationResults'])if(el(id))el(id).innerHTML='';for(const [node,properties]of bindings)for(const [key,handler]of properties)node[key]=handler;bindings.clear();el('tabAll')?.classList.remove('!hidden');const all=el('libraryViewSelect')?.querySelector?.('option[value="all"]');if(all){all.hidden=false;all.disabled=false;}show('targetPersonalCollections',false); el('matchReveal')?.classList.add('hidden'); for(const id of ['sceltaCta','dashboardSidebar','recommendationSection','segControl','libraryTools','historySwitch','listFiltersBlock','syncNotice']) el(id)?.classList.remove('!hidden'); generation = null; query = ''; genre=''; duration=''; sort='added'; sortDir='desc'; platform=''; proposer=''; availability='streaming'; page = 0; destination = 'home'; revealedKey = null; operation = null; matchOperation = null; recommendation = null; shared = null; match = null; }
+      dispose() { discoveryView?.dispose();discoveryView=null;uiEpoch++;if(feedbackTimer)clearTimeout(feedbackTimer);feedbackTimer=null;if(!el('confirmModal')?.classList.contains('hidden'))cancelConfirmModal();if(matchExit)clearTimeout(matchExit);matchExit=null;createdTitle=null;closingMatchTicket=null;cap1.dispose();for(const id of ['metadataRefreshModal','personalStatusModal','otherJudgmentModal','togetherModal','detailModal','statsModal','sagaModal','reviewModal','scheduleModal','addModal','pickerModal','importModal'])if(!el(id)?.classList.contains('hidden'))closeModal(id); for(const id of ['nextMovieBox','recommendationResults'])if(el(id))el(id).innerHTML='';for(const [node,properties]of bindings)for(const [key,handler]of properties)node[key]=handler;bindings.clear();el('tabAll')?.classList.remove('!hidden');const all=el('libraryViewSelect')?.querySelector?.('option[value="all"]');if(all){all.hidden=false;all.disabled=false;}show('targetPersonalCollections',false); el('matchReveal')?.classList.add('hidden'); for(const id of ['sceltaCta','dashboardSidebar','recommendationSection','segControl','libraryTools','historySwitch','listFiltersBlock','syncNotice']) el(id)?.classList.remove('!hidden'); generation = null; query = ''; genre=''; duration=''; sort='added'; sortDir='desc'; platform=''; proposer=''; availability='streaming'; page = 0; destination = 'home'; revealedKey = null; operation = null; matchOperation = null; recommendation = null; shared = null; match = null; }
     });
   }
   let instance = null;

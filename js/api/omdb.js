@@ -20,12 +20,13 @@ function parseOscarWins(awards) {
 // Estrae i tre rating da una risposta OMDb grezza.
 function extractRatings(omdbData) {
   const out = { ...emptyRatings };
-  if (!omdbData) return out;
+  if (!omdbData||omdbData.Response==='False') return out;
   if (omdbData.imdbRating && omdbData.imdbRating !== 'N/A') out.imdbRating = omdbData.imdbRating;
-  (omdbData.Ratings || []).forEach(r => {
-    if (r.Source === 'Rotten Tomatoes') out.rtRating = r.Value;
-    if (r.Source === 'Metacritic') out.metacriticRating = r.Value;
+  (Array.isArray(omdbData.Ratings)?omdbData.Ratings:[]).forEach(r => {
+    if (r?.Value&&r.Value!=='N/A'&&r.Source === 'Rotten Tomatoes') out.rtRating = r.Value;
+    if (r?.Value&&r.Value!=='N/A'&&r.Source === 'Metacritic') out.metacriticRating = r.Value;
   });
+  if(!out.metacriticRating&&omdbData.Metascore&&omdbData.Metascore!=='N/A')out.metacriticRating=omdbData.Metascore;
   return out;
 }
 
@@ -44,16 +45,18 @@ async function fetchOmdbByTitle(title) {
   }
 }
 
+// Source metadata only: positive and missing responses cached, concurrent reads shared.
+const omdbRatingsCache=new Map(),omdbRatingsPending=new Map();
 async function fetchOmdbByImdbId(imdbId) {
-  if (!omdbConfigured() || !imdbId) return null;
-  try {
-    const res = await fetch(`https://www.omdbapi.com/?apikey=${CONFIG.OMDB_API_KEY}&i=${imdbId}`);
-    const data = await res.json();
-    return data.Response === 'False' ? null : data;
-  } catch (err) {
-    console.error('Errore OMDb (imdb_id):', err);
-    return null;
-  }
+  if(!omdbConfigured()||typeof imdbId!=='string'||!/^tt\d{5,12}$/.test(imdbId))return null;
+  const hit=omdbRatingsCache.get(imdbId);if(hit&&Date.now()-hit.at<(hit.data===null?300000:3600000))return hit.data;
+  if(omdbRatingsPending.has(imdbId))return omdbRatingsPending.get(imdbId);
+  const task=(async()=>{const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),8000);let data=null;
+    try{const response=await fetch(`https://www.omdbapi.com/?apikey=${CONFIG.OMDB_API_KEY}&i=${imdbId}`,{signal:abort.signal});
+      if(response.ok!==false){const raw=await response.json();if(raw&&raw.Response!=='False'&&(!raw.imdbID||raw.imdbID===imdbId))data=raw;}
+    }catch(_){}finally{clearTimeout(timer);}
+    omdbRatingsCache.delete(imdbId);omdbRatingsCache.set(imdbId,{at:Date.now(),data});while(omdbRatingsCache.size>100)omdbRatingsCache.delete(omdbRatingsCache.keys().next().value);return data;
+  })();omdbRatingsPending.set(imdbId,task);try{return await task;}finally{omdbRatingsPending.delete(imdbId);}
 }
 
 // Converte una risposta OMDb riuscita nell'oggetto dettagli usato dall'app.
@@ -88,5 +91,5 @@ function omdbToDetails(omdbData, fallbackTitle) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { extractRatings };
+  module.exports = { extractRatings,fetchOmdbByImdbId };
 }

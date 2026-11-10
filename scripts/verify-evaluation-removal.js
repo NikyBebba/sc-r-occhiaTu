@@ -20,6 +20,8 @@ context.sb = { from(table) {
   } }; } };
 } };
 vm.createContext(context);
+ // Use the production authority guards with the synthetic legacy session.
+ vm.runInContext('function assertLegacyDomainAccess()'+fs.readFileSync('js/store.js','utf8').split('function assertLegacyDomainAccess()')[1],context);
 for (const file of ['js/format.js', 'js/store/viewing.js', 'js/store/movies.js', 'js/ui/actions/viewing.js']) {
   vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file });
 }

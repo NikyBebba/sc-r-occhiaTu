@@ -19,8 +19,8 @@ async function runChecks(data) {
     if(protocolError)return respond(name,sdkReply(null,protocolError,403));
     return respond(name,sdkReply({protocol_read_contract_version:1,outcome:'OK',mode,minimum_client_protocol:floor,authority_epoch:serial.toString(16).padStart(64,'0')}));
    }
-   if(name==='get_app_runtime_context')return respond(name,sdkReply(bootstrapError?{outcome:'ERROR',bootstrap_contract_version:1,error:{code:bootstrapError}}:{bootstrap_contract_version:1,outcome:'OK',caller:{person_id:uid,legacy_person:uid===data.N?'N':'V'},selected_group:{group_id:data.G},protocol:{client_protocol:1,supported_protocol:1,minimum_client_protocol:1,snapshot_contract_version:1},runtime:{mode:'target',activation_allowed:true}}));
-   if(name==='get_person_group_snapshot')return respond(name,sdkReply(copy(data.raw)));
+   if(name==='get_app_runtime_context')return respond(name,sdkReply(bootstrapError?{outcome:'ERROR',bootstrap_contract_version:1,error:{code:bootstrapError}}:{bootstrap_contract_version:1,outcome:'OK',caller:{person_id:uid,legacy_person:uid===data.N?'N':'V'},selected_group:{group_id:data.G},protocol:{client_protocol:1,supported_protocol:1,minimum_client_protocol:1,snapshot_contract_version:args.p_snapshot_contract_version||1},runtime:{mode:'target',activation_allowed:true}}));
+   if(name==='get_person_group_snapshot'){const wire=copy(data.raw);if(args.p_contract_version===2){wire.contract_version=2;for(const n of wire.nights){n.retrospective=false;n.night_memory=null;}}return respond(name,sdkReply(wire));}
    throw Error('Unexpected writer RPC '+name);
   },
   from(table){const request={write:false,select(){return this;},order(){return this;},limit(){return this;},eq(){return this;},maybeSingle(){return Promise.resolve({data:{user_id:uid,person:uid===data.N?'N':'V'},error:null});},update(){this.write=true;return this;},
@@ -100,7 +100,7 @@ async function runChecks(data) {
   ['snapshot HTTP failure',(n,r)=>n==='get_person_group_snapshot'?sdkReply(null,{code:'XX000'},500):r]
  ]){
   // Isolate cold-start failures from the separately tested read-only CACHE path.
-  localStorage.removeItem('scorochiatu_snapshot_v1:'+uid+':'+data.G);
+  localStorage.removeItem('scorochiatu_snapshot_v2:'+uid+':'+data.G);
   replyTransform=transform;await ProductionSession.retryStartup();await tick();
   check(state().mode!=='LEGACY'&&state().phase!=='READY'&&state().view.kind!=='AVAILABLE','startup remains closed: '+name);
   check(document.getElementById('appRoot').classList.contains('hidden'),'mutation UI unavailable: '+name);
@@ -147,7 +147,7 @@ if(require.main===module){
  const smoke=read('scripts/smoke.js');let dom=smoke.slice(smoke.indexOf('function makeEl('),smoke.indexOf('const localStore ='));
  dom=dom.replace('appendChild(c) {', 'insertAdjacentHTML(position, html) { this._innerHTML += html; }, appendChild(c) {');
  const ctx=vm.createContext({console,Date:FixtureDate,URL,URLSearchParams,AbortController,crypto:require('node:crypto').webcrypto,setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){}});
- vm.runInContext(dom+`const document=documentStub;const window={addEventListener(){},scrollTo(){}};const localStorage={getItem:()=>null,setItem(){},removeItem(){}};const sessionStorage=localStorage;const location={search:'?mode=TARGET',hash:'',reload(){}};const navigator={};const performance={now:()=>0};`,ctx);
+ vm.runInContext(dom+`const document=documentStub;const lookup=document.getElementById.bind(document);document.getElementById=id=>id==='discoveryPanel'?null:lookup(id);const window={addEventListener(){},scrollTo(){}};const localStorage={getItem:()=>null,setItem(){},removeItem(){}};const sessionStorage=localStorage;const location={search:'?mode=TARGET',hash:'',reload(){}};const navigator={};const performance={now:()=>0};`,ctx);
  const files=[...read('index.html').matchAll(/<script src="(js\/[^\"]+)"/g)].map(m=>m[1]);
  for(const f of files)vm.runInContext(f==='js/config.js'?`const CONFIG={SUPABASE_URL:'',SUPABASE_ANON_KEY:'',TMDB_API_KEY:'',OMDB_API_KEY:'',PEOPLE:{N:{label:'Nicholas',badgeClass:''},V:{label:'Valeria',badgeClass:''}},AUTH_EMAILS:{N:'n@example.test',V:'v@example.test'}};`:read(f),ctx,{filename:f});
  vm.runInContext(`(${runChecks.toString()})(${JSON.stringify(data)})`,ctx).then(r=>console.log('NORMAL PROTOCOL VM '+JSON.stringify(r)+' PASS')).catch(e=>{console.error(e.stack);process.exitCode=1;});

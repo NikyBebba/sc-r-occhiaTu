@@ -1,0 +1,121 @@
+{
+  "syntheticOnly": true,
+  "asOf": "2026-11-09",
+  "beforePolicy": "previous Discovery bridge: 5 slots, quality admission/enrichment only, synopsis optional",
+  "afterPolicy": "discovery-six-fresh-v1",
+  "rows": [
+    {
+      "id": "tmdb:1",
+      "name": "successo_apprezzato",
+      "votes": 6000,
+      "average": 8,
+      "adjusted": 7.967213114754099,
+      "admittedBefore": true,
+      "admittedAfter": true,
+      "exclusion": null,
+      "beforePosition": 5,
+      "afterPosition": 1
+    },
+    {
+      "id": "tmdb:2",
+      "name": "popolare_mediocre",
+      "votes": 6000,
+      "average": 5.6,
+      "adjusted": 5.60655737704918,
+      "admittedBefore": false,
+      "admittedAfter": false,
+      "exclusion": "INSUFFICIENT_PUBLIC_REPUTATION",
+      "beforePosition": null,
+      "afterPosition": null
+    },
+    {
+      "id": "tmdb:3",
+      "name": "classico",
+      "votes": 1200,
+      "average": 8,
+      "adjusted": 7.846153846153846,
+      "admittedBefore": true,
+      "admittedAfter": true,
+      "exclusion": null,
+      "beforePosition": 1,
+      "afterPosition": 2
+    },
+    {
+      "id": "tmdb:4",
+      "name": "autore",
+      "votes": 35,
+      "average": 7.8,
+      "adjusted": 6.466666666666667,
+      "admittedBefore": true,
+      "admittedAfter": true,
+      "exclusion": null,
+      "beforePosition": 2,
+      "afterPosition": 4
+    },
+    {
+      "id": "tmdb:5",
+      "name": "internazionale",
+      "votes": 120,
+      "average": 7.8,
+      "adjusted": 6.9818181818181815,
+      "admittedBefore": true,
+      "admittedAfter": true,
+      "exclusion": null,
+      "beforePosition": 3,
+      "afterPosition": 3
+    },
+    {
+      "id": "tmdb:6",
+      "name": "nicchia",
+      "votes": 12,
+      "average": 8.1,
+      "adjusted": 6.2250000000000005,
+      "admittedBefore": true,
+      "admittedAfter": true,
+      "exclusion": null,
+      "beforePosition": null,
+      "afterPosition": 5
+    },
+    {
+      "id": "tmdb:7",
+      "name": "pochi_voti_altissimi",
+      "votes": 8,
+      "average": 9.5,
+      "adjusted": 6.2592592592592595,
+      "admittedBefore": true,
+      "admittedAfter": false,
+      "exclusion": "INSUFFICIENT_PUBLIC_REPUTATION",
+      "beforePosition": null,
+      "afterPosition": null
+    },
+    {
+      "id": "tmdb:8",
+      "name": "futuro",
+      "votes": 1000,
+      "average": 8,
+      "adjusted": 7.818181818181818,
+      "admittedBefore": false,
+      "admittedAfter": false,
+      "exclusion": "UNRELEASED_OR_UNKNOWN_DATE",
+      "beforePosition": null,
+      "afterPosition": null
+    },
+    {
+      "id": "tmdb:9",
+      "name": "senza_trama",
+      "votes": 1500,
+      "average": 8,
+      "adjusted": 7.875,
+      "admittedBefore": true,
+      "admittedAfter": false,
+      "exclusion": "NO_INFORMATIVE_SYNOPSIS",
+      "beforePosition": 4,
+      "afterPosition": null
+    }
+  ],
+  "limits": [
+    "Cold-start, nine synthetic cases; no hidden-judgment or live-data quality conclusion.",
+    "More niche titles can enter when ordinary comparable choices are exhausted.",
+    "This fixed pool now yields only five valid titles: no unsupported title fills the sixth slot."
+  ]
+}

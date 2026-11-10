@@ -1,0 +1,323 @@
+{
+  "syntheticOnly": true,
+  "seed": "closed-form-fixtures-v1",
+  "commonEligibility": true,
+  "judgmentsHidden": true,
+  "scenarios": [
+    {
+      "name": "balanced",
+      "candidateCount": 20,
+      "old": {
+        "ndcg5": 1,
+        "recall5": 0.3333333333333333,
+        "top5UniqueGenres": 1,
+        "top5UniqueDirectors": 5,
+        "repeatedAcrossBatches": 0,
+        "top5": [
+          "candidate-00",
+          "candidate-04",
+          "candidate-08",
+          "candidate-12",
+          "candidate-16"
+        ]
+      },
+      "core2": {
+        "ndcg5": 1,
+        "recall5": 0.3333333333333333,
+        "top5UniqueGenres": 3,
+        "top5UniqueDirectors": 5,
+        "repeatedAcrossBatches": 0,
+        "top5": [
+          "candidate-00",
+          "candidate-04",
+          "candidate-08",
+          "candidate-01",
+          "candidate-07"
+        ]
+      },
+      "coverage": {
+        "old": 20,
+        "core2": 20,
+        "note": "Evidence-state coverage, not calibrated predictive confidence"
+      },
+      "negativeProtection": {
+        "oldOrdinaryPoolContainsKnownNegative": true,
+        "core2OrdinaryPoolContainsKnownNegative": false
+      },
+      "reasonEvidenceReferencesValid": true,
+      "inputPermutationStable": true,
+      "irrelevantCandidateStable": true
+    },
+    {
+      "name": "imbalanced",
+      "candidateCount": 20,
+      "old": {
+        "ndcg5": 1,
+        "recall5": 0.3333333333333333,
+        "top5UniqueGenres": 3,
+        "top5UniqueDirectors": 5,
+        "repeatedAcrossBatches": 0,
+        "top5": [
+          "candidate-00",
+          "candidate-16",
+          "candidate-13",
+          "candidate-19",
+          "candidate-12"
+        ]
+      },
+      "core2": {
+        "ndcg5": 1,
+        "recall5": 0.3333333333333333,
+        "top5UniqueGenres": 3,
+        "top5UniqueDirectors": 5,
+        "repeatedAcrossBatches": 0,
+        "top5": [
+          "candidate-00",
+          "candidate-04",
+          "candidate-01",
+          "candidate-03",
+          "candidate-12"
+        ]
+      },
+      "coverage": {
+        "old": 0,
+        "core2": 5,
+        "note": "Evidence-state coverage, not calibrated predictive confidence"
+      },
+      "negativeProtection": {
+        "oldOrdinaryPoolContainsKnownNegative": true,
+        "core2OrdinaryPoolContainsKnownNegative": false
+      },
+      "reasonEvidenceReferencesValid": true,
+      "inputPermutationStable": true,
+      "irrelevantCandidateStable": true
+    },
+    {
+      "name": "opposed",
+      "candidateCount": 20,
+      "old": {
+        "ndcg5": null,
+        "recall5": null,
+        "top5UniqueGenres": 2,
+        "top5UniqueDirectors": 4,
+        "repeatedAcrossBatches": 0,
+        "top5": [
+          "candidate-13",
+          "candidate-19",
+          "candidate-17",
+          "candidate-03",
+          "candidate-05"
+        ]
+      },
+      "core2": {
+        "ndcg5": null,
+        "recall5": null,
+        "top5UniqueGenres": 2,
+        "top5UniqueDirectors": 5,
+        "repeatedAcrossBatches": 0,
+        "top5": [
+          "candidate-13",
+          "candidate-19",
+          "candidate-17",
+          "candidate-11",
+          "candidate-05"
+        ]
+      },
+      "coverage": {
+        "old": 20,
+        "core2": 20,
+        "note": "Evidence-state coverage, not calibrated predictive confidence"
+      },
+      "negativeProtection": {
+        "oldOrdinaryPoolContainsKnownNegative": true,
+        "core2OrdinaryPoolContainsKnownNegative": false
+      },
+      "reasonEvidenceReferencesValid": true,
+      "inputPermutationStable": true,
+      "irrelevantCandidateStable": true
+    },
+    {
+      "name": "cold",
+      "candidateCount": 20,
+      "old": {
+        "ndcg5": 0.7860137352654724,
+        "recall5": 0.26666666666666666,
+        "top5UniqueGenres": 4,
+        "top5UniqueDirectors": 5,
+        "repeatedAcrossBatches": 0,
+        "top5": [
+          "candidate-01",
+          "candidate-10",
+          "candidate-19",
+          "candidate-12",
+          "candidate-13"
+        ]
+      },
+      "core2": {
+        "ndcg5": 0.830419897363192,
+        "recall5": 0.26666666666666666,
+        "top5UniqueGenres": 4,
+        "top5UniqueDirectors": 5,
+        "repeatedAcrossBatches": 0,
+        "top5": [
+          "candidate-00",
+          "candidate-01",
+          "candidate-02",
+          "candidate-03",
+          "candidate-04"
+        ]
+      },
+      "coverage": {
+        "old": 0,
+        "core2": 0,
+        "note": "Evidence-state coverage, not calibrated predictive confidence"
+      },
+      "negativeProtection": {
+        "oldOrdinaryPoolContainsKnownNegative": true,
+        "core2OrdinaryPoolContainsKnownNegative": false
+      },
+      "reasonEvidenceReferencesValid": true,
+      "inputPermutationStable": true,
+      "irrelevantCandidateStable": true
+    },
+    {
+      "name": "sparse",
+      "candidateCount": 20,
+      "old": {
+        "ndcg5": 1,
+        "recall5": 0.3333333333333333,
+        "top5UniqueGenres": 2,
+        "top5UniqueDirectors": 4,
+        "repeatedAcrossBatches": 0,
+        "top5": [
+          "candidate-01",
+          "candidate-15",
+          "candidate-07",
+          "candidate-09",
+          "candidate-11"
+        ]
+      },
+      "core2": {
+        "ndcg5": 1,
+        "recall5": 0.3333333333333333,
+        "top5UniqueGenres": 2,
+        "top5UniqueDirectors": 4,
+        "repeatedAcrossBatches": 0,
+        "top5": [
+          "candidate-01",
+          "candidate-07",
+          "candidate-15",
+          "candidate-09",
+          "candidate-00"
+        ]
+      },
+      "coverage": {
+        "old": 10,
+        "core2": 10,
+        "note": "Evidence-state coverage, not calibrated predictive confidence"
+      },
+      "negativeProtection": {
+        "oldOrdinaryPoolContainsKnownNegative": true,
+        "core2OrdinaryPoolContainsKnownNegative": false
+      },
+      "reasonEvidenceReferencesValid": true,
+      "inputPermutationStable": true,
+      "irrelevantCandidateStable": true
+    },
+    {
+      "name": "franchise",
+      "candidateCount": 20,
+      "old": {
+        "ndcg5": 0.5531464700081437,
+        "recall5": 0.13333333333333333,
+        "top5UniqueGenres": 2,
+        "top5UniqueDirectors": 2,
+        "repeatedAcrossBatches": 0,
+        "top5": [
+          "candidate-00",
+          "candidate-01"
+        ]
+      },
+      "core2": {
+        "ndcg5": 1,
+        "recall5": 0.3333333333333333,
+        "top5UniqueGenres": 3,
+        "top5UniqueDirectors": 5,
+        "repeatedAcrossBatches": 0,
+        "top5": [
+          "candidate-00",
+          "candidate-04",
+          "candidate-01",
+          "candidate-07",
+          "candidate-08"
+        ]
+      },
+      "coverage": {
+        "old": 20,
+        "core2": 20,
+        "note": "Evidence-state coverage, not calibrated predictive confidence"
+      },
+      "negativeProtection": {
+        "oldOrdinaryPoolContainsKnownNegative": true,
+        "core2OrdinaryPoolContainsKnownNegative": false
+      },
+      "reasonEvidenceReferencesValid": true,
+      "inputPermutationStable": true,
+      "irrelevantCandidateStable": true
+    },
+    {
+      "name": "narrow",
+      "candidateCount": 20,
+      "old": {
+        "ndcg5": 1,
+        "recall5": 1,
+        "top5UniqueGenres": 1,
+        "top5UniqueDirectors": 5,
+        "repeatedAcrossBatches": 0,
+        "top5": [
+          "candidate-00",
+          "candidate-04",
+          "candidate-08",
+          "candidate-12",
+          "candidate-16"
+        ]
+      },
+      "core2": {
+        "ndcg5": 0.7227265726449519,
+        "recall5": 0.6,
+        "top5UniqueGenres": 3,
+        "top5UniqueDirectors": 5,
+        "repeatedAcrossBatches": 0,
+        "top5": [
+          "candidate-00",
+          "candidate-04",
+          "candidate-08",
+          "candidate-01",
+          "candidate-07"
+        ]
+      },
+      "coverage": {
+        "old": 20,
+        "core2": 20,
+        "note": "Evidence-state coverage, not calibrated predictive confidence"
+      },
+      "negativeProtection": {
+        "oldOrdinaryPoolContainsKnownNegative": true,
+        "core2OrdinaryPoolContainsKnownNegative": false
+      },
+      "reasonEvidenceReferencesValid": true,
+      "inputPermutationStable": true,
+      "irrelevantCandidateStable": true
+    }
+  ],
+  "limitations": [
+    "Seven deterministic scenarios, no statistical accuracy claim.",
+    "Synthetic truth correlates with genres; favors any content model and is not real-user validation.",
+    "Narrow changes the held-out taste distribution: deliberately measures the cost of diversification.",
+    "Franchise v75 caps at one per collection and returns two rows; Core 2 uses soft penalties and fills five.",
+    "Cold-start NDCG differences reflect tie-breaking, not learned quality.",
+    "State coverage definitions differ; neither is calibrated.",
+    "No API calls; API cost is zero and retrieval performance is outside this milestone.",
+    "Reason checks establish factual references, not usefulness to people."
+  ]
+}

@@ -41,77 +41,58 @@ async function searchTmdbCandidates(title, { strict = false } = {}) {
 // Trasforma una risposta /movie/{id} nell'oggetto dettagli dell'app, incluse
 // piattaforma IT, trailer e rating OMDb (più precisi per imdb_id).
 // imdb_id fa parte della risposta base di TMDb, non serve append_to_response.
-async function buildTmdbDetails(detail, fallbackTitle, options = {}) {
-  let platform = 'Streaming';
-  const providers = detail['watch/providers']?.results?.IT?.flatrate;
-  if (providers && providers.length > 0) platform = providers[0].provider_name;
-
-  let trailerUrl = '';
-  const videos = detail.videos?.results || [];
-  const trailer = videos.find(v => v.site === 'YouTube' && v.type === 'Trailer')
-    || videos.find(v => v.site === 'YouTube');
-  if (trailer) trailerUrl = `https://www.youtube.com/watch?v=${trailer.key}`;
-
-  const fetchOmdb = options.fetchOmdbByImdbId
-    || (typeof fetchOmdbByImdbId === 'function' ? fetchOmdbByImdbId : null);
-  const ratingsExtractor = options.extractRatings
-    || (typeof extractRatings === 'function' ? extractRatings : null);
-  const omdbData = detail.imdb_id && fetchOmdb ? await fetchOmdb(detail.imdb_id) : null;
-  const genreNames = (detail.genres || []).map(g => g.name);
-
-  // Step 5b — regista + anno: direttore/i dai credits (crew, job Director),
-  // anno da release_date (primi 4 caratteri). Nessun dato → null, mai
-  // stringhe vuote né placeholder.
-  const directors = ((detail.credits && detail.credits.crew) || [])
-    .filter(p => p.job === 'Director' && p.department === 'Directing')
-    .map(p => p.name).filter(Boolean);
-  const yMatch = String(detail.release_date || '').match(/^\d{4}/);
-  const releaseYear = yMatch && parseInt(yMatch[0], 10) > 0 ? parseInt(yMatch[0], 10) : null;
-
-  // Step 7 — overview + cast (per il detail film): trama it-IT e primi 8 nomi
-  // del cast in billing order (credits già in append_to_response). overview
-  // vuoto/assente → null (mai stringhe vuote); cast senza membri → null (per
-  // distinguere "non ricavato" da "nessun cast", mai array vuoti).
-  const overview = detail.overview && detail.overview.trim() ? detail.overview : null;
-  const castNames = ((detail.credits && detail.credits.cast) || [])
-    .map(p => p.name).filter(Boolean).slice(0, 8);
-
-  return {
-    tmdb_id: detail.id,
-    title: detail.title || fallbackTitle,
-    collection_id: detail.belongs_to_collection?.id ?? null,
-    collection_name: detail.belongs_to_collection?.name || null,
-    genres: genreNames,
-    duration: detail.runtime ? `${detail.runtime} min` : null,
-    release_year: releaseYear,
-    director: directors.length ? directors.join(', ') : null,
-    overview,
-    cast_names: castNames.length ? castNames : null,
-    platform,
-    poster: detail.poster_path ? `https://image.tmdb.org/t/p/w500${detail.poster_path}` : '',
-    trailerUrl,
-    matched: true,
-    ...(ratingsExtractor ? ratingsExtractor(omdbData) : {})
-  };
+// Public TMDb metadata only: bounded in-memory cache, never judgments or DB records.
+const TmdbDetailCache = (() => {
+  const entries=new Map(),pending=new Map(),ttl=3600000,limit=100;
+  const key=id=>/^[1-9]\d*$/.test(String(id))?String(id):null;
+  const clone=x=>JSON.parse(JSON.stringify(x));
+  return Object.freeze({read(id){const k=key(id),r=entries.get(k);if(!r)return null;if(Date.now()-r.at>=ttl){entries.delete(k);return null;}return clone(r.value);},
+    remember(details,{preserveAge=false}={}){const k=key(details?.tmdb_id);if(!k||details.matched!==true)return;const at=preserveAge&&entries.has(k)?entries.get(k).at:Date.now();entries.delete(k);entries.set(k,{at,value:clone(details)});while(entries.size>limit)entries.delete(entries.keys().next().value);},
+    acquire(id,load){const k=key(id);if(pending.has(k))return pending.get(k);const task=Promise.resolve().then(load).finally(()=>pending.delete(k));pending.set(k,task);return task;}});
+})();
+function tmdbTrailerUrl(videos) {
+  const valid=(Array.isArray(videos)?videos:[]).filter(v=>v?.site==='YouTube'&&typeof v.key==='string'&&/^[A-Za-z0-9_-]{11}$/.test(v.key));
+  const selected=valid.find(v=>v.type==='Trailer'&&v.iso_639_1==='it')||valid.find(v=>v.type==='Trailer')||valid.find(v=>v.type==='Teaser');
+  return selected?'https://www.youtube.com/watch?v='+selected.key:'';
 }
-
-// Dettaglio completo di UN film TMDb già identificato per id
-// (chiamata dopo che l'utente ha scelto dal picker).
-async function fetchTmdbDetailsById(id) {
-  try {
-    const detailRes = await fetch(
-      `https://api.themoviedb.org/3/movie/${id}?api_key=${CONFIG.TMDB_API_KEY}&append_to_response=watch/providers,videos,credits&language=it-IT`
-    );
-    const detail = await detailRes.json();
-    return await buildTmdbDetails(detail);
-  } catch (err) {
-    console.error('Errore dettaglio TMDb:', err);
-    return {
-      tmdb_id: id, title: 'Errore', genres: [], duration: null, platform: 'Streaming',
-      poster: '', trailerUrl: '', matched: false,
-      collection_id: null, collection_name: null, ...emptyRatings
-    };
-  }
+// Same mapper for ordinary addition and already-fetched Discovery enrichment. No I/O.
+function tmdbMetadataFromDetail(detail,fallbackTitle) {
+  const providers=detail['watch/providers']?.results?.IT?.flatrate;
+  const provider=Array.isArray(providers)?providers.find(p=>typeof p?.provider_name==='string'&&p.provider_name.trim()):null;
+  const genreNames=(Array.isArray(detail.genres)?detail.genres:[]).map(g=>g?.name).filter(g=>typeof g==='string'&&g.trim());
+  const directors=(Array.isArray(detail.credits?.crew)?detail.credits.crew:[]).filter(p=>p?.job==='Director'&&(!p.department||p.department==='Directing')).map(p=>p.name).filter(n=>typeof n==='string'&&n.trim());
+  const year=String(detail.release_date||'').match(/^\d{4}/),cast=(Array.isArray(detail.credits?.cast)?detail.credits.cast:[]).map(p=>p?.name).filter(n=>typeof n==='string'&&n.trim()).slice(0,8);
+  return {imdbId:typeof detail.imdb_id==='string'&&/^tt\d{5,12}$/.test(detail.imdb_id)?detail.imdb_id:null,tmdb_id:detail.id,title:detail.title||fallbackTitle,collection_id:detail.belongs_to_collection?.id??null,collection_name:detail.belongs_to_collection?.name||null,
+    genres:genreNames,duration:typeof detail.runtime==='number'&&detail.runtime>0?detail.runtime+' min':null,release_year:year&&Number(year[0])>0?Number(year[0]):null,
+    director:directors.length?directors.join(', '):null,overview:typeof detail.overview==='string'&&detail.overview.trim()?detail.overview:null,cast_names:cast.length?cast:null,
+    platform:provider?provider.provider_name.trim():'Streaming',poster:/^\/[\w./-]+$/.test(detail.poster_path||'')?'https://image.tmdb.org/t/p/w500'+detail.poster_path:'',
+    trailerUrl:tmdbTrailerUrl(detail.videos?.results),matched:true,
+    tmdbRating:typeof detail.vote_average==='number'&&Number.isFinite(detail.vote_average)&&detail.vote_average>=0&&detail.vote_average<=10?detail.vote_average:null};
+}
+function tmdbRatingsFresh(details,now=Date.now()) {
+  return !!details&&(!details.imdbId||details.ratingsChecked===true&&Number.isFinite(details.ratingsCheckedAt)&&now-details.ratingsCheckedAt>=0&&now-details.ratingsCheckedAt<(details.ratingsUnavailable?300000:3600000));
+}
+async function completeTmdbRatings(details,options={}) {
+  if(tmdbRatingsFresh(details))return details;
+  const fetchOmdb=options.fetchOmdbByImdbId||(typeof fetchOmdbByImdbId==='function'?fetchOmdbByImdbId:null);
+  const extractor=options.extractRatings||(typeof extractRatings==='function'?extractRatings:null);
+  if(!fetchOmdb||!extractor)return details;
+  let data=null;try{data=await fetchOmdb(details.imdbId);}catch(_){}
+  return {...details,...extractor(data),ratingsChecked:true,ratingsCheckedAt:Date.now(),ratingsUnavailable:data===null};
+}
+async function buildTmdbDetails(detail,fallbackTitle,options={}) {
+  const extractor=options.extractRatings||(typeof extractRatings==='function'?extractRatings:null);
+  const base={...(extractor?extractor(null):{}),...tmdbMetadataFromDetail(detail,fallbackTitle)};
+  const result=await completeTmdbRatings(base,options);TmdbDetailCache.remember(result);return result;
+}
+// Normal detail flow, also reused on explicit Discovery open when not enriched yet.
+async function fetchTmdbDetailsById(id,options={}) {
+  const cached=options.force?null:TmdbDetailCache.read(id);if(cached&&tmdbRatingsFresh(cached))return cached;
+  return TmdbDetailCache.acquire(id,async()=>{if(cached){const result=await completeTmdbRatings(cached,options);TmdbDetailCache.remember(result,{preserveAge:true});return result;}const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),10000);try{
+    const response=await fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${CONFIG.TMDB_API_KEY}&append_to_response=watch/providers,videos,credits&language=it-IT`,{signal:abort.signal});
+    if(response.ok===false)throw Error('TMDB_DETAIL_FAILED');const detail=await response.json();if(String(detail.id)!==String(id))throw Error('TMDB_DETAIL_ID');
+    return await buildTmdbDetails(detail,null,options);
+  }catch(_){return {tmdb_id:id,title:'Errore',genres:[],duration:null,platform:'Streaming',poster:'',trailerUrl:'',matched:false,collection_id:null,collection_name:null,...(typeof emptyRatings==='object'?emptyRatings:{})};}finally{clearTimeout(timer);}});
 }
 
 // Cerca il film per titolo e ne restituisce il dettaglio -> null se TMDb non
@@ -194,3 +175,5 @@ async function fetchTmdbCollection(id) {
     return data;
   } finally { clearTimeout(timer); }
 }
+
+if(typeof module!=='undefined'&&module.exports)module.exports={tmdbMetadataFromDetail,tmdbTrailerUrl,TmdbDetailCache,buildTmdbDetails,fetchTmdbDetailsById,tmdbRatingsFresh};

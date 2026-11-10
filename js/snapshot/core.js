@@ -205,7 +205,7 @@ const SnapshotCore = (() => {
         bool(x.retrospective, ptr(p, 'retrospective')); nullable(str, x.night_memory, ptr(p, 'night_memory'));
         ensure(x.night_memory === null || [...x.night_memory].length <= 1000, 'NIGHT_MEMORY_LENGTH', ptr(p, 'night_memory'));
         ensure(!x.retrospective || (x.status === 'completed' && x.time === null && (x.date === null || x.date <= s.temporal.local_date)), 'RETROSPECTIVE_NIGHT', p);
-        ensure(x.retrospective || x.night_memory === null, 'ORDINARY_NIGHT_MEMORY', p);
+        ensure(x.night_memory === null || x.status === 'completed', 'COMPLETED_NIGHT_MEMORY', p);
       }
     }); ordered(s.nights, x => x.night_id, '/nights');
     array(s.participants, '/participants', (x, p) => { object(x, ['night_id', 'person_id'], p); uuid(x.night_id, ptr(p, 'night_id')); uuid(x.person_id, ptr(p, 'person_id')); }); ordered(s.participants, x => x.night_id + '|' + x.person_id, '/participants');

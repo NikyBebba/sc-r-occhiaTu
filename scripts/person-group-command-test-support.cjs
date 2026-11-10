@@ -19,6 +19,8 @@ async function fixture() {
   if(!prefix.includes(oldExec)||!prefix.includes(oldQuery)) throw Error('Phase 1 recorder extraction drift');
   prefix=prefix.replace(oldExec,'const exec = sql => { record(sql); return db.exec(sql); };')
     .replace(oldQuery,'const q = async (sql, params = []) => { record(sql,params); return (await db.query(sql,params)).rows; };');
+  const nativeDriver=process.argv.find(a=>a.startsWith('--pg-driver='))?.slice(12);
+  if(nativeDriver)prefix=prefix.replace("process.argv.find(a => a.startsWith('--pglite='))?.slice(9) || '@electric-sql/pglite'",JSON.stringify(path.resolve(nativeDriver)));
   const setup=new Function('require','__dirname','process','record',prefix+'\nreturn currentDatabase;');
   const env=await setup(require,__dirname,process,record)();
   // Optional SQL transcript for the independent PostgreSQL runner, generated
