@@ -1,688 +1,227 @@
 # AGENTS.md — sc(r)occhiaTu
 
-## Checkpoint operativo — Sprint 0, baseline v76
-
-Baseline produzione fornita dal PO: **v76**, commit
-`3e9f64b17cdbe422aa37fa6ddcb3da6936cf7988`. Per lo stato corrente leggere
-[il checkpoint v76 del MASTER_CONTEXT](docs/MASTER_CONTEXT.md#checkpoint-corrente-v76--16-novembre-2026)
-e poi soltanto le fonti pertinenti alla Issue. I riferimenti CURRENT v62,
-TARGET non implementato e NEXT dei checkpoint sotto sono **storici**: foundation
-Persona/Gruppo, shell TARGET e Discovery sono ora nel sorgente rilasciato.
-Non rieseguire migrazioni/cutover per riallinearli. Sicurezza, preservazione dati
-e contratti non sostituiti restano validi; una direzione approvata non autorizza
-SQL/live/deploy. Sorpresa/Veto sono DEPRECATED/TARGET REMOVE secondo roadmap,
-non funzionalità nuove da estendere né dati da eliminare implicitamente.
-[Product Hub](docs/PRODUCT_HUB.md), [backlog](docs/MASTER_BACKLOG.md) e
-[protocollo Codex](docs/CODEX_DEVELOPMENT_PROTOCOL.md) recepiscono la review PO:
-modello Hub/epiche/workflow e protocollo iniziale approvati; PB-048–051 DONE per
-lo scope documentale iniziale, PB-047 PARTIAL. PB-003 candidato al planning,
-non READY. Nessuna Issue/Project creata o attivazione remota autorizzata.
-
-
-Istruzioni permanenti per le sessioni di sviluppo. Stato corrente: release v62 in produzione; Auth/RLS, v54, migration snack e Personal Preference già applicate.
-Prima di progettare una fase leggere [docs/MASTER_CONTEXT.md](docs/MASTER_CONTEXT.md):
-è la fonte dello stato corrente e delle decisioni UX. Per priorità future leggere
-[docs/PRODUCT_ROADMAP.md](docs/PRODUCT_ROADMAP.md); per scalabilità leggere
-[docs/ARCHITECTURE_VISION.md](docs/ARCHITECTURE_VISION.md). Le sezioni
-storiche del master context descrivono cicli precedenti, non lo stato finale.
-Per modelli e flussi specifici consultare anche le specifiche Phase 22/23/38/41.
-Vincoli, sicurezza e contratto Match di questo file restano applicabili.
-
-## TARGET APPROVED — Persona/Gruppo, non implementato
-
-Checkpoint 16 ottobre 2026: Product Grammar, transizioni, Contextual UX e IA
-congelati; Alternativa B (relazioni con scope esplicito, modello ibrido) scelta.
-**CURRENT resta v62:** nessuna Lista personale, nuovi supporti/cicli candidatura
-o partecipanti espliciti già implementati. Non riaprire i contratti per adattarli
-al runtime: [dominio](docs/INDIVIDUAL_WATCH_REWATCH.md#target-approved--product-grammar-e-relation--transition-contract),
-[IA](docs/UX_NAVIGATION_MEMORIES.md#target-approved--ia-personagruppo),
-[tecnica](docs/ARCHITECTURE_VISION.md#target-architecture-approved--alternativa-b),
-[dati](docs/DATA_MODEL_TRANSITION.md#target-approved--requisiti-informativi-e-preservazione).
-La [roadmap unica](docs/PRODUCT_ROADMAP.md#checkpoint-personagruppo--approved--not-implemented)
-registra Implementation Plan/refinement approvati e NEXT PHASE 1 — LOCAL
-FOUNDATION / CANDIDATE MIGRATION, non ancora autorizzata o iniziata. Auth UUID,
-satisfaction minimale, lock film-centric e versioni scoped sono contratti target;
-nessuna migration, codice o deploy impliciti nell'approvazione.
-
-Preservare candidature legacy con supporto preesistente, senza inventare Liste
-personali o autore; Lista personale nuova vuota. Il Product Owner attesta N+V
-partecipanti alle tre completed reali storiche, non a ogni evento futuro.
-Cleanup delle 32 cancelled di test già concluso a T0: non ripeterlo. Satisfaction
-solo su intenzione identificata, preesistente e pertinente; dubbio → preservare.
-Transizioni critiche server-authoritative e intent-based, Realtime solo resync;
-snapshot server coerente e invalidation con versioni scoped nel target.
-Match/Ruota invariati.
-
-## Stato corrente v62 production — IMPLEMENTED + RELEASED
-
-Release corrente: commit `a7d1f827c71e60c00aa72d6cf61f69642c80fc91`, cache
-`scorochiatu-shell-v62`. `Cosa Guardiamo?`, primo consumer reale del
-Recommendation Core v2, è presente e verificato manualmente in produzione.
-La paginazione v61 resta inclusa. Il Core è semanticamente frozen; per contratto
-e consumer fare riferimento a [RECOMMENDATION_ENGINE](docs/RECOMMENDATION_ENGINE.md).
-
-Personal Judgment usa preference tri-state TRUE/FALSE/NULL; rating valido
-domina preference, la rimozione del rating non la resuscita e la review resta
-indipendente. Together è separato e Seen è esposizione, non gusto. Il judgment
-dell’altro membro è read-only. Client/PWA precedenti a v62 vanno aggiornati
-prima di modificare preference; i dati live esistenti non vanno azzerati da
-cleanup, restore o reimport. Non assumere che entrambi i dispositivi siano stati
-verificati solo dalla presenza della release in produzione.
-
-La release v60 `0813e721e963191b285f357789a9dddd967c6162`
-(`fix: preserve movie nights and editable memories`) resta inclusa.
-Precedente release card inclusa: `91ecb9b4adeb82cefb7d5fdbd1a2e1a54bd7a248`,
-`feat: redesign movie cards and add history search`.
-Card con progressive disclosure, principali informazioni/stati/voti visibili,
-Trailer/saga indipendenti, Gestione compatta e valutazioni N/V/N+V contestuali
-con badge identità login; veto nel dettaglio, ricerca locale Storico N/V.
-Personal watch state indipendente da Together; i due pallini oro non alterano seen.
-
-Serate proposed/confirmed con orario raggiunto concludibili oltre mezzanotte
-anche dopo reload; nessuna finestra 2/3, duplicazione o modifica automatica di
-data/ora. Future/completed/cancelled/skipped escluse dal completamento pendente;
-arretrati in cartellone senza monopolizzare Home. Ricordi tutto chiuso a nuova
-apertura, scelte manuali preservate nei rerender dello stesso modal.
-Snack solo visualizzato nelle card Ricordi; modifica da Gestione → Valutazioni
-→ N+V → modifica, con precompilazione/aggiunta e vuoto → NULL sull’evento
-Together selezionato, corretto anche per rewatch. Luogo invariato.
-Voto/testo N+V restano sul film; snack/location sul singolo evento.
-
-`database/supabase-migration-completed-night-snack.sql` applicata manualmente
-al Supabase reale dall’utente: RPC edit consente snack completed, preserva
-location e protezioni schedule/stati terminali/Auth/membership/ownership;
-ritorna prima dell’UPDATE movies. Non modificare/rieseguire la migration v54.
-[Contratto v60](docs/MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md).
-
-Import JustWatch concluso: 354 titoli, 354/354 risolti, 337 nuovi, 436 totali al
-termine dell’import; shared list, seen_v e Together preservati, nessuna serata
-fittizia o rating/review inventata. Sleepers, Nuovo Cinema Paradiso, The Prestige
-e American Psycho intenzionalmente non seen_n. Scary Movie poi visto da N anche
-personalmente, con Together conservato. Non correggere il DB; artefatti import
-fuori repository. Conteggi dell’import distinti da un nuovo audit live.
-
-Debito PWA non bloccante: online PASS, shell offline caricata ma
-`tailwind is not defined` nel test offline, collegato a Tailwind CDN e
-debito preesistente, non introdotto dalla v60 né dalla v61. Full offline capability non
-ancora raggiunta; nessun fix implicito nel presente aggiornamento.
-
-## HISTORICAL — Fase 0.5A bounded pagination introdotta in v61, inclusa in v62
-
-Implementata dalla baseline Git `a089a7e477b4c8147b02a0d6b56c6307db7fa3b0`;
-**IMPLEMENTED + RELEASED in v61; included in production v62**. Il checkpoint
-originale usava la cache `scorochiatu-shell-v61`.
-`PAGE_SIZE = 24`: ricerca/filtri/sort precedono
-lo slice; `movies` e logiche non visuali restano sull’intero dataset. Stato
-pagina per tab in memoria, reset di scope sui criteri e reset completo alla
-landing/lock/logout. Griglia nascosta rilasciata; poster lazy/async, Storico
-debounced 250 ms. [Contratto e test](docs/BOUNDED_PAGINATION.md).
-NAV-01 **OPEN**: osservato su device reale, non riprodotto nel harness
-automatico, root cause non identificata; la paginazione non è un fix dimostrato.
-Probe diagnostico fuori dal prodotto; non aggiungere guardie touch speculative.
-Nessuna modifica Supabase, migration, Auth semantics o artefatti import.
-
-## Storico: produzione v59 — Password dimenticata?
-
-Commit `9545693090920cab20d4ef67b97b8647db7ae947`, origin/main allineato alla release.
-Push/deployment Vercel completati. HTTP: 41/41 file runtime identici al commit,
-tutti HTTP 200, nuovo pulsante e service worker v59 verificati. L’utente
-conferma il funzionamento reale di Password dimenticata?.
-
-Pulsante Password dimenticata? nel login N/V: resetPasswordForEmail solo con
-il mapping selezionato, mai con il campo Account editabile. Ritorno tramite
-Site URL già configurato; nessuna modifica Dashboard. Cooldown per persona
-60 secondi in memoria, double-submit bloccato, feedback aria-live controllato;
-cambio persona invalida feedback tardivi. Nessuna password/token salvati/loggati,
-nessuna modifica al login/recovery validato, Ricordami, session restore o backend.
-Cache production scorochiatu-shell-v59; pubblicazione completata.
-Test locali: Auth 82/82, Browser Auth 43/43, UX 24/24, Smoke 436/436,
-PWA 18/18, RLS 40/40, DB 52/52, browser feature 39/39, SDK/PWA 10/10 con AMR otp e 10/10 senza AMR.
-Sintassi 56/56 e diff check PASS. Invio email simulato nei test dell’agente; test reale del pulsante confermato dall’utente.
-
-## Checkpoint production v58 — precedente alla release v59
-
-Production commit `f3c49fd110592e9d8883f5e797809cf6fc34c0f2`, SW `scorochiatu-shell-v58`.
-Push e deployment Vercel completati; 41/41 file runtime HTTP 200 e identici al commit.
-Migration Individual/Rewatch v54 eseguita una sola volta dall’utente; audit
-pre/post 24/24 e checkpoint integro. Non rieseguire cutover o migration.
-Le release frontend v55–v59 non modificavano database, RLS, RPC o account;
-la v60 include la migration incrementale snack descritta nel checkpoint corrente.
-
-Login standard: N/V → Account precompilato visibile/editabile → Password.
-Username email con autocomplete="username"; password con
-name="password" e autocomplete="current-password", senza vincoli numerici.
-Solo submit vuoto bloccato; validità della password determinata da Supabase.
-L’email normalizzata deve corrispondere all’account N/V selezionato prima di Auth.
-Identità autorevole da Supabase Auth verificato e app_members; Ricordami e
-session restore normali conservati. Nessuna password o token reale nel repository.
-
-Recovery: solo contesto reale PASSWORD_RECOVERY del SDK, con sessione valida,
-utente verificato online, membership e scadenza. Nessuna autorizzazione da
-MFA/AAL/AMR o marker locale. Nuova password/conferma usano new-password;
-identity guard e double-submit preservati. Successo → logout locale → login.
-Ricaricare durante recovery interrompe il flusso e richiede un nuovo link.
-[Dettagli, errori e limiti](docs/AUTH_SUPABASE.md).
-L’utente conferma recovery reale v58 e login successivo per N/V, oltre al
-salvataggio automatico Apple Passwords/Safari. La proposta automatica delle
-credenziali al prossimo accesso non è stata attestata separatamente.
-
-Storico introdotto nella v55 è pubblicato: destinazione Home con switch N/V,
-rispettivamente seen_n/seen_v=true, viste sovrapponibili anche fuori Lista e
-indipendenti da in_shared_list. Card/griglia normali, ordine alfabetico,
-nessun filtro Lista o nuova persistenza. Fuori da bottom nav e Ricordi.
-Ricordi conserva statistiche, Serate concluse e Dopo il film/recensioni.
-I due pallini N/V seguono il seen personale; Together dai completed colora
-entrambi oro senza modificare seen_n/seen_v. Nessun terzo indicatore o etichetta
-Together; N+V resta per dati/azioni condivisi. “Segna come non visto” rimuove
-solo il proprio seen e conserva voto, recensione, candidatura, eventi e Together.
-Contratto Match Live e semantica candidacy/Rewatch invariati.
-Evitare terminologia tecnica nei messaggi rivolti all’utente.
-
-Suite v58: Smoke 436/436, Auth 77/77, RLS locale 40/40, DB Individual/Rewatch 52/52,
-PWA 18/18, Chromium Auth 36/36, UX 24/24, Individual/Rewatch browser 39/39,
-sintassi 56/56 e diff check PASS.
-SDK Supabase v2 reale con Auth/membership simulati e PWA: 8/8 con AMR otp,
-8/8 senza AMR; credenziali sintetiche generate a runtime, nessun test Auth live.
-I checkpoint datati sotto descrivono i rispettivi cicli storici.
-
-## Project purpose
-
-Web app condivisa per **due persone, N e V**, che permette di:
-
-- costruire una watchlist comune;
-- votare i film in modo indipendente e trovare il "Match" tra i gusti;
-- usare una ruota della fortuna per scegliere a caso;
-- gestire veto settimanali (1 film escluso a testa a settimana);
-- pianificare una serata (data/ora/snack) con proposta e conferma a due;
-- segnare visioni N/V/condivise, votare 0–10 con un decimale e recensire con testo facoltativo;
-- gestire sorprese (poster sfocato finché l'altra persona non rivela);
-- consultare «Ricordi» / «Titoli di coda», storico mensile e quattro riepiloghi;
-- consultare gli altri capitoli di una saga TMDb e aggiungerli esplicitamente.
-
-La versione privata è un piccolo spazio per due persone; la direzione di
-prodotto copre **discovery → proposta → decisione condivisa → programmazione
-→ visione → valutazione → ricordo**. Tracking personale e interazioni condivise
-sono centrali; la roadmap supera il solo catalogo/watchlist/tracker.
-
-Ogni nuova feature significativa va valutata su **Content / User / Group /
-Community**. N e V sono progressivamente due istanze di User: usare N/V dove
-necessario oggi, evitare hardcoding superfluo quando una soluzione altrettanto
-semplice è generalizzabile. Nessun refactoring prematuro o migrazione automatica.
-Il Core v2 e il primo consumer sono implementati in v62. Le estensioni future e
-il loro stato sono descritti in [PRODUCT_ROADMAP](docs/PRODUCT_ROADMAP.md) e
-[ARCHITECTURE_VISION](docs/ARCHITECTURE_VISION.md); non dedurre una priorità
-dalla cronologia.
-
-L'esperienza deve essere: semplice, mobile-first, condivisa, veloce, ludica,
-cinematografica, personale. Il tono deve essere leggero e giocoso, con riferimenti
-al cinema; evitare di ripetere nostro/vostro/insieme quando non aggiunge significato.
-Non impostare l'app come esclusivamente romantica o troppo seria. Mantenere
-chiare le distinzioni tra voto personale e condiviso e i messaggi d'errore.
-
-## Nomi ufficiali
-
-- **app name**: `sc(r)occhiaTu` (scrittura esatta, da mantenere ovunque: UI,
-  documentazione, chiavi di storage locali `scorochiatu_*`).
-- **repository GitHub**: `NikyBebba/sc-r-occhiaTu` (nome del repo).
-
-## Tech stack
-
-- HTML + **vanilla JavaScript ES6** (nessun bundler, nessun framework);
-- **Tailwind CSS via CDN Play** + `css/style.css` custom;
-- **Font Awesome via CDN**;
-- **@supabase/supabase-js v2 via CDN** (tabelle: `movies`, `votes`, `vetoes`,
-  `movie_nights`, `app_members`, Auth + RLS attivi e verificati in produzione, **Realtime core**: movies/vetoes/movie_nights;
-  votes resta nel DB; API dormienti isolate, nessun I/O nel core);
-- **TMDb API v3** (`language=it-IT`) per ricerca, dettagli, provider, trailer;
-- **OMDb API** come fallback e per rating (IMDb / RT / Metacritic);
-- **localStorage** come mirror offline di Supabase solo dopo verifica Auth online nel runtime e con JWT valido (mirror + modalità
-  degradata segnalata in UI tramite badge);
-- **canvas 2D** per la ruota della fortuna.
-
-NON introdurre framework/bundler/backend senza autorizzazione.
-
-## Architecture
-
-Flusso di caricamento dei moduli (ordine in `index.html`):
-
-```
-theme (head) → config → format → haptics → audio → api(omdb+tmdb → index) → auth → store + store/{movies,viewing,legacy,choices,nights,match} → match → filters → wheel → recommendation/{config,core,adapters} → ui/recommendations → ui(modals+navigation+actions e domini+sagas+render e domini+calendar+match+ticket+loading) → main
-```
-
-- `js/config.js` — chiavi runtime (TMDb/OMDb/Supabase) + `PEOPLE` (label) e `AUTH_EMAILS` (email account configurate). Nessuna password/PIN.
-- `js/auth.js` — verifica online Auth/app_members, storage token Ricordami, refresh JWT, guardie identità/generazione, logout, password recovery e distinzione offline/Auth.
-- `js/format.js` — helper DOM-free dei voti decimali (validazione, parsing punto/virgola, formato italiano) e delle date: `formatNightDate(date, time)` (data serata
-  leggibile "24 ott · 21:30", senza `new Date('YYYY-MM-DD')`, fallback al dato
-  grezzo, mai orari inventati, `date NULL` → "Oggi").
-- `js/api/omdb.js` — OMDb: `omdbConfigured`, `extractRatings`, `fetchOmdbByTitle`,
-  `fetchOmdbByImdbId`, `omdbToDetails`, `emptyRatings`.
-- `js/api/tmdb.js` — TMDb: `tmdbConfigured`, `searchTmdbCandidates`,
-  `buildTmdbDetails(detail, fallbackTitle)`, `fetchTmdbDetailsById`,
-  `fetchTmdbDetailsByTitle`.
-- `js/api/index.js` — orchestratore `fetchMovieDetails` (TMDb → OMDb → notFound).
-- `js/store.js` — client, stato globale, letture Supabase/localStorage,
-  mirror, fallback e **Realtime core centralizzato**. I domini estratti
-  conservano le API globali: `store/movies.js` (CRUD, dedup e sorpresa),
-  `store/viewing.js` (visioni, voti e recensioni), `store/legacy.js`
-  (API votes dormienti, cache separata), `store/choices.js` (veto),
-  `store/nights.js` (serate, pick e adattatori proiezione),
-  `store/match.js` (sessioni/swipe, canale Match e presence).
-  (`subscribeRealtime`/`unsubscribeRealtime`: il canale del CORE è unico;
-  il Match "live" usa un canale separato e temporaneo `scorochiatu-match`,
-  per isolare i guasti dal core — i binding match+presence stanno SOLO lì;
-  resync debounced + render solo se il dato cambia) e modalità degradata
-  (`dbMode` 'supabase'|'local' con badge in UI, ripristino automatico).
-  - **CONTRACT Match (riconoscimento dai dati)**: la celebrazione è derivata
-    ESCLUSIVAMENTE dai dati (`pendingMatch(session, swipes, deck, movies)`
-    != null); lo status `'matched'` NON è un prerequisito e il percorso
-    swipe/reconcile/resync NON lo scrive più (resta ammesso dallo schema ma
-    inutilizzato, nessuna migration). `matched_movie_id` = ultimo match
-    RICONOSCIUTO via "Continua" (scritto solo in quel momento, con
-    `matched_at` informativo). `reconcileSession` resta per la sola transizione
-    `open→done` (mazzo esaurito, nessun match pendente), idempotente,
-    condizionato a id+status `'open'`; chiamato da recordSwipe E dal resync
-    (sullo stato fetchato, non sugli swipe locali). "Continua"
-    (`continueMatch`): update `matched_movie_id=pending`, `matched_at`,
-    status `'open'` (o `'done'` se mazzo esaurito), condizionato a id+status
-    `IN('open','matched')`, poi re-read + riallineamento; 0 righe o errore →
-    `console.error` una volta (dedup 60s) + riallineamento, mai UI muta;
-    idempotente se entrambi premono insieme.
-- `js/wheel.js` — ruota canvas: pool, draw, spin animato, confetti.
-- `js/recommendation/{config,core,adapters}.js` — Core v2 puro e adapter dal
-  Store; `js/ui/recommendations.js` rende `Cosa Guardiamo?`. Core e consumer
-  restano separati da Match Live e Ruota.
-- `js/ui/modals.js` — `openModal`/`closeModal`/`showConfirmModal` + helper
-  anti-XSS `escapeHtml`/`jsAttrEscape` + costanti visuali (`personBadge`).
-- `js/ui/navigation.js` — tab (state + switch).
-- `js/ui/actions.js` — libreria: aggiunta/picker TMDb, import, stato, cinema,
-  eliminazione e retry; `actions/nights.js` gestisce programmazione/Oggi,
-  snack/luogo e modifiche, `actions/viewing.js` voti/recensioni/visioni,
-  `actions/choices.js` sorpresa e veto. Firme e handler HTML invariati.
-- `js/ui/render.js` — coordinatore `render`, home, veto e connessione;
-  `render/cards.js` costruisce le card e i frammenti voto condivisi,
-  `render/memories.js` storico/statistiche, `render/library.js` controlli
-  ricerca/filtri/sort, `render/projections.js` hero/countdown/cartellone,
-  `render/detail.js` scheda e transizioni. I domini render si caricano prima
-  del coordinatore; `drawWheel` resta invocata dal render.
-- `js/ui/sagas.js` — collection TMDb su richiesta, ordine di uscita, suggerimento
-  dopo nuova visione, aggiunta esplicita con dedup, retry e protezione sorpresa.
-- `js/ui/ticket.js` — ticket PNG via canvas nativo, poster e talloncino; origine
-  solo in memoria, nessun nuovo campo DB.
-- `js/theme.js` — otto temi automatici per stagioni/festività; override manuale
-  locale fino al cambio di periodo (finestre e precedenze nel master context).
-- `js/audio.js` / `js/haptics.js` — preferenze locali opt-in per suoni/vibrazioni;
-  `js/ui/loading.js` — ciak loader e skeleton iniziali.
-- `js/main.js` — login (landing → persona → Account/Password → Supabase Auth verificato), recovery e
-  attivazione Realtime all'ingresso.
-- `scripts/import-movies.js` — import/aggiornamento massivo dei film da
-  `data/movie-watchlist.json` (match TMDb prudente + alias documentati +
-  fallback OMDb, idempotente, `--dry-run` e `--limit=N`, non tocca
-  titoli/status/voti/recensioni/serate). Serve anche da verifica live del DB.
-- `scripts/smoke.js` — harness smoke-test (`node scripts/smoke.js`): carica
-  tutti i moduli con DOM stub, verifica guardie/load, serate su `movie_nights`,
-  vote/veto/sorpresa/recensione, metadati TMDb live, anti-XSS. Atteso green.
-- `scripts/audit-data-model.js` — audit solo GET paginati (`--live`) o fixture
-  (`--file=...`), output aggregato senza ID/titoli/credenziali. Distingue legacy
-  senza eventi, mirror divergenti/chiusi, multi-eventi e date mancanti; non migra.
-- `data/movie-watchlist.json` — fonte ufficiale storica dell’import iniziale, N: 116
-  + V: 15 = 131; non inventario corrente del catalogo dopo JustWatch.
-
-Stato core: variabili globali (`movies`, `vetoes`, `movieNights`,
-`currentUser`, `currentTab`, `dbMode`). Ogni azione segue il ciclo:
-
-```
-azione → persistenza (Supabase/localStorage) → loadMovies() → render()
-```
-
-Le modifiche fatte dagli ALTRI telefoni arrivano via Realtime → resync
-debounced (120 ms) → `resyncQuiet()` che fa render SOLO se i dati sono
-cambiati (nessun loop/doppio render per gli echi delle proprie scritture).
-
-`render()` ricostruisce il DOM e chiama: `renderScheduled`, `renderVetoInfo`,
-`renderSyncStatus`, `renderNextMovieBox` (countdown ogni 30s), `drawWheel`.
-
-## Development workflow
-
-Ogni futura feature segue:
-
-```
-ANALYZE → PLAN → IMPLEMENT → TEST → REVIEW → COMMIT
-```
-
-## Important rules
-
-- NON introdurre framework, backend o bundler senza autorizzazione.
-- NON cambiare il data model senza verificarne le conseguenze
-  (le feature future dipendono dalla semantica "serata").
-- NON eliminare feature esistenti.
-- NON fare refactoring architetturali importanti senza spiegarne la necessità.
-- NON modificare l'identità visiva globale (dark cinema, glass, indigo/sky)
-  senza richiesta.
-- Mantenere **ruota** e **sorpresa** come elementi centrali dell'esperienza.
-- Mobile-first: l'app si usa da smartphone, in due.
-- Evitare overengineering: simple > clever.
-- NON dichiarare una feature completata senza averla testata.
-- Distinguere sempre tra **feature implementate** e **TODO/pianificate**.
-- Prima di commitare verificare con un harness/check che non ci siano
-  ReferenceError o regressioni nei flussi.
-
-## Security/configuration rule
-
-Le API key presenti in `js/config.js` (e referenziate in `js/api/index.js`) sono
-**REALI** e usate direttamente dal frontend (modello client-side del progetto).
-
-- NON inserirle in AGENTS.md, README, report, commit message, log o output.
-- NON stamparle.
-- NON sostituirle, rigenerarle o modificarle salvo esplicita richiesta.
-- NON spostare `config.js` fuori da `js/`.
-- Il vecchio PIN client-side è rimosso su richiesta esplicita. Non reinserire PIN/password nel frontend o usare storage/UI per autorizzare identità.
-- Supabase Auth/RLS: **attivi e production-verified**. PREPARE/CUTOVER/account/mapping applicati dall’utente; Realtime ON e Allow public access OFF, publication delle sole cinque tabelle attive. Non rieseguire migration né riaprire policy pubbliche. [Stato e rollback](docs/AUTH_SUPABASE.md); fermarsi prima di SQL/live o deploy non autorizzati.
-- Non convertire errori Auth/RLS in fallback offline; app_members è modificabile solo dall’operatore. Non introdurre service-role frontend.
-- Se si decide che una credenziale non possa essere pubblica, va segnalato
-  PRIMA di intervenire (non agire in autonomia).
-
-## Struttura del progetto
-
-```text
-/
-├── index.html, AGENTS.md, README.md
-├── manifest.json, service-worker.js, icons/
-├── database/                    # schema e migration, nessun dump
-├── data/movie-watchlist.json    # lista iniziale ufficiale
-├── docs/                       # MASTER_CONTEXT e specifiche delle fasi
-├── scripts/                    # import, metadati, smoke, verify-sw
-├── js/
-│   ├── config.js, auth.js, format.js, theme.js, audio.js, haptics.js
-│   ├── store.js, match.js, filters.js, wheel.js, main.js
-│   ├── store/{movies,viewing,legacy,choices,nights,match}.js
-│   ├── api/{omdb,tmdb,index}.js
-│   ├── recommendation/{config,adapters,core}.js
-│   └── ui/
-│       ├── {modals,navigation,actions,sagas,render,calendar,match,ticket,loading}.js
-│       ├── actions/{nights,viewing,choices}.js
-│       └── render/{cards,memories,library,projections,detail}.js
-└── css/style.css
-```
-
-## Modello dati
-
-- `app_members(user_id UUID FK auth.users, person UNIQUE N/V)`: migration applicata,
-  mapping amministrativo; membro legge solo se stesso, nessuna scrittura client.
-
-- `movies(id, title, added_by, status, duration, platform, poster,
-  trailer_url, matched, imdb_rating, rt_rating, metacritic_rating, rating,
-  scheduled_date, scheduled_time, snack, review_text, review_by, watched_by,
-  genre, proposed_by, night_confirmed, surprise_by, tmdb_id, collection_id,
-  collection_name, cinema_watchlist, seen_rating_n, seen_rating_v,
-  seen_rating_together, personal_liked_n, personal_liked_v,
-  personal_liked_updated_at_n, personal_liked_updated_at_v,
-  review_text_n, review_text_v, review_text_together,
-  genres, release_year, director, overview, cast_names, created_at,
-  seen_n, seen_v, in_shared_list)`
-  - `seen_n/v`: stato personale del proprietario Auth; `in_shared_list`: candidatura indipendente. Together deriva soltanto dai completed; Rewatch = seen_n && seen_v && !together.
-  - `status`: `watchlist` | `tonight` | `watched`, proiezione operativa degli eventi, non fonte di Together.
-  - `tmdb_id`/`collection_id`/`collection_name` (step 2): identificativo
-    stabile TMDb + saga/collection, usati dal pannello saghe e disponibili
-    per future raccomandazioni. `null` per film aggiunti prima/fallback OMDb.
-  - `seen_rating_n/v/together`: numeric 0–10 con al massimo un decimale;
-    NULL = assente, zero valido. Migration Phase 38 applicata dall'utente;
-    verifica indipendente dei tipi OpenAPI non riuscita (HTTP 401), non
-    dichiarare test di scrittura reale che non sono stati eseguiti.
-  - Testi N/V/condiviso distinti e facoltativi; stringa vuota esplicita rimuove
-    solo il testo, preservando voto e dati degli altri autori. Testo omesso nel
-    livello dati conserva la recensione; non far riapparire il mirror legacy.
-  - `personal_liked_n/v`: CURRENT v62, gradimento TRUE/FALSE/NULL, non intenzione.
-    Timestamp associati autorevoli server; rating personale valido domina e una
-    sua operazione intenzionale cancella preference/timestamp, senza resurrezione
-    alla rimozione. Review indipendente. Nessuna Lista personale già live.
-  - `cinema_watchlist` esclude da Ruota e Match; libreria e programmazione restano.
-    Due viste separate Streaming/Cinema (Streaming iniziale), switch senza dropdown;
-    Azzera filtri conserva la vista, card cinema ambrate e azioni Oggi/Programma uniformi.
-  - La programmazione vive **solo in `movie_nights`**. Colonne legacy
-    `scheduled_date/time`, `snack`, `proposed_by`, `night_confirmed` sul film
-    restano nel DB per rollback, ma NON leggere/scrivere né riattivare fallback
-    applicativi. `MOVIE_SELECT_FIELDS` seleziona solo contenuto e visioni.
-    I nomi scheduled_* nelle API renderer/ticket sono adattatori degli eventi.
-    `movies.status` conserva il ciclo film esistente per visioni/Ruota/Match;
-    filtro e contatore In programma dipendono dagli eventi attivi.
-- `votes(id, movie_id FK, person, liked, unique(movie_id,person))`: like/dislike
-  dismessi dalla UI, distinti dai voti decimali e dal Match Live. API dormienti
-  in store/legacy.js, nessun I/O remoto; cache separata. Il core non legge,
-  scrive o ripulisce questo snapshot/cache e non lo include in render/Realtime.
-  Non droppare/cancellare colonne/tabelle/dati legacy. Un rollback a frontend
-  precedenti richiede riallineare i mirror dalle nuove serate; non inventare dati.
-- `vetoes(id, person, movie_id FK, week_key 'YYYY-W##', unique(person,
-  week_key))`.
-- `movie_nights(id, movie_id FK, date, time, snack, proposed_by, status,
-  location, created_at, confirmed_at, cancelled_at, completed_at)`
-  - `status`: `proposed` | `confirmed` | `cancelled` | `completed` |
-    `skipped` (quest'ultimo RISERVATO a future feature streak/calendario,
-    oggi nessun flusso lo scrive).
-  - Scritture applicative solo tramite manage_movie_night; DML diretto revocato.
-    Nuovo completed consuma candidatura atomicamente; retry completed no.
-    Oggi/Programma/annullo non cambiano candidatura né seen personali.
-  - Regola: **1 film = 1 contenuto, 1 serata = 1 evento** → più serate
-    possono puntare allo stesso film (rewatch), storico persistente per
-    calendario/streak future.
-  - `date NULL` = pick veloce "Oggi" (senza data fissa).
-  - RPC edit consente snack/location su completed; schedule protetto,
-    cancelled/skipped protetti. Edit ritorna prima dell’UPDATE movies.
-    Snack vuoto → NULL sull’evento selezionato; voti/testi N+V sul film.
-    Migration snack incrementale già applicata, v54 storica immutata.
-
-## UX principles
-
-- Due utenti, due telefoni: ogni azione di uno si riflette sull'altro via
-  **Realtime core** (postgres_changes su movies/vetoes/movie_nights) con
-  resync silenzioso e render solo su cambiamento reale; il refetch post-azione
-  resta come rete di sicurezza.
-- Dark cinema, glass cards, accent indigo/sky, ruota + confetti + sorpresa
-  = cuore ludico dell'esperienza.
-- Testi piccoli (`text-[10px]`) usati per info complementari: da tenere sotto
-  controllo su mobile; i target tattili principali devono restare usabili.
-
-## Feature implementate al checkpoint v62
-
-Login persona/Account/Password e password recovery, home Match/Ruota/Libreria, watchlist con picker TMDb,
-import bulk, dedup per ID e UNIQUE, Match Live a swipe con presence e Match %,
-Ruota canvas con filtri e confetti, veto settimanale, sorprese, serate con
-proposta/conferma e rewatch, popup «Oggi» con snack/luogo facoltativi e modificabili,
-proposte «In cartellone» accettabili anche durante il film di oggi, calendario mensile,
-voti personali/condivisi 0–10 con decimali e recensioni facoltative,
-«Titoli di coda» con riepiloghi e serate, Storico personale autonomo, saghe TMDb, ticket PNG,
-temi automatici, PWA, audio/haptics opt-in e ciak loader.
-Personal Judgment tri-state e Recommendation Core v2 consumato da Cosa Guardiamo?
-sono inclusi nella release v62; i relativi contratti sono nelle specifiche linkate.
-Il voto condiviso e la sua azione usano N+V in oro; il pulsante personale segue
-quello condiviso nel colore N/V. «Film aggiunti» conta l'intera libreria per autore.
-Le metriche di compatibilità restano esclusiva di Match Live.
-
-Le verifiche locali non sostituiscono il test condiviso su due telefoni dopo
-il deploy. Ticket e temi erano già stati provati dall'utente dopo il push precedente.
-
-**Step 2 — fondazione dati condivisa**: verifica live database Supabase,
-metadati TMDb persistiti (`tmdb_id`, `collection_id`, `collection_name`),
-entità `movie_nights` (serata = evento separato dal film, stati
-proposed/confirmed/cancelled/completed, `skipped` riservato), Realtime
-centralizzato (un canale, resync debounced, no loop/doppio render), fallback
-localStorage come mirror + badge "modalità offline" (visibile, non silenzioso).
-
-**Step 2.5 — moduli + watchlist reale**: refactoring strutturale senza
-cambio di comportamento (`js/api.js` → `js/api/{omdb,tmdb,index}.js`,
-`js/ui.js` → `js/ui/{modals,navigation,actions,render}.js`, nomi API pubblici
-invariati, ordine script in `index.html` allineato) e import della watchlist
-ufficiale in Supabase da `data/movie-watchlist.json` via
-`scripts/import-movies.js` (matching TMDb prudente su title/original_title +
-bonus sottotitolo-prefisso + alias documentati, fallback OMDb, idempotente).
-
-## Roadmap e stato
-
-La Fase 1 di prodotto ha implementato il Core v2 e il primo consumer; le
-direzioni successive e le idee esplorative sono mantenute esclusivamente in
-[PRODUCT_ROADMAP](docs/PRODUCT_ROADMAP.md). Non dedurre una priorità o autorizzare
-una fase dalla cronologia di questo file. Fasi e checkpoint precedenti sotto
-sono **HISTORICAL** salvo indicazione esplicita diversa.
-
-Il documento locale ignorato `MASTER PROJECT CONTEXT.rtf` è **HISTORICAL / NOT
-OPERATIONAL**. Non è fonte per semantiche, sicurezza, roadmap o stato release;
-seguire i documenti Markdown autorevoli collegati sopra.
-
-## Vincoli tecnici
-
-- Dipendenze ancora via CDN (Tailwind Play, Font Awesome, supabase-js).
-- PWA presente: manifest e service worker, cache production `scorochiatu-shell-v62`; domini API,
-  Supabase, poster e YouTube sempre esclusi dall'intercettazione. Le icone PWA
-  sono provvisorie; non confondere l'app-shell offline con dati remoti disponibili.
-- HTML delle card generato come stringhe: usare `escapeHtml`/`jsAttrEscape`
-  per qualsiasi dato proveniente dall'utente.
-- Storage locale chiavi prefisse `scorochiatu_*` (inclusa
-  `scorochiatu_movie_nights`).
-
-## Cose da NON fare senza prima chiedere
-
-1. NON cambiare/eliminare/rinominare colonne o tabelle DB (`movies`,
-   `votes`, `vetoes`, `movie_nights`) senza autorizzazione — le feature
-   future (calendario/streak/collection) partono dal data model "serata"
-   (film = contenuto, serata = evento in `movie_nights`).
-2. NON introdurre framework/bundler/backend/auth server.
-3. NON cambiare identità visiva globale o spostare ruota/sorpresa in secondo
-   piano.
-4. NON rimuovere/rigenerare API key senza autorizzazione; non spostare `config.js`. Password impostate manualmente dall’operatore in Auth, mai nel codice.
-5. NON implementare feature pianificate senza fase dedicata.
-6. NON decidere autonomamente su punti architetturali con impatto sulle
-   feature future: segnalare invece nel report.
-7. NON fare push force, reset distruttivi o cancellazioni di branch.
-
-## Baseline storica (Step 2/2.5, non un nuovo test live)
-
-- Guard logic `tmdbConfigured()`/`omdbConfigured()` corrette: TMDb e OMDb
-  attivi con le chiavi reali in `config.js`; verificati live (ricerca,
-  dettaglio, provider, trailer, rating OMDb).
-- Funzioni serata in `js/store.js`: `setQuickTonight`, `proposeNight`,
-  `confirmNight`, `cancelNight`, `nextMoviePick` (ora su `movie_nights`
-  con mirror legacy), più `completeNight`, `subscribeRealtime`.
-- Database Supabase **verificato live** (anon key + REST): `movies`,
-  `votes`, `vetoes` esistenti, CRUD OK, RLS aperte OK, Realtime già
-  pubblicato su movies/votes/vetoes. `movie_nights` + `tmdb_id`/
-  `collection_id`/`collection_name` **applicati in Dashboard**. **Watchlist
-  131 film importata** (N: 116 + V: 15, `--dry-run` poi inserimento reale):
-  tmdb_id 100%, collection 22 titoli, 0 duplicati, idempotente (2° run: 0
-  insert, 131 already existing, 0 metadata update).
-- **Test live Realtime end-to-end PASS**: insert via client reale → evento
-  `postgres_changes` → resync debounced → dati aggiornati; con `movie_nights`
-  assente la app resta in modalità `supabase` con warning one-time e fallback
-  box legacy (`movieNightsAvailable=false` evita la sottoscrizione a una
-  tabella non ancora pubblicata).
-- Struttura **modulare**: `js/api/{index,omdb,tmdb}.js` e
-  `js/ui/{actions,modals,navigation,render}.js` (f.To `js/api.js`/`js/ui.js`
-  rimossi), ordine script in `index.html` allineato, `store.js`/`config.js`
-  centralizzati.
-- Harness smoke alla baseline Step 2/2.5 (`scripts/smoke.js`): **32/32 PASS** (guards + load, serate
-  su `movie_nights`, vote/veto/sorpresa/recensione, metadati TMDb live
-  incluse collection+aliasing titoli IT, ui add/retry, anti-XSS).
-- `node --check` OK su tutti i moduli `js/**/*.js` + `scripts/`.
-
-## Storico: UX v51 candidata locale — 8 ottobre 2026
-
-- Navigazione responsive persistente, handler Match/Presence esistenti;
-  Calendario da Home. Ricordi Anno/Mese, header sticky e stato in memoria.
-- Dopo il film: alfabetico, 10 elementi + Mostra altre, singoli testi details.
-  Stato preservato nel rerender e resettato alla landing/logout, nessuno storage.
-- Smoke 400/400, Auth 43/43, RLS 40/40, PWA 15/15, Chromium Auth 18/18,
-  UX 20/20, sintassi 52/52; mobile/desktop e regressioni N/V green.
-- [Specifiche UX](docs/UX_NAVIGATION_MEMORIES.md). Modifiche locali, nessun
-  push/deploy o Supabase live. Non dichiarare v51 production-verified.
-
-## Storico: Auth/RLS production-verified — 8 ottobre 2026
-
-- Migrazione conclusa; l’utente conferma su entrambi i dispositivi login N/V,
-  dati, persistenza sessione, Realtime, Match Live e logout PASS.
-- Commit funzionale `2bd43a6458733d479b32c790a6da5982f425dbce`, pubblicato su origin/main e
-  https://sc-r-occhia-tu.vercel.app; SW v50. Verificati dall’agente 45 file
-  runtime identici, landing/gate mobile e SW installato, nessuna richiesta Supabase.
-- Cutover e policy RLS/realtime.messages confermati dall’utente; Realtime ON,
-  public access OFF; publication movies/movie_nights/swipe_sessions/swipes/vetoes.
-  votes conservata senza accesso applicativo né publication. Non ripetere cutover.
-- Test hosted dichiarati dall’utente distinti da fixture locali; non attribuire
-  a questo collaudo casi negativi/offline/refresh specifici non riportati.
-- Limiti: due membri, verifica online all’ingresso, mirror solo nel runtime
-  autorizzato con JWT valido; sessionStorage/autofill dipendono dal browser,
-  logout locale lascia indipendente l’altro client. CSV non sono backup completo.
-- Le sezioni sotto sono cronologia. Il presente ciclo modifica solo documenti;
-  non autorizza ulteriori modifiche funzionali, DB o impostazioni live.
-
-## Storico: candidato Auth completo — 8 ottobre 2026
-
-- Email reali N/V configurate su autorizzazione dell’utente; nessun PIN/password,
-  UUID reale o secret aggiunto. Checkpoint Git locale pre-cutover autorizzato.
-- Smoke 400/400, Auth 43/43 (inclusa config runtime), RLS locale 40/40,
-  PWA 15/15, Chromium Auth 18/18; 345 API e 144 scenari DOM conservati.
-  Programmazione/cinema/Ricordi 320/390/768, recensioni N/V 320/390 green.
-- Candidato pronto al cutover coordinato. Test hosted e due dispositivi restano
-  necessari dopo attivazione. Nessuna modifica Supabase live, push o deploy.
-- I checkpoint precedenti sono storici: email mancanti/commit vietato erano
-  vincoli precedenti, superati dall’autorizzazione corrente. Resta vietato
-  eseguire cutover, modificare Realtime live o pubblicare senza autorizzazione.
-
-## Storico: aggiornamento locale publication — 8 ottobre 2026
-
-- Cutover salva membership votes in app_security_backup.auth_publication,
-  poi la rimuove solo dalla publication, preservando tabella e dati.
-- Rollback ripristina la membership originaria; nessuna modifica alle altre
-  tabelle pubblicate. Publication assente/FOR ALL TABLES blocca l'operazione.
-- RLS locale 40/40, Auth 42/42, PWA 15/15, sintassi e diff check PASS.
-  Nessun intervento live, commit/push/deploy o modifica frontend/Match.
-
-## Storico: checkpoint Auth pre-cutover — 7 ottobre 2026
-
-- PREPARE completato manualmente dall'utente: due account Auth confermati e
-  due mapping N/V verificati via SQL. Non ripetere PREPARE/creazione account.
-  Nessuna verifica o modifica Supabase live dall'agente in questo ciclo.
-- Email reali ancora da chiarire: EMAIL_N/EMAIL_V sono segnaposto; AUTH_EMAILS
-  resta vuoto. Non inventare email/UUID/password né dichiarare pronto il deploy.
-- Auth solo da sessione verificata/app_members; Ricordami, refresh JWT,
-  logout locale e separazione offline/Auth. Corrette risposte getSession
-  obsolete e AuthSessionMissingError senza status HTTP. Match e UI invariati.
-- Cache v50; smoke 400/400, PWA 15/15, Auth 42/42, RLS locale 32/32,
-  Chromium Auth 18/18; 345 API/144 scenari DOM conservati. Browser domini
-  a larghezze mobile green. SDK/DB simulati, niente login/subscription live.
-- Cutover/rollback SQL solo preparati. [Sequenza](docs/AUTH_SUPABASE.md):
-  completare email → verifiche Dashboard → finestra → SQL cutover →
-  Realtime pubblico disabilitato → deploy autorizzato → update PWA/test N/V.
-  Non fare commit/push/deploy o interventi live in questa preparazione locale.
-- Backup CLI abbandonato/ripulito; CSV applicativi salvati dall'utente,
-  csvbackup/ esclusa da Git: preservare file e non usarli come dump schema/Auth.
-- CLI manutenzione richiedono JWT membro; niente fallback anonimo/service-role
-  frontend. Non eseguire manutenzione live come test di questa fase.
-
-## Checkpoint precedente — 5 ottobre 2026
-
-- Consolidation & Architecture: domini estratti incrementalmente da store,
-  actions e render; stato globale e API esistenti conservati, nessuna modifica
-  ad autenticazione/schema/UX. Mappa e dipendenze nel master context.
-- Cleanup applicativo: movie_nights unica fonte di programmazione, nessun
-  fallback/dual-write dei dettagli sui film. votes dormiente separato dal core.
-  [Inventario e rollback](docs/DATA_MODEL_TRANSITION.md). Test reali della
-  transizione v47 superati sui due client, confermati dall'utente.
-  Il cleanup v48 resta locale, senza push/deploy, SQL o scritture DB reali.
-- Audit storico v47: 94 film (93 watchlist, 1 watched), 30 serate
-  (29 cancelled, 1 completed), 1 voto legacy; non un nuovo conteggio live.
-  Le differenze mirror/eventi sono attese dopo il congelamento v48: non
-  ripristinare automaticamente dual-write né considerarle guasti dell'app.
-- `node scripts/smoke.js`: **400/400 PASS**; service worker **15/15 PASS**,
-  sintassi completa e diff check, cache PWA `v48`.
-- Confronto v47: 344 API mantenute (rimosse solo le tre proposte film obsolete),
-  144 scenari DOM identici sui dati coerenti; flag soli/stale testati separatamente.
-  Chromium proiezioni/cinema/Ricordi a 320/390/768 px, recensioni N/V
-  a 320/390 px, zero errori JS/overflow, screenshot ispezionati.
-- movie_nights è necessario: errori REST o query rifiutate usano il mirror
-  locale degli eventi con badge offline, mai il legacy film. Realtime core
-  include sempre movie_nights. Non reintrodurre movieNightsAvailable.
-- Baseline browser precedente: Chromium con fixture a 320/390/768 px per login/PIN/home, voti e Ricordi;
-  pannello saghe anche a 320×568. Screenshot ispezionati, zero errori JS e
-  nessun overflow orizzontale. Tool di verifica solo in directory temporanee.
-- Migration Phase 38 applicata dall'utente; nessuna scrittura reale nei test
-  del ciclo corrente. Tastierino e sincronizzazione su due telefoni da provare
-  dopo il deploy, incluse aggiunte saghe e cancellazione del testo recensito.
-- Home: due ciak ai lati della scritta; PIN: «Ciak, si entra», «Biglietto, prego»
-  e battuta originale da agente. Non reintrodurre le statuette scartate.
+Leggere interamente; approfondire solo le fonti pertinenti. Mantenere questo entry
+point sotto 16 KB (limite 32.768 byte), senza duplicare storico/schema/inventari
+o aumentare `project_doc_max_bytes` per aggirare il budget.
+
+## Baseline e gerarchia delle fonti
+
+- Baseline documentale: Sprint 0 pubblicato su `main`, commit
+  `51d0c9545da520a46442aee27ee80adb9022c074`. Baseline applicativa attestata dal PO:
+  **v76**, `3e9f64b17cdbe422aa37fa6ddcb3da6936cf7988`. Non confondere commit docs
+  e release runtime; verificare lo stato Git iniziale.
+- Leggere il [checkpoint corrente del MASTER_CONTEXT](docs/MASTER_CONTEXT.md#checkpoint-corrente-v76--16-novembre-2026),
+  poi le specifiche necessarie. CURRENT v62/TARGET non implementato/NEXT vecchi
+  sono storici: Persona/Gruppo, TARGET e Discovery sono presenti.
+  Non riaprire contratti approvati né ripetere cutover per adeguarsi a testo vecchio.
+- [PRODUCT_HUB](docs/PRODUCT_HUB.md): processo, epiche, privacy, triage e attivazione.
+  [CODEX_DEVELOPMENT_PROTOCOL](docs/CODEX_DEVELOPMENT_PROTOCOL.md): standard adottato,
+  prompt, DoR/DoD e matrice test; seguirli senza rileggere tutto il repository.
+- [MASTER_BACKLOG](docs/MASTER_BACKLOG.md): ID canonici, fonti e decisioni U03/U04;
+  fonte operativa fino all’attivazione Issues; poi stato/priorità/AC solo nelle Issue.
+- [PRODUCT_ROADMAP](docs/PRODUCT_ROADMAP.md): unica direzione strategica;
+  [ARCHITECTURE_VISION](docs/ARCHITECTURE_VISION.md): confini architetturali.
+  Specifiche = contratti, non autorizzazioni. Prevalgono decisioni PO esplicite/
+  checkpoint recente; non reinterpretare dati o contratti.
+- `MASTER PROJECT CONTEXT.rtf`, vecchi test/conteggi/import sono storia,
+  non stato operativo o nuove prove live.
+
+## Sessioni, scope e autorizzazioni
+
+1. Partire da PB-ID/Issue identificata, un obiettivo principale, scope/AC e vincoli.
+   Prima dell'attivazione GitHub è valido un candidato locale identificato;
+   non inventare numeri Issue. Un'idea approvata o READY non autorizza SQL/live,
+   codice fuori scope, commit, push o deploy.
+2. ANALYZE → PLAN → IMPLEMENT → TEST → REVIEW. COMMIT/PUSH/DEPLOY e applicazione
+   DB sono passi distinti dalla preparazione locale, solo se autorizzati. Nessuna
+   conferma ripetuta per azioni reversibili già autorizzate; fermarsi fuori scope.
+3. Riusare contesto/harness/convenzioni; niente audit senza nuova evidenza,
+   refactoring/astrazioni superflui o docs ridondanti. Spiegare necessità/impatti
+   architetturali; non riaprire autonomamente contratti futuri.
+4. Priorità dal backlog; PB-003 candidato
+   principale Sprint 1, non READY né sviluppo autorizzato. Niente Issues/Projects
+   automatici o beta. Walkthrough sintetico: approccio approvato, non esecuzione
+   o creazione account/dataset.
+5. Rispettare lo scope del turno: nessuna feature pianificata parte implicitamente.
+   Report breve: AC/esito, test effettivi e limiti, stato sviluppo/test/release,
+   rischi bloccanti e prossimo passo. Debito non bloccante separato, senza espandere
+   il lavoro. Artefatto docs accettato può essere DONE senza attivazione operativa.
+
+## Sicurezza, credenziali e preservazione
+
+- Dati reali N/V, visioni, liste/supporti, candidature, giudizi, recensioni,
+  partecipanti e ricevute sono da preservare. Non inventare identità, desideri,
+  autori, voti o serate; non azzerare preference da cleanup/restore/reimport.
+  Satisfaction solo su intenzione identificata, preesistente e pertinente:
+  dubbio → preservare. L'attestazione N+V delle tre completed storiche non implica
+  che ogni evento futuro comprenda tutti i membri.
+- Preservare integralmente backup, file ignorati/untracked e lavoro preesistente,
+  inclusi storico N, catalog audit repair e asset mascotte. Alla baseline ci sono
+  **458 untracked estranei**: non importarli, modificarli, cancellarli o pubblicarli
+  implicitamente. Separare il proprio delta.
+- `csvbackup/` e altre copie di sicurezza restano fuori Git. CSV applicativi e
+  ticket PNG non sono dump completi di schema/Auth né prove di restore. Nessun
+  restore su dati correnti, cleanup o rollback distruttivo senza piano/autorizzazione.
+  Il cleanup delle 32 cancelled di test a T0 è concluso: non ripeterlo.
+- Nessun force push, reset distruttivo o cancellazione branch. Per commit autorizzati
+  staging esplicito dei singoli file: niente `git add .`, `git add -A` o inclusione
+  forzata di file ignorati. Remoto divergente o perimetro ambiguo → fermarsi prima
+  del commit/push; niente pull/rebase/merge automatico nel worktree con dati estranei.
+- Le chiavi TMDb/OMDb/Supabase in `js/config.js` sono REALI e client-side per scelta
+  del progetto: non stamparle/copiarle in output, log, report, docs, commit message
+  o prompt. Non sostituirle, rimuoverle, rigenerarle o spostare `config.js` da `js/`
+  senza richiesta esplicita. Se si ritiene una credenziale non pubblicabile,
+  segnalarlo PRIMA di intervenire, non cambiarla autonomamente.
+- Nessuna password/PIN nel frontend: il vecchio PIN è rimosso. Password impostate
+  dall'operatore in Auth; non inventare email/UUID/password, non salvare o loggare
+  password/token di recovery e non introdurre service-role frontend.
+- Repository pubblico: Project privato non privatizza le Issue. Niente dati tester,
+  credenziali/token/dump, dati N/V o screenshot identificabili nelle Issue/allegati.
+  Minimizzare/anonimizzare; feedback riservati fuori repo, solo sintesi sanitizzate
+  nel backlog. Seguire la
+  [privacy del Hub](docs/PRODUCT_HUB.md#privacy-e-visibilita--repository-pubblico).
+
+## Auth, Supabase e autorità dei dati
+
+- Auth/RLS attivi: PREPARE/CUTOVER/account/mapping e migrazioni già applicati non
+  vanno rieseguiti. Non cambiare schema/colonne/tabelle, RPC, policy, grant,
+  publication, Dashboard o Realtime live senza autorizzazione e verifica conseguenze.
+  Non riaprire policy pubbliche: Realtime ON, Allow public access OFF. `votes` è
+  legacy conservato, senza I/O applicativo/publication; niente drop/cancellazione.
+- Identità autorevole da Supabase Auth verificato online e membership; UI,
+  localStorage, PIN, MFA/AAL/AMR o marker locali non autorizzano un'identità.
+  `app_members` è modificabile solo dall'operatore. CLI manutenzione richiedono
+  JWT membro; niente fallback anonimo e niente manutenzione live come test.
+- Non convertire errori Auth/RLS in fallback offline. Mirror/cache solo nel runtime
+  autorizzato dopo verifica online e JWT valido; non conferiscono autorità di
+  scrittura. Modalità degradata esplicita, mai successo remoto simulato. Proteggere
+  session restore/Ricordami, refresh JWT, logout e guardie identità/generazione.
+- Login: email normalizzata deve corrispondere all'account N/V selezionato prima
+  di Auth; account visibile/editabile, autocomplete username/current-password,
+  nessun vincolo numerico sulla password; Supabase determina la validità.
+  Reset email solo dal mapping della persona selezionata, non dal campo editabile;
+  cooldown 60s per persona, double-submit e feedback tardivo protetti.
+- Recovery solo da reale evento SDK `PASSWORD_RECOVERY`, sessione valida, utente
+  verificato online, membership e scadenza. Nuova password/conferma new-password;
+  reload interrompe e richiede nuovo link, successo → logout locale → login.
+  Dettagli e limiti: [AUTH_SUPABASE](docs/AUTH_SUPABASE.md).
+- TARGET: transizioni server-authoritative, intent-based, retry-safe; snapshot
+  server coerente, lock film-centric/versioni scoped. Realtime solo invalidation/
+  resync, non decisioni o ricostruzione relazioni. Acquisizione contenuto e intento
+  personale/gruppo espliciti, niente writer legacy per aggirare autorità.
+- Preservare protocollo/CAS/ricevute/replay e operazioni pendenti/incerte.
+  [PRODUCTION_PROTOCOL_HANDOFF](docs/PRODUCTION_PROTOCOL_HANDOFF.md) e
+  [gate v76](docs/V76_FINAL_INTEGRATION_GATE.md) governano compatibilità/cutover:
+  niente riattivazione TARGET, floor abbassato o decoder v75 dopo memorie normali.
+  Recupero forward, non restore/cancellazioni per adattare dati al vecchio client.
+  Modello/piano approvato non autorizza SQL.
+
+## Contratti di dominio da non alterare implicitamente
+
+- Film = contenuto; serata = evento `movie_nights`, anche rewatch.
+  Together deriva da completed/partecipanti reali, non da `movies.status` o da
+  due seen personali. Seen è esposizione, non gusto; Lista personale, candidatura
+  gruppo, visione e giudizio restano distinti. L'altro giudizio personale è read-only.
+  Rimuovere il proprio seen conserva giudizi, candidatura, eventi e Together.
+- Rating valido domina preference TRUE/FALSE/NULL; operazione intenzionale sul
+  rating cancella preference/timestamp senza resurrezione alla rimozione.
+  Review indipendente; zero è voto valido, NULL assente, 0–10 con un decimale.
+  Testo omesso conserva; cancellazione esplicita rimuove solo il testo pertinente.
+  Rating/review N+V sono sul film; `night_memory`, snack e luogo sul singolo evento.
+- Programmazione solo negli eventi, non nei mirror legacy `movies.scheduled_*`,
+  snack/proposed_by/night_confirmed. Niente fallback/dual-write o reintroduzione
+  di `movieNightsAvailable`; `votes`/cache legacy separati da render/core/Realtime.
+  Vecchio percorso serate solo via RPC `manage_movie_night`, DML diretto revocato;
+  nel TARGET usare i comandi autorevoli, non scritture dirette o bypass legacy.
+- Nuova completion consuma candidatura atomicamente; retry non la consuma di nuovo.
+  Oggi/Programma/annullo non cambiano implicitamente candidature o seen personali.
+  Concludere solo proposed/confirmed dovute, anche oltre mezzanotte/reload;
+  niente finestra arbitraria, eventi duplicati o date/orari modificati automaticamente.
+  Future/completed/cancelled/skipped escluse; `skipped` è riservato, non introdurre
+  scritture automatiche. Su completed normali schedule/partecipanti protetti;
+  solo le retroattive consentono la modifica data prevista dal contratto CAP-1.
+- Date calendario lette per componenti locali, mai `new Date('YYYY-MM-DD')`;
+  niente orari inventati. `formatNightDate`: data NULL → Oggi, invalida → dato
+  grezzo; snack vuoto → NULL sull'evento selezionato. `cinema_watchlist` esclude
+  da Match/Ruota ma non da libreria/programmazione; preservare Streaming/Cinema.
+- `core.js` frozen per Dalla Lista; Scopri usa profili/Core 2.0/retrieval separati.
+  Seen/recensioni/candidature/swipe Match non sono Like o learning stabile.
+  Match/Ruota indipendenti; Match % solo sessione, non compatibilità stabile
+  o accuratezza recommendation.
+
+## Contratto Match e sincronizzazione
+
+Conservare le invarianti anche quando si toccano adapter/trasporti TARGET:
+
+- Celebrazione solo dai dati: `pendingMatch(session, swipes, deck, movies) != null`;
+  status `matched` NON prerequisito. Swipe/reconcile/resync non scrivono `matched`.
+- `matched_movie_id` = ultimo match riconosciuto via **Continua**, scritto solo lì;
+  `matched_at` informativo. `reconcileSession` solo `open→done` per mazzo esaurito
+  senza match pendente, idempotente, condizionato a id + status open. Chiamato da
+  recordSwipe e resync sui dati fetchati, non sugli swipe locali.
+- `continueMatch`: `matched_movie_id=pending`, `matched_at`, status open o done
+  se mazzo esaurito; condizione id + status IN(open, matched), poi re-read/resync.
+  Zero righe o errore → `console.error` una volta (dedup 60s) e riallineamento,
+  mai UI muta; idempotente anche se entrambi premono contemporaneamente.
+- Core Realtime unico; Match/presence solo nel canale separato temporaneo
+  `scorochiatu-match`. Non duplicare sottoscrizioni né legare guasti Match al core.
+  Nel percorso store legacy resync debounced 120ms e render solo se dato cambia;
+  nel TARGET rispettare invalidation/snapshot. Niente loop o doppi render dagli echi.
+
+## Stack e UX
+
+- Nome esatto **sc(r)occhiaTu**, repo `NikyBebba/sc-r-occhiaTu`, chiavi locali
+  `scorochiatu_*` (inclusa `scorochiatu_movie_nights`). HTML/vanilla JS ES6/CSS,
+  script classici senza bundler; Tailwind Play, Font Awesome, supabase-js v2 via
+  CDN; TMDb v3 `language=it-IT`, fallback/rating OMDb, Ruota canvas 2D.
+  Nessun framework/bundler/backend/auth server o nuovo servizio senza autorizzazione.
+- Ordine script da `index.html`; preservare firme/handler
+  pubblici e dipendenze. Non copiare un vecchio inventario v62 per riordinare TARGET.
+  Anti-XSS: dati in HTML stringhe con `escapeHtml`/`jsAttrEscape`; niente input non
+  escapato. Non spostare configurazione o introdurre dipendenze per tooling minore.
+- Mobile-first, dark cinema/glass/indigo-sky; tono leggero/personale/ludico,
+  non solo romantico né nostro/vostro ripetuti. Preservare identità/otto temi/
+  componenti, touch usabile e leggibilità.
+  Ruota centrale; non eliminare feature implicitamente. Sorpresa/Veto sono
+  DEPRECATED/TARGET REMOVE secondo roadmap, non nuove feature da estendere o dati
+  da cancellare. Non ripristinare mood picker, VHS, cult manuale o sezione Phase 24.
+  Non reintrodurre le statuette Home scartate a favore dei due ciak.
+- Valutare Content/User/Group/Community; N/V sono utenti: evitare hardcoding
+  superfluo con soluzioni altrettanto semplici generalizzabili. Niente migrazioni/
+  refactoring prematuri verso multiutente.
+- Saghe/ticket/temi esistono: riusare contratti. Ticket: origine in-memory, niente
+  persistenza inventata PNG/eventi. Detail modale salvo richiesta; poster-adaptive
+  color solo decorativo, testo su token leggibili. Audio/haptics opt-in locali.
+- Service worker: escludere API/Supabase/poster/YouTube dall'intercettazione;
+  app-shell offline non significa dati remoti disponibili o offline completo.
+  Non cambiare cache/versione/SW per soli docs. NAV-01 non è risolto con prova:
+  niente guardie touch speculative o probe diagnostici nel prodotto.
+
+## Test, prove e letture di dominio
+
+Seguire la [matrice test](docs/CODEX_DEVELOPMENT_PROTOCOL.md#matrice-di-test-proporzionati):
+docs → link/ID/diff; UI → browser mirato; logica → harness/negativi;
+Auth/RLS/DB → identità, membership, isolamento, CAS/idempotenza, concorrenza e
+preservazione rigorosi. Prima di commit autorizzato check pertinente contro
+ReferenceError/regressioni, non tutte le suite per layout/docs. Niente test live
+impliciti: smoke/metadati/import possono usare rete, leggere il comando.
+Tooling temporaneo fuori repo; riusare script, niente nuovi runner.
+
+Feature non testata non è completata. Distinguere TODO/implementato, fixture/locali,
+pubblicato e production/device: PASS storici e deploy/HTTP non provano nuovi test
+o entrambe le PWA. Nessun audit dati per leggere lo stato. JustWatch/import iniziale
+non sono inventario live: niente correzioni DB per ricostruire conteggi, reimport
+o serate fittizie; preservare seen N/V, Together e artefatti storici N.
+
+Fonti da leggere per il dominio toccato:
+
+| Dominio | Specifiche (distinguere stato e storia) |
+| --- | --- |
+| Persona/Gruppo | [Dominio](docs/INDIVIDUAL_WATCH_REWATCH.md), [Dati](docs/DATA_MODEL_TRANSITION.md) |
+| Card/IA | [Card](docs/MOVIE_CARD_DISCLOSURE.md), [IA](docs/UX_NAVIGATION_MEMORIES.md), [Proiezioni](docs/PROIEZIONI.md) |
+| Serate | [Midnight](docs/MOVIE_NIGHTS_MIDNIGHT_MEMORIES.md), [Memorie](docs/COMPLETED_NIGHTS_UNIFICATION.md), gate v76 sopra |
+| Timeline/statistiche e voti | [Timeline](docs/PHASE22_TIMELINE.md), [Statistiche](docs/PHASE23_MOVIE_CHEMISTRY.md), [Decimali](docs/PHASE38_DECIMAL_RATINGS.md), [Preference](docs/PERSONAL_PREFERENCE_DB.md) |
+| Saghe e pagination catalogo | [Saghe](docs/PHASE41_SAGHE.md), [Pagination](docs/BOUNDED_PAGINATION.md); U04 nel backlog governa il refinement futuro, non è implementazione |
+| Recommendation | [Core stabile](docs/RECOMMENDATION_ENGINE.md), [Profili](docs/TASTE_PROFILES_V1.md), [Core 2.0](docs/RECOMMENDATION_CORE_V2.md), [Retrieval](docs/DISCOVERY_RETRIEVAL_V2.md), [Correttivo](docs/DISCOVERY_FINAL_CORRECTIVE_PASS.md) |
+
+Storico in docs/Git; nessun cambio a contratti, permessi o impostazioni Codex.
