@@ -1,5 +1,70 @@
 # 🎬 sc(r)occhiaTu — MASTER PROJECT CONTEXT v2.62
 
+## Checkpoint corrente v76 — 16 novembre 2026
+
+**Baseline produzione attestata dal PO: v76**, commit
+`3e9f64b17cdbe422aa37fa6ddcb3da6936cf7988`. HEAD locale coincide; service worker
+`scorochiatu-shell-v76`, body `protocol-v1-v76` presenti nel sorgente.
+Questa sessione Sprint 0 è solo documentale: nessun nuovo test live/device/DB,
+nessun commit/push/deploy. RELEASED deriva dalla baseline PO; VERIFIED si applica
+solo alle verifiche effettivamente documentate, senza estenderle ad altri device.
+
+Il precedente titolo v2.62 e le sezioni CURRENT/NEXT sotto sono **storici**.
+Non assumere ancora assenti Lista personale, supporti/cicli, partecipanti o snapshot
+TARGET: foundation e runtime sono inclusi nella storia Git successiva.
+[Roadmap corrente](PRODUCT_ROADMAP.md#checkpoint-corrente-v76--sprint-0-16-novembre-2026)
+e [riconciliazione](MASTER_BACKLOG.md) distinguono delta e direzioni future.
+
+| Evidenza Git | Capacità nella baseline |
+| --- | --- |
+| d7f7237 → 6382e20, e002505 → e7a39e2 e successivi refinement | Foundation Persona/Gruppo, letture coerenti, comandi intent-based, versioni scoped, invalidation/Realtime e shell TARGET, protocollo produzione; precedente stato target/1 attestato nel handoff v68 |
+| 4234022 e precedenti restore UI | Intenzioni personali/condivise, Lista personale/Visti, raccolte gruppo e card/detail contestuali; non multiutente pubblico |
+| 7fcb3d1 | Icona PWA e favicon aggiornate: vecchia nota «icone provvisorie» non è lavoro integralmente mancante |
+| 2ac5b2c / f612b15 / 3c361a6, a2e9b69 | CAP-1 Together retrospettivo, snapshot v2, allineamento Match e package v72 |
+| 515551f | v73 autocomplete storico condiviso |
+| a7ba234 | v74 Home/navigazione/UX |
+| b1c3f51 | v75 loading screen |
+| 3e9f64b | v76 Discovery First e completed night memories; asset/inventario nel gate v76 |
+
+Due motori distinti: `js/recommendation/core.js` conserva il contratto stable
+preference core per Dalla Lista; `profiles.js`, `ranking-v2.js`, retrieval e
+DiscoveryView implementano il percorso Scopri. La vecchia frase «discovery
+esterna non implementata» non descrive v76. Test sintetici non dimostrano qualità
+predittiva reale. Seen, desiderio, candidatura, rating/preference, Together e
+memoria evento mantengono semantiche separate. Voto/recensione Together restano
+sul film; `night_memory`, snack e luogo sul singolo evento completed.
+
+Fonti del rilascio: [gate v76](V76_FINAL_INTEGRATION_GATE.md),
+[inventario](V76_RELEASE_INVENTORY.json) e commit esatto. I gate conservano il
+linguaggio di preparazione locale: i loro PASS sono storici e l'inclusione Git
+non certifica nuovamente SQL installato o entrambe le PWA. Non rieseguire cutover,
+attivazione TARGET, migration, import o audit per correggere questa discrepanza
+documentale. Per operazioni future usare il contratto corrente del percorso.
+Il rischio del decoder v75 su memorie completed normali e il recupero forward
+restano nel gate v76; un rollback vecchio non è autorizzato.
+
+Limiti: molti utenti, gruppi multipli, policy >2, serie, community, giudizi per
+visione, validazione empirica e offline integrale non sono completati. NAV-01
+resta una segnalazione storica non risolta con prova, non un bug riprodotto ora.
+File untracked dello storico N/catalog repair/mascotte e backup preservati;
+non sono nuove release né un dataset corrente da contare.
+
+Per le nuove sessioni: Issue/candidato identificato → checkpoint corrente →
+specifica pertinente → soli file del delta, secondo il
+[Codex Development Protocol](CODEX_DEVELOPMENT_PROTOCOL.md). Il
+[Product Hub](PRODUCT_HUB.md) registra fonti/decisioni Sprint 0; GitHub diventerà
+fonte operativa solo dopo futura applicazione selettiva autorizzata. La review PO
+ha approvato modello/processo e protocollo iniziale: PB-048–051 DONE documentale,
+PB-047 PARTIAL; walkthrough sintetico candidato, PB-003 candidato al planning.
+Nessuna attivazione GitHub/beta o implementazione implicita.
+
+## Archivio integrale dei checkpoint precedenti
+
+Le sezioni che seguono descrivono i rispettivi cicli, non sovrascrivono il
+checkpoint v76. I vincoli di preservazione/sicurezza restano applicabili;
+«NEXT» storici non autorizzano nuove esecuzioni.
+
+
 Ultimo aggiornamento: 16 ottobre 2026. Fonte dello stato operativo AS-IS e dei
 checkpoint principali. Roadmap, visione TO-BE e specifica Recommendation hanno
 fonti dedicate; le sezioni marcate **HISTORICAL** sono archivio, non stato attuale.

@@ -1,5 +1,18 @@
 # Phase 41 — Continuiamo la saga?
 
+## Checkpoint v76 — riconciliazione Sprint 0
+
+La specifica seguente conserva storia e contratto originario. Nel runtime TARGET
+v76 `openSaga`/`bindSaga` in `js/ui/target-shell.js` riusano `renderSagaPanel`;
+ordine d'uscita, prossimo capitolo e aggiunta esplicita esistono. La pill personale
+nei capitoli già in catalogo apre lo stato personale con «Segna come visto»;
+non è ancora un'azione universale a un tocco per ogni capitolo esterno.
+PB-001 richiede chiarire quel delta; PB-004 riguarda ricerca franchise/collection,
+PB-008 solo refinement residuo. Vedi [backlog](MASTER_BACKLOG.md).
+I riferimenti CURRENT v62 e NOT IMPLEMENTED sotto sono checkpoint storici;
+non giustificano ricostruire l'intero flusso o usare writer legacy nel TARGET.
+
+
 Stato corrente: 12 ottobre 2026, **IMPLEMENTED in produzione v60**.
 [Baseline ufficiale](MASTER_CONTEXT.md). Continua la saga resta CTA indipendente
 nel [redesign card pubblicato](MOVIE_CARD_DISCLOSURE.md), quando applicabile. Le saghe riusano viewingStatusHtml delle card: due badge

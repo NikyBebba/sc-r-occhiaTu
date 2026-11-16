@@ -1,5 +1,24 @@
 # AGENTS.md — sc(r)occhiaTu
 
+## Checkpoint operativo — Sprint 0, baseline v76
+
+Baseline produzione fornita dal PO: **v76**, commit
+`3e9f64b17cdbe422aa37fa6ddcb3da6936cf7988`. Per lo stato corrente leggere
+[il checkpoint v76 del MASTER_CONTEXT](docs/MASTER_CONTEXT.md#checkpoint-corrente-v76--16-novembre-2026)
+e poi soltanto le fonti pertinenti alla Issue. I riferimenti CURRENT v62,
+TARGET non implementato e NEXT dei checkpoint sotto sono **storici**: foundation
+Persona/Gruppo, shell TARGET e Discovery sono ora nel sorgente rilasciato.
+Non rieseguire migrazioni/cutover per riallinearli. Sicurezza, preservazione dati
+e contratti non sostituiti restano validi; una direzione approvata non autorizza
+SQL/live/deploy. Sorpresa/Veto sono DEPRECATED/TARGET REMOVE secondo roadmap,
+non funzionalità nuove da estendere né dati da eliminare implicitamente.
+[Product Hub](docs/PRODUCT_HUB.md), [backlog](docs/MASTER_BACKLOG.md) e
+[protocollo Codex](docs/CODEX_DEVELOPMENT_PROTOCOL.md) recepiscono la review PO:
+modello Hub/epiche/workflow e protocollo iniziale approvati; PB-048–051 DONE per
+lo scope documentale iniziale, PB-047 PARTIAL. PB-003 candidato al planning,
+non READY. Nessuna Issue/Project creata o attivazione remota autorizzata.
+
+
 Istruzioni permanenti per le sessioni di sviluppo. Stato corrente: release v62 in produzione; Auth/RLS, v54, migration snack e Personal Preference già applicate.
 Prima di progettare una fase leggere [docs/MASTER_CONTEXT.md](docs/MASTER_CONTEXT.md):
 è la fonte dello stato corrente e delle decisioni UX. Per priorità future leggere

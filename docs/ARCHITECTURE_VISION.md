@@ -1,5 +1,25 @@
 # Visione architetturale e principio di scalabilità
 
+## Lettura corrente v76 — 16 novembre 2026
+
+La foundation Persona/Gruppo dell'Alternativa B e il runtime TARGET sono presenti
+nella baseline v76; il checkpoint del 16 ottobre sotto è storico, non ancora un
+piano da iniziare. [Stato corrente e prove](MASTER_CONTEXT.md#checkpoint-corrente-v76--16-novembre-2026).
+Identità Auth/scoping, comandi server-authoritative, snapshot coerenti, versioni
+scoped e invalidation sono fondazioni implementate; non autorizzano a dedurre
+supporto completo a più utenti/gruppi o a replicare migrazioni.
+
+Il modello completo User/Group/Community resta direzione futura: PB-031–040 nel
+[backlog](MASTER_BACKLOG.md). Giudizi personali legacy e giudizio Together sul
+film non sono automaticamente normalizzati per evento. Discovery esterna è ora
+presente nel percorso v76 separato dal Core stabile; calibrazione reale e policy
+per gruppi >2 restano future. I quattro livelli e i vincoli di preservazione sotto
+restano validi. Tabelle «AS-IS v62», «NOT IMPLEMENTED» e «NEXT» sotto descrivono
+solo il checkpoint storico, non l'architettura integralmente corrente.
+
+## Archivio della visione — 16 ottobre 2026
+
+
 Aggiornamento: 16 ottobre 2026. Distingue **TARGET ARCHITECTURE APPROVED** per
 il perimetro Persona/Gruppo e **FUTURE POSSIBILITY / DEFERRED** per la piattaforma
 completa; nessuno dei due è implementato dalla sola approvazione.

@@ -1,5 +1,46 @@
 # Roadmap ufficiale di prodotto
 
+## Checkpoint corrente v76 — Sprint 0, 16 novembre 2026
+
+Baseline produzione indicata dal Product Owner: **v76**, commit
+`3e9f64b17cdbe422aa37fa6ddcb3da6936cf7988`; HEAD locale corrispondente.
+[Stato e limiti dell'evidenza](MASTER_CONTEXT.md#checkpoint-corrente-v76--16-novembre-2026).
+Questa revisione è una proposta documentale locale, non una nuova release.
+
+La roadmap strategica resta qui; il [Master Backlog](MASTER_BACKLOG.md) riconcilia
+51 PBI, recuperi storici e parti già DONE. Il [Product Hub](PRODUCT_HUB.md)
+definisce board/triage/beta e proposta sprint; il
+[protocollo Codex](CODEX_DEVELOPMENT_PROTOCOL.md) definisce readiness, done e test.
+Gli ID PB sono provvisori e le priorità proposte, senza autorizzazione a codice/SQL.
+
+| Direzione strategica | Stato alla v76 / prossimo delta |
+| --- | --- |
+| Core film, Persona/Gruppo | Foundation server-authoritative, snapshot/versioni scoped e UI Persona/Gruppo presenti. Contratti del 16 ottobre non sono tutti ancora «non implementati». Account pubblici, multi-lobby e policy >2 restano futuri |
+| Discovery/Recommendation | Core stabile Dalla Lista conservato; Taste Profiles, Core 2.0 e Discovery fuori catalogo TMDb con azioni native inclusi v76. Feedback empirico e calibrazione restano PB-010/013; non ripetere il retrieval già implementato |
+| UX/Saghe/Ricerca | Navigazione v74, loader v75, card/detail contestuali presenti. Ricerca di aggiunta ancora limitata a cinque: PB-003; saghe/next chapter già presenti, PB-001/008 solo delta |
+| Ricordi | Timeline condivisa/statistiche base e CAP-1 retrospettivo presenti; v76 include memoria su tutte le completed. Rating/review sul film restano distinti dalla memoria evento: PB-021 non completato |
+| Decision Engine | Proposta/scelta/programmazione già funzionanti; shortlist/orchestrazione e policy future da raffinare PB-011, senza sostituire Match/Ruota |
+| Competitive/Positioning | Ricerca pianificata PB-027–030, non eseguita in Sprint 0; precede grande espansione |
+| Multiutente/Groups | Foundation riusabile, non piattaforma completa. PB-031–034/040 richiedono delta tenancy, membership e preservazione N/V prima della beta autenticata |
+| Series/Community/Productization | Direzioni future, granularità e dipendenze PB-035–045. Nessuna signup/beta pubblica o feature social autorizzata |
+| Beta/Processo | Review PO recepita: PB-048–051 DONE per scope iniziale documentale; PB-047 PARTIAL, piano accettato. Walkthrough sintetico candidato approvato, non eseguito; nessun tester/Project/Issue attivato |
+
+Ordine operativo: Sprint 0 consolidato dopo review PO → Sprint 1 planning con
+PB-003 candidato principale approvato (BACKLOG, non READY; capacità da definire) e delta
+saghe/copy circoscritti → Sprint 2 apprendimento UX/feedback Discovery → Sprint 3
+benchmark/posizionamento. Nessuna deadline o assegnazione automatica; i numeri
+Fase 0–10 sotto restano tassonomia storica/strategica, non uno sprint backlog.
+Decision Engine e espansione seguono evidenze e dipendenze, non la cronologia.
+Sorpresa/Veto restano DEPRECATED/TARGET REMOVE; mood picker, sezione Why this
+movie, cult manuale e VHS non vengono riproposti. Nessun cleanup dati implicito.
+
+## Archivio roadmap — checkpoint 16 ottobre 2026
+
+**Tutto il testo seguente conserva lo stato del 16 ottobre (v62), inclusi i
+marcatori CURRENT/NEXT/NOT IMPLEMENTED. Per lo stato operativo prevale il
+checkpoint v76 sopra; i contratti e le decisioni non sostituiti restano validi.**
+
+
 Aggiornamento: 16 ottobre 2026. **Roadmap unica, stati CURRENT / TARGET APPROVED / FUTURE.**
 Baseline AS-IS: [MASTER_CONTEXT](MASTER_CONTEXT.md), release v62 in produzione
 al commit `a7d1f827c71e60c00aa72d6cf61f69642c80fc91`.

@@ -1,5 +1,18 @@
 # Recommendation Engine v2 — stable preference core
 
+## Avvertenza di versione — baseline v76
+
+Questa specifica conserva il **Core stabile** `core.js` e il suo checkpoint v62;
+non è l'inventario completo della recommendation v76. Dalla Lista mantiene il
+Core stabile; Scopri usa Taste Profiles/Core 2.0 e retrieval esterno inclusi v76.
+Vedi [stato corrente](MASTER_CONTEXT.md#checkpoint-corrente-v76--16-novembre-2026),
+[Taste Profiles](TASTE_PROFILES_V1.md), [Core 2.0](RECOMMENDATION_CORE_V2.md),
+[Retrieval](DISCOVERY_RETRIEVAL_V2.md) e [correttivo](DISCOVERY_FINAL_CORRECTIVE_PASS.md).
+I marcatori CURRENT v62/Persona-Gruppo non implementato/discovery differita sotto
+sono storici. Non cambiano le formule frozen o i contratti sui segnali stabili;
+le note di preparazione degli altri documenti non sono nuove prove live.
+
+
 **CURRENT — IMPLEMENTED + RELEASED + PRODUCTION v62.** Il Core v2
 `stable-G4-polarity-v2 / v2.0.0` è semanticamente frozen ed è il motore runtime
 del primo consumer `Cosa Guardiamo?`. Release SHA

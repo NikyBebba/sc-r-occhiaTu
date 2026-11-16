@@ -1,5 +1,16 @@
 # Navigazione persistente e Ricordi scalabili
 
+## Checkpoint v76 — lettura corrente
+
+La IA Persona/Gruppo e le raccolte contestuali sono presenti nella shell TARGET;
+Home/navigazione sono state ulteriormente aggiornate in v74, le memorie completed
+in v76. I marcatori «CURRENT v62 / TARGET non implementato» sotto conservano il
+checkpoint originario. Per il delta effettivo usare [stato v76](MASTER_CONTEXT.md#checkpoint-corrente-v76--16-novembre-2026),
+[backlog PB-006/018–021](MASTER_BACKLOG.md) e contratti dell'evento nel
+[gate v76](V76_FINAL_INTEGRATION_GATE.md). Lo storico personale per eventi non è
+dimostrato dal solo seen; memoria evento non equivale a recensione per evento.
+
+
 Stato corrente: **IMPLEMENTED in produzione v62**; navigazione e Ricordi
 restano invariati nella release `a7d1f827c71e60c00aa72d6cf61f69642c80fc91`.
 [Baseline ufficiale](MASTER_CONTEXT.md); navigazione e ownership conservate.
