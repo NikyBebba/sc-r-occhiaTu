@@ -3,6 +3,7 @@
 const ProductEditors = (() => {
   let refreshReview = null, refreshNightSuggestions = null, editorSerial = 0;
   const completionAttempts=new WeakMap();
+  let closeCatalog=null;
   function bindNightSuggestions(el, getNights) {
     if(typeof HistoryAutocomplete==='undefined')return;
     HistoryAutocomplete.bind(el('scheduleCustomSnack'),el('scheduleSnackSuggestions'),'snack',getNights);
@@ -11,6 +12,7 @@ const ProductEditors = (() => {
     HistoryAutocomplete.bind(el('reviewLocation'),el('reviewLocationSuggestions'),'location',getNights);
   }
   function open({action,id,initial={},context,perform,session,onMatchScheduled,onCompleted=()=>{}}) {
+    closeCatalog?.();
     const serial=++editorSerial, el=id=>document.getElementById(id);
     const current=()=>context.current()&&serial===editorSerial;
     refreshReview = null; refreshNightSuggestions=null;
@@ -110,8 +112,22 @@ const ProductEditors = (() => {
     openModal(modal);el(isEvaluation?'reviewRating':'scheduleSnack').focus();
   }
   function addCatalog({context,search,detailsById,save,bulk,defaultDestination=null}) {
+    closeCatalog?.();
     const serial=++editorSerial, el=id=>document.getElementById(id);
     let activeModal='addModal', searchRevision=0, selected=null, saving=false, saved=false;
+    let query='', groups=[], pageIndex=0, apiPage=0, totalPages=1, pending=false, requestAbort=null, note='';
+    const identities=new Set(), known=context.movies.filter(movie=>!context.hidden(movie));
+    const breakpoint=window.matchMedia?.('(min-width: 640px)');
+    let capacity=breakpoint?.matches?6:4;
+    const pager=el('targetPickerPagination'), previous=el('targetPickerPrevious'), next=el('targetPickerNext');
+    const pageStatus=el('targetPickerPageStatus'), retry=el('targetPickerRetry');
+    const panel=el('pickerResults').parentElement;
+    const identity=option=>{const item=option.movie||option.candidate,id=option.movie?item.tmdb_id:item.id;
+      return id!=null&&/^[1-9]\d*$/.test(String(Number(id)))?'tmdb:'+Number(id):'local:'+item.id;};
+    const stop=id=>{if(id&&id!==activeModal)return;searchRevision++;requestAbort?.abort();
+      breakpoint?.removeEventListener?.('change',resize);pager.classList.add('hidden');
+      if(closeCatalog===stop)closeCatalog=null;};
+    closeCatalog=stop;
     const current=()=>context.current()&&serial===editorSerial&&!el(activeModal).classList.contains('hidden');
     const verbs={groupList:'Vorrei vederlo insieme',personalSeen:'Aggiungi ai miei Visti'};
     const already={personalList:'Il film è già nei tuoi Da vedere.',groupList:'Il film è già nei Da vedere insieme.',personalSeen:'Il film è già nei miei Visti.'};
@@ -128,7 +144,7 @@ const ProductEditors = (() => {
     el('targetPickerSearchAgain').classList.remove('hidden');el('pickerNoneBtn').classList.add('hidden');
     el('targetPickerSelection').classList.add('hidden');el('pickerModalTitle').textContent='Quale film intendevi?';
     const submit=el('addSaveBtn');submit.textContent='Cerca';submit.disabled=false;
-    el('addTitle').oninput=()=>{searchRevision++;submit.disabled=false;message.textContent='';};
+    el('addTitle').oninput=()=>{searchRevision++;requestAbort?.abort();submit.disabled=false;message.textContent='';};
     destination.onchange=()=>{if(!el('targetPickerSelection').classList.contains('hidden'))pickerDestination.value=destination.value;};
     const selectedStatus=movie=>{
       if(!movie)return '';
@@ -144,12 +160,12 @@ const ProductEditors = (() => {
       const seen=selected?.movie&&context.view.personal.getState(context.view.context.caller.personId,selected.movie.id).seen===true;
       const label=target==='personalList'?(seen?'Voglio rivederlo':'Voglio vederlo'):verbs[target];
       commit.innerHTML=label?'<i class="fa-solid '+(target==='groupList'?'fa-users':target==='personalList'?'fa-user':'fa-check')+'" aria-hidden="true"></i> '+label:'Scegli una destinazione';
-      commit.disabled=!target||saving||saved;
+      commit.disabled=!target||saving||saved||pending;
       destination.value=target;
     };
     pickerDestination.onchange=updateSelection;
     const choose=(option,button)=>{
-      if(!current()||saving||saved)return;
+      if(!current()||saving||saved||pending)return;
       selected=option;
       el('pickerResults').querySelectorAll('button').forEach(node=>node.setAttribute('aria-pressed',String(node===button)));
       const movie=option.movie,item=movie||option.candidate;
@@ -160,8 +176,8 @@ const ProductEditors = (() => {
       el('targetPickerCommit').focus();
     };
     el('targetPickerCommit').onclick=async()=>{
-      const target=pickerDestination.value;if(!current()||!selected||!relation[target]||saving||saved)return;
-      saving=true;updateSelection();const status=el('targetPickerMessage');status.textContent='Salvataggio in corso…';
+      const target=pickerDestination.value;if(!current()||!selected||!relation[target]||saving||saved||pending)return;
+      saving=true;updateSelection();updatePager();const status=el('targetPickerMessage');status.textContent='Salvataggio in corso…';
       try{
         const details=selected.movie?{movie_id:selected.movie.id}:await detailsById(selected.candidate.id);
         if(!current())return;
@@ -174,47 +190,106 @@ const ProductEditors = (() => {
         if(result.relation.outcome==='ALREADY_IN_TARGET_STATE')status.textContent=already[target];
         else {status.textContent='';closeModal('pickerModal');}
       }catch(error){if(current())status.textContent=error.message||'Aggiunta non completata. Riprova.';}
-      finally{saving=false;if(current())updateSelection();}
+      finally{saving=false;if(current()){updateSelection();updatePager();}}
     };
+    function updatePager() {
+      previous.disabled=pending||saving||saved||pageIndex===0;
+      next.disabled=pending||saving||saved||(pageIndex>=groups.length-1&&apiPage>=totalPages);
+      retry.classList.toggle('hidden',!note.startsWith('Ricerca non disponibile'));
+      retry.disabled=pending||saving||saved;
+      el('pickerResults').setAttribute('aria-busy',String(pending));
+      pageStatus.textContent=pending?'Carico i risultati…':note||('Pagina '+(pageIndex+1)+(pageIndex===groups.length-1&&apiPage>=totalPages?' · Fine risultati':''));
+    }
+    function appendOptions(options) {
+      const unique=[];
+      for(const option of options){const key=identity(option);if(identities.has(key))continue;identities.add(key);unique.push(option);}
+      // Each API batch closes its own groups: a partial group is never filled later.
+      for(let i=0;i<unique.length;i+=capacity)groups.push({options:unique.slice(i,i+capacity),scroll:null});
+      return unique.length;
+    }
+    function remoteOptions(items) {
+      return items.map(candidate=>{const movie=known.find(row=>row.tmdb_id!=null&&Number(row.tmdb_id)===Number(candidate.id));
+        return movie?{movie}:{candidate};});
+    }
+    function rememberScroll(){if(groups[pageIndex])groups[pageIndex].scroll=panel.scrollTop||0;}
+    function renderPage({restore=false,focus=null}={}) {
+      const box=el('pickerResults');box.replaceChildren();
+      for(const option of groups[pageIndex]?.options||[]){
+        const item=option.movie||option.candidate,choice=document.createElement('button');
+        choice.type='button';choice.className='target-add-choice picker-card text-left glass-card rounded-xl p-3';
+        choice.setAttribute('aria-pressed',String(!!selected&&identity(selected)===identity(option)));
+        const poster=document.createElement('span');poster.className='target-add-poster';
+        if(item.poster){const image=document.createElement('img');image.src=item.poster;image.alt='';image.loading='lazy';poster.appendChild(image);}
+        else poster.textContent='🎬';
+        const caption=document.createElement('span'),name=document.createElement('strong'),year=document.createElement('small'),state=document.createElement('small');
+        name.textContent=item.title;year.textContent=item.release_year||item.year||'Anno non disponibile';
+        state.textContent=selectedStatus(option.movie);caption.appendChild(name);caption.appendChild(year);caption.appendChild(state);
+        choice.appendChild(poster);choice.appendChild(caption);choice.onclick=()=>choose(option,choice);box.appendChild(choice);
+      }
+      updatePager();
+      // preventScroll keeps both the document and the modal position under our control.
+      if(focus){const fallback=!next.disabled?next:!previous.disabled?previous:el('targetPickerSearchAgain');
+        (focus.disabled?fallback:focus).focus({preventScroll:true});}
+      const top=pager.offsetTop||0;
+      panel.scrollTop=restore&&groups[pageIndex]?.scroll!==null?groups[pageIndex]?.scroll||0:top;
+    }
+    function resize() {
+      if(!current()||activeModal!=='pickerModal')return;
+      const size=breakpoint.matches?6:4;if(size===capacity)return;
+      const anchor=groups[pageIndex]?.options[0],all=groups.flatMap(group=>group.options),focused=document.activeElement;
+      capacity=size;groups=[];
+      for(let i=0;i<all.length;i+=capacity)groups.push({options:all.slice(i,i+capacity),scroll:null});
+      pageIndex=Math.max(0,groups.findIndex(group=>group.options.includes(anchor)));
+      const inGrid=el('pickerResults').contains?.(focused);
+      renderPage({focus:inGrid?next:[previous,next,retry].includes(focused)?focused:null});
+    }
+    breakpoint?.addEventListener?.('change',resize);
+    async function advance() {
+      if(!current()||pending||saving||saved)return;
+      rememberScroll();note='';
+      if(pageIndex<groups.length-1){pageIndex++;renderPage({restore:true,focus:next});return;}
+      if(apiPage>=totalPages)return;
+      const revision=searchRevision,requestedPage=apiPage+1;
+      pending=true;requestAbort=new AbortController();updateSelection();updatePager();
+      // A disabled focused button is unreliable across engines: keep a valid control focused.
+      el('targetPickerSearchAgain').focus({preventScroll:true});
+      try{
+        const result=await search(query,{page:requestedPage,signal:requestAbort.signal});
+        if(!current()||revision!==searchRevision)return;
+        apiPage=result.page;totalPages=result.totalPages;
+        const firstNewGroup=groups.length;
+        if(appendOptions(remoteOptions(result.items)))pageIndex=firstNewGroup;
+        else note=apiPage>=totalPages?'Fine risultati. Nessun altro film.':'Nessun nuovo film in questa pagina. Puoi continuare.';
+      }catch(_){if(current()&&revision===searchRevision)note='Ricerca non disponibile. Riprova questa pagina.';}
+      finally{if(current()&&revision===searchRevision){pending=false;updateSelection();renderPage({restore:true,focus:note.startsWith('Ricerca non disponibile')?retry:next});}}
+    }
+    previous.onclick=()=>{if(!current()||previous.disabled||saving||saved)return;rememberScroll();pageIndex--;note='';renderPage({restore:true,focus:previous});};
+    next.onclick=advance;retry.onclick=advance;
     el('targetPickerSearchAgain').onclick=()=>{
-      if(!current()||saving)return;closeModal('pickerModal');activeModal='addModal';
-      selected=null;saved=false;submit.disabled=false;el('targetPickerSelection').classList.add('hidden');openModal('addModal');el('addTitle').focus();
+      if(!current()||saving)return;searchRevision++;requestAbort?.abort();pending=false;
+      activeModal='addModal';closeModal('pickerModal');
+      selected=null;saved=false;submit.disabled=false;pager.classList.add('hidden');el('targetPickerSelection').classList.add('hidden');openModal('addModal');el('addTitle').focus();
     };
     submit.onclick=async()=>{
       const title=el('addTitle').value.trim();if(!current()||submit.disabled||!title)return;
-      const revision=++searchRevision;submit.disabled=true;message.textContent='Cerco i film…';
+      const revision=++searchRevision;requestAbort?.abort();requestAbort=new AbortController();
+      query=title;groups=[];identities.clear();pageIndex=0;apiPage=0;totalPages=1;note='';selected=null;saved=false;pending=false;
+      capacity=breakpoint?.matches?6:4;
+      submit.disabled=true;message.textContent='Cerco i film…';
+      const options=known.filter(movie=>movie.title.toLocaleLowerCase('it').includes(title.toLocaleLowerCase('it'))).map(movie=>({movie}));
       try{
-        const candidates=await search(title,{strict:true});
+        const result=await search(title,{page:1,signal:requestAbort.signal});
         if(!current()||revision!==searchRevision||el('addTitle').value.trim()!==title)return;
-        const known=context.movies.filter(movie=>!context.hidden(movie));
-        const options=[],seen=new Set();
-        for(const movie of known.filter(movie=>movie.title.toLocaleLowerCase('it').includes(title.toLocaleLowerCase('it')))){
-          options.push({movie});seen.add(movie.id);
-        }
-        for(const candidate of candidates){
-          const movie=known.find(row=>row.tmdb_id!=null&&row.tmdb_id===String(candidate.id));
-          if(movie){if(!seen.has(movie.id)){options.push({movie});seen.add(movie.id);}}
-          else options.push({candidate});
-        }
-        if(!options.length){message.textContent='Nessun film trovato. Prova un altro titolo.';return;}
-        const box=el('pickerResults');box.replaceChildren();
-        for(const option of options){
-          const item=option.movie||option.candidate,choice=document.createElement('button');
-          choice.type='button';choice.className='target-add-choice picker-card text-left glass-card rounded-xl p-3';
-          choice.setAttribute('aria-pressed','false');
-          const poster=document.createElement('span');poster.className='target-add-poster';
-          if(item.poster){const image=document.createElement('img');image.src=item.poster;image.alt='';image.loading='lazy';poster.appendChild(image);}
-          else poster.textContent='🎬';
-          const caption=document.createElement('span'),name=document.createElement('strong'),year=document.createElement('small'),state=document.createElement('small');
-          name.textContent=item.title;year.textContent=item.release_year||item.year||'Anno non disponibile';
-          state.textContent=selectedStatus(option.movie);caption.appendChild(name);caption.appendChild(year);caption.appendChild(state);
-          choice.appendChild(poster);choice.appendChild(caption);
-          choice.onclick=()=>choose(option,choice);box.appendChild(choice);
-        }
-        selected=null;saved=false;el('targetPickerSelection').classList.add('hidden');
-        closeModal('addModal');activeModal='pickerModal';openModal('pickerModal');box.querySelector('button')?.focus();
-      }catch(_){if(current()&&revision===searchRevision)message.textContent='Ricerca non disponibile. Controlla la connessione e riprova.';}
-      finally{if(current()&&revision===searchRevision)submit.disabled=false;}
+        apiPage=result.page;totalPages=result.totalPages;
+        options.push(...remoteOptions(result.items));
+      }catch(_){if(!current()||revision!==searchRevision)return;note='Ricerca non disponibile. Riprova questa pagina.';}
+      if(!current()||revision!==searchRevision)return;
+      appendOptions(options);submit.disabled=false;
+      if(!groups.length&&!note&&apiPage>=totalPages){message.textContent='Nessun film trovato. Prova un altro titolo.';return;}
+      if(!groups.length&&note){message.textContent='Ricerca non disponibile. Controlla la connessione e riprova.';return;}
+      el('targetPickerSelection').classList.add('hidden');pager.classList.remove('hidden');
+      activeModal='pickerModal';closeModal('addModal');openModal('pickerModal');renderPage();
+      (el('pickerResults').querySelector('button')||el('targetPickerSearchAgain')).focus({preventScroll:true});
     };
     importLink.onclick=()=>{
       if(!current())return;
@@ -228,6 +303,7 @@ const ProductEditors = (() => {
     openModal('addModal');el('addTitle').focus();
   }
   function refreshMetadata({context,session,movieId,detailsById,perform}) {
+    closeCatalog?.();
     const serial=++editorSerial, el=id=>document.getElementById(id), modal='metadataRefreshModal';
     const current=()=>context.current()&&serial===editorSerial&&!el(modal).classList.contains('hidden');
     const original=context.view.catalog.getContent(movieId);
@@ -311,6 +387,7 @@ const ProductEditors = (() => {
     openModal(modal);loadPreview();
   }
   function catalog({context,session,lookup,detailsById,search,save,bulk,initial=null,label,retrospective=false}) {
+    closeCatalog?.();
     const serial=++editorSerial, el=id=>document.getElementById(id);let activeModal='addModal';
     const current=()=>context.current()&&serial===editorSerial&&!el(activeModal).classList.contains('hidden');
     el('targetAddDestinationWrap').classList.add('hidden');el('targetPickerSelection').classList.add('hidden');
@@ -376,5 +453,5 @@ const ProductEditors = (() => {
     };
     openModal('addModal');el('addTitle').focus();
   }
-  return Object.freeze({open,catalog,addCatalog,refreshMetadata,refresh:context=>{refreshNightSuggestions?.(context);refreshReview?.(context);}});
+  return Object.freeze({catalogClosed:id=>closeCatalog?.(id),open,catalog,addCatalog,refreshMetadata,refresh:context=>{refreshNightSuggestions?.(context);refreshReview?.(context);}});
 })();

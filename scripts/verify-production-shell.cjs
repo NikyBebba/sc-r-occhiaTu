@@ -274,18 +274,19 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
     eq(p.list.active,relation==='addToMyList','personal list separate');eq(p.seen,relation==='recordSeen','personal seen separate');eq(g.candidacy.effectiveCandidacy,relation==='proposeToGroup','group separate');
     eq(p.judgment.rating,null,'no invented rating');eq(p.judgment.preference,null,'no invented preference');eq(g.hasTogetherHistory,false,'no Together');eq(other.seen,false,'peer seen unchanged');eq(other.list.active,false,'peer list unchanged');
   },{caller});
+  const pageResult=(items,page=1,totalPages=1)=>({items,page,totalPages,totalResults:items.length});
   for(const destination of ['personalList','personalSeen','groupList'])await test('UX11A contextual Add keeps destination and zero results read-only '+destination,async h=>{
     await h.boot();const ui=Shell.createShell({session:h.host,root:document});
     ui.navigate(destination);
-    const originalSearch=searchTmdbCandidates;searchTmdbCandidates=async()=>[];
+    const originalSearch=searchTmdbCandidatePage;searchTmdbCandidatePage=async()=>pageResult([]);
     ui.edit('createContent',null);
     eq(document.getElementById('targetAddDestination').value,destination,'contextual destination shown');
     document.getElementById('addTitle').value='Synthetic contextual add';
     try{await document.getElementById('addSaveBtn').onclick();await h.pump();eq(h.commands.length,0,'search never writes');check(document.getElementById('targetAddMessage').textContent.includes('Nessun film'),'zero results feedback: '+document.getElementById('targetAddMessage').textContent);}
-    finally{searchTmdbCandidates=originalSearch;ui.dispose();}
+    finally{searchTmdbCandidatePage=originalSearch;ui.dispose();}
   });
   for(const [destination,intent] of [['personalList','ADD_PERSONAL_LIST'],['groupList','PROPOSE_TO_GROUP'],['personalSeen','RETROSPECTIVE_SEEN']])await test('UX11A selection and explicit primary save '+destination,async h=>{
-    await h.boot();const originalSearch=searchTmdbCandidates;searchTmdbCandidates=async()=>[];
+    await h.boot();const originalSearch=searchTmdbCandidatePage;searchTmdbCandidatePage=async()=>pageResult([]);
     const ui=Shell;
     try{
       ui.navigate(destination);ui.edit('createContent',null);eq(document.getElementById('targetAddDestination').value,destination,'context destination');
@@ -299,12 +300,12 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
       eq(document.getElementById('targetPickerMessage').textContent,'','no duplicate success inside picker');
       eq(document.getElementById('targetFeedbackMessage').textContent,destination==='groupList'?'Aggiunto a Da vedere insieme':destination==='personalList'?'Aggiunto ai tuoi Da vedere':'Aggiunto ai miei Visti.','specific success toast');
       await document.getElementById('targetPickerCommit').onclick();eq(h.commands.length,1,'repeat submission blocked');
-    }finally{searchTmdbCandidates=originalSearch;}
+    }finally{searchTmdbCandidatePage=originalSearch;}
   },{raw:data.absent});
   for(const [label,raw,observed] of [['Voglio vederlo',data.seenOther,data.V],['Voglio rivederlo',(()=>{const wire=copy(data.absent);wire.personal[0].states[0].seen=true;return finish(wire);})(),data.N]])
     await test('intent picker uses authenticated Seen for '+label,async h=>{
       await h.boot();h.host.setObservedPerson(observed);await h.pump();
-      const originalSearch=searchTmdbCandidates;searchTmdbCandidates=async()=>[];
+      const originalSearch=searchTmdbCandidatePage;searchTmdbCandidatePage=async()=>pageResult([]);
       try{
         Shell.navigate('personalList');Shell.edit('createContent',null);
         document.getElementById('addTitle').value=raw.catalog[0].title;await document.getElementById('addSaveBtn').onclick();
@@ -312,7 +313,7 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
         const commit=document.getElementById('targetPickerCommit');
         check(commit.innerHTML.includes('fa-user')&&commit.innerHTML.includes(label)&&!commit.innerHTML.includes('fa-user-plus'),'personal icon and caller-specific wording');
         eq(h.commands.length,0,'selection has no write');
-      }finally{searchTmdbCandidates=originalSearch;}
+      }finally{searchTmdbCandidatePage=originalSearch;}
     },{raw});
   await test('intent success uses one temporary toast and errors never report success',async h=>{
     await h.boot();modules.clearTimers();
@@ -325,7 +326,7 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
   },{raw:data.absent});
   await test('UX11A global Add requires destination and writes only caller seen',async h=>{
     await h.boot();h.host.setObservedPerson(data.V);await h.pump();
-    const originalSearch=searchTmdbCandidates;searchTmdbCandidates=async()=>[];
+    const originalSearch=searchTmdbCandidatePage;searchTmdbCandidatePage=async()=>pageResult([]);
     const ui=Shell.createShell({session:h.host,root:document});
     try{
       ui.navigate('personalSeen');ui.edit('createContent',null,{entry:'global'});
@@ -338,10 +339,10 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
       eq(h.commands[0].body.intent,'RETROSPECTIVE_SEEN','personal seen intent');
       eq(h.commands[0].body.expected_versions[0].scope_id,data.N,'authenticated caller scope');
       check(!h.state.view.getCard(data.M).personal.observed.seen,'other person unchanged');
-    }finally{searchTmdbCandidates=originalSearch;ui.dispose();}
+    }finally{searchTmdbCandidatePage=originalSearch;ui.dispose();}
   },{raw:data.absent});
   await test('UX11A cancel and already-present relation stay explicit',async h=>{
-    await h.boot();const originalSearch=searchTmdbCandidates;searchTmdbCandidates=async()=>[];
+    await h.boot();const originalSearch=searchTmdbCandidatePage;searchTmdbCandidatePage=async()=>pageResult([]);
     const ui=Shell.createShell({session:h.host,root:document});
     try{
       ui.navigate('groupList');ui.edit('createContent',null);document.getElementById('addTitle').value=data.absent.catalog[0].title;
@@ -352,11 +353,11 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
       h.controls.commandOutcome='ALREADY_IN_TARGET_STATE';await document.getElementById('targetPickerCommit').onclick();
       check(document.getElementById('targetPickerMessage').textContent.includes('già nei Da vedere insieme'),'already-present relation explained');
       eq(h.commands.length,1,'only explicit command');
-    }finally{searchTmdbCandidates=originalSearch;ui.dispose();}
+    }finally{searchTmdbCandidatePage=originalSearch;ui.dispose();}
   },{raw:data.absent});
   await test('UX11A homonyms remain distinct by TMDb identity',async h=>{
-    await h.boot();const originalSearch=searchTmdbCandidates;
-    searchTmdbCandidates=async()=>[{id:4101,title:'The Same Title',year:'1998',poster:''},{id:4102,title:'The Same Title',year:'2024',poster:''}];
+    await h.boot();const originalSearch=searchTmdbCandidatePage;
+    searchTmdbCandidatePage=async()=>pageResult([{id:4101,title:'The Same Title',year:'1998',poster:''},{id:4102,title:'The Same Title',year:'2024',poster:''}]);
     const ui=Shell.createShell({session:h.host,root:document,detailsById:async id=>({tmdb_id:id,title:'The Same Title',matched:true,release_year:id===4102?2024:1998})});
     try{
       ui.navigate('personalList');ui.edit('createContent',null);document.getElementById('addTitle').value='The Same Title';
@@ -365,11 +366,11 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
       choices[1].onclick();eq(h.commands.length,0,'selection neutral');await document.getElementById('targetPickerCommit').onclick();await h.pump();
       deep(h.commands.map(c=>c.body.intent),['CONTENT_CREATE','ADD_PERSONAL_LIST'],'content and chosen relation');
       eq(h.commands[0].body.parameters.tmdb_id,'4102','chosen identity retained');
-    }finally{searchTmdbCandidates=originalSearch;ui.dispose();}
+    }finally{searchTmdbCandidatePage=originalSearch;ui.dispose();}
   },{raw:data.absent});
   await test('UX11A TMDb match reuses known content while adding missing relation',async h=>{
-    await h.boot();const originalSearch=searchTmdbCandidates;
-    searchTmdbCandidates=async()=>[{id:777,title:'Alternate search title',year:'2020',poster:''}];
+    await h.boot();const originalSearch=searchTmdbCandidatePage;
+    searchTmdbCandidatePage=async()=>pageResult([{id:777,title:'Alternate search title',year:'2020',poster:''}]);
     const ui=Shell.createShell({session:h.host,root:document,detailsById:async()=>{throw Error('Known content must not be fetched again');}});
     try{
       ui.navigate('personalList');ui.edit('createContent',null);document.getElementById('addTitle').value='Alternate search title';
@@ -377,32 +378,88 @@ async function runChecks(modules, data, onCase = () => {}, selected = () => true
       eq(choices.length,1,'existing TMDb ID deduplicated');check(choices[0].innerHTML.includes('Già nel catalogo'),'known status visible');
       choices[0].onclick();await document.getElementById('targetPickerCommit').onclick();await h.pump();
       deep(h.commands.map(c=>c.body.intent),['ADD_PERSONAL_LIST'],'no duplicate content create');
-    }finally{searchTmdbCandidates=originalSearch;ui.dispose();}
+    }finally{searchTmdbCandidatePage=originalSearch;ui.dispose();}
   },{raw:(()=>{const wire=copy(data.absent);wire.catalog[0].tmdb_id='777';return wire;})()});
   await test('UX11A search error differs from zero results',async h=>{
-    await h.boot();const originalSearch=searchTmdbCandidates;searchTmdbCandidates=async()=>{throw Error('Synthetic network failure');};
+    await h.boot();const originalSearch=searchTmdbCandidatePage;searchTmdbCandidatePage=async()=>{throw Error('Synthetic network failure');};
     const ui=Shell.createShell({session:h.host,root:document});
     try{ui.navigate('groupList');ui.edit('createContent',null);document.getElementById('addTitle').value='Missing';
       await document.getElementById('addSaveBtn').onclick();check(document.getElementById('targetAddMessage').textContent.includes('Ricerca non disponibile'),'network error');eq(h.commands.length,0,'no fallback save');}
-    finally{searchTmdbCandidates=originalSearch;ui.dispose();}
+    finally{searchTmdbCandidatePage=originalSearch;ui.dispose();}
   },{raw:data.absent});
   await test('UX11A stale search response cannot replace newer query',async h=>{
-    await h.boot();const originalSearch=searchTmdbCandidates,resolvers=new Map();
-    searchTmdbCandidates=title=>new Promise(resolve=>resolvers.set(title,resolve));
+    await h.boot();const originalSearch=searchTmdbCandidatePage,resolvers=new Map();
+    searchTmdbCandidatePage=title=>new Promise(resolve=>resolvers.set(title,resolve));
     const ui=Shell.createShell({session:h.host,root:document});
     try{
       ui.navigate('groupList');ui.edit('createContent',null);const input=document.getElementById('addTitle'),button=document.getElementById('addSaveBtn');
       input.value='First query';const first=button.onclick();input.value='Second query';input.oninput();const second=button.onclick();
-      resolvers.get('First query')([{id:5101,title:'Old result',year:'2001',poster:''}]);await first;
+      resolvers.get('First query')(pageResult([{id:5101,title:'Old result',year:'2001',poster:''}]));await first;
       check(document.getElementById('pickerModal').classList.contains('hidden'),'late old result ignored');
-      resolvers.get('Second query')([{id:5102,title:'Current result',year:'2024',poster:''}]);await second;
+      resolvers.get('Second query')(pageResult([{id:5102,title:'Current result',year:'2024',poster:''}]));await second;
       check(document.getElementById('pickerResults').innerHTML.includes('Current result'),'latest result displayed');
       check(!document.getElementById('pickerResults').innerHTML.includes('Old result'),'old result never displayed');eq(h.commands.length,0,'search remains read only');
-    }finally{searchTmdbCandidates=originalSearch;ui.dispose();}
+    }finally{searchTmdbCandidatePage=originalSearch;ui.dispose();}
   },{raw:data.absent});
   await test('UX11A global navigation entry has no preselected relation',async h=>{
     await h.boot();Shell.navigate('personalList');openAddModal();
     eq(document.getElementById('targetAddDestination').value,'','global plus requires choice');eq(h.commands.length,0,'opening global Add read only');
+  },{raw:data.absent});
+  for(const [destination,intent]of [['personalList','ADD_PERSONAL_LIST'],['groupList','PROPOSE_TO_GROUP'],['personalSeen','RETROSPECTIVE_SEEN']])await test('PB003 external acquisition only after final confirm '+destination,async h=>{
+    await h.boot();const original=searchTmdbCandidatePage;let details=0;
+    searchTmdbCandidatePage=async()=>pageResult([{id:88001,title:'External fixture',year:'2001',poster:''}]);
+    const ui=Shell.createShell({session:h.host,root:document,detailsById:async id=>{details++;return {tmdb_id:id,title:'External fixture',matched:true};}});
+    try{ui.navigate(destination);ui.edit('createContent',null);document.getElementById('addTitle').value='External fixture';await document.getElementById('addSaveBtn').onclick();
+      document.getElementById('pickerResults')._children[0].onclick();eq(details,0,'no eager details');eq(h.commands.length,0,'no eager command');
+      await document.getElementById('targetPickerCommit').onclick();await h.pump();eq(details,1,'one explicit detail');deep(h.commands.map(c=>c.body.intent),['CONTENT_CREATE',intent],'only authoritative acquisition and chosen intent');
+    }finally{searchTmdbCandidatePage=original;ui.dispose();}
+  },{raw:data.absent});
+  await test('PB003 pending page blocks save/double next and retries keep cursor',async h=>{
+    await h.boot();const original=searchTmdbCandidatePage;let release,calls=[];
+    const items=Array.from({length:4},(_,i)=>({id:88001+i,title:'Page fixture '+i,year:'2001',poster:''}));
+    searchTmdbCandidatePage=async(_,options)=>{calls.push(options.page);return options.page===1?pageResult(items,1,3):new Promise(resolve=>{release=resolve;});};
+    const ui=Shell.createShell({session:h.host,root:document});
+    try{ui.navigate('personalList');ui.edit('createContent',null);document.getElementById('addTitle').value='Page fixture';await document.getElementById('addSaveBtn').onclick();
+      document.getElementById('pickerResults')._children[0].onclick();const advance=document.getElementById('targetPickerNext'),commit=document.getElementById('targetPickerCommit');
+      const request=advance.onclick();await advance.onclick();await commit.onclick();deep(calls,[1,2],'single pending request');eq(h.commands.length,0,'save blocked');check(commit.disabled,'confirm disabled during fetch');
+      release(pageResult(items,2,3));await request;check(!advance.disabled,'duplicates do not end');eq(document.getElementById('pickerResults')._children.length,4,'duplicate-only keeps group');
+      const next=advance.onclick();deep(calls,[1,2,3],'duplicate page consumed exactly once');release(pageResult([{id:89000,title:'Next',year:'2020',poster:''}],3,3));await next;
+      check(advance.disabled,'real end after last new group');eq(h.commands.length,0,'navigation remains read-only');
+    }finally{searchTmdbCandidatePage=original;ui.dispose();}
+  },{raw:data.absent});
+  await test('PB003 local identities and no-TMDb homonyms survive remote dedup',async h=>{
+    await h.boot();const original=searchTmdbCandidatePage;
+    searchTmdbCandidatePage=async()=>pageResult([{id:'0777',title:'Same title',year:'2001',poster:''},{id:888,title:'Same title',year:'2024',poster:''},{id:'888',title:'Duplicate ID',year:'2024',poster:''}]);
+    const ui=Shell.createShell({session:h.host,root:document});
+    try{ui.navigate('personalList');ui.edit('createContent',null);document.getElementById('addTitle').value='Same title';await document.getElementById('addSaveBtn').onclick();
+      const choices=document.getElementById('pickerResults')._children;eq(choices.length,3,'two local identities plus one distinct external');
+      check(choices[0].innerHTML.includes('Già nel catalogo')&&choices[1].innerHTML.includes('Già nel catalogo'),'locals retain states');
+      choices[1].onclick();eq(h.commands.length,0,'local without TMDb remains read-only');await document.getElementById('targetPickerCommit').onclick();await h.pump();
+      deep(h.commands.map(c=>c.body.intent),['ADD_PERSONAL_LIST'],'no acquisition for local without TMDb');eq(h.commands[0].body.target.movie_id,data.Q,'own local identity preserved');
+    }finally{searchTmdbCandidatePage=original;ui.dispose();}
+  },{raw:(()=>{const w=copy(data.raw);for(const row of w.catalog.slice(0,2))row.title='Same title';w.catalog[0].tmdb_id='777';w.catalog[1].tmdb_id=null;return finish(w);})()});
+  await test('PB003 empty API batch does not skip first newly loaded group',async h=>{
+    await h.boot();const original=searchTmdbCandidatePage;
+    searchTmdbCandidatePage=async(_,options)=>pageResult(options.page===1?[]:Array.from({length:8},(_,i)=>({id:89001+i,title:'Later '+i,year:'2001',poster:''})),options.page,2);
+    const ui=Shell.createShell({session:h.host,root:document});
+    try{ui.navigate('personalList');ui.edit('createContent',null);document.getElementById('addTitle').value='Not local';await document.getElementById('addSaveBtn').onclick();
+      await document.getElementById('targetPickerNext').onclick();check(document.getElementById('pickerResults')._children[0].innerHTML.includes('Later 0'),'first new result reached');
+    }finally{searchTmdbCandidatePage=original;ui.dispose();}
+  },{raw:data.absent});
+  for(const boundary of ['route','person','logout','reopen'])await test('PB003 ignores delayed page after '+boundary,async h=>{
+    await h.boot();const original=searchTmdbCandidatePage;let release;
+    searchTmdbCandidatePage=async(_,options)=>options.page===1?pageResult([{id:88001,title:'Before boundary',year:'2001',poster:''}],1,2):new Promise(resolve=>{release=resolve;});
+    const ui=Shell.createShell({session:h.host,root:document});
+    try{ui.navigate('personalList');ui.edit('createContent',null);document.getElementById('addTitle').value='Boundary';await document.getElementById('addSaveBtn').onclick();
+      const held=document.getElementById('targetPickerNext').onclick();
+      if(boundary==='route')ui.navigate('groupList');
+      if(boundary==='person'){h.host.setObservedPerson(data.V);await h.pump();}
+      if(boundary==='logout'){await h.host.invalidateAuth();await h.pump();}
+      if(boundary==='reopen'){closeModal('pickerModal');ui.edit('createContent',null);}
+      const before=document.getElementById('pickerResults').innerHTML;
+      release(pageResult([{id:88002,title:'Stale boundary response',year:'2001',poster:''}],2,2));await held;
+      eq(document.getElementById('pickerResults').innerHTML,before,'late page not rendered');eq(h.commands.length,0,'zero commands after boundary');
+    }finally{searchTmdbCandidatePage=original;ui.dispose();}
   },{raw:data.absent});
   await test('UX11B same-ID preview applies only changed allowed fields',async h=>{
     await h.boot();const before=copy(h.state.view.getCard(data.M)),nights=copy(h.controls.wire.nights),participants=copy(h.controls.wire.participants);

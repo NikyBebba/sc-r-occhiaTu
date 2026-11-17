@@ -110,6 +110,7 @@ const TargetShell = (() => {
       },2600);
     }
     function modalChanged(id,phase) {
+      if(phase==='close')ProductEditors.catalogClosed(id);
       if(feedbackKind!=='success')return;
       // The editor closes after a successful save; the toast must remain readable.
       if(phase==='close'&&id===retainOnClose){retainOnClose=null;return;}
@@ -362,7 +363,7 @@ const TargetShell = (() => {
         return ProductEditors.open({action,id,initial,context:product(),perform,session,onCompleted:async result=>{const nightId=result.result?.night_id||(action==='completeScheduled'?id:null);if(!nightId)return;const token=session.capture();await session.requestRefresh();if(await waitFor(token,v=>v.getEvent(nightId).event?.event.status==='completed')&&editorEpoch===uiEpoch)cap1.openPostWatch(nightId);},onMatchScheduled:result=>{const movie=product().getMovie(id.matched_movie_id);scheduledMatchTitle=movie?(product().hidden(movie)?'Film a sorpresa':movie.title):'La serata';operation=result;if(result.closeTicket)finishScheduledMatch();}});
       if(action==='createContent'){
         const context=product(),defaultDestination=initial?.entry==='global'?null:destination==='personalList'?'personalList':destination==='personalSeen'?'personalSeen':destination==='groupList'?'groupList':null;
-        return ProductEditors.addCatalog({context,search:searchTmdbCandidates,detailsById,defaultDestination,
+        return ProductEditors.addCatalog({context,search:searchTmdbCandidatePage,detailsById,defaultDestination,
           save:(details,relation)=>saveContent(details,relation),bulk:(titles,relation)=>bulk(titles,relation)});
       }
       if(action==='refreshMetadata'){

@@ -649,6 +649,14 @@
         <button onclick="closeModal('pickerModal')" class="p-1.5 -m-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition" aria-label="Chiudi" title="Chiudi"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <p class="text-xs text-slate-400">Scegli il film giusto tra i risultati trovati.</p>
+      <div id="targetPickerPagination" class="hidden space-y-2">
+        <div class="flex items-center justify-between gap-2" role="group" aria-label="Pagine dei risultati">
+          <button id="targetPickerPrevious" type="button" aria-label="Risultati precedenti" aria-controls="pickerResults" class="min-h-11 min-w-11 rounded-lg bg-slate-800 text-slate-200 disabled:opacity-50">←</button>
+          <p id="targetPickerPageStatus" class="text-center text-xs text-slate-300" role="status" aria-live="polite" aria-atomic="true"></p>
+          <button id="targetPickerNext" type="button" aria-label="Risultati successivi" aria-controls="pickerResults" class="min-h-11 min-w-11 rounded-lg bg-slate-800 text-slate-200 disabled:opacity-50">→</button>
+        </div>
+        <button id="targetPickerRetry" type="button" class="hidden min-h-11 rounded-lg border border-slate-600 px-3 text-sm text-slate-200">Riprova questa pagina</button>
+      </div>
       <div id="pickerResults" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
       <div id="targetPickerSelection" class="hidden mt-4 rounded-xl border border-indigo-500/50 bg-slate-900/80 p-4">
         <p class="text-xs font-semibold uppercase tracking-wide text-indigo-300">Film selezionato</p>

@@ -38,6 +38,48 @@ async function searchTmdbCandidates(title, { strict = false } = {}) {
   }
 }
 
+// TARGET picker only. Keep the historical array/strict helper above unchanged.
+async function searchTmdbCandidatePage(title, { page = 1, signal } = {}) {
+  if (!tmdbConfigured()) throw new Error('TMDB_UNAVAILABLE');
+  if (!Number.isInteger(page) || page < 1 || page > 500) throw new Error('TMDB_SEARCH_PAGE');
+  const controller = new AbortController();
+  const cancel = () => controller.abort();
+  if (signal?.aborted) cancel();
+  signal?.addEventListener('abort', cancel, { once: true });
+  let timer;
+  try {
+    // Race also bounds a stalled response body (and transports ignoring abort).
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => { cancel(); reject(new Error('TMDB_SEARCH_TIMEOUT')); }, 10000);
+    });
+    return await Promise.race([timeout, (async () => {
+      const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${CONFIG.TMDB_API_KEY}&query=${encodeURIComponent(title)}&language=it-IT&page=${page}`, { signal: controller.signal });
+      if (!response.ok) throw new Error('TMDB_SEARCH_FAILED');
+      const data = await response.json();
+      if (!Array.isArray(data.results) || data.page !== page ||
+          !Number.isSafeInteger(data.total_pages) || data.total_pages < 0 ||
+          !Number.isSafeInteger(data.total_results) || data.total_results < 0 ||
+          (data.total_pages === 0 ? page !== 1 || data.results.length !== 0 : page > data.total_pages))
+        throw new Error('TMDB_SEARCH_RESPONSE');
+      const items = data.results.map(item => {
+        if (!item || (typeof item.id !== 'number' && !(typeof item.id === 'string' && /^\d+$/.test(item.id))) ||
+            !Number.isSafeInteger(Number(item.id)) || Number(item.id) <= 0 ||
+            typeof item.title !== 'string' || !item.title.trim()) throw new Error('TMDB_SEARCH_RESPONSE');
+        return { id: Number(item.id), title: item.title,
+          year: /^\d{4}/.test(item.release_date || '') ? item.release_date.slice(0, 4) : '—',
+          poster: /^\/[\w./-]+$/.test(item.poster_path || '') ? `https://image.tmdb.org/t/p/w200${item.poster_path}` : '' };
+      });
+      return { items, page, totalPages: Math.min(data.total_pages, 500), totalResults: data.total_results };
+    })()]);
+  } catch (_) {
+    // Never propagate transport errors containing request URLs/API credentials.
+    throw new Error(signal?.aborted ? 'TMDB_SEARCH_ABORTED' : controller.signal.aborted ? 'TMDB_SEARCH_TIMEOUT' : 'TMDB_SEARCH_FAILED');
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', cancel);
+  }
+}
+
 // Trasforma una risposta /movie/{id} nell'oggetto dettagli dell'app, incluse
 // piattaforma IT, trailer e rating OMDb (più precisi per imdb_id).
 // imdb_id fa parte della risposta base di TMDb, non serve append_to_response.
